@@ -1,0 +1,43 @@
+name: production-sdd
+version: 1
+description: Spec-driven workflow with project-context impact tracking.
+
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Business/product intent and affected capabilities.
+    template: proposal.md
+    instruction: Explain why the change is required and identify affected capabilities.
+    requires: []
+
+  - id: specs
+    generates: specs/**/*.md
+    description: Behavioral specification deltas.
+    template: spec.md
+    instruction: Specify observable behavior and independently verifiable scenarios.
+    requires: [proposal]
+
+  - id: design
+    generates: design.md
+    description: Technical design for the proposed behavior.
+    template: design.md
+    instruction: Describe affected architecture, modules, interfaces, data, compatibility and risks.
+    requires: [proposal, specs]
+
+  - id: context-impact
+    generates: context-impact.md
+    description: Knowledge-base and implementation impact contract.
+    template: context-impact.md
+    instruction: Identify knowledge nodes, implementation areas and ADRs to create/update/review.
+    requires: [proposal, specs, design]
+
+  - id: tasks
+    generates: tasks.md
+    description: Executable implementation and verification checklist.
+    template: tasks.md
+    instruction: Produce incremental tasks including tests and knowledge maintenance.
+    requires: [specs, design, context-impact]
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md

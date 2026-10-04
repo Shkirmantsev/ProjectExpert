@@ -1,0 +1,49 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [
+    "JEV tool reads OPENROUTER key from ~/.local/share/opencode/auth.json in memory only; no env var required; no key persisted/printed/logged; clean failure message when auth missing. Scaffold V2 plugin (Plugin.define + ctx.tool.transform) skipped \u2014 incompatible with installed V1 SDK 1.18.34."
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "agents copied; route.md added; jev_decide.ts written; harness.py check passed"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "run scripts/check_config.py",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-03T23:01:55+00:00",
+    "id": "install-opencode-m3-openrouter-jev-scaffold",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-03T23:14:11+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "agents copied to .opencode/agents/; route.md added to .opencode/commands/; plugin resolved against installed OpenCode runtime; root harness opencode.json and .env.example preserved"
+    ],
+    "goal": "Install opencode-m3-openrouter-jev-v2-fixed.zip scaffold into the project",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "harness.py check end-to-end PASS; jev_decide.ts typechecks clean against installed V1 SDK 1.18.34 + zod; root opencode.json and .env.example unchanged; .opencode/opencode.json already byte-identical to scaffold"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

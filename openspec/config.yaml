@@ -1,0 +1,36 @@
+schema: production-sdd
+
+context: |
+  This project uses a Markdown-first LLM Wiki under .ai/wiki/ and OpenSpec for
+  normative behavioral change. Current agreed behavior belongs in openspec/specs/.
+  openspec/CURRENT.md is the central index of all accepted specs, not proposals.
+  Accepted capability folders use YYYY-MM-DD-domain-capability (first Git acceptance).
+  Active change IDs are semantic verb-domain-purpose without dates; archive IDs
+  use YYYY-MM-DD-original-change-name (archive date). Use lowercase kebab-case.
+  Preserve accepted dated IDs and match delta folders to them; update CURRENT
+  whenever adopting, renaming or retiring a capability.
+  Proposed/future behavior belongs in openspec/changes/.
+  Source code/configuration is observed implementation, not automatically a business requirement.
+  Detailed project context must be retrieved on demand; do not preload the Wiki.
+  Use docs/README.md for navigation and docs/conventions/README.md to select
+  task-relevant engineering conventions without loading all guidance.
+
+rules:
+  proposal:
+    - Identify affected capabilities and compatibility/migration impact.
+    - Reference relevant knowledge IDs when known.
+  specs:
+    - Requirements describe observable behavior.
+    - Scenarios are independently verifiable.
+    - Do not copy implementation design into behavioral requirements.
+  design:
+    - Apply docs/conventions/architecture-and-design.md to relevant design decisions.
+    - Record affected modules/interfaces/data/concurrency/dependencies where relevant.
+  context-impact:
+    - Apply docs/conventions/interface-and-feature-documentation.md.
+    - List Wiki/ADR/spec nodes to create, update, invalidate, or review.
+  tasks:
+    - Apply docs/conventions/implementation.md and docs/conventions/testing.md.
+    - Review docs/conventions/generated-code.md when touching generated artifacts.
+    - Complete docs/conventions/verification-and-quality-gates.md before handoff.
+    - Include focused verification and required knowledge updates.

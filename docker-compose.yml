@@ -1,0 +1,85 @@
+# Phase 1 docker-compose skeleton for the v0.8 Project Intelligence Platform.
+# Profiles documented per plan-v0-8-platform-architecture/tasks.md task 19:
+#   - core-headless      : the core container only (default)
+#   - desktop-lite       : core + lightweight custom UI assets (default UI ships in Phase 9)
+#   - desktop-local-ai   : desktop-lite + optional local LLM sidecar
+#   - open-webui         : desktop-lite + Open WebUI adapter (opt-in)
+#   - enterprise         : core + an OCI distribution sidecar placeholder
+#
+# Phase 1 ships the core-headless profile as the default; later profiles
+# light up as Phase 9 finishes the UI / OCI sidecar work.
+
+name: project-intelligence
+
+services:
+  core:
+    image: project-intelligence:dev
+    build:
+      context: .
+      dockerfile: Containerfile
+    profiles: ["core-headless", "desktop-lite", "desktop-local-ai", "open-webui", "enterprise"]
+    ports:
+      - "${PI_CONTROL_PORT:-8765}:8765"
+    volumes:
+      - ${PI_TARGET_REPO:-/tmp/pitarget}:/repo:rw
+    environment:
+      PI_PLATFORM_HOME: /opt/project-intelligence
+      PI_TARGET_ROOT: /repo
+      PI_DIST_LICENSES: /opt/project-intelligence/distribution/licenses
+      PI_DIST_SBOM: /opt/project-intelligence/distribution/sbom
+    restart: unless-stopped
+
+  desktop-ui:
+    image: project-intelligence:dev
+    profiles: ["desktop-lite", "desktop-local-ai", "open-webui"]
+    depends_on:
+      - core
+    ports:
+      - "${PI_UI_PORT:-8766}:8766"
+    volumes:
+      - ${PI_TARGET_REPO:-/tmp/pitarget}:/repo:ro
+    environment:
+      PI_PLATFORM_HOME: /opt/project-intelligence
+      PI_TARGET_ROOT: /repo
+      PI_MODE: ui-static
+    restart: unless-stopped
+
+  local-llm:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    profiles: ["desktop-local-ai"]
+    ports:
+      - "${PI_LOCAL_LLM_PORT:-8767}:8767"
+    volumes:
+      - llm-models:/models:ro
+    environment:
+      LLAMA_ARG_MODEL: /models/placeholder.gguf
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    profiles: ["open-webui"]
+    depends_on:
+      - core
+      - local-llm
+    ports:
+      - "${PI_OPEN_WEBUI_PORT:-8768}:8080"
+    volumes:
+      - open-webui-data:/app/backend/data
+    environment:
+      OPENAI_API_BASE_URL: http://core:8765
+      OPENAI_API_KEY: ${PI_OPEN_WEBUI_KEY:-not-required}
+    restart: unless-stopped
+
+  enterprise-sidecar:
+    image: project-intelligence:dev
+    profiles: ["enterprise"]
+    depends_on:
+      - core
+    environment:
+      PI_PLATFORM_HOME: /opt/project-intelligence
+      PI_MODE: enterprise-sidecar
+    restart: unless-stopped
+
+volumes:
+  llm-models:
+  open-webui-data:

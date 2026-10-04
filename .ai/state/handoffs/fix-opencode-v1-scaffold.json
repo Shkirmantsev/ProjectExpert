@@ -1,0 +1,55 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [
+    "tmp/local/scaffold_to_install; .opencode; docs/OPENCODE_COMPATIBILITY.md"
+  ],
+  "decisions": [
+    "Compatibility repair implements existing V1 default; no new harness behavior or OpenSpec contract"
+  ],
+  "progress": {
+    "blocked": [
+      "Full harness check fails because OpenSpec CLI 1.12.0+ is unavailable"
+    ],
+    "done": [
+      "V1 scaffold integration complete; V1 config runtime and mocked tool verification pass"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Install OpenSpec CLI 1.12.0+ and rerun harness.py check; OpenCode V1 config repair already verified",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-04T09:57:22+00:00",
+    "id": "fix-opencode-v1-scaffold",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-04T10:02:56+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "OpenCode V1 loads project config; supplied routing agents and tool installed compatibly; harness checks pass"
+    ],
+    "goal": "Fix installed OpenCode V1 configuration and integrate supplied V1 scaffold",
+    "openspec_change": "",
+    "status": "verifying"
+  },
+  "verification": {
+    "passed": [
+      "TypeScript noEmit PASS against installed V1 SDK; mocked V1 tool import/auth/request/response checks PASS; MCP/provider/read restrictions preserved; git diff --check PASS"
+    ],
+    "pending": [
+      "harness.py check: OpenSpec CLI prerequisite missing; HTTP smoke test blocked by sandbox; live JEV request not run"
+    ]
+  },
+  "working_set": []
+}
