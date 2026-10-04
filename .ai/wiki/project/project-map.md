@@ -65,7 +65,7 @@ maintenance:
 - [CodeQL workflow](../../../.github/workflows/codeql.yml) — Python code
   scanning for pull requests to and pushes on `main` and `dev`, with SARIF
   results uploaded to GitHub. This does not supply a human PR approval.
-  [GitHub setup guide (Ukrainian)](../../../GITHUB_REVIEW_SETUP.uk.md) covers
+  [GitHub setup guide](../../../GITHUB_REVIEW_SETUP.md) covers
   initial target-branch scanning and repository review settings. Remote
   execution must be verified in GitHub Actions after publishing the workflow.
 - `python3 harness.py init` — initialize environment, Wiki index,

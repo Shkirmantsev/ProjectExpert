@@ -21,11 +21,11 @@ e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./.ai/wiki/mod
 09a2028eea23a3be197213a5a2376f9d3f64a56887a9089fb6fb934ab6751039  ./.ai/wiki/project/harness-command-lifecycle.md
 8d25d7559ca0a79465af2e011a74c666fcfae465964b5ac24a366e0d6eb0f360  ./.ai/wiki/project/harness-framework-adoption.md
 f278e261d2f1b78eb6d2272572e4aab1ce44d809854000942ba05c6fe1e161ab  ./.ai/wiki/project/implementation-roadmap.md
-897184476f39d6833fcf3f312a0fbc8fb6b70a78c41f99069a7c8ed75eefdc4b  ./.ai/wiki/project/project-map.md
+921160bf0a330a80fdd723dcb57f8297b5a7725755fd36372eddfa6722383c66  ./.ai/wiki/project/project-map.md
 421ee84d31860c88ff79b9c9e91c4135d31712f203c92332a5c9270f9345a3f3  ./.ai/wiki/project/task-handoff.md
 63ea4c86e47d8de249fd7a7d09fff92da8d09e3fa647b6e39ee1bccb16bf616b  ./.github/workflows/codeql.yml
 7bcb55b8e074be7f8ecff31c019dd5d0e949f30c9a327edd3518a11bee45584d  ./Containerfile
-e9dc04609f8cb7d461638c7b1e0f19f6a56ae9fc118bb74911f0d8b54b627339  ./GITHUB_REVIEW_SETUP.uk.md
+2e70e468e3e8e759d87f1cc9e6c9a9d7ecb9b19facbb0b40e979bfd86358fcb4  ./GITHUB_REVIEW_SETUP.md
 027a332a6f9fee51db93e4bdf8587ce04d30e776e5e015e3da5c404d11ec6f5c  ./LICENSE
 432c2031daffb860e678ec07a81906e33a762c4b02d4a0a2cdd5a24a063e678a  ./README.md
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution/claude-code/.gitkeep
