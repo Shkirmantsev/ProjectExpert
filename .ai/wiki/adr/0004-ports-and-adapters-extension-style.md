@@ -2,7 +2,7 @@
 id: adr.ports-and-adapters-extension-style
 title: Hexagonal / ports-and-adapters + micro-kernel extension style
 kind: adr
-status: proposed
+status: accepted
 summary: Adopt the hexagonal/ports-and-adapters architecture combined with a micro-kernel plugin extension surface for the platform core.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md

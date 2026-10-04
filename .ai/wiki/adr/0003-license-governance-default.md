@@ -2,7 +2,7 @@
 id: adr.license-governance-default
 title: Default permissive license policy with explicit review gate
 kind: adr
-status: proposed
+status: accepted
 summary: Adopt a default permissive license policy with explicit operator acceptance for review-required licenses and a deny-list for non-commercial terms.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md

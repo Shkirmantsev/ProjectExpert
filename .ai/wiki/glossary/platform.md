@@ -2,11 +2,16 @@
 id: glossary.platform
 title: Platform Glossary
 kind: glossary
-status: draft
+status: active
 summary: Vocabulary used by the v0.8 Project Intelligence Platform.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md
   - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md
+  - openspec/changes/implement-phase-1-foundation/design.md
+  - pi_platform/core/canonical/value_types.py
+  - pi_platform/core/sync/policy_stub.py
+  - pi_platform/core/sync/project_lock.py
+  - pi_platform/core/sync/wal.py
 maintenance:
   mode: authored
 related:
@@ -57,7 +62,40 @@ repeated ingests.
 ## Knowledge state
 
 The provenance state of a durable fact: `verified`, `inferred`,
-`assumption`, `conflicting`, `stale`, `unknown`.
+`assumption`, `conflicting`, `stale`, `unknown`. Phase 1 ships
+the `KnowledgeState` enum in
+[`pi_platform.core.canonical.value_types`](../../../pi_platform/core/canonical/value_types.py).
+
+## Policy decision
+
+Returned by the Phase 1 `PolicyDecisionStub.decide(action, target)`
+contract:
+
+- `ALLOW` — proceed;
+- `DENY` — refuse;
+- `REQUIRE_APPROVAL` — wait for an explicit operator token.
+
+The default behaviour is `ALLOW` for `hydrate`/`reconcile` and
+`REQUIRE_APPROVAL` for `materialise`; the full central Policy
+Engine arrives in Phase 7.
+
+## Project lock
+
+The Phase 1 per-project advisory file lock implemented by
+`pi_platform.core.sync.project_lock.ProjectLock`. The lock file
+lives at `tmp/local/project-locks/<project-id>.lock`. The product
+does NOT import `scripts/file_lock.py`; the implementation
+duplicates the cross-platform `fcntl` / `msvcrt` semantics so
+the harness lock files and the product lock files can coexist.
+
+## Write-ahead log
+
+The `pi_platform.core.sync.wal.WriteAheadLog` records one JSON
+line per materialise operation. The `materialise_in_progress`
+marker is created at the beginning of a materialise and removed
+at commit; on startup, recovery rolls back to the last committed
+entry when the marker is present, otherwise the WAL is
+truncated.
 
 ## OKF
 
@@ -118,7 +156,29 @@ MCP tool execution, A2A request and runtime agent layer.
 
 The central component that resolves identity + role + requested
 operation + resource + project/version context into `ALLOW`,
-`DENY` or `REQUIRE_APPROVAL`.
+`DENY` or `REQUIRE_APPROVAL`. Phase 1 ships a stub
+(`PolicyDecisionStub`) so the materialise approval gate has a
+contract; the full engine arrives in Phase 7.
+
+## License gate
+
+The build-blocking CI gate that fails a release when a
+dependency lacks an SPDX identifier, matches a deny pattern or
+appears on the review list without an operator acceptance
+token. Wired as `make license-gate TARGET=<repo>`.
+
+## Model license
+
+A model-weight license tracked separately from library licenses
+in `distribution/licenses/model-licenses.json`. Phase 1 ships
+the `ModelLicenseInventory` record type and the save / load
+helpers.
+
+## SBOM
+
+A Software Bill of Materials emitted under `distribution/sbom/`
+in SPDX-2.3-compatible JSON. Phase 1 ships
+`pi_platform.core.licensing.sbom.emit_spdx_sbom`.
 
 ## ANN graph
 

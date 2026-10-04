@@ -2,7 +2,7 @@
 id: adr.canonical-runtime-separation
 title: Canonical knowledge and runtime working knowledge are distinct
 kind: adr
-status: proposed
+status: accepted
 summary: Keep Git-versioned canonical knowledge strictly separate from the runtime working knowledge store and require deterministic bidirectional synchronization.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md

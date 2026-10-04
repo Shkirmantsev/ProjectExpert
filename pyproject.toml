@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pi-platform"
+version = "0.1.0"
+description = "Phase 1 foundation of the v0.8 Project Intelligence Platform"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+keywords = ["project-intelligence", "version-aware", "retrieval", "okf"]
+authors = [{ name = "Project Intelligence Platform Contributors" }]
+
+dependencies = [
+    # Phase 1 ships Python standard-library only by default. The CI
+    # license gate must approve further runtime dependencies. PyYAML is
+    # declared as an optional dependency because the OKF v0.2 profile
+    # benefits from it but the platform remains functional without it
+    # (a minimal YAML subset parser is used as fallback).
+]
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6.0"]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+project-intelligence = "pi_platform.cli.main:main"
+
+[tool.setuptools]
+packages = ["pi_platform", "pi_platform.core", "pi_platform.core.canonical",
+            "pi_platform.core.git", "pi_platform.core.sync",
+            "pi_platform.core.licensing", "pi_platform.ports",
+            "pi_platform.adapters", "pi_platform.adapters.fs",
+            "pi_platform.adapters.git", "pi_platform.runtime",
+            "pi_platform.cli"]

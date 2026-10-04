@@ -17,7 +17,7 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Engineering conventions](../../docs/conventions/README.md)
 
 - [System overview](architecture/system-overview.md)
-- [Platform architecture overview (planned)](architecture/platform-overview.md)
+- [Platform architecture overview](architecture/platform-overview.md)
 - [Architecture baseline v0.8](../../project-intelligence-platform-architecture-v0.8.md)
 - [Project map](project/project-map.md)
 - [Implementation roadmap (v0.8)](project/implementation-roadmap.md)
@@ -28,6 +28,12 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [ADR: Canonical vs runtime knowledge](adr/0002-canonical-runtime-separation.md)
 - [ADR: License governance default](adr/0003-license-governance-default.md)
 - [ADR: Ports-and-adapters extension style](adr/0004-ports-and-adapters-extension-style.md)
+- [ADR: Platform source language](adr/0005-platform-source-language.md)
+- [Platform core modules](modules/platform-core.md)
+- [Canonical interface](interfaces/canonical.md)
+- [Git interface](interfaces/git.md)
+- [Sync interface](interfaces/sync.md)
+- [Licensing interface](interfaces/licensing.md)
 - [Domain glossary](glossary/domain.md)
 - [Platform glossary](glossary/platform.md)
 - [OpenSpec workflow](../../openspec/README.md) — current behavior and proposed changes.
