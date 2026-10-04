@@ -1,0 +1,64 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [
+    ".github/workflows/verify.yml is pre-existing untracked harness file; do not stage unrelated files"
+  ],
+  "decisions": [
+    "Remote CodeQL execution NOT RUN; publish commit, check setup mode in UI, and scan dev baseline if required"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Self-reviewed focused workflow and documentation diff; no product behavior changes",
+      "Full harness check PASS with temporary Node 22/OpenSpec 1.12.0 and local port permission",
+      "Focused commit created on feature/generate-init-project; unrelated untracked harness files excluded"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "User publishes commit and follows GITHUB_REVIEW_SETUP.uk.md for remote activation and approval",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-04T18:00:04+00:00",
+    "id": "fix-github-code-scanning",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-04T18:06:19+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "CodeQL workflow covers dev base and pull requests with SARIF upload permissions; local checks pass; focused commit on current branch; Ukrainian GitHub UI instructions"
+    ],
+    "goal": "Enable CodeQL scans for pull requests to dev and document required GitHub review setup; commit on current branch",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "PATH=/tmp/projectexpert-codeql-tools/node_modules/.bin:$PATH OPENSPEC_TELEMETRY=0 python3 harness.py check -> Harness core checks: PASS",
+      "python3 scripts/artifact_manifest.py verify -> PASS (172 files)",
+      "git diff --check -> PASS"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "ARTIFACT_MANIFEST.sha256",
+      "sha256": "2fd2c3d5d6df8053a399a269a2ee701376a1a020b22d4a052a76484509589f65"
+    },
+    {
+      "path": "GITHUB_REVIEW_SETUP.uk.md",
+      "sha256": "e9dc04609f8cb7d461638c7b1e0f19f6a56ae9fc118bb74911f0d8b54b627339"
+    }
+  ]
+}

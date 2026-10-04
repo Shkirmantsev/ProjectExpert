@@ -21,9 +21,11 @@ e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./.ai/wiki/mod
 09a2028eea23a3be197213a5a2376f9d3f64a56887a9089fb6fb934ab6751039  ./.ai/wiki/project/harness-command-lifecycle.md
 8d25d7559ca0a79465af2e011a74c666fcfae465964b5ac24a366e0d6eb0f360  ./.ai/wiki/project/harness-framework-adoption.md
 f278e261d2f1b78eb6d2272572e4aab1ce44d809854000942ba05c6fe1e161ab  ./.ai/wiki/project/implementation-roadmap.md
-f3ad97ee8eb0ef717b35ae0947dc887d325cb9a6d9db3afae2cdbbf57d2c39c3  ./.ai/wiki/project/project-map.md
+897184476f39d6833fcf3f312a0fbc8fb6b70a78c41f99069a7c8ed75eefdc4b  ./.ai/wiki/project/project-map.md
 421ee84d31860c88ff79b9c9e91c4135d31712f203c92332a5c9270f9345a3f3  ./.ai/wiki/project/task-handoff.md
+63ea4c86e47d8de249fd7a7d09fff92da8d09e3fa647b6e39ee1bccb16bf616b  ./.github/workflows/codeql.yml
 7bcb55b8e074be7f8ecff31c019dd5d0e949f30c9a327edd3518a11bee45584d  ./Containerfile
+e9dc04609f8cb7d461638c7b1e0f19f6a56ae9fc118bb74911f0d8b54b627339  ./GITHUB_REVIEW_SETUP.uk.md
 027a332a6f9fee51db93e4bdf8587ce04d30e776e5e015e3da5c404d11ec6f5c  ./LICENSE
 432c2031daffb860e678ec07a81906e33a762c4b02d4a0a2cdd5a24a063e678a  ./README.md
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution/claude-code/.gitkeep
@@ -122,6 +124,7 @@ c495639e4762ce39ee675b7def4204f60eb3b866a8e07918eae7d28a7dc7235b  ./pi_platform/
 a4c5cc8dad971beec198a9008424e1d8cf0b0027fead66778214b81d87f31a01  ./pi_platform/ports/__init__.py
 13d2a975001654cc15a0bf8b30800bfe770aa80f0819faee3de0ee6a17e6c9fa  ./pi_platform/runtime/__init__.py
 2d64f1c36d370a93237af83d913da63cbdacdc27b936f00abd2f5fa8facb0d14  ./pi_platform/runtime/cache.py
+c8fcb6e6679e52b4fdb82c90236da0f2824eef9a809bd1154fe1d992c3ed112d  ./project-intelligence-platform-architecture-v0.8.md
 8a85cec14ed1c0e2a04da366f2bc09f3a6b12913fedae1b3d5f1c5ebb427ec16  ./pyproject.toml
 b4c5106c4856cab7f010520c725a6cd517ed966beff6ba77d25ca290e663dfbf  ./scripts/Start-ProjectIntelligence.ps1
 b341303836db10d071cf5f7caffeb7469d1c9f51e4b4bd214110ba509cfee25f  ./scripts/apply_hermes_approval_patch.py
