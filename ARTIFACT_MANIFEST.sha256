@@ -172,7 +172,7 @@ a71fbc245828f9818bde7fa317a91b5ca967ac84a53beef557c9eea08826874f  ./.ai/wiki/int
 daa2109da34dc4ea4404e33fb1cf170d9c2adb5ab538d8d7a47e78c8641855fc  ./.ai/wiki/interfaces/git.md
 4b3723a4a6644d5b4a9bf0e1424d0228df17e8c73af82d9daf446f169230d294  ./.ai/wiki/interfaces/licensing.md
 2c1b4c56fa47886f7ea0929ebbed2a6b4ac43556f5e0786c318917d5aa16613f  ./.ai/wiki/interfaces/source-adapters.md
-7f5f575e269df78a31abed42fa213365813c0f7bdbd890eda658cde7aa16d4a0  ./.ai/wiki/interfaces/sync.md
+3b4cd3cde20b8825a2f1dca3eb73f6a553090414fdd4bfce523555601788d41d  ./.ai/wiki/interfaces/sync.md
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./.ai/wiki/modules/.gitkeep
 927c4a2444539498eb31eea8e5b50d178d0c93a0f3d528e490d84534ad1ad067  ./.ai/wiki/modules/ingest.md
 34b7e0d8aabc388709f1ab98b6ad354a50457e0e8d6348b41f38b6ffd4d2ffd0  ./.ai/wiki/modules/platform-core.md
@@ -389,7 +389,7 @@ e2f5aeb52d3b4d860f048762b790fa186226991393666759c02c49275d810137  ./pi_platform/
 020292468f26974bfd3b5e21e5fa2b3019a97b34bce0c957d10118d51e569655  ./pi_platform/core/sync/hydrate.py
 10c0eb269a07e62751601c8859d780afa3ddfcee904399ad79b2d938070726cd  ./pi_platform/core/sync/materialise.py
 2071f18fa69388bf01829b7f15420086efe3c64894bd196109f2f23ecb1e6fa0  ./pi_platform/core/sync/policy_stub.py
-c495639e4762ce39ee675b7def4204f60eb3b866a8e07918eae7d28a7dc7235b  ./pi_platform/core/sync/project_lock.py
+9e6c8d05fbb6c994a175fb410532589de98cb8ddec1ef38cde77de5183376c64  ./pi_platform/core/sync/project_lock.py
 6cbc0f402e95df951f43eba7cc30aa94aa370e7c1c487155e82928c52d864e7e  ./pi_platform/core/sync/reconcile.py
 130a230807ec4bb0d253bc3847f141e2e9d33d237829bb8471b8267cae449f9d  ./pi_platform/core/sync/wal.py
 a4c5cc8dad971beec198a9008424e1d8cf0b0027fead66778214b81d87f31a01  ./pi_platform/ports/__init__.py
@@ -468,7 +468,7 @@ e4c5c6c3599d006208297c0e4073f4695081781f55bd8f066c94562cf89c9cdf  ./tests/test_h
 4f2f2d8f0d9f8eaaf2dc4062fae92917917ce8e9be572058f23b535aebd0f89b  ./tests/test_opencode_hermes.py
 907241c5f7e1c8ab52cb8cd442c3a8ced5517becb2ea4d4a29b5ea42f6af00e2  ./tests/test_openspec_layout.py
 b4090d9caf1f0d1cc3fa50cb5b6f1eeaabdb07babb2fbfff9603ab17ce058728  ./tests/test_openspec_local_smoke.py
-65b22df2c25de14601e0e5f4d5d673681609026438b31ac332e4f7743dfa92eb  ./tests/test_platform_phase1.py
+1119b8eb2c72eb7be638cd67e80d769cc5428f5b88e1a1c1831f2159b1efde0b  ./tests/test_platform_phase1.py
 73a9d503551b64ef05ec79abcd76516b484cefaf3b3ab31aac717f998c3d4372  ./tests/test_platform_phase2.py
 29f55bf8743f22c45b98a93bf884b13cc75e281217961b53c30fa9bc22f7570f  ./tests/test_production_reliability.py
 1ea96b8d331c530eb03aa9634b6b1b92b70a5d00332cd32705163d0ace5d8a7d  ./tests/test_remote_sidecar.py

@@ -1,0 +1,51 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [
+    "Native Windows Python 3.11/3.13 NOT RUN locally; GitHub confirmation follows push. Sandbox socket denial resolved by rerunning full gate with local socket access."
+  ],
+  "decisions": [
+    "Restore existing accepted lock contract; no behavior or architecture change requiring new OpenSpec artifacts; do not edit harness file_lock.py"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Fixed Windows project-lock acquisition without pre-lock byte I/O; replaced seven Git fixture cleanup lifetimes with TemporaryDirectory; added regression, contention, and timeout coverage; updated Sync Wiki and artifact manifest"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Local fix ready for commit; GitHub Windows confirmation follows push",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-04T21:41:19+00:00",
+    "id": "fix-windows-ci",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-04T21:44:47+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Reported failure mechanisms fixed; regression tests and harness check pass; Windows runtime limitation reported"
+    ],
+    "goal": "Fix reported Windows CI cleanup and project lock failures",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "PASS: 103 focused regression tests; full python3 harness.py check with socket access: 209 tests across 22 suites, config, state, Wiki, strict OpenSpec, manifest (494 files); git diff --check and full diff review"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
