@@ -97,9 +97,10 @@ class KnowledgeState(str, enum.Enum):
 class Metadata:
     """§23 metadata constraint.
 
-    ``validFrom <= validTo`` is enforced by :meth:`validate`. Volatile
-    fields (timestamps, hostnames) are intentionally not part of this
-    value type; the canonical serializer rejects them.
+    ``validFrom <= validTo`` is enforced at construction time via
+    :meth:`__post_init__`. Volatile fields (timestamps, hostnames) are
+    intentionally not part of this value type; the canonical serializer
+    rejects them.
     """
 
     documentId: str
@@ -119,6 +120,9 @@ class Metadata:
     securityClassification: Optional[str] = None
     contentHash: Optional[str] = None
 
+    def __post_init__(self) -> None:
+        self.validate()
+
     def validate(self) -> None:
         """Validate the metadata invariants.
 
@@ -128,8 +132,20 @@ class Metadata:
 
         if self.validFrom is None and self.validTo is None:
             return
-        vf = _dt.datetime.fromisoformat(self.validFrom) if self.validFrom else None
-        vt = _dt.datetime.fromisoformat(self.validTo) if self.validTo else None
+        try:
+            vf = (
+                _dt.datetime.fromisoformat(self.validFrom.replace("Z", "+00:00"))
+                if self.validFrom else None
+            )
+            vt = (
+                _dt.datetime.fromisoformat(self.validTo.replace("Z", "+00:00"))
+                if self.validTo else None
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Metadata.validFrom ({self.validFrom!r}) or validTo "
+                f"({self.validTo!r}) could not be parsed: {exc}"
+            ) from exc
         if vf is not None and vt is not None and vf > vt:
             raise ValueError(
                 f"Metadata.validFrom ({self.validFrom}) must be <= "
@@ -336,15 +352,15 @@ def _sort_identifier_list(values: list) -> list:
     def _key(item: Any) -> tuple[str, str]:
         if not _is_user_defined_dataclass(item):
             return (str(type(item).__name__), "")
-        candidate = (
+        primary = (
             getattr(item, "id", None)
             or getattr(item, "targetId", None)
             or (f"{getattr(item, 'sourceId', '')}__{getattr(item, 'targetId', '')}"
-                if getattr(item, "sourceId", None) else None)
+                if getattr(item, "sourceId", None) is not None else None)
             or getattr(item, "uri", None)
             or ""
         )
-        return (type(item).__name__, str(candidate))
+        return (str(primary or ""), "")
 
     return sorted(values, key=_key)
 
@@ -352,7 +368,9 @@ def _sort_identifier_list(values: list) -> list:
 def dataclass_to_dict(obj: Any) -> Any:
     """Recursively convert a dataclass tree to plain dicts/lists/scalars.
 
-    Lists and tuples of dataclass instances are walked recursively.
+    Lists and tuples of dataclass instances are walked recursively and
+    the original container type is preserved so a round trip returns
+    structurally equal dataclass instances.
     """
 
     if _is_user_defined_dataclass(obj):
@@ -365,12 +383,13 @@ def dataclass_to_dict(obj: Any) -> Any:
         return out
     if isinstance(obj, enum.Enum):
         return obj.value
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, tuple):
+        return tuple(dataclass_to_dict(x) for x in obj)
+    if isinstance(obj, list):
         return [dataclass_to_dict(x) for x in obj]
     if isinstance(obj, Mapping):
         return {str(k): dataclass_to_dict(v) for k, v in obj.items()}
     return obj
-
 
 def dataclass_from_dict(cls: type, data: Mapping[str, Any]) -> Any:
     """Inverse of :func:`dataclass_to_dict`.
@@ -381,7 +400,7 @@ def dataclass_from_dict(cls: type, data: Mapping[str, Any]) -> Any:
 
     if not is_dataclass(cls):
         raise TypeError(
-            f"dataclass_from_dict requires a dataclass type, got {cls!r}"
+            f"dataclass_from_dict requires a dataclass type, got {clone!r}"
         )
     hints = _safe_get_type_hints(cls)
     kwargs: dict[str, Any] = {}
@@ -389,7 +408,8 @@ def dataclass_from_dict(cls: type, data: Mapping[str, Any]) -> Any:
         if f.name not in data:
             continue
         type_hint = hints.get(f.name, f.type)
-        kwargs[f.name] = _coerce(type_hint, data[f.name], f.name)
+        kwargs[f.name] = _coerce(type_hint, data[f.name], f.name,
+                                default_factory=f.default_factory)
     return cls(**kwargs)
 
 
@@ -401,7 +421,8 @@ def _safe_get_type_hints(cls: type) -> dict[str, Any]:
         return {}
 
 
-def _coerce(type_hint: Any, value: Any, field_name: str) -> Any:
+def _coerce(type_hint: Any, value: Any, field_name: str,
+            default_factory: Any = None) -> Any:
     if value is None:
         return None
     type_hint = _resolve_string_annotation(type_hint)
@@ -411,19 +432,21 @@ def _coerce(type_hint: Any, value: Any, field_name: str) -> Any:
     if origin is Union:
         non_none = [a for a in args if a is not type(None)]
         if len(non_none) == 1:
-            return _coerce(non_none[0], value, field_name)
+            return _coerce(non_none[0], value, field_name, default_factory)
         return value
     if origin in _SEQUENCE_ORIGINS:
         if not args:
             return list(value)
         inner = _resolve_string_annotation(args[0])
         coerced = [_coerce(inner, x, field_name) for x in value]
-        if origin is tuple:
+        # Honour the field's default container type so dataclass
+        # equality compares identical types after a round trip.
+        expected = _expected_container(default_factory)
+        if expected is tuple or origin is tuple or isinstance(value, tuple):
             return tuple(coerced)
-        if origin is list:
+        if expected is list or origin is list:
             return list(coerced)
-        # Sequence / Iterable / collections.abc.Sequence default to tuple.
-        return tuple(coerced)
+        return list(coerced)
     if isinstance(type_hint, type) and issubclass(type_hint, enum.Enum):
         if isinstance(value, type_hint):
             return value
@@ -431,6 +454,22 @@ def _coerce(type_hint: Any, value: Any, field_name: str) -> Any:
     if is_dataclass(type_hint) and isinstance(value, Mapping):
         return dataclass_from_dict(type_hint, value)
     return value
+
+
+def _expected_container(default_factory: Any) -> Any:
+    """Best-effort lookup of the field's default container type."""
+
+    if default_factory is None:
+        return None
+    try:
+        sample = default_factory()
+    except Exception:  # noqa: BLE001
+        return None
+    if isinstance(sample, tuple):
+        return tuple
+    if isinstance(sample, list):
+        return list
+    return None
 
 
 # ---------------------------------------------------------------------------

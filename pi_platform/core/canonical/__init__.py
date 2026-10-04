@@ -12,6 +12,7 @@ helpers and the OKF profile via a single namespace:
 """
 
 from .content_address import (
+    chunk_content_address,
     content_address,
     content_address_bytes,
     content_address_for_canonical,
@@ -93,6 +94,7 @@ __all__ = [
     "canonical_dump_yaml",
     "canonical_load_json",
     "canonical_load_yaml",
+    "chunk_content_address",
     "content_address",
     "content_address_bytes",
     "content_address_for_canonical",

@@ -112,9 +112,12 @@ def _resolve_cache_root(args: argparse.Namespace) -> Path:
     """Resolve ``--cache-root`` relative to ``--target`` when it is not absolute."""
 
     cache_root = Path(getattr(args, "cache_root", DEFAULT_RUNTIME_CACHE))
-    if not cache_root.is_absolute():
-        cache_root = (Path(args.target).resolve() / cache_root).resolve()
-    return cache_root
+    if cache_root.is_absolute():
+        return cache_root
+    target_arg = getattr(args, "target", None)
+    if target_arg is None:
+        return (Path.cwd() / cache_root).resolve()
+    return (Path(target_arg).resolve() / cache_root).resolve()
 
 
 # ---------------------------------------------------------------------------

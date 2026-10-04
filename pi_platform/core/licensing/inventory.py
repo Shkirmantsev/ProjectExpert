@@ -102,13 +102,14 @@ def stub_inventory() -> List[Dependency]:
     """Return the documented stub inventory produced by ``init-project``.
 
     The stub lists every Python standard-library module dependency as
-    ``scope=system`` so the Phase 1 license gate does not block a fresh
-    target repository.
+    ``scope=system`` with SPDX ``NOASSERTION`` (per the
+    ``license-governance`` spec) so the Phase 1 license gate does not
+    block a fresh target repository.
     """
 
     return [
-        Dependency(name="python", version="3.11", spdx="PSF-2.0",
+        Dependency(name="python", version="3.11", spdx="NOASSERTION",
                   source="https://www.python.org/", scope="system"),
-        Dependency(name="python-stdlib", version="3.11", spdx="PSF-2.0",
+        Dependency(name="python-stdlib", version="3.11", spdx="NOASSERTION",
                   source="https://docs.python.org/3/library/", scope="system"),
     ]

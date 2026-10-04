@@ -101,16 +101,21 @@ class GitCliAdapter(GitPort):
                 f"git status failed in {repo_root}: {result.stderr.strip()}"
             )
         changes: list[WorkingTreeChange] = []
-        raw = result.stdout.replace("\u0000", "")
-        for line in raw.splitlines():
-            if not line.strip():
+        # ``git status --porcelain=1 -z`` produces NUL-separated records.
+        # Renamed entries carry two NUL-separated paths (old, new); the
+        # parser emits the new path so the working-tree overlay sees
+        # only paths the working tree currently contains.
+        for record in result.stdout.split("\u0000"):
+            if not record:
                 continue
-            if len(line) < 3:
+            if len(record) < 3:
                 continue
-            code, path = line[:2], line[3:].strip()
+            code = record[:2]
+            paths = record[3:].split("\u0000")
             kind = self._classify(code)
             if kind is None:
                 continue
+            path = paths[0]
             changes.append(WorkingTreeChange(path=Path(path), kind=kind))
         return changes
 
@@ -121,14 +126,14 @@ class GitCliAdapter(GitPort):
         if code == "!!":
             return "ignored"
         x, y = code[0], code[1]
-        if x in ("M", "T", "A", "R", "C") and y in ("M", "T", "A", "R", "C", " ", "?"):
-            return "modified"
+        if x == "R" or y == "R":
+            return "renamed"
+        if x == "A" or y == "A":
+            return "added"
         if x == "D" or y == "D":
             return "deleted"
-        if x == "A":
-            return "added"
-        if x == "R":
-            return "renamed"
+        if x in ("M", "T", "C") or y in ("M", "T", "C", " "):
+            return "modified"
         return "modified"
 
     def lfs_pointer_for(self, repo_root: Path, path: Path) -> Optional[str]:

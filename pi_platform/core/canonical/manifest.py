@@ -10,12 +10,11 @@ canonical knowledge (per
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import asdict
 from pathlib import Path
 
 from .content_address import content_address, content_address_bytes
 from .serializer import canonical_dump_json, canonical_load_json
-from .value_types import Manifest, Shard
+from .value_types import Manifest, Shard, dataclass_to_dict
 
 __all__ = [
     "ManifestError",
@@ -122,11 +121,14 @@ def load_manifest(path: Path) -> Manifest:
 def _manifest_body(manifest: Manifest) -> dict:
     """Return the canonical-mapping body used for self-hash and write."""
 
-    body = asdict(manifest)
-    # The dataclass ``asdict`` already returns dicts with sorted keys
-    # because the canonical serializer sorts on output. However, the
-    # self-hash requires that the body be canonical *without* the
-    # contentHash field, so we drop it before serialisation.
+    # Use the canonical ``dataclass_to_dict`` helper so identifier
+    # arrays (``dependencies``) are sorted deterministically and
+    # ``shards`` is sorted by ``id`` before serialisation. The self-hash
+    # requires the body be canonical *without* the ``contentHash``
+    # field; we drop it before serialisation.
+    body = dataclass_to_dict(manifest)
+    shards = sorted(body.get("shards", []), key=lambda s: s.get("id", ""))
+    body["shards"] = shards
     body.pop("contentHash", None)
     return body
 

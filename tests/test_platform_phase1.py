@@ -222,12 +222,14 @@ class CanonicalRoundtripPropertyTests(unittest.TestCase):
         )
         # Two chunks with the same rawText expose the same contentHash
         # even when the surrounding metadata differs.
+        from pi_platform.core.canonical import chunk_content_address
         ch1 = _make_chunk(rawText=raw.decode("utf-8"),
                          contentHash=content_address_bytes(raw))
         ch2 = _make_chunk(rawText=raw.decode("utf-8"),
                          contentHash=content_address_bytes(raw),
                          metadata=_make_metadata(documentId="x"))
         self.assertEqual(ch1.contentHash, ch2.contentHash)
+        self.assertEqual(chunk_content_address(ch1), chunk_content_address(ch2))
 
 
 class ContentAddressTests(unittest.TestCase):
@@ -456,6 +458,17 @@ class WorkingTreeOverlayTests(unittest.TestCase):
         self.assertTrue(any(c["path"].endswith("file.txt")
                             for c in overlay["changes"]))
 
+    def test_overlay_handles_multiple_changes(self) -> None:
+        """Regression: git status --porcelain=1 -z uses NUL separators,
+        not newlines; the parser used to collapse all entries into one.
+        """
+        (self.tmp / "file.txt").write_text("changed", encoding="utf-8")
+        (self.tmp / "added.txt").write_text("new", encoding="utf-8")
+        overlay = json.loads(compute_working_tree_overlay(self.tmp).decode())
+        paths = {c["path"].split("/")[-1] for c in overlay["changes"]}
+        self.assertIn("file.txt", paths)
+        self.assertIn("added.txt", paths)
+
 
 class HydrateTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -512,8 +525,9 @@ class MaterialiseTests(unittest.TestCase):
         shutil.rmtree(self.tmp)
 
     def test_materialise_requires_approval_token(self) -> None:
+        from pi_platform.ports import ApprovalRequired
         service = MaterialiseService()
-        with self.assertRaises(Exception):
+        with self.assertRaises(ApprovalRequired):
             service.materialise_durable_changes(self.tmp,
                                                 cache_root=self.cache,
                                                 approval_token=None)
@@ -710,6 +724,14 @@ class LicenseGateTests(unittest.TestCase):
             name="x", version="1.0", spdx="LGPL-2.1-only")])
         self.assertTrue(passed, findings)
 
+    def test_gate_review_without_token_blocks_build(self) -> None:
+        from pi_platform.ports import Dependency
+        gate = LicenseGate(LicensePolicy())
+        passed, findings = gate.run([Dependency(
+            name="x", version="1.0", spdx="LGPL-2.1-only")])
+        self.assertFalse(passed, findings)
+        self.assertEqual(findings[0].decision, "deny")
+
 
 class InventoryAndSbomTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -774,6 +796,13 @@ class CliEntrypointTests(unittest.TestCase):
     def test_license_gate_subcommand_passes_stub(self) -> None:
         cli_main(["init-project", "--target", str(self.tmp)])
         rc = cli_main(["license-gate", "--target", str(self.tmp)])
+        self.assertEqual(rc, 0)
+
+    def test_wal_recover_default_invocation(self) -> None:
+        """Regression: wal-recover used to crash on default invocation
+        because --target was missing.
+        """
+        rc = cli_main(["wal-recover"])
         self.assertEqual(rc, 0)
 
     def test_version_identity_subcommand_reports_unknown_embedding(self) -> None:

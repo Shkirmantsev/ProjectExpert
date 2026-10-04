@@ -50,22 +50,30 @@ class LicenseGate(LicenseGatePort):
             if dep.scope == "system":
                 continue
             decision, reason = self.policy.evaluate(dep)
+            if decision == "review" and not self._has_acceptance(dep):
+                # Unaccepted review-required deps are build-blocking:
+                # the gate returns (False, ...) so the CI step fails.
+                findings.append(LicenseGateFinding(
+                    dependency=dep, decision="deny",
+                    reason=f"{reason}; operator acceptance required",
+                ))
+                continue
             if decision == "review":
-                if not self._has_acceptance(dep):
-                    findings.append(LicenseGateFinding(
-                        dependency=dep, decision=decision,
-                        reason=f"{reason}; operator acceptance required",
-                    ))
-                    continue
+                # Operator accepted this coordinate identity.
+                findings.append(LicenseGateFinding(
+                    dependency=dep, decision="allow",
+                    reason=f"{reason}; operator acceptance recorded",
+                ))
+                continue
             if decision == "deny":
                 findings.append(LicenseGateFinding(
                     dependency=dep, decision=decision, reason=reason
                 ))
-            else:
-                findings.append(LicenseGateFinding(
-                    dependency=dep, decision=decision, reason=reason
-                ))
-        passed = all(f.decision != "deny" for f in findings)
+                continue
+            findings.append(LicenseGateFinding(
+                dependency=dep, decision=decision, reason=reason
+            ))
+        passed = all(f.decision == "allow" for f in findings)
         return passed, findings
 
     def _has_acceptance(self, dep: Dependency) -> bool:

@@ -41,7 +41,9 @@ def emit_spdx_sbom(dependencies: Iterable[Dependency],
         "name": name,
         "documentNamespace": f"https://project-intelligence.local/spdx/{uuid.uuid4().hex}",
         "creationInfo": {
-            "created": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat(),
+            # SPDX 2.3 requires the trailing 'Z' UTC form.
+            "created": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0)
+                                    .strftime("%Y-%m-%dT%H:%M:%SZ"),
             "creators": ["Tool: project-intelligence-platform-0.1.0"],
         },
         "packages": [_sbom_package(dep) for dep in dependencies],
@@ -62,7 +64,10 @@ def emit_notice_file(dependencies: Iterable[Dependency],
              "software components:", ""]
     for dep in dependencies:
         decision, reason = policy.evaluate(dep)
-        if decision == "deny":
+        # The license-governance spec restricts the NOTICE file to
+        # ``allow``-resolved dependencies; ``review`` deps belong in a
+        # separate acceptance record; ``deny`` deps must not ship.
+        if decision != "allow":
             continue
         spdx = (dep.spdx or "NOASSERTION").strip() or "NOASSERTION"
         source = dep.source or "NOASSERTION"

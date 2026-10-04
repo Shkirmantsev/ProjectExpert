@@ -13,11 +13,13 @@ import hashlib
 from typing import Any, Mapping
 
 from .serializer import canonical_dump_json
+from .value_types import Chunk
 
 __all__ = [
     "content_address",
     "content_address_bytes",
     "content_address_for_canonical",
+    "chunk_content_address",
     "object_path",
 ]
 
@@ -36,7 +38,7 @@ def content_address(value: Any) -> str:
     return content_address_bytes(canonical_dump_json(value))
 
 
-def content_address_for_canonical(value: Mapping[str, Any]) -> str:
+def content_address_for_canonical(value: Mapping[str, object]) -> str:
     """Convenience wrapper for already-canonical mappings.
 
     Equivalent to :func:`content_address`; provided so callers can
@@ -44,6 +46,24 @@ def content_address_for_canonical(value: Mapping[str, Any]) -> str:
     """
 
     return content_address(value)
+
+
+def chunk_content_address(chunk: Chunk) -> str:
+    """Return the SHA-256 hex digest of the chunk body projection.
+
+    The canonical-knowledge-schema spec defines the chunk contentHash
+    as derived from the chunk's raw text. The projection used for
+    cache reuse excludes the surrounding ``metadata``, ``entityIds``,
+    ``parentId`` and ``childIds`` so two chunks that differ only in
+    those fields share the same content address.
+    """
+
+    payload = {
+        "rawText": chunk.rawText,
+        "contextualText": chunk.contextualText,
+        "sourceReference": chunk.sourceReference,
+    }
+    return content_address_bytes(canonical_dump_json(payload))
 
 
 def object_path(content_hash: str) -> str:
