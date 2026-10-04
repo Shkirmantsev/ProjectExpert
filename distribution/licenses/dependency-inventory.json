@@ -1,0 +1,6 @@
+{
+  "dependencies": [
+    {"name":"tree-sitter-java","version":"0.23.5","spdx":"MIT","scope":"optional","source":"https://github.com/tree-sitter/tree-sitter-java","binary":"python -m pi_platform.adapters.java.parser_worker"},
+    {"name":"tree-sitter","version":"0.25.2","spdx":"MIT","scope":"optional","source":"https://github.com/tree-sitter/py-tree-sitter"}
+  ]
+}

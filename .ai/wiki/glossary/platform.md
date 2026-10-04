@@ -209,3 +209,13 @@ The escalation order from §33: exact/sparse lookup → dense
 semantic → hybrid fusion → graph + hierarchy → rerank →
 bounded Context Assembly → LLM reasoning over selected context
 → raw source scan only when retrieval evidence is insufficient.
+
+## Phase 2 ingestion
+
+The [ingestion module](../modules/ingest.md) implements PipelineDriver, source adapters,
+structural chunking, layered enrichment, content-address reuse and inbox policies.
+SourcePromotionPolicy distinguishes LOCAL_ONLY, REFERENCE and SNAPSHOT; parser
+subprocesses and cache records carry explicit provenance. See the
+[source interface](../interfaces/source-adapters.md), [chunker](../interfaces/chunker.md)
+and [enrichment](../interfaces/enrichment.md) contracts. Persistent storage and retrieval
+remain future phases.

@@ -76,13 +76,14 @@ class JavaEntity:
     source_path: Optional[Path] = None
     line: Optional[int] = None
     knowledge_state_hint: str = "verified"
+    attributes: Mapping[str, object] = field(default_factory=dict)
 
 
 @dataclass
 class JavaParseRequest:
     source: str
     file_path: Path
-    parser_version: str = "tree-sitter-java-0.23.0"
+    parser_version: str = "tree-sitter-java-0.23.5"
     timeout_seconds: float = 60.0
 
 

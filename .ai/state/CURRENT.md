@@ -5,9 +5,9 @@
 Structured source: [handoffs/implement-phase-2-ingestion.json](handoffs/implement-phase-2-ingestion.json)
 
 Task: `implement-phase-2-ingestion`
-Status: `executing`
-Updated: `2026-10-04T18:52:04+00:00`
-Active OpenSpec change: `implement-phase-2-ingestion`
+Status: `complete`
+Updated: `2026-10-04T21:27:07+00:00`
+Active OpenSpec change: none
 
 ## Objective
 
@@ -19,11 +19,11 @@ Ship Phase 2 ingestion per the nine accepted specs in prepare-phase-2-ingestion 
 
 ## Completed
 
-- Authored proposal.md, design.md, context-impact.md, tasks.md; 9 spec deltas mirrored into change/specs/; change validates strict; harness baseline restored
+- Completed Phase 2 implementation, regressions, CLI, package/container fixes and Wiki/ADRs. Archived both changes and adopted nine capabilities; plan tasks 45-60 closed with explicit PDF/office follow-up scope note.
 
 ## Remaining
 
-- implement ports/ingest/*; implement core/ingest/*; implement default adapters; implement Java parser subprocess + Java/JAR/Maven/Gradle adapters; implement Markdown/HTML/OpenSpec adapters; tests; CLI; Wiki; CURRENT.md; archive
+- none
 
 ## Blocked
 
@@ -31,11 +31,11 @@ Ship Phase 2 ingestion per the nine accepted specs in prepare-phase-2-ingestion 
 
 ## Decisions
 
-- none
+- Pinned tree-sitter-java 0.23.5 upstream license is MIT, not draft Apache-2.0. Correct proposed artifacts and document discrepancy; binding tree-sitter 0.25.2 also MIT.
 
 ## Relevant context
 
-- none
+- `User requested local commit. Staged diff review caught trailing blank lines in nine generated adopted specs; normalized final newlines. Artifact manifest and all strict OpenSpec validations PASS; implementation unchanged.`
 
 ## Working set
 
@@ -43,7 +43,7 @@ Ship Phase 2 ingestion per the nine accepted specs in prepare-phase-2-ingestion 
 
 ## Verification passed
 
-- openspec validate implement-phase-2-ingestion --type change --strict -> Change is valid
+- PASS: 101 focused Phase 1/Phase 2/content-address/canonical tests; full archived-state harness with MCP socket access; all current/change OpenSpec strict validations; Wiki validation (26 documents); artifact manifest (494 files); dependency license gate; wheel build/install and installed ingestion without optional Java/YAML; archive/CURRENT/scope assertions; final documentation navigation and git diff --check.
 
 ## Verification pending
 
@@ -51,7 +51,7 @@ Ship Phase 2 ingestion per the nine accepted specs in prepare-phase-2-ingestion 
 
 ## Next action
 
-Author proposal.md / design.md / context-impact.md / tasks.md
+Phase 2 complete; local commit prepared and verified. Phase 3 remains unstarted.
 
 ## Prerequisites
 

@@ -1,15 +1,14 @@
 # Phase 2 implementation — handoff problem statement
 
-**Status:** paused, awaiting human review.
-**OpenSpec change:** `implement-phase-2-ingestion` (drafted but not yet archived).
+**Status:** resolved on 2026-10-04. The original partial-work report below is retained as historical evidence.
+**OpenSpec change:** `implement-phase-2-ingestion` (now archived).
 **Active branch:** `feature/generate-init-project`.
 **Last checkpoint:** session state under
 `.ai/state/handoffs/implement-phase-2-ingestion.json`.
 
-This file is the canonical handoff for the Phase 2 ingestion work
-that was started in this session. Read it end-to-end before doing
-anything: the work is half-shipped, the test suite is not green, and
-several follow-up tasks are still open.
+This file records the partial Phase 2 handoff and its resolution. Statements below
+about missing code or failing checks describe commit ad0be55, not the repaired state.
+See the resolution section for current verification and remaining scope boundaries.
 
 ## What was completed
 
@@ -129,3 +128,34 @@ Phase 3 work (runtime DB, sharded graph, provenance / freshness
 tracking) and assumes this Phase 2 change is already archived.
 Before the Phase 3 agent can run, the Phase 2 blockers above MUST
 be cleared.
+
+
+## Resolution — 2026-10-04
+
+The missing Java subprocess, Java/JAR/Maven/Gradle adapters, Phase 2 regression suite,
+cross-branch properties and ingest-sources CLI are implemented. Document bodies,
+UTF-8 chunk budgets, policy serialization, source deletion/invalidation, emitted runtime
+records and parse/chunk cache skipping were repaired as part of the same fix.
+Optional parser failures are explicit assumptions; required parser failures stop the
+pipeline. Source-JAR hashes, public bytecode signatures and OpenSpec directory/status
+handling have integration regressions. Unknown dependency coordinates remain locally
+recorded review evidence and block the next target license gate.
+
+The Java grammar and binding are MIT licensed, correcting the draft's Apache-2.0
+attribution. Both dependencies and their license texts are inventoried. Package discovery
+includes the new modules; the wheel builds, installs and runs ingestion outside the
+checkout without optional Java/YAML dependencies. Container source-copy and install
+instructions match the actual pi_platform package.
+
+Both changes are archived under openspec/changes/archive/2026-10-04-*. CURRENT lists
+all nine Phase 2 capabilities. Plan tasks 45–60 are closed; tasks 61–123 remain open.
+The broader plan's PDF/office wording is explicitly narrowed to the approved document
+subset: those adapters remain planned Phase 2+ work. Persistent databases, vectors,
+sharded graph storage and a provided local-LLM binding remain later-phase work.
+The retained Phase 1 spec/helper naming mismatch and additive metadata fields are
+explained in the implementation archive design and parser/inbox ADRs.
+
+Verification: 101 focused Phase 1/Phase 2/property/canonical tests PASS; strict OpenSpec,
+Wiki, artifact manifest and license gates PASS; full pre-archive harness PASS with local
+socket access for its MCP lifecycle tests. Final archived-state verification is recorded
+in the session checkpoint. Nothing was pushed.

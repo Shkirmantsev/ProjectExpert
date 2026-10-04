@@ -36,6 +36,8 @@ class ChunkerContext:
     project_root: object = None  # Path; kept loose to avoid port -> core cycles
     max_chunk_bytes: int = 4096
     extra: Mapping[str, object] = field(default_factory=dict)
+    source_hash: str = ""
+    cancellation: object = None
 
 
 class ChunkerPort(abc.ABC):
@@ -46,8 +48,12 @@ class ChunkerPort(abc.ABC):
     def family(self) -> SourceContentFamily: ...
 
     @abc.abstractmethod
-    def chunk(self, document: Document, sections: Sequence[Section],
-              context: Optional[ChunkerContext] = None) -> Sequence[Chunk]: ...
+    def chunk(
+        self,
+        document: Document,
+        sections: Sequence[Section],
+        context: Optional[ChunkerContext] = None,
+    ) -> Sequence[Chunk]: ...
 
 
 class ChunkerRegistry:
@@ -63,7 +69,14 @@ class ChunkerRegistry:
         self._chunkers.pop(family, None)
 
     def resolve(self, family: SourceContentFamily) -> ChunkerPort:
-        chunker = self._chunkers.get(family)
+        aliases = {
+            SourceContentFamily.JAVA_BYTECODE: SourceContentFamily.JAR,
+            SourceContentFamily.OPENSPEC_SPEC: SourceContentFamily.OPENSPEC,
+            SourceContentFamily.OPENSPEC_CHANGE: SourceContentFamily.OPENSPEC,
+            SourceContentFamily.ADR: SourceContentFamily.OPENSPEC,
+            SourceContentFamily.LOCAL_INBOX: SourceContentFamily.PLAIN_TEXT,
+        }
+        chunker = self._chunkers.get(aliases.get(family, family))
         if chunker is None:
             raise ChunkerError(f"no chunker registered for family {family!r}")
         return chunker

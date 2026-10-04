@@ -30,3 +30,8 @@ needs, then run `make runtime` to regenerate client configs.
 - [Project structure](PROJECT_STRUCTURE.md): ownership and dependencies of every file family.
 - [Third-party skills](THIRD_PARTY_SKILLS.md) and [licenses](../third_party/licenses/skills).
 - [Harness framework adoption](../.ai/wiki/project/harness-framework-adoption.md): which framework files are imported and which are excluded.
+
+## Phase handoffs
+
+- [Phase 2 problem statement and resolution](handoff/phase-2-problem-statement.md)
+- [Phase 3 follow-up prompt](handoff/phase-3-prompt.md)

@@ -33,9 +33,9 @@ __all__ = [
 class SourcePromotionPolicy(str, enum.Enum):
     """The three documented source promotion policies from §9.2."""
 
-    LOCAL_ONLY = "local_only"
-    REFERENCE = "reference"
-    SNAPSHOT = "snapshot"
+    LOCAL_ONLY = "LOCAL_ONLY"
+    REFERENCE = "REFERENCE"
+    SNAPSHOT = "SNAPSHOT"
 
 
 class LocalSourceInboxError(RuntimeError):
@@ -71,6 +71,7 @@ class LocalSourceInboxReport:
     promoted_paths: Sequence[Path] = field(default_factory=tuple)
     knowledge_state: KnowledgeState = KnowledgeState.VERIFIED
     rationale: Optional[str] = None
+    deleted_source_ids: Sequence[str] = field(default_factory=tuple)
 
 
 class LocalSourceInboxScannerPort(abc.ABC):

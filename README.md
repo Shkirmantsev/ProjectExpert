@@ -87,7 +87,7 @@ The same agent Skill artefact ships for Codex, Claude Code, OpenCode and generic
 
 ## Current architecture
 
-Phase 0 (planning) and Phase 1 (foundation) are complete. Phase 2 capability specs are accepted for proposal; the implementation change is the next work item.
+Phases 0 (planning), 1 (foundation) and 2 (ingestion) are complete. Phase 2 implements document and Java/build/JAR/OpenSpec ingestion with content-addressed cache reuse and explicit source policies. Phase 3 storage remains the next work item.
 
 ### Implementation repo, container, target project
 
@@ -199,7 +199,7 @@ The canonical tree is the source of truth. The runtime cache is derived. `materi
 |---|---|---|
 | 0 | Plan | complete |
 | 1 | Foundation (canonical, git, sync, licensing) | done |
-| 2 | Ingestion (parsers, content addressing, pipeline driver, chunking, enrichment) | specs ready, implementation next |
+| 2 | Ingestion (parsers, content addressing, pipeline driver, chunking, enrichment) | complete |
 | 3 | Storage (runtime DB, sharded graph, provenance) | planned |
 | 4 | Retrieval (hybrid, multi-stage, reranking) | planned |
 | 5 | Orchestration (query, local LLM, task context) | planned |
@@ -209,7 +209,7 @@ The canonical tree is the source of truth. The runtime cache is derived. `materi
 | 9 | Distribution (UI, container, OCI, one-click) | planned |
 | 10 | A2A and final quality gates | planned |
 
-The full ordered task list lives in [`openspec/changes/plan-v0-8-platform-architecture/tasks.md`](openspec/changes/plan-v0-8-platform-architecture/tasks.md). The Phase 2 implementation change depends on the nine Phase 2 capability specs in [`openspec/changes/prepare-phase-2-ingestion/specs/`](openspec/changes/prepare-phase-2-ingestion/specs/).
+The full ordered task list lives in [`openspec/changes/plan-v0-8-platform-architecture/tasks.md`](openspec/changes/plan-v0-8-platform-architecture/tasks.md). The nine accepted Phase 2 capabilities are listed in [current requirements](openspec/CURRENT.md). See [ingestion contracts](.ai/wiki/modules/ingest.md) and the [resolved Phase 2 handoff](docs/handoff/phase-2-problem-statement.md).
 
 ## Quick start
 

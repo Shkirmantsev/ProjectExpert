@@ -1,210 +1,64 @@
-"""HtmlAdapter — stdlib HTML SourceAdapter.
+"""HTML headings and semantic containers with body text, excluding active content."""
 
-Covers architecture §3 source coverage for HTML documents. The
-adapter uses the Python stdlib :mod:`html.parser` to split the
-document into a :class:`Document` plus a sequence of
-:class:`Section` records by ``<h1>``-``<h6>``, ``<section>`` and
-``<article>`` boundaries. No third-party dependency is required.
-"""
-
-from __future__ import annotations
-
-import re
 from html.parser import HTMLParser
-from pathlib import Path
-from typing import List, Optional, Tuple
-
-from pi_platform.core.canonical.content_address import content_address
-from pi_platform.core.canonical.value_types import (
-    Document,
-    KnowledgeState,
-    Metadata,
-    Section,
-    Source,
-)
-
+from pi_platform.core.ingest.records import document_result, read_text
 from pi_platform.ports.ingest.source_adapter import (
-    SourceAdapterContext,
     SourceAdapterPort,
     SourceContentFamily,
-    SourceParseResult,
 )
-
-
-__all__ = ["HtmlAdapter"]
-
-
-_BOUNDARY_TAGS = {
-    "h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5, "h6": 6,
-    "section": 2, "article": 2,
-}
 
 
 class _SectionParser(HTMLParser):
-    def __init__(self) -> None:
+    def __init__(self):
         super().__init__(convert_charrefs=True)
-        self._sections: List[Tuple[int, str]] = []
-        self._stack: List[Tuple[str, int]] = []
-        self._current_heading: Optional[Tuple[int, str]] = None
-        self._heading_buffer: List[str] = []
-        self._title: str = ""
+        self.rows, self.body, self.heading_buf = [], [], []
+        self.heading, self.level, self.in_heading, self.ignored = "", 0, False, 0
 
-    def handle_starttag(self, tag: str, attrs: list) -> None:
-        if tag == "title":
+    def flush(self):
+        text = "".join(self.body).strip()
+        if text or self.heading:
+            self.rows.append((self.heading, self.level, text, {}))
+        self.body = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("script", "style", "head"):
+            self.ignored += 1
+        if self.ignored:
             return
-        if tag in _BOUNDARY_TAGS:
-            level = _BOUNDARY_TAGS[tag]
-            self._current_heading = (level, "")
-            self._heading_buffer = []
-            self._stack.append((tag, level))
+        if tag in ("section", "article") or tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
+            self.flush()
+            self.heading = tag if tag in ("section", "article") else ""
+            self.level = int(tag[1]) if tag.startswith("h") else 2
+            self.in_heading = tag.startswith("h")
+            self.heading_buf = []
+        elif tag in ("p", "div", "br", "tr"):
+            self.body.append("\n\n")
 
-    def handle_data(self, data: str) -> None:
-        if not self._stack:
-            if not self._title:
-                stripped = data.strip()
-                if stripped:
-                    self._title = stripped[:200]
+    def handle_endtag(self, tag):
+        if tag in ("script", "style", "head"):
+            self.ignored = max(0, self.ignored - 1)
             return
-        if self._current_heading is not None:
-            self._heading_buffer.append(data)
-            self._current_heading = (
-                self._current_heading[0],
-                "".join(self._heading_buffer).strip(),
-            )
+        if self.ignored:
+            return
+        if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
+            self.heading = "".join(self.heading_buf).strip()
+            self.in_heading = False
+        elif tag in ("p", "div", "tr"):
+            self.body.append("\n\n")
+        elif tag in ("td", "th"):
+            self.body.append(" | ")
 
-    def handle_endtag(self, tag: str) -> None:
-        if self._stack and self._stack[-1][0] == tag:
-            _, level = self._stack[-1]
-            heading = ""
-            if self._current_heading is not None and self._current_heading[1]:
-                heading = self._current_heading[1]
-            elif self._heading_buffer:
-                heading = "".join(self._heading_buffer).strip()
-            if heading or tag in {"section", "article"}:
-                self._sections.append((level, heading or tag))
-            self._stack.pop()
-            self._current_heading = None
-            self._heading_buffer = []
+    def handle_data(self, data):
+        if not self.ignored:
+            (self.heading_buf if self.in_heading else self.body).append(data)
 
 
 class HtmlAdapter(SourceAdapterPort):
-    """Stdlib-only HTML SourceAdapter."""
+    family = SourceContentFamily.HTML
 
-    @property
-    def family(self) -> SourceContentFamily:
-        return SourceContentFamily.HTML
-
-    def parse(self, source: Source,
-              context: Optional[SourceAdapterContext] = None) -> SourceParseResult:
-        text = self._read_text(source.uri)
+    def parse(self, source, context=None):
         parser = _SectionParser()
-        try:
-            parser.feed(text)
-            parser.close()
-        except Exception:  # noqa: BLE001
-            return SourceParseResult(
-                document=self._empty_document(source),
-                sections=(),
-                knowledge_state=KnowledgeState.UNKNOWN,
-                parser_version="html-stdlib-0.1.0",
-                rationale="HTML parse failed; emitting empty document",
-            )
-        sections = self._build_sections(parser._sections, parser._title)
-        document = self._build_document(source, parser._title or "Untitled", sections)
-        return SourceParseResult(
-            document=document,
-            sections=tuple(sections),
-            knowledge_state=KnowledgeState.VERIFIED,
-            parser_version="html-stdlib-0.1.0",
-        )
-
-    @staticmethod
-    def _read_text(uri: str) -> str:
-        try:
-            return Path(uri).read_text(encoding="utf-8", errors="replace")
-        except FileNotFoundError:
-            return ""
-
-    @staticmethod
-    def _build_sections(levels: List[Tuple[int, str]], title: str) -> List[Section]:
-        sections: List[Section] = []
-        if title:
-            sections.append(
-                Section(
-                    id=content_address(
-                        Metadata(
-                            documentId="html-title",
-                            version="0.0.0",
-                            language="und",
-                            section=title,
-                        )
-                    ),
-                    heading=title,
-                    level=0,
-                    parentId=None,
-                )
-            )
-        for idx, (level, heading) in enumerate(levels):
-            parent = None
-            for prev in reversed(sections):
-                if prev.level < level:
-                    parent = prev.id
-                    break
-            section_id = content_address(
-                Metadata(
-                    documentId=f"html-section-{idx}",
-                    version="0.0.0",
-                    language="und",
-                    section=heading,
-                )
-            )
-            sections.append(
-                Section(
-                    id=section_id,
-                    heading=heading,
-                    level=level,
-                    parentId=parent,
-                )
-            )
-        return sections
-
-    @staticmethod
-    def _build_document(source: Source, title: str,
-                        sections: list) -> Document:
-        return Document(
-            id=content_address(
-                Metadata(
-                    documentId=source.id,
-                    version="0.0.0",
-                    language="und",
-                )
-            ),
-            title=title,
-            sections=tuple(sections),
-            metadata=Metadata(
-                documentId=source.id,
-                version="0.0.0",
-                language="html",
-                sourcePath=source.uri,
-            ),
-        )
-
-    @staticmethod
-    def _empty_document(source: Source) -> Document:
-        return Document(
-            id=content_address(
-                Metadata(
-                    documentId=source.id or "html-empty",
-                    version="0.0.0",
-                    language="und",
-                )
-            ),
-            title="(empty)",
-            sections=(),
-            metadata=Metadata(
-                documentId=source.id or "html-empty",
-                version="0.0.0",
-                language="html",
-                sourcePath=source.uri,
-            ),
-        )
+        parser.feed(read_text(source.uri))
+        parser.close()
+        parser.flush()
+        return document_result(source, parser.rows, "html", "html-stdlib-1")

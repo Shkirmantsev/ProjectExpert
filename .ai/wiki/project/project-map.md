@@ -105,3 +105,14 @@ Generated local context/index data and session locks belong under
 `tmp/local/` and must not become canonical knowledge. Durable operational
 task state belongs under `.ai/state/`; it is separate from the project Wiki
 and OpenSpec.
+
+
+## Phase 2 ingestion
+
+The [ingestion module](../modules/ingest.md) implements PipelineDriver, source adapters,
+structural chunking, layered enrichment, content-address reuse and inbox policies.
+SourcePromotionPolicy distinguishes LOCAL_ONLY, REFERENCE and SNAPSHOT; parser
+subprocesses and cache records carry explicit provenance. See the
+[source interface](../interfaces/source-adapters.md), [chunker](../interfaces/chunker.md)
+and [enrichment](../interfaces/enrichment.md) contracts. Persistent storage and retrieval
+remain future phases.

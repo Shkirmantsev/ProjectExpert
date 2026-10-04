@@ -68,6 +68,10 @@ class EnricherContext:
     domain_rules: Sequence[DomainRule] = field(default_factory=tuple)
     enable_optional_llm: bool = False
     extra: Mapping[str, Any] = field(default_factory=dict)
+    document: object = None
+    source: object = None
+    project_version: object = None
+    cancellation: object = None
 
 
 @dataclass(frozen=True)
@@ -95,6 +99,6 @@ class ContextEnricherPort(abc.ABC):
     def family(self) -> SourceContentFamily: ...
 
     @abc.abstractmethod
-    def enrich(self, chunks: Sequence[Chunk],
-               context: Optional[EnricherContext] = None
-               ) -> tuple[Sequence[ContextualChunk], Sequence[ContextEnricherReport]]: ...
+    def enrich(
+        self, chunks: Sequence[Chunk], context: Optional[EnricherContext] = None
+    ) -> tuple[Sequence[ContextualChunk], Sequence[ContextEnricherReport]]: ...

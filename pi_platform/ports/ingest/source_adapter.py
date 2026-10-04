@@ -16,6 +16,9 @@ from typing import Mapping, Optional, Sequence
 
 from pi_platform.core.canonical.value_types import (
     Document,
+    Entity,
+    Relation,
+    Evidence,
     KnowledgeState,
     Metadata,
     Section,
@@ -52,6 +55,11 @@ class SourceContentFamily(str, enum.Enum):
     OPENSPEC = "openspec"
     PDF = "pdf"
     OFFICE = "office"
+    JAVA_BYTECODE = "java_bytecode"
+    OPENSPEC_SPEC = "openspec_spec"
+    OPENSPEC_CHANGE = "openspec_change"
+    ADR = "adr"
+    LOCAL_INBOX = "local_inbox"
     UNKNOWN = "unknown"
 
 
@@ -75,6 +83,9 @@ class UnsupportedFamily(SourceAdapterError):
 class SourceAdapterContext:
     project_root: Path
     metadata_overrides: Mapping[str, object] = field(default_factory=dict)
+    project_version: object = None
+    working_tree_overlay: object = None
+    cancellation: object = None
 
 
 @dataclass(frozen=True)
@@ -84,6 +95,10 @@ class SourceParseResult:
     knowledge_state: KnowledgeState = KnowledgeState.VERIFIED
     parser_version: str = "0.1.0"
     rationale: Optional[str] = None
+    entities: Sequence[Entity] = field(default_factory=tuple)
+    relations: Sequence[Relation] = field(default_factory=tuple)
+    evidence: Sequence[Evidence] = field(default_factory=tuple)
+    source: Optional[Source] = None
 
 
 class SourceAdapterPort(abc.ABC):
@@ -94,8 +109,9 @@ class SourceAdapterPort(abc.ABC):
     def family(self) -> SourceContentFamily: ...
 
     @abc.abstractmethod
-    def parse(self, source: Source,
-              context: Optional[SourceAdapterContext] = None) -> SourceParseResult: ...
+    def parse(
+        self, source: Source, context: Optional[SourceAdapterContext] = None
+    ) -> SourceParseResult: ...
 
 
 class SourceAdapterRegistry:
@@ -111,13 +127,41 @@ class SourceAdapterRegistry:
         self._adapters.pop(family, None)
 
     def resolve(self, family: SourceContentFamily) -> SourceAdapterPort:
-        adapter = self._adapters.get(family)
+        aliases = {
+            SourceContentFamily.JAVA_BYTECODE: SourceContentFamily.JAR,
+            SourceContentFamily.OPENSPEC_SPEC: SourceContentFamily.OPENSPEC,
+            SourceContentFamily.OPENSPEC_CHANGE: SourceContentFamily.OPENSPEC,
+            SourceContentFamily.ADR: SourceContentFamily.OPENSPEC,
+            SourceContentFamily.LOCAL_INBOX: SourceContentFamily.PLAIN_TEXT,
+        }
+        adapter = self._adapters.get(aliases.get(family, family))
         if adapter is None:
             raise AdapterMissing(f"no adapter registered for family {family!r}")
         return adapter
 
     def has(self, family: SourceContentFamily) -> bool:
-        return family in self._adapters
+        try:
+            self.resolve(family)
+            return True
+        except AdapterMissing:
+            return False
 
     def families(self) -> Sequence[SourceContentFamily]:
         return tuple(self._adapters.keys())
+
+
+PLANNED_ADAPTERS = (
+    {"name": "PdfAdapter", "family": "pdf", "dependency": "pdfplumber", "spdx": "MIT"},
+    {
+        "name": "OpenApiAdapter",
+        "family": "openapi",
+        "dependency": "openapi-schema-validator",
+        "spdx": "Apache-2.0",
+    },
+    {
+        "name": "OfficeAdapter",
+        "family": "office",
+        "dependency": "python-docx",
+        "spdx": "MIT",
+    },
+)

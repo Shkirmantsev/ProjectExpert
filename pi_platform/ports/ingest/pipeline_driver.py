@@ -25,6 +25,7 @@ from pi_platform.core.canonical.value_types import (
     KnowledgeState,
     Relation,
     Source,
+    ProjectVersion,
 )
 
 
@@ -101,6 +102,10 @@ class StageOutcome:
     duration_ms: float
     error_category: Optional[str] = None
     error_message: Optional[str] = None
+    source_id: str = ""
+    outcome: str = "ok"
+    content_addresses: Sequence[str] = field(default_factory=tuple)
+    attempts: int = 1
 
 
 @dataclass(frozen=True)
@@ -117,6 +122,11 @@ class PipelineReport:
     knowledge_state: KnowledgeState = KnowledgeState.VERIFIED
     error_category: Optional[str] = None
     error_message: Optional[str] = None
+
+    project_version: Optional[ProjectVersion] = None
+    sources: Sequence[Source] = field(default_factory=tuple)
+    started_at: str = ""
+    finished_at: str = ""
 
     @property
     def ok(self) -> bool:

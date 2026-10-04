@@ -25,7 +25,7 @@ contributor or AI agent can orient quickly.
 |---|---|---|---|
 | 0 | Plan | — | complete (archived) |
 | 1 | Foundation | Phase 0 | complete (archived) |
-| 2 | Ingestion (parsers, content addressing) | Phase 1 | planned |
+| 2 | Ingestion (parsers, content addressing) | Phase 1 | complete |
 | 3 | Storage (runtime DB, sharded graph) | Phase 2 | planned |
 | 4 | Retrieval (hybrid, multi-stage, reranking) | Phase 3 | planned |
 | 5 | Orchestration (query, local LLM, task context) | Phase 4 | planned |
@@ -73,3 +73,13 @@ Phase 1 also produces:
 Anything listed under Phases 2–10 is explicitly out of scope for the
 first code-producing change. Adding out-of-scope work to Phase 1
 violates the principle of the smallest coherent vertical change.
+
+## Phase 2 ingestion
+
+The [ingestion module](../modules/ingest.md) implements PipelineDriver, source adapters,
+structural chunking, layered enrichment, content-address reuse and inbox policies.
+SourcePromotionPolicy distinguishes LOCAL_ONLY, REFERENCE and SNAPSHOT; parser
+subprocesses and cache records carry explicit provenance. See the
+[source interface](../interfaces/source-adapters.md), [chunker](../interfaces/chunker.md)
+and [enrichment](../interfaces/enrichment.md) contracts. Persistent storage and retrieval
+remain future phases.

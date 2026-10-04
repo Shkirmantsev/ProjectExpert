@@ -1,38 +1,60 @@
-"""Stub for the Phase 2 Gradle build file SourceAdapter.
+"""Declared Groovy/Kotlin dependency extraction; unresolved expressions stay visible."""
 
-The real stdlib text implementation lands in the next step.
-Construction succeeds so the default ``LocalPipelineDriver``
-registry can be built; ``parse`` raises ``NotImplementedError``
-until the real implementation replaces this module at the
-documented import path.
-"""
-
-from __future__ import annotations
-
-from typing import Optional
-
-from pi_platform.core.canonical.value_types import Source
-
+import re
+from pathlib import Path
+from pi_platform.core.ingest.records import read_text
 from pi_platform.ports.ingest.source_adapter import (
-    SourceAdapterContext,
     SourceAdapterPort,
     SourceContentFamily,
-    SourceParseResult,
 )
+from .dependencies import BuildTreeMixin, dependency_records
 
 
-__all__ = ["GradleAdapter"]
+class GradleAdapter(BuildTreeMixin, SourceAdapterPort):
+    family = SourceContentFamily.GRADLE_BUILD
+    binary, build_name = "gradle", "build.gradle"
 
+    def __init__(self, inventory_path=None):
+        self.inventory_path = inventory_path
 
-class GradleAdapter(SourceAdapterPort):
-    """Stub SourceAdapter for Gradle build files."""
-
-    @property
-    def family(self) -> SourceContentFamily:
-        return SourceContentFamily.GRADLE_BUILD
-
-    def parse(self, source: Source,
-              context: Optional[SourceAdapterContext] = None) -> SourceParseResult:
-        raise NotImplementedError(
-            "stub: pi_platform.adapters.java.gradle_adapter"
+    def parse(self, source, context=None):
+        text = read_text(source.uri)
+        text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+        text = re.sub(r"^\s*//.*$", "", text, flags=re.M)
+        rows = []
+        for match in re.finditer(
+            r'\b(\w+)\s*\(?\s*[\'"]([^\'"\s]+):([^\'"\s]+):([^\'"]+)[\'"]', text
+        ):
+            config, group, artifact, version = match.groups()
+            rows.append(
+                {
+                    "groupId": group,
+                    "artifactId": artifact,
+                    "version": version,
+                    "scope": "test" if config.lower().startswith("test") else config,
+                    "type": "jar",
+                    "classifier": "",
+                }
+            )
+        for match in re.finditer(
+            r'\b(\w+)\s+group\s*:\s*[\'"]([^\'"]+)[\'"]\s*,\s*name\s*:\s*[\'"]([^\'"]+)[\'"]\s*,\s*version\s*:\s*[\'"]([^\'"]+)[\'"]',
+            text,
+        ):
+            config, group, artifact, version = match.groups()
+            rows.append(
+                {
+                    "groupId": group,
+                    "artifactId": artifact,
+                    "version": version,
+                    "scope": "test" if config.lower().startswith("test") else config,
+                    "type": "jar",
+                    "classifier": "",
+                }
+            )
+        return dependency_records(
+            source,
+            rows,
+            Path(source.uri).parent.name,
+            "gradle-declarations-1",
+            self.inventory_path,
         )

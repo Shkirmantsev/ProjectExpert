@@ -22,15 +22,14 @@ dependencies = [
 
 [project.optional-dependencies]
 yaml = ["PyYAML>=6.0"]
+java = ["tree-sitter==0.25.2", "tree-sitter-java==0.23.5"]
 dev = ["pytest>=7.0"]
 
 [project.scripts]
 project-intelligence = "pi_platform.cli.main:main"
 
-[tool.setuptools]
-packages = ["pi_platform", "pi_platform.core", "pi_platform.core.canonical",
-            "pi_platform.core.git", "pi_platform.core.sync",
-            "pi_platform.core.licensing", "pi_platform.ports",
-            "pi_platform.adapters", "pi_platform.adapters.fs",
-            "pi_platform.adapters.git", "pi_platform.runtime",
-            "pi_platform.cli"]
+[tool.setuptools.packages.find]
+include = ["pi_platform*"]
+
+[tool.setuptools.data-files]
+"distribution/licenses" = ["distribution/licenses/dependency-inventory.json", "distribution/licenses/tree-sitter-LICENSE.txt", "distribution/licenses/tree-sitter-java-LICENSE.txt"]

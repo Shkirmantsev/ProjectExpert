@@ -1,196 +1,226 @@
-"""LocalSourceInboxScanner core implementation.
+"""Deterministic inbox scanning with explicit, serializable promotion policy."""
 
-Honours the documented ``LOCAL_ONLY`` / ``REFERENCE`` / ``SNAPSHOT``
-promotion policy from architecture §9.2. The scanner records the
-policy in :attr:`Source.metadata` so downstream stages can branch
-on the policy without re-reading ``project-context.yaml``.
-
-The override resolution rule (longest matching glob wins; ties
-broken by sort ascending by glob string) is implemented in
-:meth:`LocalSourceInboxScanner.resolve_policy` and is locked by
-``.ai/wiki/adr/0007-phase-2-inbox-policy-default.md``.
-"""
-
-from __future__ import annotations
-
-import fnmatch
 import hashlib
+import logging
+import fnmatch
+import subprocess
+from dataclasses import replace
 from pathlib import Path
-from typing import Mapping, Optional, Sequence
-
 from pi_platform.core.canonical.content_address import content_address
 from pi_platform.core.canonical.value_types import (
-    KnowledgeState,
     Metadata,
     Source,
+    KnowledgeState,
+    to_canonical_json,
 )
-
 from pi_platform.ports.ingest.local_source_inbox_scanner import (
-    InvalidPolicy,
     LocalSourceInboxContext,
     LocalSourceInboxReport,
     LocalSourceInboxScannerPort,
-    PromotionDenied,
     SourcePromotionPolicy,
     UnknownSource,
+    InvalidPolicy,
+    PromotionDenied,
 )
 
-
-__all__ = ["LocalSourceInboxScanner"]
+log = logging.getLogger(__name__)
 
 
 class LocalSourceInboxScanner(LocalSourceInboxScannerPort):
-    """Default :class:`LocalSourceInboxScannerPort` implementation."""
-
-    #: File suffixes registered by default.
     KNOWN_SUFFIXES = {
-        ".md", ".markdown",
-        ".html", ".htm",
-        ".txt", ".text",
+        ".md",
+        ".markdown",
+        ".txt",
+        ".text",
+        ".html",
+        ".htm",
         ".java",
         ".jar",
         ".pom",
-        ".gradle", ".kts",
-        ".yaml", ".yml",
-        ".json",
+        ".xml",
+        ".gradle",
+        ".kts",
         ".pdf",
-        ".openapi.yaml", ".openapi.yml", ".openapi.json",
+        ".yaml",
+        ".yml",
+        ".json",
+        ".properties",
     }
 
-    def scan(self, context: LocalSourceInboxContext) -> LocalSourceInboxReport:
-        if not context.project_root.exists():
-            return LocalSourceInboxReport(
-                scanned_paths=(),
-                registered_sources=(),
-                knowledge_state=KnowledgeState.UNKNOWN,
-                rationale=f"project_root {context.project_root!r} does not exist",
+    def __init__(self, cache=None):
+        self.cache = cache
+        self._previous = {}
+
+    def scan(self, context):
+        root = context.project_root.resolve()
+        maximum = int(context.extra.get("max_source_bytes", 256 * 1024 * 1024))
+        tracked = set(context.extra.get("tracked_paths", ()))
+        repo = Path(context.extra.get("repository_root", root)).resolve()
+        try:
+            output = subprocess.run(
+                ["git", "-C", str(repo), "ls-files", "-z"],
+                capture_output=True,
+                check=True,
+                timeout=10,
             )
-
-        sources: list[Source] = []
-        scanned: list[Path] = []
-        skipped: list[Path] = []
-        promoted: list[Path] = []
-
-        iterator: Sequence[Path]
-        if context.recursive:
-            iterator = tuple(sorted(p for p in context.project_root.rglob("*")))
-        else:
-            iterator = tuple(sorted(p for p in context.project_root.iterdir()))
-
-        for path in iterator:
+            index_paths = {
+                str((repo / p.decode()).resolve())
+                for p in output.stdout.split(b"\0")
+                if p
+            }
+            head = subprocess.run(
+                ["git", "-C", str(repo), "ls-tree", "-r", "--name-only", "-z", "HEAD"],
+                capture_output=True,
+                check=True,
+                timeout=10,
+            )
+            head_paths = {
+                str((repo / p.decode()).resolve())
+                for p in head.stdout.split(b"\0")
+                if p
+            }
+            tracked.update(index_paths & head_paths)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        sources, skipped, scanned, current = [], [], [], {}
+        iterator = root.rglob("*") if context.recursive else root.glob("*")
+        for path in sorted(iterator, key=lambda p: p.relative_to(root).as_posix()):
             if not path.is_file():
                 continue
-            if not self._is_known(path):
+            if (
+                ".git" in path.relative_to(root).parts
+                or path.suffix.lower() not in self.KNOWN_SUFFIXES
+            ):
                 skipped.append(path)
                 continue
+            relative = path.relative_to(root)
+            if (
+                path.is_symlink()
+                or str(path.resolve()) in tracked
+                or relative.as_posix() in tracked
+                or path.stat().st_size > maximum
+            ):
+                skipped.append(path)
+                log.info(
+                    "inbox skipped path=%s reason=tracked/symlink/size-limit", path
+                )
+                continue
+            try:
+                data = path.read_bytes()
+            except OSError as exc:
+                raise UnknownSource(f"cannot read {path}: {exc}") from exc
             scanned.append(path)
             policy = self.resolve_policy(
-                path, context.default_policy, context.override_map
+                relative, context.default_policy, context.override_map
             )
-            source = self._make_source(path, context, policy)
-            if policy == SourcePromotionPolicy.SNAPSHOT:
-                promoted.append(path)
+            digest = hashlib.sha256(data).hexdigest()
+            sid = content_address({"path": str(path)})
+            source = Source(
+                sid,
+                str(path),
+                self._family_for(path),
+                digest,
+                Metadata(
+                    sid,
+                    digest,
+                    self._family_for(path),
+                    sourcePath=str(path),
+                    contentHash=digest,
+                    policy=policy.value,
+                    extensions={
+                        "pi_processing_context": context.extra.get(
+                            "processing_fingerprint", ""
+                        )
+                    },
+                ),
+            )
+            current[str(path)] = source
+            # Driver owns content/body reuse; scanner skips only explicitly completed source hashes.
+            if self.cache is not None and self.cache.source_is_current(
+                sid,
+                digest,
+                content_address(to_canonical_json(source.metadata).decode()),
+            ):
+                skipped.append(path)
+                continue
             sources.append(source)
-
+        previous = self._previous.get(str(root), {})
+        deleted = tuple(sorted(s.id for p, s in previous.items() if p not in current))
+        for sid in deleted:
+            if self.cache is not None:
+                self.cache.invalidate_source(sid)
+            log.info("source deleted id=%s derived-state=stale", sid)
+        self._previous[str(root)] = current
         return LocalSourceInboxReport(
-            scanned_paths=tuple(scanned),
-            registered_sources=tuple(sources),
-            skipped_paths=tuple(skipped),
-            promoted_paths=tuple(promoted),
-            knowledge_state=KnowledgeState.VERIFIED,
+            tuple(scanned),
+            tuple(sources),
+            tuple(skipped),
+            (),
+            deleted_source_ids=deleted,
         )
 
-    def resolve_policy(self, source_path: Path,
-                       default_policy: SourcePromotionPolicy,
-                       override_map: Mapping[str, SourcePromotionPolicy]
-                       ) -> SourcePromotionPolicy:
+    def resolve_policy(self, source_path, default_policy, override_map):
         candidates = [
-            (glob, policy) for glob, policy in override_map.items()
-            if fnmatch.fnmatch(str(source_path), glob)
+            (g, p)
+            for g, p in override_map.items()
+            if fnmatch.fnmatch(source_path.as_posix(), g)
         ]
-        if not candidates:
-            return default_policy
-        candidates.sort(key=lambda gp: (-len(gp[0]), gp[0]))
-        return candidates[0][1]
-
-    def promote(self, source: Source, policy: SourcePromotionPolicy,
-                snapshot_root: Optional[Path] = None) -> Source:
-        if not isinstance(policy, SourcePromotionPolicy):
-            raise InvalidPolicy(f"policy must be SourcePromotionPolicy, got {policy!r}")
-        if policy == SourcePromotionPolicy.LOCAL_ONLY:
-            raise PromotionDenied(
-                "LOCAL_ONLY sources cannot be promoted to durable storage"
+        candidates.sort(key=lambda x: (-len(x[0]), x[0]))
+        policy = candidates[0][1] if candidates else default_policy
+        try:
+            return SourcePromotionPolicy(
+                str(policy).upper()
+                if not isinstance(policy, SourcePromotionPolicy)
+                else policy
             )
-        # REFERENCE keeps the same bytes on disk; SNAPSHOT copies the
-        # source into ``snapshot_root`` if provided. The Phase 2
-        # implementation is the canonical guard; the Phase 3
-        # RuntimeStore owns the durable materialisation.
-        if policy == SourcePromotionPolicy.SNAPSHOT and snapshot_root is not None:
-            snapshot_root.mkdir(parents=True, exist_ok=True)
-            target = snapshot_root / source.id
-            try:
-                target.write_bytes(Path(source.uri).read_bytes())
-            except FileNotFoundError as exc:
-                raise UnknownSource(f"source uri {source.uri!r} not found") from exc
+        except ValueError as exc:
+            raise InvalidPolicy(str(policy)) from exc
+
+    def promote(self, source, policy, snapshot_root=None):
+        if not isinstance(policy, SourcePromotionPolicy):
+            raise InvalidPolicy(str(policy))
+        recorded = promotion_policy_of(source)
+        if (
+            recorded is SourcePromotionPolicy.LOCAL_ONLY
+            or policy is SourcePromotionPolicy.LOCAL_ONLY
+        ):
+            raise PromotionDenied("LOCAL_ONLY source cannot be promoted")
+        if policy is not recorded:
+            raise PromotionDenied("promotion must match the declared policy")
+        if snapshot_root is not None:
+            root = snapshot_root / source.id
+            root.mkdir(parents=True, exist_ok=True)
+            if policy is SourcePromotionPolicy.SNAPSHOT:
+                try:
+                    (root / "source").write_bytes(Path(source.uri).read_bytes())
+                except OSError as exc:
+                    raise UnknownSource(str(exc)) from exc
+            (root / "reference.json").write_bytes(to_canonical_json(source))
         return source
 
-    def _is_known(self, path: Path) -> bool:
-        suffix = path.suffix.lower()
-        if suffix in self.KNOWN_SUFFIXES:
-            return True
-        return any(str(path).endswith(s) for s in self.KNOWN_SUFFIXES)
-
-    def _make_source(self, path: Path, context: LocalSourceInboxContext,
-                     policy: SourcePromotionPolicy) -> Source:
-        try:
-            data = path.read_bytes()
-        except OSError:
-            data = b""
-        content_hash = hashlib.sha256(data).hexdigest()
-        metadata = Metadata(
-            documentId=content_hash[:12],
-            version="0.0.0",
-            language="und",
-            sourcePath=str(path),
-            contentHash=content_hash,
-        )
-        # The policy is recorded in source.metadata via a side-channel
-        # field. We use a fresh Metadata instance so the canonical
-        # serializer stays deterministic and the policy survives the
-        # round trip.
-        object.__setattr__(metadata, "_promotionPolicy", policy.value)
-        return Source(
-            id=content_address(metadata),
-            uri=str(path),
-            family=self._family_for(path),
-            contentHash=content_hash,
-            metadata=metadata,
-        )
-
     @staticmethod
-    def _family_for(path: Path) -> str:
+    def _family_for(path):
         name = path.name.lower()
+        if "openspec" in path.parts and name.endswith(".md"):
+            return "openspec"
         if name.endswith((".md", ".markdown")):
             return "markdown"
         if name.endswith((".html", ".htm")):
             return "html"
-        if name.endswith((".java",)):
+        if name.endswith(".java"):
             return "java_source"
         if name.endswith(".jar"):
             return "jar"
-        if name.endswith(".pom") or name == "pom.xml":
+        if name == "pom.xml" or name.endswith(".pom"):
             return "maven_pom"
-        if name.endswith((".gradle", ".kts")):
+        if name.endswith((".gradle", ".gradle.kts")):
             return "gradle_build"
-        if "openapi" in name and name.endswith((".yaml", ".yml", ".json")):
-            return "openapi"
         if name.endswith(".pdf"):
             return "pdf"
+        if "openapi" in name:
+            return "openapi"
         return "plain_text"
 
 
-def promotion_policy_of(source: Source) -> SourcePromotionPolicy:
-    """Return the policy recorded in :attr:`Source.metadata`."""
-
-    raw = object.__getattribute__(source.metadata, "_promotionPolicy")
-    return SourcePromotionPolicy(raw)
+def promotion_policy_of(source):
+    return SourcePromotionPolicy(source.metadata.policy or "LOCAL_ONLY")

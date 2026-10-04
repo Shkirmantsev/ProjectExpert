@@ -1,236 +1,201 @@
-"""OpenSpecChangeAdapter for openspec/specs and openspec/changes trees."""
-
-from __future__ import annotations
+"""Current and proposed OpenSpec records share Markdown parsing and preserve status."""
 
 import re
 from dataclasses import replace
 from pathlib import Path
-from typing import Optional, Sequence
-
-from pi_platform.core.canonical.content_address import (
-    content_address,
-    content_address_bytes,
-)
+from pi_platform.adapters.markdown.markdown_adapter import MarkdownAdapter
+from pi_platform.adapters.ingest.chunkers import PlainTextChunker
+from pi_platform.core.canonical.content_address import content_address
 from pi_platform.core.canonical.value_types import (
-    Chunk,
-    Document,
     Entity,
     Evidence,
-    KnowledgeState,
-    Metadata,
     Relation,
-    Section,
-    Source,
+    KnowledgeState,
 )
-
-from pi_platform.ports.ingest.chunker import ChunkerContext, ChunkerPort
 from pi_platform.ports.ingest.source_adapter import (
-    SourceAdapterContext,
     SourceAdapterPort,
     SourceContentFamily,
-    SourceParseResult,
 )
-
-
-__all__ = [
-    "OpenSpecChangeAdapter",
-    "OpenSpecChunker",
-    "OpenSpecEntityExtractor",
-]
-
-
-_OPENSPEC_ARTIFACTS = frozenset({
-    "proposal.md",
-    "design.md",
-    "context-impact.md",
-    "tasks.md",
-    "spec.md",
-})
-
-_REQUIREMENT_RE = re.compile(r"^#{0,6}\s*Requirement:\s*(\S.*)$")
-_PURPOSE_RE = re.compile(r"^#{0,6}\s*Purpose:\s*(\S.*)$")
-
-
-def _is_archived(uri: str) -> bool:
-    parts = Path(uri).parts
-    return any(
-        parts[i] == "openspec"
-        and parts[i + 1] == "changes"
-        and parts[i + 2] == "archive"
-        for i in range(len(parts) - 2)
-    )
 
 
 class OpenSpecChangeAdapter(SourceAdapterPort):
-    """SourceAdapter delegating OpenSpec Markdown to MarkdownAdapter."""
+    family = SourceContentFamily.OPENSPEC
 
-    @property
-    def family(self) -> SourceContentFamily:
-        return SourceContentFamily.OPENSPEC
-
-    def parse(self, source: Source,
-              context: Optional[SourceAdapterContext] = None) -> SourceParseResult:
-        from pi_platform.adapters.markdown.markdown_adapter import (
-            MarkdownAdapter,
-        )
-
+    def parse(self, source, context=None):
+        path = Path(source.uri)
+        if path.is_dir():
+            from pi_platform.core.canonical.content_address import content_address_bytes
+            from pi_platform.core.canonical.value_types import Source
+            from pi_platform.core.ingest.records import document_result
+            entities, relations, sections = {}, [], []
+            for child in sorted(path.rglob("*.md")):
+                if child.name != "spec.md":
+                    continue
+                nested = Source(content_address({"path":str(child)}), str(child), source.family, content_address_bytes(child.read_bytes()))
+                parsed = self.parse(nested, context)
+                entities.update((e.id,e) for e in parsed.entities)
+                relations.extend(parsed.relations)
+                sections.extend(parsed.sections)
+            base = document_result(source, [], "openspec", "openspec-stdlib-1")
+            return replace(base, document=replace(base.document, sections=tuple(sections)), sections=tuple(sections), entities=tuple(entities.values()), relations=tuple(relations), evidence=tuple(e for r in relations for e in r.evidence))
         result = MarkdownAdapter().parse(source, context)
-        if Path(source.uri).name in _OPENSPEC_ARTIFACTS:
-            document = replace(
+        entities, relations = OpenSpecEntityExtractor().extract(result.document, source)
+        return replace(
+            result,
+            document=replace(
                 result.document,
                 metadata=replace(result.document.metadata, language="openspec"),
+            ),
+            entities=entities,
+            relations=relations,
+            evidence=tuple(e for r in relations for e in r.evidence),
+        )
+
+    def active_changes(self, project_root):
+        root = Path(project_root) / "openspec/changes"
+        return (
+            tuple(
+                p.name
+                for p in sorted(root.iterdir())
+                if p.is_dir() and p.name != "archive"
             )
-            result = replace(result, document=document)
-        return result
+            if root.exists()
+            else ()
+        )
 
 
-class OpenSpecChunker(ChunkerPort):
-    """One Chunk per ``Requirement:`` section heading."""
+class OpenSpecChunker(PlainTextChunker):
+    family = SourceContentFamily.OPENSPEC
 
-    @property
-    def family(self) -> SourceContentFamily:
-        return SourceContentFamily.OPENSPEC
-
-    def chunk(self, document: Document, sections: Sequence[Section],
-              context: Optional[ChunkerContext] = None) -> Sequence[Chunk]:
-        chunks: list[Chunk] = []
+    def chunk(self, document, sections, context=None):
+        selected = []
+        current = None
         for section in sections:
-            if not section.heading.startswith("Requirement: "):
-                continue
-            name = section.heading[len("Requirement: "):]
-            metadata = Metadata(
-                documentId=document.id,
-                version="0.0.0",
-                language=document.metadata.language or "openspec",
-                section=section.heading,
-                sourcePath=document.metadata.sourcePath,
-            )
-            content_hash = content_address_bytes(name.encode("utf-8"))
-            provenance = Evidence(
-                knowledgeState=KnowledgeState.VERIFIED,
-                parserVersion="openspec-chunker-0.1.0",
-            )
-            chunk_id = content_address(
-                Chunk(
-                    id="placeholder",
-                    rawText=name,
-                    contextualText=name,
-                    metadata=metadata,
-                    sourceReference=document.id,
-                    contentHash=content_hash,
-                    parentId=document.id,
-                    childIds=(),
-                    entityIds=(),
-                    provenance=provenance,
-                )
-            )
-            chunks.append(
-                Chunk(
-                    id=chunk_id,
-                    rawText=name,
-                    contextualText=name,
-                    metadata=metadata,
-                    sourceReference=document.id,
-                    contentHash=content_hash,
-                    parentId=document.id,
-                    childIds=(),
-                    entityIds=(),
-                    provenance=provenance,
-                )
-            )
-        return tuple(chunks)
+            if section.heading.startswith("Requirement:"):
+                current = section
+                selected.append(section)
+            elif current and section.level > current.level:
+                body = "\n\n".join(c.rawText for c in section.chunks)
+                if body:
+                    previous = selected[-1]
+                    if previous.chunks:
+                        c = previous.chunks[0]
+                        selected[-1] = replace(
+                            previous,
+                            chunks=(
+                                replace(
+                                    c,
+                                    rawText=c.rawText
+                                    + "\n\n"
+                                    + section.heading
+                                    + "\n"
+                                    + body,
+                                ),
+                            ),
+                        )
+            else:
+                current = None
+        return tuple(
+            replace(c, parentId=document.id)
+            for c in super().chunk(document, selected, context)
+        )
 
 
 class OpenSpecEntityExtractor:
-    """Emit Requirement / Specification / OpenSpecChange entities."""
+    def extract(self, document, source):
+        parts = Path(source.uri).parts
+        archived = "archive" in parts
+        change_index = parts.index("changes") + 1 if "changes" in parts else None
+        change_id = (
+            parts[change_index]
+            if change_index is not None and len(parts) > change_index and not archived
+            else None
+        )
+        capability = (
+            Path(source.uri).parent.name
+            if Path(source.uri).name == "spec.md"
+            else document.title
+        )
+        status = "archived" if archived else "draft" if change_id else "active"
+        state = (
+            KnowledgeState.ASSUMPTION if status == "draft" else KnowledgeState.VERIFIED
+        )
+        # Reuse the canonical OKF frontmatter parser, including its minimal fallback.
+        from pi_platform.core.canonical.okf import parse_frontmatter
 
-    def extract(self, document: Document, source: Source
-                ) -> tuple[Sequence[Entity], Sequence[Relation]]:
-        knowledge_state = (
-            KnowledgeState.STALE if _is_archived(source.uri)
-            else KnowledgeState.VERIFIED
-        )
-        metadata = Metadata(
-            documentId=document.id,
-            version="0.0.0",
-            language=document.metadata.language or "openspec",
-            sourcePath=source.uri,
-        )
-        change_entity = Entity(
-            id=source.id,
-            family="openspec_change",
-            label=document.title or Path(source.uri).name or source.id,
-            metadata=metadata,
-            knowledgeState=knowledge_state,
-        )
-        requirements: list[Entity] = []
-        specifications: list[Entity] = []
-        seen: set[str] = {change_entity.id}
-        for section in document.sections:
-            lines = [section.heading]
-            for chunk in section.chunks:
-                lines.extend(chunk.rawText.splitlines())
-            for line in lines:
-                stripped = line.strip()
-                requirement_match = _REQUIREMENT_RE.match(stripped)
-                if requirement_match:
-                    label = requirement_match.group(1).strip()
-                    entity = Entity(
-                        id=content_address(
-                            {
-                                "family": "requirement",
-                                "label": label,
-                                "documentId": document.id,
-                            }
-                        ),
-                        family="requirement",
-                        label=label,
-                        metadata=metadata,
-                        knowledgeState=knowledge_state,
-                    )
-                    if entity.id not in seen:
-                        seen.add(entity.id)
-                        requirements.append(entity)
-                purpose_match = _PURPOSE_RE.match(stripped)
-                if purpose_match:
-                    label = purpose_match.group(1).strip()[:80]
-                    entity = Entity(
-                        id=content_address(
-                            {
-                                "family": "specification",
-                                "label": label,
-                                "documentId": document.id,
-                            }
-                        ),
-                        family="specification",
-                        label=label,
-                        metadata=metadata,
-                        knowledgeState=knowledge_state,
-                    )
-                    if entity.id not in seen:
-                        seen.add(entity.id)
-                        specifications.append(entity)
-        entities: list[Entity] = [change_entity]
-        entities.extend(specifications)
-        entities.extend(requirements)
-        relations: list[Relation] = []
-        for specification in specifications:
-            for requirement in requirements:
-                relations.append(
-                    Relation(
-                        sourceId=requirement.id,
-                        targetId=specification.id,
-                        family="part_of",
-                        knowledgeState=knowledge_state,
-                    )
-                )
-        for requirement in requirements:
+        text = "\n".join(c.rawText for s in document.sections for c in s.chunks)
+        frontmatter = {}
+        try:
+            from pi_platform.core.ingest.records import read_text
+
+            frontmatter, _ = parse_frontmatter(read_text(source.uri))
+        except (OSError, ValueError, RuntimeError):
+            pass
+        attrs = {
+            "capabilityId": frontmatter.get("capability", capability),
+            "phase": frontmatter.get("phase", 2),
+            "status": status,
+            **{k: v for k, v in frontmatter.items() if k.startswith("pi_")},
+        }
+        evidence = Evidence(state, "openspec-stdlib-1", source.contentHash)
+        entities = []
+        relations = []
+
+        def add(family, label, attributes=None, knowledge=state, identity=None):
+            eid = identity or content_address(
+                {"source": source.id, "family": family, "label": label}
+            )
+            meta = replace(
+                document.metadata,
+                language="openspec",
+                extensions={**attrs, **(attributes or {})},
+            )
+            entities.append(
+                Entity(eid, family, label, metadata=meta, knowledgeState=knowledge)
+            )
+            return eid
+
+        def link(a, b, family, knowledge=state):
             relations.append(
                 Relation(
-                    sourceId=requirement.id,
-                    targetId=change_entity.id,
-                    family="satisfies",
-                    knowledgeState=knowledge_state,
+                    a,
+                    b,
+                    family,
+                    evidence=(replace(evidence, knowledgeState=knowledge),),
+                    knowledgeState=knowledge,
                 )
             )
+
+        parent = (
+            add("OpenSpecChange", change_id, identity=change_id)
+            if change_id
+            else add("Capability", str(capability))
+        )
+        specification = add("Specification", str(capability))
+        for s in document.sections:
+            if s.heading.startswith("Requirement:"):
+                rid = add("Requirement", s.heading.partition(":")[2].strip())
+                link(specification, rid, "SATISFIES")
+                link(rid, parent, "PART_OF")
+        components = sorted(set(re.findall(r"pi_platform[./][\w./]+", text)))
+        for name in components:
+            cid = add("Component", name)
+            link(specification, cid, "IMPLEMENTED_BY")
+            if status == "draft":
+                pending = add(
+                    "PendingImplementation", name, knowledge=KnowledgeState.ASSUMPTION
+                )
+                link(specification, pending, "PENDING", KnowledgeState.ASSUMPTION)
+        if frontmatter.get("kind") == "adr":
+            aid = add("ArchitectureDecision", document.title)
+            for e in list(entities):
+                if e.family == "Component":
+                    link(e.id, aid, "DOCUMENTED_BY")
+        if status == "draft" and not components:
+            pending = add(
+                "PendingImplementation",
+                change_id or str(capability),
+                knowledge=KnowledgeState.ASSUMPTION,
+            )
+            link(specification, pending, "PENDING", KnowledgeState.ASSUMPTION)
         return tuple(entities), tuple(relations)

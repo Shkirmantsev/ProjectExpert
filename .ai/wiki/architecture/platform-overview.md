@@ -207,7 +207,7 @@ Summary of phases:
 |---|---|---|---|
 | 0 | Plan | — | complete |
 | 1 | Foundation | Phase 0 | complete (this change) |
-| 2 | Ingestion (parsers, content addressing) | Phase 1 | planned |
+| 2 | Ingestion (parsers, content addressing) | Phase 1 | complete |
 | 3 | Storage (runtime DB, sharded graph) | Phase 2 | planned |
 | 4 | Retrieval (hybrid, multi-stage, reranking) | Phase 3 | planned |
 | 5 | Orchestration (query, local LLM, task context) | Phase 4 | planned |
@@ -235,3 +235,13 @@ Summary of phases:
   [`AGENTS.md`](../../../AGENTS.md) — agent contracts.
 - [`openspec/CURRENT.md`](../../../openspec/CURRENT.md) — accepted
   capabilities inventory.
+
+## Phase 2 ingestion
+
+The [ingestion module](../modules/ingest.md) implements PipelineDriver, source adapters,
+structural chunking, layered enrichment, content-address reuse and inbox policies.
+SourcePromotionPolicy distinguishes LOCAL_ONLY, REFERENCE and SNAPSHOT; parser
+subprocesses and cache records carry explicit provenance. See the
+[source interface](../interfaces/source-adapters.md), [chunker](../interfaces/chunker.md)
+and [enrichment](../interfaces/enrichment.md) contracts. Persistent storage and retrieval
+remain future phases.
