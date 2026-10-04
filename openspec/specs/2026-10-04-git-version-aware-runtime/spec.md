@@ -120,11 +120,7 @@ And no Git diff is produced in the target repository.
 
 ### Requirement: content-addressed processing reuse
 
-Expensive derived information (parsed structure snapshots, chunks,
-contextualised chunks, embeddings, deterministic summaries,
-deterministic entity/relation extraction results) MUST be associated
-with a SHA-256 content hash derived from the canonical serialization
-of the input content.
+Expensive derived information (parsed structure snapshots, chunks, contextualised chunks, embeddings, deterministic summaries, deterministic entity/relation extraction results) MUST be associated with a SHA-256 content hash derived from the canonical serialization of the input content.
 
 Given identical content, the platform MUST reuse the cached derived
 result rather than recompute it. The reuse MUST apply across Git

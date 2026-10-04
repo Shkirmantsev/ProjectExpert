@@ -75,6 +75,11 @@ is a context manager that acquires an advisory file lock at
 same semantics as `scripts/file_lock.py` but does NOT import the
 harness script.
 
+On Windows, acquisition locks byte zero directly, including when the lock
+file is empty. It does not read or write that byte before locking: another
+handle holding the lock prevents that I/O. Both blocking and timed
+acquisition use this approach.
+
 ## Write-ahead log
 
 `pi_platform.core.sync.wal.WriteAheadLog` records one JSON line

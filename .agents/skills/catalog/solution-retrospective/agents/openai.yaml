@@ -1,0 +1,6 @@
+interface:
+  display_name: "Solution retrospective"
+  short_description: "Persist durable learning after a task needed course-correction"
+  default_prompt: "Use $solution-retrospective after meaningful backtracking or a late better approach, and persist only durable learning."
+policy:
+  allow_implicit_invocation: true

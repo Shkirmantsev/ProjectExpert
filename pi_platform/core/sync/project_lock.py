@@ -39,10 +39,8 @@ class ProjectLock:
     def _lock(self, stream) -> None:
         if os.name == "nt":
             import msvcrt
-            stream.seek(0)
-            if not stream.read(1):
-                stream.write("\0")
-                stream.flush()
+            # Windows can lock beyond EOF. Reading or initialising this byte
+            # before acquisition fails if another handle already holds it.
             stream.seek(0)
             msvcrt.locking(stream.fileno(), msvcrt.LK_LOCK, 1)
         else:
@@ -99,10 +97,6 @@ class ProjectLock:
 
         if os.name == "nt":
             import msvcrt
-            stream.seek(0)
-            if not stream.read(1):
-                stream.write("\0")
-                stream.flush()
             stream.seek(0)
             try:
                 msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)

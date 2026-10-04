@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "goal_loop": {
+    "max_steps": 18,
+    "max_delegation_depth": 2,
+    "max_children_per_agent": 3,
+    "max_parallel_agents": 3,
+    "max_review_cycles": 2,
+    "max_repeated_failure": 2,
+    "max_no_progress_windows": 2
+  },
+  "model_classes": {
+    "reasoning-high": {
+      "roles": ["planner", "architect", "reviewer", "complex-escalation"],
+      "writes": false
+    },
+    "coding-efficient": {
+      "roles": ["executor", "debugger"],
+      "writes": "scoped"
+    },
+    "local-small": {
+      "roles": ["mechanical-worker", "search", "format", "summarize"],
+      "writes": "narrow",
+      "requires_structured_contract": true
+    }
+  },
+  "routing_profiles": {
+    "local-small": {
+      "max_active_skills": 4,
+      "max_steps": 8,
+      "instruction_style": "short-sequential",
+      "escalate_below_confidence": 0.72
+    },
+    "balanced": {
+      "max_active_skills": 5,
+      "max_steps": 12,
+      "instruction_style": "structured",
+      "escalate_below_confidence": 0.62
+    },
+    "reasoning-high": {
+      "max_active_skills": 7,
+      "max_steps": 18,
+      "instruction_style": "full",
+      "escalate_below_confidence": 0.5
+    }
+  },
+  "context": {
+    "active_skill_target": "3-7",
+    "stable_prefix_order": [
+      "harness-policy",
+      "role",
+      "tool-profile",
+      "activated-skills",
+      "project-policy"
+    ],
+    "volatile_suffix_order": [
+      "task-delta",
+      "latest-tool-output",
+      "latest-diff-or-error"
+    ],
+    "deterministic_skill_order": true,
+    "deterministic_tool_order": true
+  },
+  "checkpoint": {
+    "directory": "tmp/local/sessions",
+    "atomic_write": true,
+    "verify_working_set_hashes_on_resume": true,
+    "store_raw_reasoning": false
+  },
+  "self_improvement": {
+    "auto_promote_lessons": false,
+    "require_evidence": true,
+    "require_regression_evaluation": true,
+    "require_human_or_strong_model_review": true,
+    "forbidden_auto_changes": [
+      "security-policy",
+      "tool-permissions",
+      "root-instructions",
+      "credentials",
+      "project-boundary"
+    ]
+  },
+  "metrics": [
+    "task_success_rate",
+    "required_skill_recall",
+    "irrelevant_skill_rate",
+    "active_skill_count",
+    "context_tokens",
+    "cached_input_ratio",
+    "useful_tool_call_ratio",
+    "no_progress_terminations",
+    "cost_per_verified_success"
+  ]
+}

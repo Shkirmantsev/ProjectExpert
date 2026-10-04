@@ -67,10 +67,7 @@ license to `licensing.allow` if the operator intends to accept it.
 
 ### Requirement: review-required licenses must be explicitly accepted
 
-Dependencies whose license carries reciprocal, file-level copyleft,
-linking conditions or other distribution obligations MUST NOT be
-introduced without operator acceptance. The platform MUST maintain a
-`licensing.review` list whose initial entries include at least:
+Dependencies whose license carries reciprocal, file-level copyleft, linking conditions or other distribution obligations MUST NOT be introduced without operator acceptance.
 
 - MPL-2.0;
 - EPL-2.0;
@@ -99,11 +96,7 @@ Then the dependency passes for that coordinate identity only.
 
 ### Requirement: restricted and non-commercial licenses are denied by default
 
-Dependencies whose terms prohibit or materially restrict commercial
-use, redistribution, SaaS use, modification, use by companies or
-resale MUST NOT enter the default dependency stack unless explicitly
-approved by the operator. The platform MUST recognise as restricted at
-least the patterns:
+Dependencies whose terms prohibit or materially restrict commercial use, redistribution, SaaS use, modification, use by companies or resale MUST NOT enter the default dependency stack unless explicitly approved by the operator.
 
 - `*-NC-*`;
 - `research-only`;
@@ -119,12 +112,7 @@ explanation.
 
 ### Requirement: model licenses are tracked separately
 
-The license of model weights, tokenizer, training artifacts,
-inference runtime, embedding model and reranker MUST be tracked
-separately from the underlying library licenses because they often
-differ. The platform MUST emit a `distribution/licenses/model-
-licenses.json` artefact listing every bundled model asset, its
-source, its version and its license identifier.
+The license of model weights, tokenizer, training artifacts, inference runtime, embedding model and reranker MUST be tracked separately from the underlying library licenses because they often differ.
 
 #### Scenario: Apache-2.0 library with non-permissive weights is held
 

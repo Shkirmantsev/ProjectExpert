@@ -120,6 +120,9 @@ class Metadata:
     securityClassification: Optional[str] = None
     contentHash: Optional[str] = None
 
+    policy: Optional[str] = field(default=None, metadata={"omit_empty": True})
+    extensions: Mapping[str, Any] = field(default_factory=dict, metadata={"omit_empty": True})
+
     def __post_init__(self) -> None:
         self.validate()
 
@@ -377,6 +380,8 @@ def dataclass_to_dict(obj: Any) -> Any:
         out: dict[str, Any] = {}
         for f in fields(obj):
             value = getattr(obj, f.name)
+            if f.metadata.get("omit_empty") and not value:
+                continue
             if f.name in _ID_ARRAYS and isinstance(value, (list, tuple)):
                 value = _sort_identifier_list(list(value))
             out[f.name] = dataclass_to_dict(value)

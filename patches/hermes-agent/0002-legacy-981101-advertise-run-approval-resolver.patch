@@ -1,0 +1,63 @@
+diff --git a/gateway/platforms/api_server.py b/gateway/platforms/api_server.py
+--- a/gateway/platforms/api_server.py
++++ b/gateway/platforms/api_server.py
+@@ -3343,6 +3343,7 @@ class APIServerAdapter(BasePlatformAdapter):
+                 "run_stop": True,
+                 "run_steer": True,
+                 "run_approval_response": True,
++                "resolver_scoped_run_approvals": True,
+                 "tool_progress_events": True,
+                 "approval_events": True,
+                 "session_resources": True,
+@@ -7727,10 +7728,15 @@ class APIServerAdapter(BasePlatformAdapter):
+                             allow_permanent=event.get("allow_permanent") is not False,
+                         ),
+                     })
++                    current = self._run_statuses.get(run_id, {})
++                    approval_events = list(current.get("approval_events") or [])
++                    approval_events.append(event)
+                     self._set_run_status(
+                         run_id,
+                         "waiting_for_approval",
+                         last_event="approval.request",
++                        approval_events=approval_events[-20:],
++                        pending_approvals=[event],
+                     )
+                     try:
+                         loop.call_soon_threadsafe(q.put_nowait, event)
+@@ -8096,17 +8102,27 @@ class APIServerAdapter(BasePlatformAdapter):
+                 status=409,
+             )
+ 
+-        self._set_run_status(run_id, "running", last_event="approval.responded")
++        response_event = {
++            "event": "approval.responded",
++            "run_id": run_id,
++            "timestamp": time.time(),
++            "choice": choice,
++            "resolved": resolved,
++        }
++        current = self._run_statuses.get(run_id, {})
++        approval_events = list(current.get("approval_events") or [])
++        approval_events.append(response_event)
++        self._set_run_status(
++            run_id,
++            "running",
++            last_event="approval.responded",
++            approval_events=approval_events[-20:],
++            pending_approvals=[],
++        )
+         q = self._run_streams.get(run_id)
+         if q is not None:
+             try:
+-                q.put_nowait({
+-                    "event": "approval.responded",
+-                    "run_id": run_id,
+-                    "timestamp": time.time(),
+-                    "choice": choice,
+-                    "resolved": resolved,
+-                })
++                q.put_nowait(response_event)
+             except Exception:
+                 pass
+ 

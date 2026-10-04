@@ -18,10 +18,7 @@ depends on.
 
 ### Requirement: deterministic canonical serialization
 
-Every canonical artifact (chunk, entity, relation, evidence,
-manifest, OKF Markdown concept page) MUST be serialisable to a
-deterministic textual form (JSON or YAML) such that two equivalent
-runtime states produce byte-identical canonical files.
+Every canonical artifact (chunk, entity, relation, evidence, manifest, OKF Markdown concept page) MUST be serialisable to a deterministic textual form (JSON or YAML) such that two equivalent runtime states produce byte-identical canonical files.
 
 Deterministic serialization MUST cover at minimum:
 
@@ -52,10 +49,7 @@ Then the relations array is sorted by target identifier to
 
 ### Requirement: canonical object content addressing
 
-Every canonical immutable object (parsed structure snapshot,
-normalized chunk body, deterministic extracted relation, OKF concept
-page snapshot) MUST be addressed by its SHA-256 hex digest of its
-deterministic canonical serialization.
+Every canonical immutable object (parsed structure snapshot, normalized chunk body, deterministic extracted relation, OKF concept page snapshot) MUST be addressed by its SHA-256 hex digest of its deterministic canonical serialization.
 
 The content address MUST be used as the primary key for the runtime
 working knowledge store cache and MUST be reused across Git branches

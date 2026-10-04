@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/harness/session-state.schema.json",
+  "title": "Harness Session State v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "session",
+    "task",
+    "progress",
+    "decisions",
+    "verification",
+    "working_set",
+    "budgets",
+    "resume",
+    "runtime"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "session": {
+      "type": "object",
+      "required": ["id", "project", "created_at", "updated_at"]
+    },
+    "task": {
+      "type": "object",
+      "required": ["goal", "acceptance", "status"],
+      "properties": {
+        "goal": {"type": "string", "minLength": 1},
+        "acceptance": {"type": "array", "items": {"type": "string"}},
+        "openspec_change": {"type": "string"},
+        "status": {
+          "enum": ["planning", "executing", "verifying", "reviewing", "blocked", "complete"]
+        }
+      }
+    },
+    "progress": {
+      "type": "object",
+      "required": ["done", "todo", "blocked"]
+    },
+    "context": {"type": "array", "items": {"type": "string"}},
+    "decisions": {"type": "array", "items": {"type": "string"}},
+    "verification": {
+      "type": "object",
+      "required": ["passed", "pending"]
+    },
+    "working_set": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "required": ["steps_used", "steps_max"]
+    },
+    "resume": {
+      "type": "object",
+      "required": ["next_action", "prerequisites"]
+    },
+    "runtime": {
+      "type": "object",
+      "required": [
+        "no_progress_windows",
+        "last_failure_fingerprint",
+        "repeated_failure_count",
+        "next_decision"
+      ],
+      "properties": {
+        "no_progress_windows": {"type": "integer", "minimum": 0},
+        "last_failure_fingerprint": {"type": "string"},
+        "repeated_failure_count": {"type": "integer", "minimum": 0},
+        "next_decision": {"enum": ["continue", "reflect", "escalate", "stop"]}
+      }
+    }
+  }
+}

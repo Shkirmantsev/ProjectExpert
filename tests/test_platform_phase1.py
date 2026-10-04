@@ -16,6 +16,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -353,7 +355,9 @@ class ProjectKnowledgeLayoutTests(unittest.TestCase):
 
 class GitPortTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp())
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.tmp = Path(self.temp.name)
         subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
         subprocess.run(["git", "-C", str(self.tmp), "config", "user.email",
                        "test@example.com"], check=True)
@@ -364,9 +368,6 @@ class GitPortTests(unittest.TestCase):
                        check=True)
         subprocess.run(["git", "-C", str(self.tmp), "commit", "-q",
                        "-m", "init"], check=True)
-
-    def tearDown(self) -> None:
-        shutil.rmtree(self.tmp)
 
     def test_git_cli_adapter_head(self) -> None:
         port = GitCliAdapter()
@@ -393,7 +394,9 @@ class GitPortTests(unittest.TestCase):
 
 class VersionIdentityTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp())
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.tmp = Path(self.temp.name)
         subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
         subprocess.run(["git", "-C", str(self.tmp), "config", "user.email",
                        "test@example.com"], check=True)
@@ -404,9 +407,6 @@ class VersionIdentityTests(unittest.TestCase):
                        check=True)
         subprocess.run(["git", "-C", str(self.tmp), "commit", "-q",
                        "-m", "v1"], check=True)
-
-    def tearDown(self) -> None:
-        shutil.rmtree(self.tmp)
 
     def test_embedding_model_version_defaults_to_unknown(self) -> None:
         identity = compute_version_identity(self.tmp)
@@ -431,7 +431,9 @@ class VersionIdentityTests(unittest.TestCase):
 
 class WorkingTreeOverlayTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp())
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.tmp = Path(self.temp.name)
         subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
         subprocess.run(["git", "-C", str(self.tmp), "config", "user.email",
                        "test@example.com"], check=True)
@@ -442,9 +444,6 @@ class WorkingTreeOverlayTests(unittest.TestCase):
                        check=True)
         subprocess.run(["git", "-C", str(self.tmp), "commit", "-q",
                        "-m", "v1"], check=True)
-
-    def tearDown(self) -> None:
-        shutil.rmtree(self.tmp)
 
     def test_overlay_is_deterministic(self) -> None:
         (self.tmp / "file.txt").write_text("changed", encoding="utf-8")
@@ -472,7 +471,9 @@ class WorkingTreeOverlayTests(unittest.TestCase):
 
 class HydrateTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp())
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.tmp = Path(self.temp.name)
         self.cache = self.tmp / "cache"
         subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
         subprocess.run(["git", "-C", str(self.tmp), "config", "user.email",
@@ -484,9 +485,6 @@ class HydrateTests(unittest.TestCase):
                        check=True)
         subprocess.run(["git", "-C", str(self.tmp), "commit", "-q",
                        "-m", "v1"], check=True)
-
-    def tearDown(self) -> None:
-        shutil.rmtree(self.tmp)
 
     def test_cold_start_hydrate_reports_zero_hit_rate(self) -> None:
         fs = LocalFilesystemAdapter(self.tmp, cache_root=self.cache)
@@ -506,7 +504,9 @@ class HydrateTests(unittest.TestCase):
 
 class MaterialiseTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp())
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.tmp = Path(self.temp.name)
         self.cache = self.tmp / "cache"
         subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
         subprocess.run(["git", "-C", str(self.tmp), "config", "user.email",
@@ -520,9 +520,6 @@ class MaterialiseTests(unittest.TestCase):
                        "-m", "v1"], check=True)
         self.fs = LocalFilesystemAdapter(self.tmp, cache_root=self.cache)
         self.fs.ensure_canonical_tree()
-
-    def tearDown(self) -> None:
-        shutil.rmtree(self.tmp)
 
     def test_materialise_requires_approval_token(self) -> None:
         from pi_platform.ports import ApprovalRequired
@@ -571,7 +568,9 @@ class SyncRoundtripTests(unittest.TestCase):
     """End-to-end hydrate → edit → materialise round trip."""
 
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp())
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.tmp = Path(self.temp.name)
         self.cache = self.tmp / "cache"
         subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
         subprocess.run(["git", "-C", str(self.tmp), "config", "user.email",
@@ -583,9 +582,6 @@ class SyncRoundtripTests(unittest.TestCase):
                        check=True)
         subprocess.run(["git", "-C", str(self.tmp), "commit", "-q",
                        "-m", "v1"], check=True)
-
-    def tearDown(self) -> None:
-        shutil.rmtree(self.tmp)
 
     def test_round_trip_no_change_is_empty_diff(self) -> None:
         fs = LocalFilesystemAdapter(self.tmp, cache_root=self.cache)
@@ -617,30 +613,91 @@ class ProjectLockTests(unittest.TestCase):
         with lock.acquire():
             self.assertTrue(lock.path.exists())
 
+    def test_windows_acquisition_does_not_read_locked_byte(self) -> None:
+        from pi_platform.core.sync import project_lock
+
+        lock = ProjectLock("windows", root=self.tmp)
+        # Windows rejects I/O on a byte held by another file handle.
+        stream = mock.Mock()
+        stream.read.side_effect = PermissionError("byte already locked")
+        stream.write.side_effect = PermissionError("byte already locked")
+        stream.fileno.return_value = 42
+        windows = SimpleNamespace(LK_LOCK=1, LK_NBLCK=2, LK_UNLCK=0,
+                                  locking=mock.Mock())
+        with (mock.patch.object(project_lock, "os", SimpleNamespace(name="nt")),
+              mock.patch.dict(sys.modules, {"msvcrt": windows})):
+            lock._lock(stream)
+            lock._unlock(stream)
+            self.assertTrue(lock._try_lock(stream))
+            windows.locking.side_effect = PermissionError("lock busy")
+            self.assertFalse(lock._try_lock(stream))
+        stream.read.assert_not_called()
+        stream.write.assert_not_called()
+        self.assertEqual(windows.locking.call_args_list, [
+            mock.call(42, windows.LK_LOCK, 1),
+            mock.call(42, windows.LK_UNLCK, 1),
+            mock.call(42, windows.LK_NBLCK, 1),
+            mock.call(42, windows.LK_NBLCK, 1),
+        ])
+
     def test_concurrent_lock_serialises(self) -> None:
         import threading
         lock1 = ProjectLock("same", root=self.tmp)
         lock2 = ProjectLock("same", root=self.tmp)
         order: list[str] = []
+        errors: list[Exception] = []
+        acquired = threading.Event()
+        waiting = threading.Event()
         release = threading.Event()
 
         def first():
-            with lock1.acquire():
-                order.append("first")
-                release.wait(0.5)
+            try:
+                with lock1.acquire():
+                    order.append("first")
+                    acquired.set()
+                    release.wait(5)
+            except Exception as exc:
+                errors.append(exc)
 
         def second():
-            release.wait(0.05)
-            with lock2.acquire():
-                order.append("second")
+            try:
+                acquired.wait(5)
+                waiting.set()
+                with lock2.acquire():
+                    order.append("second")
+            except Exception as exc:
+                errors.append(exc)
 
         t1 = threading.Thread(target=first)
         t2 = threading.Thread(target=second)
         t1.start()
         t2.start()
-        t1.join()
-        t2.join()
+        try:
+            self.assertTrue(acquired.wait(5))
+            self.assertTrue(waiting.wait(5))
+            t2.join(0.1)
+            self.assertEqual(order, ["first"])
+            self.assertTrue(t2.is_alive())
+        finally:
+            release.set()
+            t1.join(5)
+            t2.join(5)
+        self.assertFalse(t1.is_alive())
+        self.assertFalse(t2.is_alive())
+        self.assertEqual(errors, [])
         self.assertEqual(order, ["first", "second"])
+
+    def test_timeout_while_held_then_acquires_after_release(self) -> None:
+        from pi_platform.core.sync.project_lock import ProjectLockError
+
+        holder = ProjectLock("timeout", root=self.tmp)
+        contender = ProjectLock("timeout", root=self.tmp)
+        with holder.acquire():
+            with self.assertRaises(ProjectLockError):
+                with contender.acquire(timeout_seconds=0.1):
+                    self.fail("contender acquired a held lock")
+        with contender.acquire(timeout_seconds=0.1):
+            self.assertTrue(contender.path.exists())
 
 
 class WriteAheadLogTests(unittest.TestCase):
@@ -769,7 +826,9 @@ class InventoryAndSbomTests(unittest.TestCase):
 
 class CliEntrypointTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp())
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.tmp = Path(self.temp.name)
         subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
         subprocess.run(["git", "-C", str(self.tmp), "config", "user.email",
                        "test@example.com"], check=True)
@@ -780,9 +839,6 @@ class CliEntrypointTests(unittest.TestCase):
                        check=True)
         subprocess.run(["git", "-C", str(self.tmp), "commit", "-q",
                        "-m", "init"], check=True)
-
-    def tearDown(self) -> None:
-        shutil.rmtree(self.tmp)
 
     def test_init_project_subcommand(self) -> None:
         rc = cli_main(["init-project", "--target", str(self.tmp)])

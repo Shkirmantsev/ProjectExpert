@@ -26,13 +26,15 @@ WORKDIR /opt/project-intelligence
 
 # Phase 1 ships the platform package itself; later phases copy additional
 # adapters (ingest parsers, embeddings, control-plane web assets).
-COPY platform ./platform
+COPY pi_platform ./pi_platform
 COPY pyproject.toml ./pyproject.toml
 COPY README.md ./README.md
 COPY distribution/licenses ./distribution/licenses
 COPY distribution/sbom ./distribution/sbom
 
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir .
+# Java native libraries remain optional: install the approved java extra in a
+# derived image to enable the isolated parser. Default uses metadata-only mode.
 
 EXPOSE 8765
 

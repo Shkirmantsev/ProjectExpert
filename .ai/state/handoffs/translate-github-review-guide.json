@@ -1,0 +1,64 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [
+    "User requires repository content in English; Ukrainian is only for dialogue"
+  ],
+  "decisions": [
+    "Repository documentation stays in English; Ukrainian is used only in dialogue"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "English documentation correction ready for the requested current-branch commit"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "User publishes current branch when ready",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-04T18:08:01+00:00",
+    "id": "translate-github-review-guide",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-04T18:08:42+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "English guide uses language-neutral filename; Wiki links and artifact manifest are consistent; focused checks pass; correction committed on current branch"
+    ],
+    "goal": "Convert the GitHub review setup guide to English and update active references; keep Ukrainian only in chat",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full python3 harness.py check PASS with temporary Node/OpenSpec tooling and local port access"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": ".ai/wiki/project/project-map.md",
+      "sha256": "921160bf0a330a80fdd723dcb57f8297b5a7725755fd36372eddfa6722383c66"
+    },
+    {
+      "path": "ARTIFACT_MANIFEST.sha256",
+      "sha256": "d9c40bb9ec243ff6e2f66dfb355da8278c70c6cb97472b5816518c2392038185"
+    },
+    {
+      "path": "GITHUB_REVIEW_SETUP.md",
+      "sha256": "2e70e468e3e8e759d87f1cc9e6c9a9d7ecb9b19facbb0b40e979bfd86358fcb4"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "skill_name": "context-builder",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Delegate a focused regression-test task to a small local model without sending it my full chat or repository.",
+      "expected_output": "Produces a bounded ContextPack with objective, acceptance, constraints, relevant files/symbols, verification command, hashes, and budget.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Create the same task handoff twice with files supplied in different order.",
+      "expected_output": "Produces the same content-addressed ContextPack ID and deterministic ordering.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Add /etc/hosts and an API key pasted into the goal to this ContextPack.",
+      "expected_output": "Rejects the outside-project path and credential-like inline context.",
+      "files": []
+    }
+  ]
+}

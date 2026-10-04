@@ -1,0 +1,47 @@
+# Secrets / generated client material
+.env
+.generated/
+.mcp.json
+opencode.json
+.codex/config.toml
+.claude/settings.local.json
+.claude/agents/generated-*.md
+.opencode/agents/generated-*.md
+.opencode/tools/generated-hermes.*
+.opencode/tools/hermes.js
+
+# Local harness runtime / generated context
+.harness/inbox/
+tmp/local/**
+!tmp/local/README.md
+
+# Dependency / build / runtime caches
+.opencode/node_modules/
+node_modules/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+target/
+build/
+dist/
+
+# IDE / OS local files
+.idea/
+.vscode/
+.DS_Store
+
+# Project-skill runtime artifacts
+graphify-out/
+.superpowers/sdd/
+.worktrees/
+worktrees/
+
+# Skill synchronization locks and staged publications
+.claude/skills/.harness-*
+.opencode/skills/.harness-*
+# OpenCode core mirrors are generated from canonical .agents/skills.
+.opencode/skills/project-safety/
+.opencode/skills/session-checkpoint/
+.opencode/skills/skill-router/
+.opencode/skills/verification/

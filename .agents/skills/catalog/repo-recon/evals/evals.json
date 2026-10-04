@@ -1,0 +1,17 @@
+{
+  "skill_name": "repo-recon",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just opened this repository. Determine its real build and test entry points before planning a change, but do not read every source file.",
+      "expected_output": "Runs deterministic repository reconnaissance, reports observed contracts and a reusable profile hash, and avoids source dumping.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "The task says Maven but the repository may not be Java. Verify the toolchain from project metadata before choosing skills.",
+      "expected_output": "Uses repository evidence rather than the prompt assumption and records missing signals as unknown.",
+      "files": []
+    }
+  ]
+}

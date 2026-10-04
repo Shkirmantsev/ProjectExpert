@@ -12,8 +12,7 @@ back into the canonical tree.
 
 ### Requirement: hydrate loads canonical knowledge into runtime
 
-When the platform starts up or reconciles after a Git-state change,
-the platform MUST run a hydrate operation that:
+When the platform starts up or reconciles after a Git-state change, the platform MUST run a hydrate operation that:
 
 1. resolves the Git HEAD and working-tree state of the target
    repository;
@@ -102,9 +101,7 @@ And the deletion is recorded with provenance.
 
 ### Requirement: materialise writes runtime back to canonical
 
-When the operator decides that runtime-enriched knowledge should
-become durable, the platform MUST support a materialise operation
-that:
+When the operator decides that runtime-enriched knowledge should become durable, the platform MUST support a materialise operation that:
 
 1. lets the operator select which runtime changes to durable-commit;
 2. excludes runtime entries that originated from `LOCAL_ONLY`

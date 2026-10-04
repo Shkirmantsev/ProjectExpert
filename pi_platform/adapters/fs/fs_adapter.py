@@ -59,6 +59,10 @@ class LocalFilesystemAdapter:
         self.distribution_root = distribution_root_path(self.repo_root,
                                                        distribution_root)
 
+    def read_source_bytes(self, path: Path) -> bytes:
+        """Read a local source through the filesystem adapter's I/O boundary."""
+        return Path(path).read_bytes()
+
     # -- canonical tree ------------------------------------------------
 
     def ensure_canonical_tree(self) -> None:

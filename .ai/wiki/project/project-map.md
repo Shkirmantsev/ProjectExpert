@@ -62,6 +62,12 @@ maintenance:
 
 ## Build and test entry points
 
+- [CodeQL workflow](../../../.github/workflows/codeql.yml) — Python code
+  scanning for pull requests to and pushes on `main` and `dev`, with SARIF
+  results uploaded to GitHub. This does not supply a human PR approval.
+  [GitHub setup guide](../../../GITHUB_REVIEW_SETUP.md) covers
+  initial target-branch scanning and repository review settings. Remote
+  execution must be verified in GitHub Actions after publishing the workflow.
 - `python3 harness.py init` — initialize environment, Wiki index,
   skills and client configs.
 - `python3 harness.py mcp-install` — install the project-local MCP
@@ -99,3 +105,14 @@ Generated local context/index data and session locks belong under
 `tmp/local/` and must not become canonical knowledge. Durable operational
 task state belongs under `.ai/state/`; it is separate from the project Wiki
 and OpenSpec.
+
+
+## Phase 2 ingestion
+
+The [ingestion module](../modules/ingest.md) implements PipelineDriver, source adapters,
+structural chunking, layered enrichment, content-address reuse and inbox policies.
+SourcePromotionPolicy distinguishes LOCAL_ONLY, REFERENCE and SNAPSHOT; parser
+subprocesses and cache records carry explicit provenance. See the
+[source interface](../interfaces/source-adapters.md), [chunker](../interfaces/chunker.md)
+and [enrichment](../interfaces/enrichment.md) contracts. Persistent storage and retrieval
+remain future phases.

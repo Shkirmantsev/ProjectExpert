@@ -20,6 +20,7 @@ Provides the documented subcommands:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -102,6 +103,12 @@ def build_parser() -> argparse.ArgumentParser:
                          help="recover a crashed materialise from the write-ahead log")
     wal.add_argument("--cache-root", type=Path,
                      default=DEFAULT_RUNTIME_CACHE)
+
+    ingest = sub.add_parser("ingest-sources", help="ingest configured local sources into the runtime cache")
+    ingest.add_argument("--target", type=Path, default=Path("."))
+    ingest.add_argument("--inbox", type=Path, default=None)
+    ingest.add_argument("--config", type=Path, default=None)
+    ingest.add_argument("--cache-root", type=Path, default=Path("tmp/local/pi-platform-ingest"))
 
     sub.add_parser("health", help="lightweight liveness check")
     sub.add_parser("--help", help="show this help message and exit")
@@ -244,6 +251,9 @@ def _cmd_license_gate(args: argparse.Namespace) -> int:
                       if args.inventory else
                       target / DEFAULT_DEPENDENCY_INVENTORY_PATH)
     deps = DependencyInventory(inventory_path).load()
+    discovered = target / "tmp/local/pi-platform-ingest/discovered-dependencies.json"
+    if discovered.exists():
+        deps.extend(DependencyInventory(discovered).load())
     passed, findings = LicenseGate(LicensePolicy()).run(deps)
     payload = {
         "inventory": str(inventory_path),
@@ -296,6 +306,157 @@ def _cmd_wal_recover(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ingest_sources(args: argparse.Namespace) -> int:
+    from ..adapters.ingest.local_pipeline_driver import (
+        LocalPipelineDriver,
+        _default_parser_registry,
+    )
+    from ..adapters.java.java_structured_adapter import JavaStructuredAdapter
+    from ..core.ingest.config import load_ingest_config
+    from ..core.ingest.local_source_inbox_scanner import LocalSourceInboxScanner
+    from ..core.ingest.runtime_cache import InMemoryRuntimeCache
+    from ..core.canonical.value_types import dataclass_to_dict
+    from ..ports.ingest.local_source_inbox_scanner import (
+        LocalSourceInboxContext,
+        SourcePromotionPolicy,
+    )
+    from ..ports.ingest.chunker import ChunkerContext
+    from ..ports.ingest.context_enricher import EnricherContext, DomainRule
+    from ..ports.ingest.source_adapter import SourceContentFamily
+    from ..adapters.java.parser_subprocess import TreeSitterJavaSubprocess
+
+    target = args.target.resolve()
+    config = load_ingest_config(
+        args.config or target / "project-knowledge/project-context.yaml"
+    )
+    inbox_config = config.get("sources", {}).get("localInbox", {})
+    inbox = args.inbox or Path(inbox_config.get("path", "tmp/local/source"))
+    if not inbox.is_absolute():
+        inbox = target / inbox
+    cache = InMemoryRuntimeCache()
+    cache_root = _resolve_cache_root(args)
+    state_path = cache_root / "ingestion.json"
+    with ProjectLock(_project_id(target)).acquire():
+        if state_path.exists():
+            saved = json.loads(state_path.read_text())
+            cache._store = {k: v.encode() for k, v in saved.get("records", {}).items()}
+            cache._sources = saved.get("sources", {})
+            cache._owners = {k: set(v) for k, v in saved.get("owners", {}).items()}
+        scanner = LocalSourceInboxScanner(cache)
+        from ..core.canonical.value_types import Source, dataclass_from_dict
+
+        if state_path.exists():
+            scanner._previous[str(inbox.resolve())] = {
+                p: dataclass_from_dict(Source, s)
+                for p, s in saved.get("scanner", {}).items()
+            }
+        registry = _default_parser_registry()
+        java_config = config.get("javaParser", {})
+        registry.register(
+            JavaStructuredAdapter(
+                TreeSitterJavaSubprocess(
+                    required=bool(java_config.get("required", False))
+                )
+            )
+        )
+        ingest = config.get("ingest", {})
+        chunking = ingest.get("chunking", {})
+        rules = tuple(
+            DomainRule(r["path"], r.get("metadata", {}))
+            for r in ingest.get("domainRules", [])
+        )
+        policies = {
+            g: SourcePromotionPolicy(str(p).upper())
+            for g, p in inbox_config.get("policies", {}).items()
+        }
+        scan = scanner.scan(
+            LocalSourceInboxContext(
+                inbox,
+                SourcePromotionPolicy(
+                    str(inbox_config.get("defaultPolicy", "LOCAL_ONLY")).upper()
+                ),
+                policies,
+                recursive=inbox_config.get("recursive", True),
+                extra={
+                    "repository_root": target,
+                    "max_source_bytes": inbox_config.get(
+                        "maxSourceBytes", 256 * 1024 * 1024
+                    ),
+                    "processing_fingerprint": hashlib.sha256(
+                        json.dumps(config, sort_keys=True).encode()
+                    ).hexdigest()
+                    + str(
+                        registry.resolve(
+                            SourceContentFamily.JAVA_SOURCE
+                        ).parser.is_available()
+                    ),
+                },
+            )
+        )
+        version = (
+            compute_version_identity(target) if (target / ".git").exists() else None
+        )
+        driver = LocalPipelineDriver(
+            parser_registry=registry,
+            cache=cache,
+            project_version=version,
+            chunker_context=ChunkerContext(
+                max_chunk_bytes=chunking.get("maxChunkBytes", 4096),
+                extra={"min_chunk_bytes": chunking.get("minChunkBytes", 256)},
+            ),
+            enricher_context=EnricherContext(
+                domain_rules=rules,
+                enable_optional_llm=ingest.get("enableOptionalLlm", False),
+            ),
+        )
+        reports = driver.run_many(scan.registered_sources, target)
+        cache_root.mkdir(parents=True, exist_ok=True)
+        body = {
+            "records": {k: v.decode() for k, v in cache._store.items()},
+            "sources": cache._sources,
+            "owners": {k: sorted(v) for k, v in cache._owners.items()},
+            "scanner": {
+                p: dataclass_to_dict(s)
+                for p, s in scanner._previous.get(str(inbox.resolve()), {}).items()
+            },
+        }
+        temporary = state_path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(body, sort_keys=True), encoding="utf-8")
+        temporary.replace(state_path)
+        # Unknown dependency coordinates are local evidence, never authoritative inventory edits.
+        discovered = []
+        for value in cache._store.values():
+            try:
+                record = json.loads(value)
+            except ValueError:
+                continue
+            if isinstance(record, dict) and record.get("family") == "Dependency":
+                attrs = record.get("metadata", {}).get("extensions", {})
+                discovered.append(
+                    {
+                        "name": record["label"],
+                        "version": attrs.get("version", "unknown"),
+                        "spdx": attrs.get("spdx"),
+                        "scope": "runtime",
+                    }
+                )
+        (cache_root / "discovered-dependencies.json").write_text(
+            json.dumps({"dependencies": discovered}, sort_keys=True)
+        )
+    print(
+        json.dumps(
+            {
+                "reports": [dataclass_to_dict(r) for r in reports],
+                "skipped": len(scan.skipped_paths),
+                "deleted_source_ids": list(scan.deleted_source_ids),
+                "cache_root": str(cache_root),
+            },
+            indent=2,
+        )
+    )
+    return 0 if all(r.ok for r in reports) else 1
+
+
 def _cmd_health(_: argparse.Namespace) -> int:
     print(json.dumps({"status": "ok"}))
     return 0
@@ -314,6 +475,7 @@ _DISPATCH = {
     "version-identity": _cmd_version_identity,
     "wal-recover": _cmd_wal_recover,
     "health": _cmd_health,
+    "ingest-sources": _cmd_ingest_sources,
 }
 
 

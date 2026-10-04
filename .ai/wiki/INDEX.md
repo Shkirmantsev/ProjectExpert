@@ -38,6 +38,15 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Platform glossary](glossary/platform.md)
 - [OpenSpec workflow](../../openspec/README.md) — current behavior and proposed changes.
 
+## Phase 2 ingestion
+
+- [Phase 2 ingestion](modules/ingest.md)
+- [Source adapter interface](interfaces/source-adapters.md)
+- [Chunker interface](interfaces/chunker.md)
+- [Context enrichment interface](interfaces/enrichment.md)
+- [Use an isolated tree-sitter Java parser](adr/0006-phase-2-parser-selection.md)
+- [Default inbox sources to LOCAL_ONLY](adr/0007-phase-2-inbox-policy-default.md)
+
 ## Knowledge areas
 
 - `architecture/` — system boundaries, runtime flows, architecture views.

@@ -1,0 +1,193 @@
+name: harness-layout
+
+x-common: &common
+  restart: on-failure:3
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: local
+    options:
+      max-size: ${DOCKER_LOG_MAX_SIZE:-5m}
+      max-file: ${DOCKER_LOG_MAX_FILES:-2}
+      compress: "true"
+
+services:
+  litellm:
+    <<: *common
+    profiles: [litellm]
+    # Use the official upstream LiteLLM image directly. Harness-specific
+    # configuration/policy modules are mounted read-only below; no custom
+    # LiteLLM image is built or published.
+    image: ghcr.io/berriai/litellm:v${LITELLM_VERSION}
+    network_mode: host
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: ${MEMORY_LITELLM:-1536m}
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=64m
+      - /app/.cache:rw,nosuid,nodev,noexec,size=64m
+    volumes:
+      - ./infra/litellm/generate_config.py:/harness/generate_config.py:ro
+      - ./infra/litellm/reasoning_policy.py:/harness/reasoning_policy.py:ro
+      - ./infra/litellm/policy_core.py:/harness/policy_core.py:ro
+    working_dir: /harness
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        python /harness/generate_config.py &&
+        exec litellm --config /tmp/harness-litellm.yaml
+        --host 127.0.0.1 --port ${LITELLM_PORT}
+    environment:
+      PYTHONPATH: /harness
+      LITELLM_PORT: ${LITELLM_PORT}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_LOG: ${LITELLM_LOG}
+      LM_STUDIO_OPENAI_BASE_URL: ${LM_STUDIO_OPENAI_BASE_URL}
+      LM_STUDIO_API_KEY: ${LM_STUDIO_API_KEY}
+      DEFAULT_REASONING_EFFORT: ${DEFAULT_REASONING_EFFORT}
+      LOCAL_MODEL_1_ENABLED: ${LOCAL_MODEL_1_ENABLED}
+      LOCAL_MODEL_1_ALIAS: ${LOCAL_MODEL_1_ALIAS}
+      LOCAL_MODEL_1_CLAUDE_ALIAS: ${LOCAL_MODEL_1_CLAUDE_ALIAS}
+      LOCAL_MODEL_1_MODEL_ID: ${LOCAL_MODEL_1_MODEL_ID}
+      LOCAL_MODEL_1_REASONING_MODE: ${LOCAL_MODEL_1_REASONING_MODE}
+      LOCAL_MODEL_1_MAX_OUTPUT_TOKENS: ${LOCAL_MODEL_1_MAX_OUTPUT_TOKENS:-4096}
+      LOCAL_MODEL_2_ENABLED: ${LOCAL_MODEL_2_ENABLED}
+      LOCAL_MODEL_2_ALIAS: ${LOCAL_MODEL_2_ALIAS}
+      LOCAL_MODEL_2_CLAUDE_ALIAS: ${LOCAL_MODEL_2_CLAUDE_ALIAS}
+      LOCAL_MODEL_2_MODEL_ID: ${LOCAL_MODEL_2_MODEL_ID}
+      LOCAL_MODEL_2_REASONING_MODE: ${LOCAL_MODEL_2_REASONING_MODE}
+      LOCAL_MODEL_2_MAX_OUTPUT_TOKENS: ${LOCAL_MODEL_2_MAX_OUTPUT_TOKENS:-4096}
+      LOCAL_MODEL_3_ENABLED: ${LOCAL_MODEL_3_ENABLED}
+      LOCAL_MODEL_3_ALIAS: ${LOCAL_MODEL_3_ALIAS}
+      LOCAL_MODEL_3_CLAUDE_ALIAS: ${LOCAL_MODEL_3_CLAUDE_ALIAS}
+      LOCAL_MODEL_3_MODEL_ID: ${LOCAL_MODEL_3_MODEL_ID}
+      LOCAL_MODEL_3_REASONING_MODE: ${LOCAL_MODEL_3_REASONING_MODE}
+      LOCAL_MODEL_3_MAX_OUTPUT_TOKENS: ${LOCAL_MODEL_3_MAX_OUTPUT_TOKENS:-4096}
+      LOCAL_MODEL_4_ENABLED: ${LOCAL_MODEL_4_ENABLED}
+      LOCAL_MODEL_4_ALIAS: ${LOCAL_MODEL_4_ALIAS}
+      LOCAL_MODEL_4_CLAUDE_ALIAS: ${LOCAL_MODEL_4_CLAUDE_ALIAS}
+      LOCAL_MODEL_4_MODEL_ID: ${LOCAL_MODEL_4_MODEL_ID}
+      LOCAL_MODEL_4_REASONING_MODE: ${LOCAL_MODEL_4_REASONING_MODE}
+      LOCAL_MODEL_4_MAX_OUTPUT_TOKENS: ${LOCAL_MODEL_4_MAX_OUTPUT_TOKENS:-4096}
+      CLAUDE_OPUS_MODEL_NAME: ${CLAUDE_OPUS_MODEL_NAME}
+      CLAUDE_OPUS_LOCAL_ALIAS: ${CLAUDE_OPUS_LOCAL_ALIAS}
+      CLAUDE_SONNET_MODEL_NAME: ${CLAUDE_SONNET_MODEL_NAME}
+      CLAUDE_SONNET_LOCAL_ALIAS: ${CLAUDE_SONNET_LOCAL_ALIAS}
+      CLAUDE_HAIKU_MODEL_NAME: ${CLAUDE_HAIKU_MODEL_NAME}
+      CLAUDE_HAIKU_LOCAL_ALIAS: ${CLAUDE_HAIKU_LOCAL_ALIAS}
+      MINIMAX_ENABLED: ${MINIMAX_ENABLED}
+      MINIMAX_ALIAS: ${MINIMAX_ALIAS}
+      MINIMAX_CLAUDE_ALIAS: ${MINIMAX_CLAUDE_ALIAS}
+      MINIMAX_MODEL_ID: ${MINIMAX_MODEL_ID}
+      MINIMAX_ANTHROPIC_BASE_URL: ${MINIMAX_ANTHROPIC_BASE_URL}
+      MINIMAX_TOKEN_PLAN_KEY: ${MINIMAX_TOKEN_PLAN_KEY}
+      MINIMAX_ALWAYS_ADAPTIVE: ${MINIMAX_ALWAYS_ADAPTIVE}
+
+  litellm-edge:
+    <<: *common
+    profiles: [tailscale-expose]
+    build: ./infra/litellm-edge
+    image: local/harness-litellm-edge:4.0.0
+    network_mode: host
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: ${MEMORY_LITELLM_EDGE:-64m}
+    environment:
+      LITELLM_EXPOSE_ON_TAILSCALE: "true"
+      MAIN_TAILSCALE_IP: ${MAIN_TAILSCALE_IP}
+      LITELLM_PORT: ${LITELLM_PORT}
+    depends_on: [litellm]
+
+  searxng:
+    <<: *common
+    profiles: [web-search]
+    image: searxng/searxng:${SEARXNG_VERSION}
+    read_only: true
+    mem_limit: ${MEMORY_SEARXNG:-192m}
+    environment:
+      SEARXNG_BASE_URL: http://127.0.0.1:8080/
+      SEARXNG_SECRET: ${SEARXNG_SECRET}
+    volumes:
+      - ./infra/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=16m
+      - /var/cache/searxng:rw,nosuid,nodev,noexec,size=16m
+    ports:
+      - 127.0.0.1:${SEARXNG_PORT}:8080
+    networks: [webtools]
+
+  searxng-mcp:
+    <<: *common
+    profiles: [web-search]
+    build: ./infra/searxng-mcp
+    image: local/harness-searxng-mcp:1.2.0
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: ${MEMORY_SEARXNG_MCP:-96m}
+    environment:
+      SEARXNG_URL: http://searxng:8080
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8000
+      MCP_ALLOWED_HOSTS: 127.0.0.1:${SEARXNG_MCP_PORT},localhost:${SEARXNG_MCP_PORT}
+    ports:
+      - 127.0.0.1:${SEARXNG_MCP_PORT}:8000
+    depends_on: [searxng]
+    networks: [webtools]
+
+  crawl4ai:
+    <<: *common
+    profiles: [crawl4ai]
+    image: unclecode/crawl4ai:${CRAWL4AI_VERSION}
+    mem_limit: ${MEMORY_CRAWL4AI:-1536m}
+    shm_size: ${SHM_CRAWL4AI:-256m}
+    environment:
+      CRAWL4AI_API_TOKEN: ${CRAWL4AI_API_TOKEN}
+    ports:
+      - 127.0.0.1:${CRAWL4AI_PORT}:11235
+    networks: [webtools]
+
+  crawl4ai-http-bridge:
+    <<: *common
+    profiles: [crawl4ai]
+    build: ./infra/crawl4ai-http-bridge
+    image: local/harness-crawl4ai-http-bridge:1.2.0
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: ${MEMORY_CRAWL4AI_BRIDGE:-96m}
+    environment:
+      CRAWL4AI_URL: http://crawl4ai:11235
+      CRAWL4AI_API_TOKEN: ${CRAWL4AI_API_TOKEN}
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8000
+      MCP_ALLOWED_HOSTS: 127.0.0.1:${CRAWL4AI_MCP_BRIDGE_PORT},localhost:${CRAWL4AI_MCP_BRIDGE_PORT}
+    ports:
+      - 127.0.0.1:${CRAWL4AI_MCP_BRIDGE_PORT}:8000
+    depends_on: [crawl4ai]
+    networks: [webtools]
+
+  playwright-mcp:
+    <<: *common
+    profiles: [playwright]
+    image: ${PLAYWRIGHT_MCP_IMAGE}
+    init: true
+    mem_limit: ${MEMORY_PLAYWRIGHT_MCP:-1g}
+    shm_size: ${SHM_PLAYWRIGHT_MCP:-256m}
+    command:
+      - --headless
+      - --browser
+      - chromium
+      - --no-sandbox
+      - --isolated
+      - --port
+      - "8931"
+      - --host
+      - 0.0.0.0
+      - --allowed-hosts
+      - localhost,localhost:8931,127.0.0.1,127.0.0.1:8931
+    ports:
+      - 127.0.0.1:${PLAYWRIGHT_MCP_PORT}:8931
+    networks: [webtools]
+
+networks:
+  webtools:
+    driver: bridge
