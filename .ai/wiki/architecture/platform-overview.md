@@ -6,8 +6,8 @@ status: active
 summary: High-level boundaries, runtime flows, control plane and data plane responsibilities of the v0.8 Project Intelligence Platform; describes the Phase 1 implementation and the boundary between this implementation project and the runtime data it operates on.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md
-  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md
-  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md
+  - openspec/changes/plan-v0-8-platform-architecture/proposal.md
+  - openspec/changes/plan-v0-8-platform-architecture/design.md
   - openspec/changes/implement-phase-1-foundation/design.md
   - pi_platform/core/canonical/value_types.py
   - pi_platform/core/sync/hydrate.py
@@ -200,7 +200,7 @@ The five Phase 1 capabilities are accepted in
 ## Implementation phases (summary)
 
 The full ordered task list is in
-[`plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md).
+[`plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/plan-v0-8-platform-architecture/tasks.md).
 Summary of phases:
 
 | Phase | Name | Depends on | Status |
@@ -221,11 +221,11 @@ Summary of phases:
 
 - [`project-intelligence-platform-architecture-v0.8.md`](../../../project-intelligence-platform-architecture-v0.8.md)
   — v0.8 baseline.
-- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md)
+- [`openspec/changes/plan-v0-8-platform-architecture/proposal.md`](../../../openspec/changes/plan-v0-8-platform-architecture/proposal.md)
   — planning proposal.
-- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md)
+- [`openspec/changes/plan-v0-8-platform-architecture/design.md`](../../../openspec/changes/plan-v0-8-platform-architecture/design.md)
   — planning technical design.
-- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md)
+- [`openspec/changes/plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/plan-v0-8-platform-architecture/tasks.md)
   — ordered implementation tasks.
 - [`openspec/changes/implement-phase-1-foundation/design.md`](../../../openspec/changes/archive/2026-10-04-implement-phase-1-foundation/design.md)
   — Phase 1 implementation design.

@@ -6,7 +6,7 @@ status: accepted
 summary: Adopt a default permissive license policy with explicit operator acceptance for review-required licenses and a deny-list for non-commercial terms.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md
-  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/specs/license-governance/spec.md
+  - openspec/changes/plan-v0-8-platform-architecture/specs/license-governance/spec.md
 maintenance:
   mode: authored
 ---
@@ -55,7 +55,7 @@ adapters MUST be license-checked before activation.
 
 ## Verification
 
-`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md`
+`openspec/changes/plan-v0-8-platform-architecture/tasks.md`
 (`plan-v0-8-platform-architecture` change) includes Phase 1 tasks
 35-37 (`LicensePolicy`, `LicenseGate`, `DependencyInventoryPort`,
 model-license tracker, CI license gate) and Phase 1 task 40 (CI

@@ -6,8 +6,8 @@ status: accepted
 summary: Keep Git-versioned canonical knowledge strictly separate from the runtime working knowledge store and require deterministic bidirectional synchronization.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md
-  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/specs/canonical-knowledge-schema/spec.md
-  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/specs/bidirectional-canonical-runtime-sync/spec.md
+  - openspec/changes/plan-v0-8-platform-architecture/specs/canonical-knowledge-schema/spec.md
+  - openspec/changes/plan-v0-8-platform-architecture/specs/bidirectional-canonical-runtime-sync/spec.md
 maintenance:
   mode: authored
 ---
@@ -63,7 +63,7 @@ model caches) MUST NOT be committed to the target repository.
 
 ## Verification
 
-`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md`
+`openspec/changes/plan-v0-8-platform-architecture/tasks.md`
 (`plan-v0-8-platform-architecture` change) defines the Phase 1
 foundation implementation tasks including the round-trip test (task
 39 in the Phase 1 section, `tests/test_sync_roundtrip.py`) and the

@@ -51,7 +51,7 @@ maintenance:
   catalog.
 - [OpenSpec](../../../openspec/): production-SDD schema and
   templates, current specs, proposed changes. The
-  [`plan-v0-8-platform-architecture`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/)
+  [`plan-v0-8-platform-architecture`](../../../openspec/changes/plan-v0-8-platform-architecture/)
   change defines the v0.8 platform roadmap and the archived
   [`implement-phase-1-foundation`](../../../openspec/changes/archive/2026-10-04-implement-phase-1-foundation/)
   change delivers the Phase 1 implementation.

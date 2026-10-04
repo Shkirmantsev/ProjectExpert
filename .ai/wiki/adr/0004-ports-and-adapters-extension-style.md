@@ -6,7 +6,7 @@ status: accepted
 summary: Adopt the hexagonal/ports-and-adapters architecture combined with a micro-kernel plugin extension surface for the platform core.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md
-  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md
+  - openspec/changes/plan-v0-8-platform-architecture/design.md
 maintenance:
   mode: authored
 ---
@@ -62,7 +62,7 @@ rejected for the core.
 
 ## Verification
 
-`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md`
+`openspec/changes/plan-v0-8-platform-architecture/tasks.md`
 (`plan-v0-8-platform-architecture` change) includes Phase 7 tasks
 96-103 (registry, hooks, policy engine, secret provider, audit,
 feature flags, UI extension, regression tests) that exercise this

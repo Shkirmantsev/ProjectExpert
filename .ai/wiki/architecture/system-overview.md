@@ -77,7 +77,7 @@ project metadata without rebuilding the system for each tool.
   `.codex/`.
 - **Documentation** — `docs/`, `README.md`,
   `project-intelligence-platform-architecture-v0.8.md`,
-  [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/),
+  [`openspec/changes/plan-v0-8-platform-architecture/`](../../../openspec/changes/plan-v0-8-platform-architecture/),
   [`openspec/changes/archive/2026-10-04-implement-phase-1-foundation/`](../../../openspec/changes/archive/2026-10-04-implement-phase-1-foundation/).
 
 ## Phase 1 foundation capabilities (accepted)
@@ -103,9 +103,9 @@ and from [`architecture/platform-overview`](platform-overview.md).
 ## Evidence
 
 - [`project-intelligence-platform-architecture-v0.8.md`](../../../project-intelligence-platform-architecture-v0.8.md)
-- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md)
-- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md)
-- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md)
+- [`openspec/changes/plan-v0-8-platform-architecture/proposal.md`](../../../openspec/changes/plan-v0-8-platform-architecture/proposal.md)
+- [`openspec/changes/plan-v0-8-platform-architecture/design.md`](../../../openspec/changes/plan-v0-8-platform-architecture/design.md)
+- [`openspec/changes/plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/plan-v0-8-platform-architecture/tasks.md)
 - [`openspec/changes/archive/2026-10-04-implement-phase-1-foundation/design.md`](../../../openspec/changes/archive/2026-10-04-implement-phase-1-foundation/design.md)
 - [`tests/test_platform_phase1.py`](../../../tests/test_platform_phase1.py)
 - [`AGENTS.md`](../../../AGENTS.md)

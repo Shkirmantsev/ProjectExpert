@@ -6,7 +6,7 @@ status: accepted
 summary: Implement the Phase 1 platform foundation in Python 3.11; keep adapter ports language-neutral so a Java runtime can be added later if a workload requires it.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md
-  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md
+  - openspec/changes/plan-v0-8-platform-architecture/design.md
   - openspec/changes/implement-phase-1-foundation/design.md
 maintenance:
   mode: authored
@@ -25,7 +25,7 @@ services and a license gate. None of these capabilities intrinsically
 require Java; the harness framework already targets Python.
 
 The
-[`plan-v0-8-platform-architecture/design.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md)
+[`plan-v0-8-platform-architecture/design.md`](../../../openspec/changes/plan-v0-8-platform-architecture/design.md)
 file requires every product module to expose ports behind
 adapters; the core domain is not coupled to any specific runtime.
 
