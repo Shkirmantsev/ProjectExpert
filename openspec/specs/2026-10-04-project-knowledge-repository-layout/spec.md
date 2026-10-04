@@ -54,9 +54,7 @@ And the startup reports the existing layout as the binding layout.
 
 ### Requirement: runtime working knowledge cache location
 
-The runtime working knowledge store (database, vector index, full-text
-index, graph index, embeddings cache, model cache, working-tree
-overlay) MUST live under a separate, Git-ignored directory at:
+The runtime working knowledge store (database, vector index, full-text index, graph index, embeddings cache, model cache, working-tree overlay) MUST live under a separate, Git-ignored directory.
 
 ```text
 .project-intelligence-cache/
@@ -283,11 +281,7 @@ And it now also contains `tmp/local/**` and
 
 ### Requirement: per-target runtime cache root resolution
 
-The `HydrateService`, `MaterialiseService`, `WriteAheadLog` and
-`LicenseGate` MUST resolve the runtime cache root from the target
-repository's `project-context.yaml`. If the file is absent the
-services MUST use the documented fallback path
-(`.project-intelligence-cache/`).
+The HydrateService, MaterialiseService, WriteAheadLog and LicenseGate MUST resolve the runtime cache root from the target repository's project-context.yaml; if the file is absent the services MUST use the documented fallback path (.project-intelligence-cache/).
 
 #### Scenario: cache root from project-context.yaml
 

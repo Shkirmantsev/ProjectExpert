@@ -1,0 +1,101 @@
+diff --git a/gateway/platforms/api_server.py b/gateway/platforms/api_server.py
+index de260f33a..23d27d8bc 100644
+--- a/gateway/platforms/api_server.py
++++ b/gateway/platforms/api_server.py
+@@ -3349,6 +3349,7 @@ class APIServerAdapter(BasePlatformAdapter):
+                 "run_stop": True,
+                 "run_steer": True,
+                 "run_approval_response": True,
++                "resolver_scoped_run_approvals": True,
+                 "tool_progress_events": True,
+                 "approval_events": True,
+                 "session_resources": True,
+@@ -7797,13 +7797,16 @@ class APIServerAdapter(BasePlatformAdapter):
+                     from gateway.session_context import clear_session_vars
+                     from tools.approval import (
+                         register_gateway_notify,
++                        reset_approval_resolver_capable,
+                         reset_current_session_key,
++                        set_approval_resolver_capable,
+                         set_current_session_key,
+                         unregister_gateway_notify,
+                     )
+ 
+                     effective_task_id = session_id or run_id
+                     approval_token = None
++                    approval_resolver_token = None
+                     session_tokens = []
+                     with self._profile_scope(request_profile):
+                         try:
+@@ -7811,6 +7814,11 @@ class APIServerAdapter(BasePlatformAdapter):
+                             # contextvars so concurrent runs do not share process
+                             # environment state.
+                             approval_token = set_current_session_key(approval_session_key)
++                            # This route owns the authenticated
++                            # /v1/runs/{run_id}/approval resolver. Other API
++                            # routes remain unattended even if they can emit a
++                            # notification callback.
++                            approval_resolver_token = set_approval_resolver_capable()
+                             session_tokens = self._bind_api_server_session(
+                                 # chat_id carries the raw session id (the
+                                 # X-Hermes-Session-Id equivalent) exactly like
+@@ -7856,6 +7864,13 @@ class APIServerAdapter(BasePlatformAdapter):
+                                         reset_current_session_key(approval_token)
+                                     except Exception:
+                                         pass
++                                if approval_resolver_token is not None:
++                                    try:
++                                        reset_approval_resolver_capable(
++                                            approval_resolver_token
++                                        )
++                                    except Exception:
++                                        pass
+                                 if session_tokens:
+                                     try:
+                                         clear_session_vars(session_tokens)
+diff --git a/tools/approval.py b/tools/approval.py
+index c84730f41..e9d2c1704 100644
+--- a/tools/approval.py
++++ b/tools/approval.py
+@@ -44,6 +44,10 @@ _approval_session_key: contextvars.ContextVar[str] = contextvars.ContextVar(
+     "approval_session_key",
+     default="",
+ )
++_approval_resolver_capable: contextvars.ContextVar[bool] = contextvars.ContextVar(
++    "approval_resolver_capable",
++    default=False,
++)
+ _approval_turn_id: contextvars.ContextVar[str] = contextvars.ContextVar(
+     "approval_turn_id",
+     default="",
+@@ -196,6 +200,18 @@ def reset_current_session_key(token: contextvars.Token[str]) -> None:
+     _approval_session_key.reset(token)
+ 
+ 
++def set_approval_resolver_capable(
++    capable: bool = True,
++) -> contextvars.Token[bool]:
++    """Bind whether this exact transport owns an authenticated resolver."""
++    return _approval_resolver_capable.set(bool(capable))
++
++
++def reset_approval_resolver_capable(token: contextvars.Token[bool]) -> None:
++    """Restore the prior resolver-capability context."""
++    _approval_resolver_capable.reset(token)
++
++
+ def set_current_observability_context(
+     *,
+     turn_id: str = "",
+@@ -288,7 +304,10 @@ def _is_unattended_platform_approval_context() -> bool:
+     contexts blocks the session for the full approval timeout (60-300s) and
+     then fails closed anyway — the deadlock in #37284/#87509.
+     """
+-    return _get_session_platform() in _UNATTENDED_APPROVAL_PLATFORMS
++    platform = _get_session_platform()
++    if platform == "api_server" and _approval_resolver_capable.get():
++        return False
++    return platform in _UNATTENDED_APPROVAL_PLATFORMS
+ 
+ 
+ def _is_single_query_approval_context() -> bool:

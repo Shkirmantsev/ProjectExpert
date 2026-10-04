@@ -1,0 +1,49 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Authored proposal.md, design.md, context-impact.md, tasks.md; 9 spec deltas mirrored into change/specs/; change validates strict; harness baseline restored"
+    ],
+    "todo": [
+      "implement ports/ingest/*; implement core/ingest/*; implement default adapters; implement Java parser subprocess + Java/JAR/Maven/Gradle adapters; implement Markdown/HTML/OpenSpec adapters; tests; CLI; Wiki; CURRENT.md; archive"
+    ]
+  },
+  "resume": {
+    "next_action": "Author proposal.md / design.md / context-impact.md / tasks.md",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-04T18:26:50+00:00",
+    "id": "implement-phase-2-ingestion",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-04T18:52:04+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "openspec validate implement-phase-2-ingestion valid; python harness.py check PASS; python harness.py wiki-validate ok:true; artifact-manifest PASS; license-gate PASS; tests/test_platform_phase1 still green; tests/test_platform_phase2 green; tests/test_content_address_cross_branch green; tests/test_canonical_roundtrip green; openspec/specs/2026-10-04-* contains nine new capabilities; openspec/CURRENT.md lists nine new capabilities; archive/implement-phase-2-ingestion and archive/prepare-phase-2-ingestion exist; plan-v0-8 tasks 45-60 flipped to [x]"
+    ],
+    "goal": "Ship Phase 2 ingestion per the nine accepted specs in prepare-phase-2-ingestion (no new spec authoring, just code + tests + wiki + archive)",
+    "openspec_change": "implement-phase-2-ingestion",
+    "status": "executing"
+  },
+  "verification": {
+    "passed": [
+      "openspec validate implement-phase-2-ingestion --type change --strict -> Change is valid"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

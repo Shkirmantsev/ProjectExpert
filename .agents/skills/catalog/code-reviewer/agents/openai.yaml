@@ -1,0 +1,7 @@
+interface:
+  display_name: "Project Reviewer"
+  short_description: "Review code, docs, and infrastructure artifacts"
+  default_prompt: "Use $code-reviewer to review code, docs, configuration, or infrastructure files for correctness, consistency, security, and compatibility."
+
+policy:
+  allow_implicit_invocation: true

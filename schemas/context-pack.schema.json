@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/harness/context-pack.schema.json",
+  "title": "Harness ContextPack v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "goal",
+    "acceptance",
+    "constraints",
+    "files",
+    "symbols",
+    "verification_commands",
+    "references",
+    "repository_profile_hash",
+    "budget"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "id": {"type": "string", "pattern": "^CP-[0-9A-F]{16}$"},
+    "goal": {"type": "string", "minLength": 1},
+    "acceptance": {"type": "array", "items": {"type": "string"}},
+    "constraints": {"type": "array", "items": {"type": "string"}},
+    "files": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "reason", "sha256", "bytes"],
+        "properties": {
+          "path": {"type": "string"},
+          "reason": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "bytes": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "symbols": {"type": "array", "items": {"type": "string"}},
+    "verification_commands": {"type": "array", "items": {"type": "string"}},
+    "references": {"type": "array", "items": {"type": "string"}},
+    "repository_profile_hash": {"type": "string"},
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_tokens", "hard_max_tokens"],
+      "properties": {
+        "target_tokens": {"type": "integer", "minimum": 1},
+        "hard_max_tokens": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

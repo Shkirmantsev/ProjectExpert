@@ -1,0 +1,17 @@
+{
+  "skill_name": "cache-aware-context",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create a stable cache prefix for an executor using verification and debugging skills; task output changes every turn.",
+      "expected_output": "Places policy, role, tools, and sorted skill hashes in the stable prefix and leaves task/tool/error deltas volatile.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Should I compact this long session every ten turns to save money?",
+      "expected_output": "Uses a checkpoint first and weighs context pressure and cache-prefix loss instead of compacting on a fixed turn count.",
+      "files": []
+    }
+  ]
+}

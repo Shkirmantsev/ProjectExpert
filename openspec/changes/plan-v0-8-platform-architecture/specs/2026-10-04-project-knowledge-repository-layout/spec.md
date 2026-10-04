@@ -62,9 +62,7 @@ And the startup reports the existing layout as the binding layout.
 
 ### Requirement: runtime working knowledge cache location
 
-The runtime working knowledge store (database, vector index, full-text
-index, graph index, embeddings cache, model cache, working-tree
-overlay) MUST live under a separate, Git-ignored directory at:
+The runtime working knowledge store (database, vector index, full-text index, graph index, embeddings cache, model cache, working-tree overlay) MUST live under a separate, Git-ignored directory.
 
 ```text
 .project-intelligence-cache/

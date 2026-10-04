@@ -1,0 +1,259 @@
+{
+  "schema_version": "1.0",
+  "cases": [
+    {
+      "id": "humanize-prose",
+      "prompt": "Use the humanizer skill to make this announcement sound natural",
+      "require": [
+        "humanizer"
+      ],
+      "exclude": [
+        "graphify"
+      ]
+    },
+    {
+      "id": "grill-plan",
+      "prompt": "Grill me and stress-test this product plan",
+      "require": [
+        "grilling"
+      ],
+      "exclude": [
+        "grill-me"
+      ]
+    },
+    {
+      "id": "recent-research",
+      "prompt": "Research what changed in local coding models in the last 30 days",
+      "require": [
+        "last30days"
+      ]
+    },
+    {
+      "id": "knowledge-graph",
+      "prompt": "Use Graphify to build a knowledge graph of these architecture documents",
+      "require": [
+        "graphify"
+      ]
+    },
+    {
+      "id": "exact-lookup",
+      "prompt": "Find the exact definition of configure_opencode in this repo",
+      "require": [],
+      "exclude": [
+        "graphify"
+      ]
+    },
+    {
+      "id": "obsidian-vault",
+      "prompt": "Use the Obsidian CLI to search my vault for unfinished tasks",
+      "require": [
+        "obsidian-cli"
+      ]
+    },
+    {
+      "id": "obsidian-base",
+      "prompt": "Create an Obsidian .base file with a card view",
+      "require": [
+        "obsidian-bases"
+      ]
+    },
+    {
+      "id": "json-canvas",
+      "prompt": "Edit this Obsidian Canvas .canvas file",
+      "require": [
+        "json-canvas"
+      ]
+    },
+    {
+      "id": "hermes-delegation",
+      "prompt": "Delegate to Hermes with a bounded context pack",
+      "profile": "local-small",
+      "require": [
+        "hermes-delegation",
+        "delegation",
+        "harness-project-access",
+        "context-builder"
+      ]
+    },
+    {
+      "id": "generic-delegation",
+      "prompt": "Delegate this independent task to a subagent",
+      "require": [
+        "delegation",
+        "context-builder"
+      ]
+    },
+    {
+      "id": "skill-authoring",
+      "prompt": "Create a skill and add realistic skill eval cases",
+      "require": [
+        "skill-creator"
+      ]
+    },
+    {
+      "id": "superpowers",
+      "prompt": "Use Superpowers to plan this code change",
+      "require": [
+        "using-superpowers"
+      ]
+    },
+    {
+      "id": "bug-regression",
+      "prompt": "Fix a flaky session bug and add a regression test",
+      "require": [
+        "systematic-debugging",
+        "verification"
+      ]
+    },
+    {
+      "id": "investigation",
+      "prompt": "Investigate the root cause of unexpected startup latency",
+      "require": [
+        "investigate-first"
+      ]
+    },
+    {
+      "id": "safe-refactor",
+      "prompt": "Refactor this parser without changing behavior",
+      "require": [
+        "safe-refactor",
+        "verification"
+      ]
+    },
+    {
+      "id": "migration",
+      "prompt": "Implement a reversible schema migration",
+      "require": [
+        "migration",
+        "verification"
+      ]
+    },
+    {
+      "id": "code-review",
+      "prompt": "Review this code change for regressions",
+      "require": [
+        "code-reviewer"
+      ]
+    },
+    {
+      "id": "review-feedback",
+      "prompt": "Evaluate and implement this code review feedback",
+      "require": [
+        "receiving-code-review"
+      ]
+    },
+    {
+      "id": "verify-only",
+      "prompt": "Verification only: check completion and do not change files",
+      "require": [
+        "verify-and-stop"
+      ]
+    },
+    {
+      "id": "finish-branch",
+      "prompt": "Finish this branch now that implementation is complete",
+      "require": [
+        "finishing-a-development-branch"
+      ]
+    },
+    {
+      "id": "web-research",
+      "prompt": "Search the web and research current MCP security guidance",
+      "require": [
+        "web-research-routing"
+      ]
+    },
+    {
+      "id": "web-extraction",
+      "prompt": "Read this webpage and extract a clean compact version",
+      "require": [
+        "defuddle"
+      ]
+    },
+    {
+      "id": "compressed-mode",
+      "prompt": "Use caveman mode and be ultra brief",
+      "require": [
+        "caveman"
+      ]
+    },
+    {
+      "id": "retrospective",
+      "prompt": "Run a retrospective and capture a durable lesson from this failure",
+      "require": [
+        "solution-retrospective"
+      ]
+    },
+    {
+      "id": "context-pack",
+      "prompt": "Build a bounded ContextPack for a model handoff",
+      "require": [
+        "context-builder"
+      ]
+    },
+    {
+      "id": "repo-profile",
+      "prompt": "Run repo recon and detect the build and test toolchain",
+      "require": [
+        "repo-recon"
+      ]
+    },
+    {
+      "id": "session-resume",
+      "prompt": "Use the session-checkpoint skill before context compaction",
+      "require": [
+        "session-checkpoint"
+      ]
+    },
+    {
+      "id": "prompt-cache",
+      "prompt": "Build a stable prompt cache prefix and reduce token cost",
+      "require": [
+        "cache-aware-context"
+      ]
+    },
+    {
+      "id": "wiki-maintenance",
+      "prompt": "Update the LLM Wiki and rebuild the knowledge base index",
+      "require": [
+        "llm-wiki-maintenance"
+      ]
+    },
+    {
+      "id": "openspec-change",
+      "prompt": "Use OpenSpec for this behavioral change and create context-impact",
+      "require": [
+        "openspec-change"
+      ]
+    },
+    {
+      "id": "project-exploration",
+      "prompt": "Explore repository and build a project map for this unfamiliar repository",
+      "require": [
+        "project-exploration"
+      ]
+    },
+    {
+      "id": "architecture-design",
+      "prompt": "Create an architecture design and ADR for this integration",
+      "require": [
+        "architecture-design"
+      ]
+    },
+    {
+      "id": "java-maven-jar-analysis",
+      "prompt": "Which transitive dependencies does com.example.Widget pull from org.example:widget-core:2.1 in this Maven project?",
+      "require": [
+        "java-maven-jar-analysis"
+      ]
+    },
+    {
+      "id": "java-gradle-near-miss",
+      "prompt": "Resolve the Gradle dependency graph for this Java service",
+      "require": [],
+      "exclude": [
+        "java-maven-jar-analysis"
+      ]
+    }
+  ]
+}
