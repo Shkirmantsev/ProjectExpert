@@ -18,7 +18,7 @@ maintenance:
   hexagonal/ports-and-adapters + micro-kernel layout). See
   [`architecture/platform-overview`](../architecture/platform-overview.md)
   and the Phase 1 specs in
-  [`plan-v0-8-platform-architecture`](../../../openspec/changes/plan-v0-8-platform-architecture/).
+  [`plan-v0-8-platform-architecture`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/).
 - [Harness scripts](../../../scripts/): environment bootstrap, client generation,
   skill routing, OpenSpec layout validation, session state.
 - [Project-context MCP](../../../tools/mcp/project-context-mcp/): Wiki retrieval
@@ -29,7 +29,7 @@ maintenance:
   OpenSpec workflow skills) plus the on-demand catalog.
 - [OpenSpec](../../../openspec/): production-SDD schema and templates,
   current specs, proposed changes. The
-  [`plan-v0-8-platform-architecture`](../../../openspec/changes/plan-v0-8-platform-architecture/)
+  [`plan-v0-8-platform-architecture`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/)
   change defines the v0.8 platform roadmap.
 - [Architecture baseline](../../../project-intelligence-platform-architecture-v0.8.md):
   v0.8 platform architecture.

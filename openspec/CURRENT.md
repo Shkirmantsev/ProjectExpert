@@ -22,10 +22,21 @@ project product.
 
 ## Project product capabilities
 
-This project has not yet adopted accepted product specifications. Create new
-specs through the OpenSpec workflow (`openspec/changes/<id>/` →
-`openspec/specs/YYYY-MM-DD-domain-capability/`) and link them here when
-adopted.
+| Accepted capability | Canonical requirements |
+|---|---|
+| Project knowledge repository layout | [Spec](specs/2026-10-04-project-knowledge-repository-layout/spec.md) |
+| Canonical knowledge schema | [Spec](specs/2026-10-04-canonical-knowledge-schema/spec.md) |
+| Git version-aware runtime | [Spec](specs/2026-10-04-git-version-aware-runtime/spec.md) |
+| Bidirectional canonical runtime sync | [Spec](specs/2026-10-04-bidirectional-canonical-runtime-sync/spec.md) |
+| License governance | [Spec](specs/2026-10-04-license-governance/spec.md) |
+
+These product capabilities define the foundation phase of the v0.8
+Project Intelligence Platform. Subsequent phases (Ingestion, Storage,
+Retrieval, Orchestration, Agent integration, Control plane, Security,
+Distribution, A2A and quality gates) will introduce additional
+accepted capabilities. Create new specs through the OpenSpec workflow
+(`openspec/changes/<id>/` → `openspec/specs/YYYY-MM-DD-domain-capability/`)
+and link them here when adopted.
 
 Maintain this inventory with every accepted addition, retirement or identity
 migration. Dates record first acceptance, not the latest edit. Run

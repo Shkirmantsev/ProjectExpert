@@ -5,8 +5,8 @@ kind: project
 status: draft
 summary: Ordered phase summary for implementing the v0.8 Project Intelligence Platform.
 sourceRefs:
-  - openspec/changes/plan-v0-8-platform-architecture/proposal.md
-  - openspec/changes/plan-v0-8-platform-architecture/tasks.md
+  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md
+  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md
 maintenance:
   mode: authored
 ---
@@ -14,7 +14,7 @@ maintenance:
 # v0.8 Platform Implementation Roadmap
 
 The full ordered task list is in
-[`tasks.md`](../../../openspec/changes/plan-v0-8-platform-architecture/tasks.md).
+[`tasks.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md).
 This page summarises the phases and their dependencies so a new
 contributor or AI agent can orient quickly.
 

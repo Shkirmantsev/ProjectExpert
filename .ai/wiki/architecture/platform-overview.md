@@ -6,8 +6,8 @@ status: draft
 summary: High-level boundaries, runtime flows, control plane and data plane responsibilities of the planned v0.8 Project Intelligence Platform; also describes the boundary between this implementation project and the runtime data it operates on.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md
-  - openspec/changes/plan-v0-8-platform-architecture/proposal.md
-  - openspec/changes/plan-v0-8-platform-architecture/design.md
+  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md
+  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md
 maintenance:
   mode: authored
 ---
@@ -19,7 +19,7 @@ The v0.8 architecture baseline
 is the agreed target. This page mirrors only the boundaries that
 downstream agents must respect while the platform is implemented
 phase by phase per the
-[`plan-v0-8-platform-architecture`](../../../openspec/changes/plan-v0-8-platform-architecture/)
+[`plan-v0-8-platform-architecture`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/)
 OpenSpec change.
 
 ## What this repository is
@@ -79,7 +79,7 @@ authorization decisions.
 
 The product source tree is **planned** for the implementation
 phases defined in
-[`plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/plan-v0-8-platform-architecture/tasks.md):
+[`plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md):
 
 ```text
 platform/
@@ -173,7 +173,7 @@ later phase builds on:
 ## Implementation phases (summary)
 
 The full ordered task list is in
-[`tasks.md`](../../../openspec/changes/plan-v0-8-platform-architecture/tasks.md).
+[`tasks.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md).
 Summary of phases:
 
 | Phase | Name | Depends on |
@@ -194,11 +194,11 @@ Summary of phases:
 
 - [`project-intelligence-platform-architecture-v0.8.md`](../../../project-intelligence-platform-architecture-v0.8.md)
   — v0.8 baseline.
-- [`openspec/changes/plan-v0-8-platform-architecture/proposal.md`](../../../openspec/changes/plan-v0-8-platform-architecture/proposal.md)
+- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md)
   — proposal.
-- [`openspec/changes/plan-v0-8-platform-architecture/design.md`](../../../openspec/changes/plan-v0-8-platform-architecture/design.md)
+- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md)
   — technical design.
-- [`openspec/changes/plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/plan-v0-8-platform-architecture/tasks.md)
+- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md)
   — ordered implementation tasks.
 - [`.ai/AGENTS.md`](../../../.ai/AGENTS.md) and
   [`AGENTS.md`](../../../AGENTS.md) — agent contracts.

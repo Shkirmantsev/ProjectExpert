@@ -6,7 +6,7 @@ status: draft
 summary: Vocabulary used by the v0.8 Project Intelligence Platform.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md
-  - openspec/changes/plan-v0-8-platform-architecture/proposal.md
+  - openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md
 maintenance:
   mode: authored
 related:

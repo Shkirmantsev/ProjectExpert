@@ -29,11 +29,11 @@ project metadata without rebuilding the system for each tool.
 - The product source tree is **planned** under
   `platform/` (to be created by the future
   `implement-phase-1-foundation` change) and other top-level paths
-  per the Phase 1 spec [`project-knowledge-repository-layout`](../../../openspec/changes/plan-v0-8-platform-architecture/specs/project-knowledge-repository-layout/spec.md).
+  per the Phase 1 spec [`project-knowledge-repository-layout`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/specs/project-knowledge-repository-layout/spec.md).
   No product source exists yet.
 - `openspec/specs/` records agreed behavior; `openspec/changes/` records
   proposed behavior until adopted or archived. The
-  [`plan-v0-8-platform-architecture`](../../../openspec/changes/plan-v0-8-platform-architecture/)
+  [`plan-v0-8-platform-architecture`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/)
   change is the planning artifact for the entire v0.8 architecture.
 - `.ai/wiki/` explains the implementation and links to specs, ADRs and source.
   See [`architecture/platform-overview`](platform-overview.md) for the
@@ -49,12 +49,12 @@ project metadata without rebuilding the system for each tool.
   micro-kernel layout. See
   [`architecture/platform-overview`](platform-overview.md) and the
   Phase 1 specs introduced by
-  [`plan-v0-8-platform-architecture`](../../../openspec/changes/plan-v0-8-platform-architecture/).
+  [`plan-v0-8-platform-architecture`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/).
 - **Harness framework** — `harness.py`, `Makefile`, `scripts/`, `.agents/skills/`,
   `openspec/`, `.ai/`, `tools/mcp/project-context-mcp/`, `.opencode/`,
   `.claude/`, `.codex/`.
 - **Documentation** — `docs/`, `README.md`, `project-intelligence-platform-architecture-v0.8.md`,
-  [`openspec/changes/plan-v0-8-platform-architecture/`](../../../openspec/changes/plan-v0-8-platform-architecture/).
+  [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/).
 
 ## Phase 1 foundation capabilities
 
@@ -76,8 +76,8 @@ and from [`architecture/platform-overview`](platform-overview.md).
 ## Evidence
 
 - [`project-intelligence-platform-architecture-v0.8.md`](../../../project-intelligence-platform-architecture-v0.8.md)
-- [`openspec/changes/plan-v0-8-platform-architecture/proposal.md`](../../../openspec/changes/plan-v0-8-platform-architecture/proposal.md)
-- [`openspec/changes/plan-v0-8-platform-architecture/design.md`](../../../openspec/changes/plan-v0-8-platform-architecture/design.md)
-- [`openspec/changes/plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/plan-v0-8-platform-architecture/tasks.md)
+- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/proposal.md)
+- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/design.md)
+- [`openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md`](../../../openspec/changes/archive/2026-10-04-plan-v0-8-platform-architecture/tasks.md)
 - [`AGENTS.md`](../../../AGENTS.md)
 - [`openspec/CURRENT.md`](../../../openspec/CURRENT.md)
