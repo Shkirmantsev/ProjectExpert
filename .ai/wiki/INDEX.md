@@ -60,6 +60,16 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [FreshnessTrackerPort interface](interfaces/freshness.md)
 - [Embedded storage engine selection](adr/0008-embedded-storage-selection.md)
 
+## Phase 4 retrieval
+
+- [Phase 4 retrieval module map](modules/retrieval.md)
+- [Phase 4 embedding-model module map](modules/embeddings.md)
+- [Phase 4 context-assembler module map](modules/context-assembler.md)
+- [HybridRetrievalPort interface](interfaces/hybrid-retrieval.md)
+- [RerankerPort interface](interfaces/reranker.md)
+- [Embedding model selection](adr/0009-embedding-model-selection.md)
+- [Hybrid fusion strategy](adr/0010-hybrid-fusion-strategy.md)
+
 ## Knowledge areas
 
 - `architecture/` — system boundaries, runtime flows, architecture views.

@@ -26,7 +26,7 @@ project product.
 | --- | --- |
 | [Project knowledge repository layout](specs/2026-10-04-project-knowledge-repository-layout/spec.md) |
 | [Canonical knowledge schema](specs/2026-10-04-canonical-knowledge-schema/spec.md) |
-| [Git version-aware runtime](specs/2026-10-04-git-version-aware-runtime/spec.md) |
+| [Git version aware runtime](specs/2026-10-04-git-version-aware-runtime/spec.md) |
 | [Bidirectional canonical runtime sync](specs/2026-10-04-bidirectional-canonical-runtime-sync/spec.md) |
 | [License governance](specs/2026-10-04-license-governance/spec.md) |
 | [Content addressed processing](specs/2026-10-04-content-addressed-processing/spec.md) |
@@ -47,14 +47,23 @@ project product.
 | [Graph expansion](specs/2026-10-04-graph-expansion/spec.md) |
 | [Provenance state model](specs/2026-10-04-provenance-state-model/spec.md) |
 | [Freshness tracking](specs/2026-10-04-freshness-tracking/spec.md) |
+| [Embedding model](specs/2026-10-04-embedding-model/spec.md) |
+| [Hybrid retrieval](specs/2026-10-04-hybrid-retrieval/spec.md) |
+| [Multi stage retrieval](specs/2026-10-04-multi-stage-retrieval/spec.md) |
+| [Graph expansion production](specs/2026-10-04-graph-expansion-production/spec.md) |
+| [Reranker port](specs/2026-10-04-reranker-port/spec.md) |
+| [Metadata filters](specs/2026-10-04-metadata-filters/spec.md) |
+| [Context assembler](specs/2026-10-04-context-assembler/spec.md) |
+| [Retrieval benchmark](specs/2026-10-04-retrieval-benchmark/spec.md) |
 
-These product capabilities define the foundation, ingestion and storage phases of the
-v0.8 Project Intelligence Platform. Subsequent phases (Retrieval,
-Orchestration, Agent integration, Control plane, Security,
-Distribution, A2A and quality gates) will introduce additional
-accepted capabilities. Create new specs through the OpenSpec workflow
-(`openspec/changes/<id>/` → `openspec/specs/YYYY-MM-DD-domain-capability/`)
-and link them here when adopted.
+These product capabilities define the foundation, ingestion, storage
+and retrieval phases of the v0.8 Project Intelligence Platform.
+Subsequent phases (Orchestration, Agent integration, Control plane,
+Security, Distribution, A2A and quality gates) will introduce
+additional accepted capabilities. Create new specs through the
+OpenSpec workflow (`openspec/changes/<id>/` →
+`openspec/specs/YYYY-MM-DD-domain-capability/`) and link them here
+when adopted.
 
 Maintain this inventory with every accepted addition, retirement or identity
 migration. Dates record first acceptance, not the latest edit. Run

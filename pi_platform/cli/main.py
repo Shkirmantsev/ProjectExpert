@@ -122,6 +122,13 @@ def build_parser() -> argparse.ArgumentParser:
     graph_rebuild.add_argument("--cache-root", type=Path,
                                default=Path(".project-intelligence-cache/graph"))
 
+    sub.add_parser("embedding-status",
+                   help="print the active §25 EmbeddingModelPort status")
+    sub.add_parser("retrieval-status",
+                   help="print the Phase 4 retrieval pipeline status")
+    sub.add_parser("reranker-status",
+                   help="print the active §30 RerankerPort status")
+
     sub.add_parser("health", help="lightweight liveness check")
     sub.add_parser("--help", help="show this help message and exit")
     return parser
@@ -575,6 +582,148 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     except Exception as exc:  # noqa: BLE001
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         return 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 retrieval subcommands
+# ---------------------------------------------------------------------------
+
+
+def _cmd_embedding_status(args: argparse.Namespace) -> int:
+    """Report the active §25 EmbeddingModelPort status."""
+
+    from ..adapters.retrieval.hashing_embedding_model import (
+        HashingEmbeddingAdapter,
+    )
+    from ..adapters.retrieval.multilingual_st_embedding_model import (
+        ADAPTER_NAME as _MULTILINGUAL_NAME,
+        DEFAULT_LICENSE_ID,
+        EXPECTED_DIMENSION,
+        MultilingualSentenceTransformerEmbeddingModel,
+    )
+
+    hashing = HashingEmbeddingAdapter()
+    backend_name = "hashing"
+    model_version = hashing.model_version()
+    license_id = hashing.license_id()
+    dimension = hashing.dimension()
+    try:
+        MultilingualSentenceTransformerEmbeddingModel()
+        multilingual_available = True
+    except Exception:
+        multilingual_available = False
+    payload = {
+        "active_backend": backend_name,
+        "active_model_version": model_version,
+        "active_license_id": license_id,
+        "active_dimension": dimension,
+        "multilingual_available": multilingual_available,
+        "multilingual_adapter_name": _MULTILINGUAL_NAME,
+        "multilingual_default_model_id": "paraphrase-multilingual-MiniLM-L12-v2",
+        "multilingual_default_license_id": DEFAULT_LICENSE_ID,
+        "multilingual_expected_dimension": EXPECTED_DIMENSION,
+        "stats": dict(hashing.stats()),
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_reranker_status(args: argparse.Namespace) -> int:
+    """Report the active §30 RerankerPort status."""
+
+    from ..adapters.retrieval.bm25_light_reranker import (
+        Bm25LightRerankerAdapter,
+    )
+    from ..adapters.retrieval.cross_encoder_reranker import (
+        ADAPTER_NAME as _CROSS_ENCODER_NAME,
+        CrossEncoderRerankerAdapter,
+    )
+    from ..adapters.retrieval.colbert_style_reranker import (
+        ADAPTER_NAME as _COLBERT_NAME,
+        ColBertStyleRerankerAdapter,
+    )
+
+    bm25 = Bm25LightRerankerAdapter()
+    payload = {
+        "active_family": bm25.family(),
+        "active_model_version": bm25.model_version(),
+        "active_license_id": bm25.license_id(),
+        "budget": bm25.budget,
+        "stats": dict(bm25.stats()),
+    }
+    for label, adapter_cls, name in (
+        ("cross-encoder", CrossEncoderRerankerAdapter, _CROSS_ENCODER_NAME),
+        ("colbert-style", ColBertStyleRerankerAdapter, _COLBERT_NAME),
+    ):
+        try:
+            adapter_cls()
+            available = True
+        except Exception:
+            available = False
+        payload[f"{label}_available"] = available
+        payload[f"{label}_adapter_name"] = name
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_retrieval_status(args: argparse.Namespace) -> int:
+    """Report the Phase 4 retrieval pipeline status."""
+
+    from ..adapters.retrieval.context_assembler_adapter import (
+        ContextAssemblerAdapter,
+    )
+    from ..adapters.retrieval.hybrid_retrieval import HybridRetrievalAdapter
+    from ..adapters.retrieval.identifier_query_detector import (
+        IdentifierQueryDetector,
+    )
+    from ..adapters.retrieval.metadata_filter_adapter import (
+        MetadataFilterAdapter,
+    )
+    from ..adapters.retrieval.bm25_light_reranker import Bm25LightRerankerAdapter
+    from ..adapters.runtime.graph_expansion import (
+        DEFAULT_BUDGET as _PRODUCTION_GRAPH_BUDGET,
+        DEFAULT_EDGE_TYPES as _PRODUCTION_GRAPH_EDGE_TYPES,
+        ProductionGraphExpansion,
+    )
+    from ..core.retrieval.multi_stage_retrieval import (
+        DEFAULT_BUDGETS as _DEFAULT_STAGE_BUDGETS,
+    )
+
+    hybrid = HybridRetrievalAdapter(
+        dense_query=lambda text, k: (),
+        sparse_query=lambda text, k: (),
+    )
+    payload = {
+        "active_fusion_strategy": hybrid.fusion_strategy,
+        "hybrid_level": hybrid.stats().get("level", 0),
+        "identifier_detector": IdentifierQueryDetector.name,
+        "metadata_filter_adapter": "metadata-filter-default",
+        "context_assembler_adapter": "context-assembler-default",
+        "reranker_family": Bm25LightRerankerAdapter().family(),
+        "production_graph_expansion": {
+            "default_budget": _PRODUCTION_GRAPH_BUDGET,
+            "default_edge_types": list(_PRODUCTION_GRAPH_EDGE_TYPES),
+        },
+        "stage_budgets": dict(_DEFAULT_STAGE_BUDGETS),
+        "stats": {
+            "hybrid": dict(hybrid.stats()),
+            "metadata": dict(MetadataFilterAdapter().stats()),
+            "context_assembler": dict(ContextAssemblerAdapter().stats()),
+            "reranker": dict(Bm25LightRerankerAdapter().stats()),
+        },
+    }
+    payload["graph_expansion_class"] = ProductionGraphExpansion.__name__
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+_DISPATCH.update(
+    {
+        "embedding-status": _cmd_embedding_status,
+        "retrieval-status": _cmd_retrieval_status,
+        "reranker-status": _cmd_reranker_status,
+    }
+)
 
 
 if __name__ == "__main__":

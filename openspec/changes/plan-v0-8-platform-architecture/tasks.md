@@ -335,33 +335,33 @@ implements exactly the Phase 1 tasks (13-44) defined here.
 
 ## Phase 4 — Retrieval (hybrid, multi-stage, reranking, contextual assembly)
 
-- [ ] 70. Implement `platform.embeddings.EmbeddingModelPort` with
+- [x] 70. Implement `platform.embeddings.EmbeddingModelPort` with
   one default multilingual embedding model (English, German,
   Ukrainian, optionally Russian) that satisfies §25 requirements
   and the model license gate.
-- [ ] 71. Implement `platform.retrieval.HybridRetrieval` with
+- [x] 71. Implement `platform.retrieval.HybridRetrieval` with
   dense ANN + sparse/BM25 + exact identifier lookup, fused into a
   single ranked candidate set.
-- [ ] 72. Implement `platform.retrieval.MultiStageRetrieval`
+- [x] 72. Implement `platform.retrieval.MultiStageRetrieval`
   (candidate generation → fusion → metadata/version/security
   filter → graph expansion → hierarchy expansion → rerank).
-- [ ] 73. Implement `platform.retrieval.GraphExpansion` and
+- [x] 73. Implement `platform.retrieval.GraphExpansion` and
   `platform.retrieval.HierarchyExpansion` bounded by documented
   budgets.
-- [ ] 74. Implement pluggable advanced rerankers (cross-encoder,
+- [x] 74. Implement pluggable advanced rerankers (cross-encoder,
   ColBERT-style, etc.) behind a `RerankerPort`; rerankers run on
   bounded candidate sets only.
-- [ ] 75. Implement metadata-driven temporal/version/security
+- [x] 75. Implement metadata-driven temporal/version/security
   filters (`validFrom <= queryDate AND (validTo IS NULL OR
   validTo >= queryDate)`).
-- [ ] 76. Implement `platform.context.ContextAssembler` with
+- [x] 76. Implement `platform.context.ContextAssembler` with
   deduplication, context budget, citation preservation,
   authoritative-evidence preference, conflict detection and
   uncertainty surfacing.
-- [ ] 77. Add evaluation fixtures and a retrieval benchmark test
+- [x] 77. Add evaluation fixtures and a retrieval benchmark test
   (`tests/test_retrieval_benchmark.py`) recording recall/precision,
   reranker quality, latency, cache reuse.
-- [ ] 78. Update Wiki (new `modules/retrieval`, `modules/embeddings`,
+- [x] 78. Update Wiki (new `modules/retrieval`, `modules/embeddings`,
   `modules/context-assembler`, `interfaces/hybrid-retrieval`,
   `interfaces/reranker`), archive the Phase 4 change, update
   `openspec/CURRENT.md`.

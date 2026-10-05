@@ -241,3 +241,78 @@ branches share one canonical artefact. The 50 000-entity property test
 (`tests/test_graph_50k.py`) asserts both the shard count distribution and the
 32 MiB per-file cap. ANN vectors and the canonical knowledge graph are kept strictly
 separate (§17 invariant).
+
+## Phase 4 retrieval pipeline
+
+The [retrieval module](../modules/retrieval.md) composes the Phase 3 storage layer and
+the §25 embedding model into the seven-stage §29 multi-stage pipeline. The pipeline
+implements the §33 retrieval-first escalation policy (exact → sparse → dense → hybrid →
+graph → hierarchy → rerank → bounded context). Per-stage telemetry
+(`candidatesIn`, `candidatesOut`, `durationMs`, `budgetExhausted`) feeds the §49
+evaluation fixture.
+
+## EmbeddingModelPort
+
+The `EmbeddingModelPort` is the §25 abstract embedding port. It exposes a
+multilingual, CPU-capable, replaceable, commercially-licensed embedding backend
+through `embed`, `embed_batch`, `dimension`, `model_version`, `license_id` and
+`stats` operations. The default adapter is the stdlib-only
+`HashingEmbeddingAdapter`; the opt-in adapter is the
+`MultilingualSentenceTransformerEmbeddingModel` (Apache-2.0 weights + runtime).
+See [ADR 0009](../adr/0009-embedding-model-selection.md).
+
+## HybridRetrievalPort
+
+The `HybridRetrievalPort` is the §27 abstract hybrid retrieval port. It composes
+the dense ANN, the sparse BM25 and the exact-identifier lookup behind a single
+ranked candidate set. The `RetrievalHit` value type is the lingua-franca record
+exchanged across every Phase 4 stage. The default fusion strategy is
+reciprocal rank fusion (RRF) with `k=60`; the linear weighted sum is the
+documented fallback. See [ADR 0010](../adr/0010-hybrid-fusion-strategy.md).
+
+## RerankerPort
+
+The `RerankerPort` is the §30 abstract pluggable reranker port. The cross-encoder
+(`cross-encoder/ms-marco-MiniLM-L-6-v2`, MIT) is the documented default; the
+BM25-light (Apache-2.0) is the stdlib fallback; the ColBERT-style late-interaction
+reranker (MIT) is the optional opt-in. Rerankers operate on bounded candidate
+sets only; the multi-stage pipeline enforces a `rerankBudget` cap.
+
+## MetadataFilter / MetadataFilterPort
+
+The `MetadataFilter` value type and the `MetadataFilterPort` port enforce the §24
+temporal validity rule (`validFrom <= queryDate AND (validTo IS NULL OR
+validTo >= queryDate)`), the project-version filter, the §56
+security-classification allow-list and the language / domain / module /
+requirement filters. The drop reasons appear in the documented evaluation order
+(`temporal_invalid`, `version_mismatch`, `security_denied`, `language_mismatch`,
+`domain_mismatch`, `module_mismatch`, `requirement_mismatch`).
+
+## ContextAssemblerPort
+
+The `ContextAssemblerPort` is the §32 abstract port that builds a bounded
+context bundle from the multi-stage retrieval pipeline output. The bundle
+deduplicates overlapping evidence, enforces the `ContextBudget`, preserves
+`Citation` records, prefers authoritative evidence, surfaces conflicts and
+flags uncertain hits. The bundle is the language-passport contract between
+the Phase 4 retrieval pipeline and the Phase 5 orchestrator / Phase 6 MCP
+server.
+
+## Retrieval benchmark fixture
+
+The `retrieval-benchmark` capability is the §49 evaluation fixture contract.
+The fixture exercises the multi-stage pipeline against a deterministic 1 000+-
+chunk / 100+-entity corpus with 100+ labelled queries, recording recall,
+precision, MRR, latency, cache reuse, branch-switch hydration time,
+stale-knowledge detection and plugin setup success rate. The fixture contract
+ships as the `tests/test_retrieval_benchmark.py` test module.
+
+## Phase 4 production graph expansion
+
+The Phase 3 `graph-expansion` preview port is closed by the Phase 4
+`ProductionGraphExpansion` adapter (in
+`pi_platform/adapters/runtime/graph_expansion.py`). The production adapter
+walks the Phase 3 `GraphPort` (NOT the ANN graph), enforces `hops`,
+`edge_types` and `budget` parameters and applies the documented default
+edge-type set per §31. The Phase 3 stub
+`BoundedGraphExpansion` remains available for Phase 3 regression tests.

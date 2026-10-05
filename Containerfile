@@ -40,6 +40,19 @@ COPY distribution/licenses ./distribution/licenses
 COPY distribution/sbom ./distribution/sbom
 
 RUN pip install --no-cache-dir .
+
+# Phase 4 retrieval opt-in dependencies. The default image ships
+# without the heavy multilingual sentence-transformer stack so the
+# CPU-only fallback (`HashingEmbeddingAdapter`) covers the
+# multilingual-DE/EN/UK retrieval scenario. Install the
+# `retrieval` extra in a derived image to enable the multilingual
+# sentence-transformer adapter and the cross-encoder reranker.
+# The ColBERT-style late-interaction adapter remains off by
+# default; install the optional `colbert` extra in a derived
+# image to enable it. All three extras pass `LicenseGate` against
+# the SPDX inventory at `distribution/licenses/dependency-inventory.json`.
+# RUN pip install --no-cache-dir ".[retrieval]"
+
 # Java native libraries remain optional: install the approved java extra in a
 # derived image to enable the isolated parser. Default uses metadata-only mode.
 

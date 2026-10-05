@@ -111,6 +111,33 @@
       "scope": "dev",
       "source": "https://github.com/pytest-dev/pytest",
       "extra": "dev"
+    },
+    {
+      "name": "sentence-transformers",
+      "version": ">=2.7.0",
+      "spdx": "Apache-2.0",
+      "scope": "optional",
+      "source": "https://github.com/UKPLab/sentence-transformers",
+      "extra": "retrieval",
+      "notes": "Phase 4 retrieval opt-in dependency. Powers the multilingual-st embedding adapter and the cross-encoder reranker adapter. Apache-2.0 covers the runtime; the model weights are evaluated separately (Apache-2.0 paraphrase-multilingual-MiniLM-L12-v2, MIT cross-encoder/ms-marco-MiniLM-L-6-v2)."
+    },
+    {
+      "name": "cross-encoder-ms-marco-MiniLM-L-6-v2",
+      "version": "model-weights",
+      "spdx": "MIT",
+      "scope": "optional",
+      "source": "https://huggingface.co/cross-encoder/ms-marco-MiniLM-L-6-v2",
+      "extra": "retrieval",
+      "notes": "Phase 4 default cross-encoder reranker model weights. Apache-2.0 model card at huggingface.co; the weight license is MIT (see §5.4 model-license inventory)."
+    },
+    {
+      "name": "paraphrase-multilingual-MiniLM-L12-v2",
+      "version": "model-weights",
+      "spdx": "Apache-2.0",
+      "scope": "optional",
+      "source": "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+      "extra": "retrieval",
+      "notes": "Phase 4 default multilingual sentence-transformer model weights; covers DE/EN/UK and opt-in RU per the §25 spec."
     }
   ]
 }

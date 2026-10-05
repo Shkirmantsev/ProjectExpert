@@ -255,3 +255,37 @@ subprocesses and cache records carry explicit provenance. See the
 [source interface](../interfaces/source-adapters.md), [chunker](../interfaces/chunker.md)
 and [enrichment](../interfaces/enrichment.md) contracts. Persistent storage and retrieval
 remain future phases.
+
+## Phase 3 storage
+
+The Phase 3 storage layer ships the runtime store, three indexes, the sharded
+canonical knowledge graph, provenance / freshness and the
+[Phase 3 `GraphExpansionPort` preview](../interfaces/graph-expansion.md) the
+Phase 4 production adapter closes. The runtime store port lives under
+[`pi_platform.ports.runtime`](../modules/runtime-store.md).
+
+## Phase 4 retrieval
+
+The Phase 4 retrieval layer composes the Phase 3 storage surface and the §25
+embedding model into the §27 hybrid retrieval, the §29 multi-stage pipeline, the
+§30 pluggable reranker, the §24 / §56 metadata filters, the §31 production graph
+expansion, the §32 context assembler and the §49 evaluation fixture. The Phase 4
+module map lives under
+[`modules/retrieval`](../modules/retrieval.md); the embedding layer lives under
+[`modules/embeddings`](../modules/embeddings.md); the context assembler lives
+under [`modules/context-assembler`](../modules/context-assembler.md); the
+hybrid retrieval and reranker port contracts live under
+[`interfaces/hybrid-retrieval`](../interfaces/hybrid-retrieval.md) and
+[`interfaces/reranker`](../interfaces/reranker.md) respectively.
+
+The selection of the stdlib-only hashing embedding model as the default
+multilingual fallback (with the opt-in multilingual sentence-transformer
+adapter) is recorded in
+[ADR 0009](../adr/0009-embedding-model-selection.md). The selection of RRF as
+the default hybrid fusion strategy (with the linear weighted sum fallback) is
+recorded in [ADR 0010](../adr/0010-hybrid-fusion-strategy.md). The Phase 3
+[`graph-expansion`](../interfaces/graph-expansion.md) preview port is closed
+by the [`pi_platform.adapters.runtime.graph_expansion`](../../../pi_platform/adapters/runtime/graph_expansion.py)
+production adapter; the Phase 3 stub
+[`BoundedGraphExpansion`](../../../pi_platform/adapters/runtime/bounded_graph_expansion.py)
+remains in place so Phase 3 regression tests keep their binding.
