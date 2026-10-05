@@ -103,12 +103,22 @@ pi_platform/
 │   ├── canonical/         # value types, content addressing, manifest, OKF
 │   ├── git/               # CLI adapter, version identity, working-tree overlay
 │   ├── sync/              # hydrate / reconcile / materialise / WAL / lock
-│   └── licensing/         # policy / gate / inventory / SBOM emitter
+│   ├── licensing/         # policy / gate / inventory / SBOM emitter
+│   ├── ingest/            # PipelineDriver, local source inbox scanner
+│   └── runtime/           # runtime-store, graph, provenance, freshness re-exports
 ├── ports/                 # abstract port interfaces
+│   ├── ingest/            # Phase 2 source / chunker / enricher / driver ports
+│   └── runtime/           # Phase 3 store, indexes, graph, provenance, freshness ports
 ├── adapters/
 │   ├── fs/                # local filesystem adapter
-│   └── git/               # git CLI adapter
-├── runtime/               # content-addressed filesystem cache
+│   ├── git/               # git CLI adapter
+│   ├── markdown/, html/, pdf/, openapi/  # shared Markdown / HTML adapters
+│   ├── java/              # tree-sitter-java subprocess, java_structured_adapter, jar
+│   ├── openspec/          # openspec-change-adapter
+│   ├── ingest/            # default PipelineDriver, chunkers, enrichers
+│   └── runtime/           # SqliteRuntimeStore, Bm25SparseIndex, FlatDenseIndex,
+│                          # SqliteFtsFullTextIndex, LocalShardedGraph, etc.
+├── runtime/               # content-addressed filesystem cache (Phase 1 shim over Phase 3)
 └── cli/                   # `python -m pi_platform.cli` entry point
 project-knowledge/         # canonical knowledge tree (target repo, Phase 1)
 .project-intelligence-cache/  # runtime cache (target repo, gitignored)
@@ -123,8 +133,8 @@ distribution/             # generated artefacts (target repo, Phase 1)
 ```
 
 The CLI exposes `init-project`, `hydrate`, `materialise`,
-`license-gate`, `okf-validate`, `version-identity`, `wal-recover`
-and `health`. The Phase 1 implementation targets the
+`license-gate`, `okf-validate`, `version-identity`, `wal-recover`,
+`ingest-sources`, `runtime-status`, `graph-rebuild` and `health`. The Phase 1 implementation targets the
 `core-headless` docker-compose profile; later phases light up
 `desktop-lite`, `desktop-local-ai`, `open-webui` and
 `enterprise`.
@@ -208,7 +218,7 @@ Summary of phases:
 | 0 | Plan | — | complete |
 | 1 | Foundation | Phase 0 | complete (this change) |
 | 2 | Ingestion (parsers, content addressing) | Phase 1 | complete |
-| 3 | Storage (runtime DB, sharded graph) | Phase 2 | planned |
+| 3 | Storage (runtime DB, sharded graph) | Phase 2 | complete |
 | 4 | Retrieval (hybrid, multi-stage, reranking) | Phase 3 | planned |
 | 5 | Orchestration (query, local LLM, task context) | Phase 4 | planned |
 | 6 | Agent integration (MCP, skill, adapters) | Phase 5 | planned |

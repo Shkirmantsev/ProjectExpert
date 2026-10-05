@@ -219,3 +219,25 @@ subprocesses and cache records carry explicit provenance. See the
 [source interface](../interfaces/source-adapters.md), [chunker](../interfaces/chunker.md)
 and [enrichment](../interfaces/enrichment.md) contracts. Persistent storage and retrieval
 remain future phases.
+
+## Phase 3 runtime store
+
+The [runtime store module](../modules/runtime-store.md) fills in the Phase 1 placeholder
+runtime cache: per-shard content-addressed cache, version stamp, write-ahead log,
+per-project advisory file lock. The default backend uses SQLite (stdlib `sqlite3`)
+through [`RuntimeStorePort`](../interfaces/runtime-store.md); PostgreSQL is opt-in for
+the enterprise-scale profile (gated on `storage.backend: postgres` plus a `LicenseGate`
+pass for the `psycopg` Apache-2.0 driver). Phase 3 also adds the three indexes
+(`SparseIndexPort`, `DenseIndexPort`, `FullTextIndexPort`), the sharded graph
+(`GraphPort`), the `GraphExpansion` preview port, the `ProvenancePort` state machine
+and the `FreshnessTrackerPort` snapshot.
+
+## Phase 3 sharded graph
+
+The [graph module](../modules/graph.md) implements the canonical knowledge graph with
+hash-prefix shards (§10.1, §16, §17). Every entity body is stored by its SHA-256
+content address under `objects/<prefix>/<hash>.json` so identical entity bodies across
+branches share one canonical artefact. The 50 000-entity property test
+(`tests/test_graph_50k.py`) asserts both the shard count distribution and the
+32 MiB per-file cap. ANN vectors and the canonical knowledge graph are kept strictly
+separate (§17 invariant).

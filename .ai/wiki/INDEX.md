@@ -47,6 +47,19 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Use an isolated tree-sitter Java parser](adr/0006-phase-2-parser-selection.md)
 - [Default inbox sources to LOCAL_ONLY](adr/0007-phase-2-inbox-policy-default.md)
 
+## Phase 3 storage
+
+- [Phase 3 runtime store module map](modules/runtime-store.md)
+- [Phase 3 sharded graph module map](modules/graph.md)
+- [RuntimeStorePort interface](interfaces/runtime-store.md)
+- [SparseIndexPort interface](interfaces/sparse-index.md)
+- [DenseIndexPort interface](interfaces/dense-index.md)
+- [FullTextIndexPort interface](interfaces/full-text-index.md)
+- [GraphExpansionPort interface (Phase 4 preview)](interfaces/graph-expansion.md)
+- [ProvenancePort interface](interfaces/provenance.md)
+- [FreshnessTrackerPort interface](interfaces/freshness.md)
+- [Embedded storage engine selection](adr/0008-embedded-storage-selection.md)
+
 ## Knowledge areas
 
 - `architecture/` — system boundaries, runtime flows, architecture views.

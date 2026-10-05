@@ -26,7 +26,7 @@ contributor or AI agent can orient quickly.
 | 0 | Plan | — | complete (archived) |
 | 1 | Foundation | Phase 0 | complete (archived) |
 | 2 | Ingestion (parsers, content addressing) | Phase 1 | complete |
-| 3 | Storage (runtime DB, sharded graph) | Phase 2 | planned |
+| 3 | Storage (runtime DB, sharded graph) | Phase 2 | complete |
 | 4 | Retrieval (hybrid, multi-stage, reranking) | Phase 3 | planned |
 | 5 | Orchestration (query, local LLM, task context) | Phase 4 | planned |
 | 6 | Agent integration (MCP, skill, adapters) | Phase 5 | planned |
@@ -83,3 +83,17 @@ subprocesses and cache records carry explicit provenance. See the
 [source interface](../interfaces/source-adapters.md), [chunker](../interfaces/chunker.md)
 and [enrichment](../interfaces/enrichment.md) contracts. Persistent storage and retrieval
 remain future phases.
+
+## Phase 3 storage (complete)
+
+The [runtime store module](../modules/runtime-store.md) and the [graph module](../modules/graph.md)
+implement the Phase 3 storage surface — the embedded runtime store, three indexes
+(BM25-sparse, ANN-dense, FTS5-secondary), the canonical sharded knowledge graph, the
+`GraphExpansion` preview port, the `KnowledgeState` lifecycle and the
+`FreshnessTracker` snapshot. The default backend uses Python stdlib `sqlite3`; the
+PostgreSQL backend is opt-in for the enterprise-scale profile. The 50 000-entity
+property test (`tests/test_graph_50k.py`) asserts both the shard count distribution and
+the 32 MiB per-file cap. The Phase 3 ADR
+`0008-embedded-storage-selection` documents the dual-backend choice and the rejected
+alternatives (DuckDB MIT, RocksDB Apache-2.0, sled MPL-2.0, LevelDB BSD-3-Clause,
+Badger Apache-2.0).

@@ -306,30 +306,30 @@ implements exactly the Phase 1 tasks (13-44) defined here.
 
 ## Phase 3 — Storage (runtime DB, sharded graph, provenance/freshness)
 
-- [ ] 61. Select the embedded storage engine(s) capable of
+- [x] 61. Select the embedded storage engine(s) capable of
   relational metadata, full-text search, vector search and graph
   traversal within one deployable unit. Document the decision in
   an ADR (`adr.embedded-storage-selection`) and record the license
   rationale.
-- [ ] 62. Implement `platform.runtime.RuntimeStore` with
+- [x] 62. Implement `platform.runtime.RuntimeStore` with
   per-shard content-addressed cache, version stamp, write-ahead
   log and per-project advisory file lock.
-- [ ] 63. Implement `platform.runtime.SparseIndex` (BM25 or
+- [x] 63. Implement `platform.runtime.SparseIndex` (BM25 or
   equivalent) and metadata index.
-- [ ] 64. Implement `platform.runtime.DenseIndex` with at least one
+- [x] 64. Implement `platform.runtime.DenseIndex` with at least one
   ANN backend (HNSW or flat) behind a `DenseIndexPort`.
-- [ ] 65. Implement `platform.runtime.FullTextIndex`.
-- [ ] 66. Implement the canonical knowledge graph
+- [x] 65. Implement `platform.runtime.FullTextIndex`.
+- [x] 66. Implement the canonical knowledge graph
   (`platform.core.graph.Graph`) with sharded nodes/edges,
   content-addressed entity bodies, entity families from §16 and
   relation families from §16; implement the graph with a clear
   separation between ANN graph and knowledge graph.
-- [ ] 67. Implement knowledge provenance (`KnowledgeState`) and
+- [x] 67. Implement knowledge provenance (`KnowledgeState`) and
   freshness tracking; record the staleness map on every reconcile.
-- [ ] 68. Add focused regression tests including a 50k-entity
+- [x] 68. Add focused regression tests including a 50k-entity
   sharding test that asserts the documented shard counts and the
   32 MiB single-file cap.
-- [ ] 69. Update Wiki (new `modules/runtime-store`, `modules/graph`,
+- [x] 69. Update Wiki (new `modules/runtime-store`, `modules/graph`,
   `interfaces/sparse-index`, `interfaces/dense-index`), archive the
   Phase 3 change, update `openspec/CURRENT.md`.
 

@@ -110,6 +110,18 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--config", type=Path, default=None)
     ingest.add_argument("--cache-root", type=Path, default=Path("tmp/local/pi-platform-ingest"))
 
+    runtime_status = sub.add_parser("runtime-status", help="print the Phase 3 runtime store status")
+    runtime_status.add_argument("--target", type=Path, default=Path("."))
+    runtime_status.add_argument("--cache-root", type=Path,
+                                default=DEFAULT_RUNTIME_CACHE)
+    runtime_status.add_argument("--policy", type=str, default="DURABLE",
+                                choices=["DURABLE", "ALL", "STALE"])
+
+    graph_rebuild = sub.add_parser("graph-rebuild", help="rebuild the canonical knowledge graph manifest")
+    graph_rebuild.add_argument("--target", type=Path, default=Path("."))
+    graph_rebuild.add_argument("--cache-root", type=Path,
+                               default=Path(".project-intelligence-cache/graph"))
+
     sub.add_parser("health", help="lightweight liveness check")
     sub.add_parser("--help", help="show this help message and exit")
     return parser
@@ -462,6 +474,64 @@ def _cmd_health(_: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_runtime_status(args: argparse.Namespace) -> int:
+    from ..adapters.runtime.sqlite_runtime_store import SqliteRuntimeStore
+    from ..core.canonical.value_types import ProjectVersion
+
+    target = args.target.resolve()
+    cache_root = _resolve_cache_root(args)
+    version = compute_version_identity(target)
+    store = SqliteRuntimeStore(cache_root=cache_root, version=ProjectVersion(
+        gitHead=version.gitHead,
+        workingTreeFingerprint=version.workingTreeFingerprint,
+        knowledgeSchemaVersion=version.knowledgeSchemaVersion,
+        embeddingModelVersion=version.embeddingModelVersion,
+        indexSchemaVersion=version.indexSchemaVersion,
+    ))
+    report = store.runtime_status(policy=args.policy)
+    payload = {
+        "bound_version": {
+            "gitHead": report.bound_version.gitHead,
+            "workingTreeFingerprint": report.bound_version.workingTreeFingerprint,
+            "knowledgeSchemaVersion": report.bound_version.knowledgeSchemaVersion,
+            "embeddingModelVersion": report.bound_version.embeddingModelVersion,
+            "indexSchemaVersion": report.bound_version.indexSchemaVersion,
+        },
+        "backend": report.backend,
+        "cache_entries": report.cache_entries,
+        "wal_tail_length": report.wal_tail_length,
+        "families": list(report.families),
+        "family_counts": dict(report.family_counts),
+        "policy": args.policy,
+        "cache_root": str(cache_root),
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_graph_rebuild(args: argparse.Namespace) -> int:
+    from ..adapters.runtime.sharded_graph import LocalShardedGraph
+
+    graph_root = args.cache_root
+    if not graph_root.is_absolute():
+        graph_root = args.target.resolve() / graph_root
+    graph = LocalShardedGraph(graph_root)
+    manifest = graph.rebuild_manifest()
+    payload = {
+        "graph_root": str(graph_root),
+        "family": manifest.family,
+        "schemaVersion": manifest.schemaVersion,
+        "entity_count": manifest.entity_count,
+        "relation_count": manifest.relation_count,
+        "shards": [
+            {"id": s.id, "path": s.path, "count": s.count}
+            for s in manifest.shards
+        ],
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
 def _project_id(target: Path) -> str:
     return target.resolve().as_posix().replace("/", "-").lstrip("-") or "default"
 
@@ -476,6 +546,8 @@ _DISPATCH = {
     "wal-recover": _cmd_wal_recover,
     "health": _cmd_health,
     "ingest-sources": _cmd_ingest_sources,
+    "runtime-status": _cmd_runtime_status,
+    "graph-rebuild": _cmd_graph_rebuild,
 }
 
 
