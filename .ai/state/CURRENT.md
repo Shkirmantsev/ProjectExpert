@@ -5,8 +5,8 @@
 Structured source: [handoffs/phase-4-retrieval.json](handoffs/phase-4-retrieval.json)
 
 Task: `phase-4-retrieval`
-Status: `reviewing`
-Updated: `2026-10-05T21:13:42+00:00`
+Status: `executing`
+Updated: `2026-10-05T21:39:25+00:00`
 Active OpenSpec change: `prepare-phase-4-retrieval`
 
 ## Objective
@@ -19,11 +19,11 @@ Author prepare-phase-4-retrieval OpenSpec change: 9 capability specs (embedding-
 
 ## Completed
 
-- Authored prepare-phase-4-retrieval (8 spec deltas + proposal/design/tasks/context-impact); mirrored to implement-phase-4-retrieval; openspec validate --all --strict = 32 passed 0 failed; harness wiki-validate ok; artifact-manifest PASS; Phase 1-3 regression suites OK (149 tests).
+- Fixed 7 review-identified bugs not covered by future OpenSpec/architecture: Windows _project_id, MCP ensure_index staleness, top_k dedup order, code_symbol re-scan, license inventory, container mutable tags, except Exception masking. Added 5 regression tests. All gates green.
 
 ## Remaining
 
-- Mirror deltas to implement-phase-4-retrieval and author its proposal/design/tasks; run --all strict; run harness check; run regression suites; final commit.
+- Final commit; do NOT push per preparation rules.
 
 ## Blocked
 
@@ -43,7 +43,7 @@ Author prepare-phase-4-retrieval OpenSpec change: 9 capability specs (embedding-
 
 ## Verification passed
 
-- openspec validate prepare-phase-4-retrieval --type change --strict = valid; openspec validate implement-phase-4-retrieval --type change --strict = valid; openspec validate --all --strict = 32 passed 0 failed; python3 scripts/artifact_manifest.py verify = Artifact manifest: PASS (568 files); python -m unittest phase1+phase2+phase3+cross-branch+roundtrip+50k = Ran 149 tests OK; python3 harness.py wiki-validate = ok=true
+- Phase 1-3 regression: Ran 151 OK; MCP tests: Ran 10 OK; openspec --all --strict: 32/0; artifact-manifest: PASS (596 files); wiki-validate: ok=true; license-gate: passed=true
 
 ## Verification pending
 
@@ -51,7 +51,7 @@ Author prepare-phase-4-retrieval OpenSpec change: 9 capability specs (embedding-
 
 ## Next action
 
-Final commit; do NOT push; do NOT archive (future implement-phase-4-retrieval archive promotes the deltas).
+git commit with descriptive message; do NOT push.
 
 ## Prerequisites
 
