@@ -289,3 +289,17 @@ by the [`pi_platform.adapters.runtime.graph_expansion`](../../../pi_platform/ada
 production adapter; the Phase 3 stub
 [`BoundedGraphExpansion`](../../../pi_platform/adapters/runtime/bounded_graph_expansion.py)
 remains in place so Phase 3 regression tests keep their binding.
+
+## Phase 5 orchestration
+
+The Phase 5 orchestration layer composes the Phase 4 retrieval surface and
+the optional Phase 5 `LocalLLMPort` into the three-level
+[`QueryOrchestrator`](../modules/orchestrator.md) (L0 direct retrieval,
+L1 retrieval + small local LLM, L2 strong external agent), the bounded
+[`TaskContextBuilder`](../modules/task-context.md) the L2 path emits,
+the optional [`LocalLLM`](../modules/llm-port.md) stub that ships in the
+default container, and the deterministic
+[`CapabilityDiscovery`](../interfaces/capability-discovery.md) that
+reports the §47 descriptor. The §33 retrieval-first escalation policy is
+encoded in the orchestrator and asserted by the
+`tests/test_orchestration_policy.py` regression test.

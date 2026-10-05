@@ -70,6 +70,13 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Embedding model selection](adr/0009-embedding-model-selection.md)
 - [Hybrid fusion strategy](adr/0010-hybrid-fusion-strategy.md)
 
+## Phase 5 orchestration
+
+- [Phase 5 query orchestrator module map](modules/orchestrator.md)
+- [Phase 5 local LLM port module map](modules/llm-port.md)
+- [Phase 5 task context builder module map](modules/task-context.md)
+- [CapabilityDiscoveryPort interface](interfaces/capability-discovery.md)
+
 ## Knowledge areas
 
 - `architecture/` — system boundaries, runtime flows, architecture views.

@@ -1,0 +1,45 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [],
+    "todo": [
+      "Author prep change (5 spec deltas + proposal/design/context-impact/tasks); Author implementation change folder (mirrored deltas); 5 Phase 5 ports; default cores; default adapters; TDD-first retrieval-first policy test; per-capability regression test; CLI capabilities/orchestrator-status/llm-status subcommands; SPDX entries (only if opt-in LLM deps added); Wiki + glossary + platform-overview updates; CURRENT.md; plan tasks 79-84 [x]; Archive both changes; Final commit"
+    ]
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-05T22:40:05+00:00",
+    "id": "implement-phase-5-orchestration",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-05T22:40:05+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "All verification gates PASS: harness.py check; openspec validate --all --strict returns no failures (>= 43); wiki-validate ok; artifact-manifest PASS; license-gate exits 0; Phase 1-4 regression suites still green plus new Phase 5 tests. openspec/specs/2026-10-05-*/ contains 5 Phase 5 capabilities. openspec/CURRENT.md lists them. plan-v0-8 tasks.md rows 79-84 are [x]. Both archive dirs exist."
+    ],
+    "goal": "Ship production code consuming the 5 Phase 5 capability specs (query-orchestrator, local-llm-port, task-context-builder, capability-discovery, retrieval-first-policy). Author ports, cores, adapters; write TDD-first retrieval-first policy regression test; Wiki/CURRENT.md updates; archive both prepare and implement changes. Defer LLM model binding to runtime config.",
+    "openspec_change": "implement-phase-5-orchestration",
+    "status": "planning"
+  },
+  "verification": {
+    "passed": [],
+    "pending": []
+  },
+  "working_set": []
+}

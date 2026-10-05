@@ -368,22 +368,22 @@ implements exactly the Phase 1 tasks (13-44) defined here.
 
 ## Phase 5 — Orchestration (query, local LLM, task context, capability discovery)
 
-- [ ] 79. Implement `platform.orchestrator.QueryOrchestrator` with
+- [x] 79. Implement `platform.orchestrator.QueryOrchestrator` with
   three escalation levels (L0 direct retrieval, L1 retrieval +
   small local LLM, L2 strong external agent) and the
   retrieval-first escalation order from §33.
-- [ ] 80. Implement `platform.llm.LocalLLMPort` behind a stable
+- [x] 80. Implement `platform.llm.LocalLLMPort` behind a stable
   interface; do not bind any specific model in the default
   container; declare the local-LLM capability as optional in
   capability discovery.
-- [ ] 81. Implement `platform.task.TaskContextBuilder` producing
+- [x] 81. Implement `platform.task.TaskContextBuilder` producing
   the bounded TaskContext bundle shape from §52.
-- [ ] 82. Implement `platform.orchestrator.CapabilityDiscovery`
+- [x] 82. Implement `platform.orchestrator.CapabilityDiscovery`
   returning the structured capability descriptor from §47.
-- [ ] 83. Add focused regression tests including a retrieval-first
+- [x] 83. Add focused regression tests including a retrieval-first
   policy test asserting that an implementation question does not
   trigger broad source scanning before MCP retrieval.
-- [ ] 84. Update Wiki (new `modules/orchestrator`, `modules/llm-port`,
+- [x] 84. Update Wiki (new `modules/orchestrator`, `modules/llm-port`,
   `modules/task-context`, `interfaces/capability-discovery`),
   archive the Phase 5 change, update `openspec/CURRENT.md`.
 

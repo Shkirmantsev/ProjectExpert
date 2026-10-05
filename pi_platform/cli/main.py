@@ -129,6 +129,13 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("reranker-status",
                    help="print the active §30 RerankerPort status")
 
+    sub.add_parser("orchestrator-status",
+                   help="print the Phase 5 §34 query orchestrator status")
+    sub.add_parser("llm-status",
+                   help="print the active §35 LocalLLMPort status")
+    sub.add_parser("capabilities",
+                   help="print the §47 capability discovery descriptor")
+
     sub.add_parser("health", help="lightweight liveness check")
     sub.add_parser("--help", help="show this help message and exit")
     return parser
@@ -717,11 +724,140 @@ def _cmd_retrieval_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_orchestrator_status(args: argparse.Namespace) -> int:
+    """Report the Phase 5 §34 query orchestrator status."""
+
+    from ..adapters.orchestration.query_orchestrator import (
+        DefaultQueryOrchestratorAdapter,
+    )
+    from ..adapters.orchestration.stub_local_llm import (
+        StubLocalLLMAdapter,
+    )
+    from ..adapters.orchestration.task_context import (
+        DefaultTaskContextBuilderAdapter,
+    )
+    from ..adapters.runtime.graph_expansion import (
+        ProductionGraphExpansion,
+    )
+    from ..adapters.retrieval.bm25_light_reranker import (
+        Bm25LightRerankerAdapter,
+    )
+    from ..adapters.retrieval.context_assembler_adapter import (
+        ContextAssemblerAdapter,
+    )
+    from ..adapters.retrieval.hybrid_retrieval import (
+        HybridRetrievalAdapter,
+    )
+    from ..adapters.retrieval.metadata_filter_adapter import (
+        MetadataFilterAdapter,
+    )
+    from ..core.retrieval.multi_stage_retrieval import (
+        MultiStageRetrievalCore,
+    )
+
+    hybrid = HybridRetrievalAdapter(
+        dense_query=lambda text, k: (),
+        sparse_query=lambda text, k: (),
+    )
+    pipeline = MultiStageRetrievalCore(
+        hybrid=hybrid,
+        metadata=MetadataFilterAdapter(),
+        graph_expansion=ProductionGraphExpansion(_GraphAdapter()),
+        reranker=Bm25LightRerankerAdapter(),
+        context_assembler=ContextAssemblerAdapter(),
+    )
+    local_llm = StubLocalLLMAdapter()
+    builder = DefaultTaskContextBuilderAdapter()
+    orchestrator = DefaultQueryOrchestratorAdapter(
+        retrieval=pipeline,
+        local_llm=local_llm,
+        task_context_builder=builder,
+    )
+    payload = {
+        "active_backend": "query-orchestrator-default",
+        "levels": {
+            "L0": "direct retrieval",
+            "L1": "retrieval + small local LLM",
+            "L2": "strong external agent (task context bundle)",
+        },
+        "default_level": int(orchestrator.stats() and 0),
+        "local_llm_available": local_llm.is_available(),
+        "local_llm_family": local_llm.family(),
+        "local_llm_license": local_llm.license_id(),
+        "task_context_knowledge_schema_version": builder._knowledge_schema_version,
+        "task_context_okf_versions": list(builder._okf_versions),
+        "stats": dict(orchestrator.stats()),
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_llm_status(args: argparse.Namespace) -> int:
+    """Report the active §35 LocalLLMPort status."""
+
+    from ..adapters.orchestration.stub_local_llm import (
+        StubLocalLLMAdapter,
+    )
+
+    stub = StubLocalLLMAdapter()
+    payload = {
+        "active_backend": "local-llm-stub",
+        "is_available": stub.is_available(),
+        "family": stub.family(),
+        "model_version": stub.model_version(),
+        "license_id": stub.license_id(),
+        "stats": dict(stub.stats()),
+        "opt_in_families": ["llama-cpp", "transformers", "external-llm"],
+        "note": "default container ships with the stub only; opt-in "
+                "LLM backends register as adapters when the "
+                "corresponding Python package is installed AND "
+                "project-context.yaml:orchestrator.local_llm.family "
+                "is set to the family's name.",
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_capabilities(args: argparse.Namespace) -> int:
+    """Print the §47 capability discovery descriptor."""
+
+    from ..adapters.orchestration.capability_discovery import (
+        DefaultCapabilityDiscoveryAdapter,
+    )
+    from ..adapters.orchestration.stub_local_llm import (
+        StubLocalLLMAdapter,
+    )
+
+    discovery = DefaultCapabilityDiscoveryAdapter(
+        local_llm=StubLocalLLMAdapter(),
+    )
+    payload = discovery.describe().as_dict()
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+class _GraphAdapter:
+    """In-memory graph stub used by the orchestrator-status CLI."""
+
+    def expand(self, seeds, *, hops, edge_types, budget):
+        from pi_platform.ports.runtime.graph_expansion import GraphExpansion
+        return GraphExpansion(
+            seeds=tuple(seeds), expandedEntities=(),
+            expandedRelations=(), hops=hops, budget_exhausted=False,
+        )
+
+    def stats(self) -> dict:
+        return {}
+
+
 _DISPATCH.update(
     {
         "embedding-status": _cmd_embedding_status,
         "retrieval-status": _cmd_retrieval_status,
         "reranker-status": _cmd_reranker_status,
+        "orchestrator-status": _cmd_orchestrator_status,
+        "llm-status": _cmd_llm_status,
+        "capabilities": _cmd_capabilities,
     }
 )
 

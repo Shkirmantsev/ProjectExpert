@@ -316,3 +316,62 @@ walks the Phase 3 `GraphPort` (NOT the ANN graph), enforces `hops`,
 `edge_types` and `budget` parameters and applies the documented default
 edge-type set per §31. The Phase 3 stub
 `BoundedGraphExpansion` remains available for Phase 3 regression tests.
+
+## QueryOrchestrator
+
+The `QueryOrchestratorPort` is the §34 abstract port that selects between
+three escalation levels (L0 direct retrieval, L1 retrieval + small local
+LLM, L2 strong external agent) per the §33 retrieval-first escalation
+policy. The orchestrator composes the Phase 4 `MultiStageRetrievalPort`
+and the Phase 5 `LocalLLMPort` / `TaskContextBuilderPort`. The default
+implementation is `DefaultQueryOrchestrator`; the
+`retrieval-first-violation` counter increments when an L2 bundle is
+emitted without prior retrieval evidence.
+
+## LocalLLMPort
+
+The `LocalLLMPort` is the §35 abstract port that exposes the optional
+local LLM the orchestrator consumes at L1. The default container ships
+with the deterministic `StubLocalLLMAdapter` (Apache-2.0, no new runtime
+dependency) whose `is_available()` returns `False`. Opt-in LLM backends
+(`llama-cpp`, `transformers`, `external-llm`) are registered as
+additional adapters when the corresponding Python package is installed
+AND `project-context.yaml:orchestrator.local_llm.family` is set to the
+family's name.
+
+## TaskContextBuilder
+
+The `TaskContextBuilderPort` is the §52 abstract port that builds the
+bounded ephemeral `TaskContextBundle` the L2 orchestrator emits. The
+bundle aggregates the requirement, the relevant OpenSpec, the Wiki
+sections, the source code, the interfaces, the dependencies, the
+architecture constraints, the graph neighbourhood, the tests and the
+Git diff. The bundle is NOT canonical knowledge; it is an ephemeral
+transport artifact the external agent consumes. The default
+implementation is `DefaultTaskContextBuilder`; the budget truncation
+honours the documented `BUNDLE_SLOT_PRIORITY` (requirement > openSpec >
+tests > source code > interfaces > dependencies > architecture > graph >
+wiki > diff).
+
+## CapabilityDiscovery
+
+The `CapabilityDiscoveryPort` is the §47 abstract port that returns the
+deterministic `CapabilityDescriptor` JSON the Phase 6 MCP
+`describe_capabilities` tool exposes. The descriptor carries
+`serverVersion`, `mcpApiVersion`, `knowledgeSchemaVersion`,
+`okfVersions` and the `features` map (`hybridRetrieval`,
+`graphExpansion`, `okf`, `materialization`, `a2a`, `localLlm`). Skills
+and plugins read the descriptor at startup; they MUST NOT assume
+every deployment exposes every optional feature.
+
+## Phase 5 retrieval-first policy
+
+The `retrieval-first-policy` capability is the §33 escalation policy
+encoded in the orchestrator. The regression contract
+(`tests/test_orchestration_policy.py`) asserts that the orchestrator
+runs the retrieval pipeline first, that the LLM completion is
+requested only at L1, that the `TaskContextBuilder` is invoked only at
+L2 and that the `retrieval_first_violations` counter is `0` for the
+documented compliant query set. The test is TDD-first and exercises the
+real `DefaultQueryOrchestratorAdapter` with a recording
+`MultiStageRetrievalPort`-shaped collaborator.

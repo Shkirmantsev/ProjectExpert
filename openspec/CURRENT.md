@@ -55,13 +55,18 @@ project product.
 | [Metadata filters](specs/2026-10-04-metadata-filters/spec.md) |
 | [Context assembler](specs/2026-10-04-context-assembler/spec.md) |
 | [Retrieval benchmark](specs/2026-10-04-retrieval-benchmark/spec.md) |
+| [Query orchestrator](specs/2026-10-05-query-orchestrator/spec.md) |
+| [Local LLM port](specs/2026-10-05-local-llm-port/spec.md) |
+| [Task context builder](specs/2026-10-05-task-context-builder/spec.md) |
+| [Capability discovery](specs/2026-10-05-capability-discovery/spec.md) |
+| [Retrieval first policy](specs/2026-10-05-retrieval-first-policy/spec.md) |
 
-These product capabilities define the foundation, ingestion, storage
-and retrieval phases of the v0.8 Project Intelligence Platform.
-Subsequent phases (Orchestration, Agent integration, Control plane,
-Security, Distribution, A2A and quality gates) will introduce
-additional accepted capabilities. Create new specs through the
-OpenSpec workflow (`openspec/changes/<id>/` →
+These product capabilities define the foundation, ingestion,
+storage, retrieval and orchestration phases of the v0.8 Project
+Intelligence Platform. Subsequent phases (Agent integration,
+Control plane, Security, Distribution, A2A and quality gates) will
+introduce additional accepted capabilities. Create new specs
+through the OpenSpec workflow (`openspec/changes/<id>/` →
 `openspec/specs/YYYY-MM-DD-domain-capability/`) and link them here
 when adopted.
 
