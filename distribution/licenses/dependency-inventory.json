@@ -1,6 +1,116 @@
 {
   "dependencies": [
-    {"name":"tree-sitter-java","version":"0.23.5","spdx":"MIT","scope":"optional","source":"https://github.com/tree-sitter/tree-sitter-java","binary":"python -m pi_platform.adapters.java.parser_worker"},
-    {"name":"tree-sitter","version":"0.25.2","spdx":"MIT","scope":"optional","source":"https://github.com/tree-sitter/py-tree-sitter"}
+    {
+      "name": "python",
+      "version": "3.11",
+      "spdx": "NOASSERTION",
+      "scope": "system",
+      "source": "https://www.python.org/"
+    },
+    {
+      "name": "python-stdlib",
+      "version": "3.11",
+      "spdx": "NOASSERTION",
+      "scope": "system",
+      "source": "https://docs.python.org/3/library/"
+    },
+    {
+      "name": "PyYAML",
+      "version": ">=6.0",
+      "spdx": "MIT",
+      "scope": "optional",
+      "source": "https://pyyaml.org/",
+      "extra": "yaml",
+      "notes": "OKF v0.2 frontmatter parser; stdlib fallback ships when absent."
+    },
+    {
+      "name": "tree-sitter",
+      "version": "0.25.2",
+      "spdx": "MIT",
+      "scope": "optional",
+      "source": "https://github.com/tree-sitter/py-tree-sitter",
+      "extra": "java"
+    },
+    {
+      "name": "tree-sitter-java",
+      "version": "0.23.5",
+      "spdx": "MIT",
+      "scope": "optional",
+      "source": "https://github.com/tree-sitter/tree-sitter-java",
+      "binary": "python -m pi_platform.adapters.java.parser_worker",
+      "extra": "java"
+    },
+    {
+      "name": "mcp",
+      "version": "1.30.0",
+      "spdx": "Apache-2.0",
+      "scope": "runtime",
+      "source": "https://github.com/modelcontextprotocol/python-sdk",
+      "notes": "Required by tools/mcp/project-context-mcp. Declared in tools/mcp/project-context-mcp/pyproject.toml."
+    },
+    {
+      "name": "anyio",
+      "version": "4.10.0",
+      "spdx": "MIT",
+      "scope": "runtime",
+      "source": "https://github.com/agronholm/anyio",
+      "notes": "Async runtime required by the MCP server. Declared in tools/mcp/project-context-mcp/pyproject.toml."
+    },
+    {
+      "name": "trio",
+      "version": ">=0.30,<1",
+      "spdx": "MIT",
+      "scope": "runtime",
+      "source": "https://github.com/python-trio/trio",
+      "notes": "Optional anyio backend used by the MCP server. Declared in tools/mcp/project-context-mcp/pyproject.toml."
+    },
+    {
+      "name": "httpx",
+      "version": "transitive",
+      "spdx": "BSD-3-Clause",
+      "scope": "runtime",
+      "source": "https://github.com/encode/httpx",
+      "notes": "Required by the MCP server's HTTP client surface (FastMCP)."
+    },
+    {
+      "name": "starlette",
+      "version": "transitive",
+      "spdx": "BSD-3-Clause",
+      "scope": "runtime",
+      "source": "https://github.com/encode/starlette",
+      "notes": "ASGI framework used by the MCP HTTP/SSE transport."
+    },
+    {
+      "name": "uvicorn",
+      "version": "transitive",
+      "spdx": "BSD-3-Clause",
+      "scope": "runtime",
+      "source": "https://github.com/encode/uvicorn",
+      "notes": "ASGI server used by the MCP HTTP/SSE transport."
+    },
+    {
+      "name": "pydantic",
+      "version": "transitive",
+      "spdx": "MIT",
+      "scope": "runtime",
+      "source": "https://github.com/pydantic/pydantic",
+      "notes": "Required by the MCP server's tool/schema surface."
+    },
+    {
+      "name": "setuptools",
+      "version": ">=70",
+      "spdx": "MIT",
+      "scope": "build",
+      "source": "https://github.com/pypa/setuptools",
+      "notes": "Build backend declared in pyproject.toml [build-system]."
+    },
+    {
+      "name": "pytest",
+      "version": ">=7.0",
+      "spdx": "MIT",
+      "scope": "dev",
+      "source": "https://github.com/pytest-dev/pytest",
+      "extra": "dev"
+    }
   ]
 }

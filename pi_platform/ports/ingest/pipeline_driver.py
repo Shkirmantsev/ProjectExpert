@@ -45,12 +45,19 @@ class StageErrorCategory(str, enum.Enum):
 
     Stable string values keep the canonical JSON deterministic and
     the runtime cache indexable by category.
+
+    ``INTERNAL`` distinguishes programming bugs (uncaught ``Exception``
+    subclasses outside the documented failure vocabulary) from
+    source-derived errors. Reporting it as a separate category lets
+    the operator / observability layer surface real code regressions
+    instead of letting them masquerade as permanent source errors.
     """
 
     TRANSIENT = "transient"
     PERMANENT = "permanent"
     CONFIGURATION = "configuration_error"
     CANCELLED = "cancelled"
+    INTERNAL = "internal_error"
 
 
 class StageError(RuntimeError):

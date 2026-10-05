@@ -533,7 +533,20 @@ def _cmd_graph_rebuild(args: argparse.Namespace) -> int:
 
 
 def _project_id(target: Path) -> str:
-    return target.resolve().as_posix().replace("/", "-").lstrip("-") or "default"
+    """Return a stable, cross-platform project lock identifier.
+
+    Uses the SHA-256 hex digest of the resolved canonical path so the
+    lock filename is safe on every platform (no ``:`` on Windows, no
+    ``/`` anywhere) and two distinct projects can never share a lock
+    even when their paths differ only in case or symlink resolution.
+    The digest is also stable across runs, which lets an operator
+    inspect / correlate ``tmp/local/project-locks/<id>.lock`` files
+    without leaking the absolute path.
+    """
+
+    canonical = str(target.resolve()).lower()
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:32]
+    return f"proj-{digest}"
 
 
 _DISPATCH = {

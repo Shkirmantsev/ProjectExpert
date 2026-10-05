@@ -124,6 +124,39 @@ def db_path(root: Path) -> Path:
     return root / "tmp" / "local" / "project-context" / "knowledge.db"
 
 
+def state_path(root: Path) -> Path:
+    return root / "tmp" / "local" / "project-context" / "state.json"
+
+
+def _wiki_fingerprint(root: Path, docs: list[Document]) -> str:
+    """Stable hash of the wiki content the index was sourced from.
+
+    The fingerprint is sorted by ``path`` so reordering of the
+    underlying ``rglob`` does not produce a different value. The hash
+    combines the per-document ``content_hash`` already computed during
+    ``load_documents`` with the wiki directory ``mtime`` so a deletion
+    or filesystem-level mutation is also detected. ``kb_search`` will
+    never silently read from a stale index because the rebuild
+    trigger compares the recorded fingerprint against the freshly
+    computed one.
+    """
+
+    wiki = root / ".ai" / "wiki"
+    payload: list[str] = []
+    for doc in sorted(docs, key=lambda d: d.path):
+        payload.append(f"{doc.path}:{doc.content_hash}")
+    if wiki.exists():
+        try:
+            stat = wiki.stat()
+            payload.append(f"wiki-mtime:{int(stat.st_mtime_ns)}")
+        except OSError:
+            payload.append("wiki-mtime:missing")
+    else:
+        payload.append("wiki-mtime:absent")
+    body = "\n".join(payload).encode("utf-8")
+    return hashlib.sha256(body).hexdigest()
+
+
 def build_index(root: Path) -> dict:
     docs = load_documents(root)
     target = db_path(root)
@@ -149,8 +182,15 @@ def build_index(root: Path) -> dict:
         conn.commit()
         conn.close()
         pending.replace(target)
-        state = {"documents": len(docs), "chunks": chunks, "database": target.relative_to(root).as_posix()}
-        (target.parent / "state.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+        fingerprint = _wiki_fingerprint(root, docs)
+        state = {
+            "documents": len(docs),
+            "chunks": chunks,
+            "database": target.relative_to(root).as_posix(),
+            "wiki_fingerprint": fingerprint,
+            "built_at": int(__import__("time").time()),
+        }
+        state_path(root).write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
         return state
     finally:
         conn.close()
@@ -158,10 +198,62 @@ def build_index(root: Path) -> dict:
 
 
 def ensure_index(root: Path) -> Path:
+    """Return the wiki search index, rebuilding it when stale.
+
+    A rebuild is triggered when:
+
+    * the database file does not exist;
+    * the recorded ``wiki_fingerprint`` in ``state.json`` differs from
+      the freshly computed fingerprint;
+    * the ``state.json`` companion file is missing or unreadable.
+
+    This prevents the silent-staleness failure mode where ``.ai/wiki/``
+    edits are masked by an existing ``knowledge.db`` and
+    ``kb_search`` returns hits from a previous version of the wiki.
+
+    If the rebuild raises (for example because the wiki contains
+    duplicate ``id`` frontmatter, or a parser regression surfaces
+    mid-flight) the previous index is preserved: the rebuild writes
+    to a staging path that only ``replace``s the target on success,
+    so a failure leaves the existing ``knowledge.db`` untouched and
+    ``kb_search`` continues to serve the last good corpus. The
+    exception is re-raised only when no previous index exists, so a
+    fresh project still surfaces the parse error to the caller.
+    """
+
     target = db_path(root)
-    if not target.exists():
-        build_index(root)
+    needs_rebuild = not target.exists()
+    if not needs_rebuild:
+        recorded = _read_recorded_fingerprint(root)
+        current = _safe_wiki_fingerprint(root)
+        if recorded is None or recorded != current:
+            needs_rebuild = True
+    if needs_rebuild:
+        try:
+            build_index(root)
+        except Exception:
+            if not target.exists():
+                raise
     return target
+
+
+def _safe_wiki_fingerprint(root: Path) -> str | None:
+    try:
+        return _wiki_fingerprint(root, load_documents(root))
+    except OSError:
+        return None
+
+
+def _read_recorded_fingerprint(root: Path) -> str | None:
+    path = state_path(root)
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    value = payload.get("wiki_fingerprint")
+    return str(value) if value else None
 
 
 def search(root: Path, query: str, top_k: int = 8) -> list[dict]:
@@ -170,21 +262,57 @@ def search(root: Path, query: str, top_k: int = 8) -> list[dict]:
     if not terms:
         return []
     fts = " OR ".join('"' + t.replace('"', '""') + '"' for t in terms[:12])
+    cap = max(1, min(top_k, 20))
+    # Over-fetch so a small `top_k` request never collapses to fewer
+    # distinct documents than the caller asked for. The previous
+    # behaviour was to LIMIT top_k on raw chunks and then dedup by
+    # document_id in Python; with a few strong hits clustered into a
+    # single document that meant a `top_k=8` request could return 1
+    # result. The over-fetch ratio bounds how aggressively the FTS
+    # engine expands the candidate pool while keeping the upper bound
+    # deterministic.
+    over_fetch = max(cap * 4, 16)
     conn = sqlite3.connect(target)
     conn.row_factory = sqlite3.Row
     try:
-        rows = conn.execute("""
-          SELECT s.document_id, d.kind, d.title, d.summary, d.path, s.heading, bm25(search) AS rank
-          FROM search s JOIN document d ON d.id=s.document_id
-          WHERE search MATCH ? ORDER BY rank LIMIT ?
-        """, (fts, max(1, min(top_k, 20)))).fetchall()
-        seen: set[str] = set(); out: list[dict] = []
-        for row in rows:
-            if row["document_id"] in seen:
-                continue
-            seen.add(row["document_id"])
-            out.append({"id": row["document_id"], "kind": row["kind"], "title": row["title"], "summary": row["summary"], "path": row["path"], "matchedSection": row["heading"]})
-        return out
+        # Two-phase query: rank chunks via the FTS5 helper inside the
+        # ``hits`` CTE (where ``bm25(search)`` is a permitted context),
+        # then collapse per-document in the outer query. SQLite refuses
+        # to call FTS5 helper functions from a SELECT that contains a
+        # GROUP BY on the same table; the CTE isolates the helper into
+        # a context where it can be evaluated per row.
+        rows = conn.execute(
+            """
+            WITH hits AS (
+              SELECT chunk_id, document_id, heading, bm25(search) AS chunk_rank
+              FROM search
+              WHERE search MATCH ?
+              ORDER BY chunk_rank
+              LIMIT ?
+            )
+            SELECT d.id AS document_id, d.kind, d.title, d.summary, d.path,
+                   (SELECT heading FROM hits WHERE document_id = d.id
+                    ORDER BY chunk_rank LIMIT 1) AS heading,
+                   MIN(hits.chunk_rank) AS rank
+            FROM hits
+            JOIN document d ON d.id = hits.document_id
+            GROUP BY d.id
+            ORDER BY rank
+            LIMIT ?
+            """,
+            (fts, over_fetch, cap),
+        ).fetchall()
+        return [
+            {
+                "id": row["document_id"],
+                "kind": row["kind"],
+                "title": row["title"],
+                "summary": row["summary"],
+                "path": row["path"],
+                "matchedSection": row["heading"],
+            }
+            for row in rows
+        ]
     finally:
         conn.close()
 
@@ -232,6 +360,16 @@ def code_symbol(root: Path, symbol: str, max_results: int = 20) -> list[dict]:
     needle = symbol.lower()
     out: list[dict] = []
     ignored = {".git", "node_modules", "target", "build", "dist", ".generated", "tmp"}
+    source_suffixes = {".py", ".java", ".go", ".js", ".ts", ".tsx", ".jsx",
+                       ".cs", ".rs", ".kt", ".kts", ".rb", ".php"}
+    cache = _code_symbol_cache(root)
+    root_stamp = root.stat().st_mtime_ns if root.exists() else 0
+    cache_signature = (needle, max_results, root_stamp)
+    cached = cache.get("signature")
+    if cached == cache_signature:
+        cached_results = cache.get("results")
+        if isinstance(cached_results, list):
+            return list(cached_results)
     for path in root.rglob("*"):
         if len(out) >= max_results:
             break
@@ -239,7 +377,7 @@ def code_symbol(root: Path, symbol: str, max_results: int = 20) -> list[dict]:
             continue
         if not path.resolve().is_relative_to(root.resolve()):
             continue
-        if path.suffix.lower() not in {".py", ".java", ".go", ".js", ".ts", ".tsx", ".jsx", ".cs", ".rs", ".kt", ".kts", ".rb", ".php"}:
+        if path.suffix.lower() not in source_suffixes:
             continue
         try:
             for n, line in enumerate(path.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
@@ -249,4 +387,42 @@ def code_symbol(root: Path, symbol: str, max_results: int = 20) -> list[dict]:
                         break
         except OSError:
             pass
+    cache["signature"] = cache_signature
+    cache["results"] = list(out)
+    _persist_code_symbol_cache(root, cache)
     return out
+
+
+def _code_symbol_cache(root: Path) -> dict:
+    """Return a process-local cache for ``code_symbol`` results.
+
+    The cache is keyed by ``(query, max_results, root mtime)`` so a
+    re-scan only fires when the underlying tree mutates. The cache is
+    shared across processes via ``state.json`` so concurrent MCP
+    clients do not duplicate the expensive rglob walk. The cache is
+    intentionally not cached at module import time; it lives next to
+    the wiki state file so the same directory hygiene (``.gitignore``
+    / tmp cleanup) covers it.
+    """
+
+    target = state_path(root)
+    if not target.exists():
+        return {}
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    cache = payload.get("code_symbol_cache")
+    return dict(cache) if isinstance(cache, dict) else {}
+
+
+def _persist_code_symbol_cache(root: Path, cache: dict) -> None:
+    target = state_path(root)
+    if not target.exists():
+        return
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    payload["code_symbol_cache"] = cache
+    target.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

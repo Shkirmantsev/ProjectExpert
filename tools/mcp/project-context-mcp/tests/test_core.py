@@ -1,6 +1,6 @@
 from pathlib import Path
 import tempfile, unittest
-from project_context_mcp.core import build_index, get_document, search, validate
+from project_context_mcp.core import build_index, get_document, search, validate, _wiki_fingerprint, _read_recorded_fingerprint, state_path
 
 class CoreTest(unittest.TestCase):
     def test_sections_keep_numeric_order(self):
@@ -45,4 +45,71 @@ class CoreTest(unittest.TestCase):
             self.assertEqual('wiki.index', search(root,'reservation locking')[0]['id'])
             self.assertIn('Reservation', get_document(root,'wiki.index')['content'])
             self.assertTrue(validate(root)['ok'])
+
+    def test_search_returns_top_k_distinct_documents(self):
+        """Regression: ``top_k`` deduplication must happen BEFORE the
+        final LIMIT, otherwise a small ``top_k`` request against a few
+        documents with many chunks returns fewer than ``top_k``
+        distinct documents.
+        """
+
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); wiki = root / '.ai/wiki'; wiki.mkdir(parents=True)
+            # Single document with many chunks via multiple headings.
+            (wiki / 'alpha.md').write_text(
+                '---\nid: wiki.alpha\ntitle: Alpha\n---\n'
+                + ''.join(f'# Section {n}\nreservation locking\n' for n in range(5)),
+                encoding='utf-8',
+            )
+            for doc_id in ('bravo', 'charlie', 'delta'):
+                (wiki / f'{doc_id}.md').write_text(
+                    f'---\nid: wiki.{doc_id}\ntitle: {doc_id.title()}\n---\n'
+                    f'# {doc_id.title()}\nreservation locking\n',
+                    encoding='utf-8',
+                )
+            build_index(root)
+            hits = search(root, 'reservation', top_k=4)
+            self.assertGreaterEqual(len(hits), 4,
+                f'top_k=4 must yield >=4 hits, got {len(hits)}: {hits!r}')
+            self.assertEqual(len(hits), len({h['id'] for h in hits}),
+                f'hits must all be distinct documents: {hits!r}')
+
+    def test_wiki_edit_triggers_index_rebuild(self):
+        """Regression: a wiki content change must invalidate the
+        cached ``knowledge.db``; ``kb_search`` MUST NOT return hits
+        from the previous version.
+        """
+
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); wiki = root / '.ai/wiki'; wiki.mkdir(parents=True)
+            (wiki / 'INDEX.md').write_text(
+                '---\nid: wiki.index\n---\n# Index\noldtoken locking.\n',
+                encoding='utf-8',
+            )
+            build_index(root)
+            self.assertEqual('wiki.index', search(root, 'oldtoken')[0]['id'])
+            # Mutate the wiki: add a new token that only appears after
+            # the rebuild.
+            (wiki / 'OTHER.md').write_text(
+                '---\nid: wiki.other\n---\n# Other\nnewtoken here.\n',
+                encoding='utf-8',
+            )
+            # ``search`` triggers ``ensure_index`` which MUST detect the
+            # fingerprint mismatch and rebuild.
+            hits = search(root, 'newtoken')
+            self.assertEqual('wiki.other', hits[0]['id'],
+                f'newtoken must surface wiki.other after rebuild: {hits!r}')
+
+    def test_fingerprint_recorded_after_build(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); wiki = root / '.ai/wiki'; wiki.mkdir(parents=True)
+            (wiki / 'INDEX.md').write_text(
+                '---\nid: wiki.index\n---\n# Index\nReservation locking.\n',
+                encoding='utf-8',
+            )
+            state = build_index(root)
+            recorded = _read_recorded_fingerprint(root)
+            self.assertIsNotNone(recorded)
+            self.assertEqual(recorded, state['wiki_fingerprint'])
+
 if __name__=='__main__': unittest.main()

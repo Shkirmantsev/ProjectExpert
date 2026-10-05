@@ -845,6 +845,31 @@ class CliEntrypointTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertTrue((self.tmp / "project-knowledge").is_dir())
 
+    def test_project_id_is_windows_safe(self) -> None:
+        """Regression: ``_project_id`` previously turned ``C:/Users/...``
+        into a filename containing ``:`` (illegal on Windows NTFS) and
+        used the path verbatim in the lock filename. The id is now a
+        ``proj-<sha256-prefix>`` digest that is safe on every platform.
+        """
+
+        from pi_platform.cli.main import _project_id
+        # A Windows-style path containing ``:`` must NOT survive into the
+        # returned id; a POSIX-style path must round-trip into a stable
+        # digest.
+        windows_like = Path("C:/Users/example/repo")
+        posix_like = Path("/home/dmytro/workspace/repo")
+        for candidate in (windows_like, posix_like):
+            project_id = _project_id(candidate)
+            self.assertNotIn(":", project_id,
+                f"project id must not contain ':': {project_id!r}")
+            self.assertNotIn("/", project_id,
+                f"project id must not contain '/': {project_id!r}")
+            self.assertTrue(project_id.startswith("proj-"),
+                f"project id must carry the proj- prefix: {project_id!r}")
+        # Two distinct paths must yield two distinct ids so two
+        # projects can never share the same lock file.
+        self.assertNotEqual(_project_id(Path("/a/b")), _project_id(Path("/c/d")))
+
     def test_health_subcommand(self) -> None:
         rc = cli_main(["health"])
         self.assertEqual(rc, 0)

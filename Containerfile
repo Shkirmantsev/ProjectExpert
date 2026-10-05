@@ -8,7 +8,14 @@
 # Run:    docker run --rm -p 8765:8765 \
 #               -v "$(pwd):/repo" \
 #               project-intelligence:dev --help
-FROM python:3.11-slim AS runtime
+#
+# The base image is pinned by digest (sha256:...) so rebuilds are
+# reproducible; a mutable `python:3.11-slim` tag would silently
+# pull whatever the Docker Hub maintainers published today vs. next
+# week, breaking the §5.5 / §34 supply-chain reproducibility goal.
+# To refresh: pull `python:3.11-slim-bookworm` and update the digest
+# here, then commit a new pinned reference.
+FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
