@@ -5,8 +5,8 @@
 Structured source: [handoffs/implement-phase-5-orchestration.json](handoffs/implement-phase-5-orchestration.json)
 
 Task: `implement-phase-5-orchestration`
-Status: `planning`
-Updated: `2026-10-05T22:40:05+00:00`
+Status: `complete`
+Updated: `2026-10-05T22:55:55+00:00`
 Active OpenSpec change: `implement-phase-5-orchestration`
 
 ## Objective
@@ -23,7 +23,7 @@ Ship production code consuming the 5 Phase 5 capability specs (query-orchestrato
 
 ## Remaining
 
-- Author prep change (5 spec deltas + proposal/design/context-impact/tasks); Author implementation change folder (mirrored deltas); 5 Phase 5 ports; default cores; default adapters; TDD-first retrieval-first policy test; per-capability regression test; CLI capabilities/orchestrator-status/llm-status subcommands; SPDX entries (only if opt-in LLM deps added); Wiki + glossary + platform-overview updates; CURRENT.md; plan tasks 79-84 [x]; Archive both changes; Final commit
+- none
 
 ## Blocked
 
@@ -43,7 +43,7 @@ Ship production code consuming the 5 Phase 5 capability specs (query-orchestrato
 
 ## Verification passed
 
-- none
+- harness.py check: Configuration PASS, OpenSpec schema PASS, wiki-validate ok=true (47 docs, 0 issues); license-gate passed; PATH=pwd/tmp/local/bin:$PATH openspec validate --all --strict: 43 passed 0 failed; artifact-manifest PASS (638 files); license-gate passed; python -m unittest tests.{platform_phase1, platform_phase2, content_address_cross_branch, canonical_roundtrip, platform_phase3, graph_50k, platform_phase4, retrieval_benchmark, orchestration_phase5, orchestration_policy}: 235 OK; 5 Phase 5 specs in openspec/specs/; CURRENT.md updated; plan tasks 79-84 [x]; both changes archived under openspec/changes/archive/2026-10-05-{prepare,implement}-phase-5-orchestration.
 
 ## Verification pending
 
