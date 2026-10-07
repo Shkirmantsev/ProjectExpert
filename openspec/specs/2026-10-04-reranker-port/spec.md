@@ -1,7 +1,7 @@
 # 2026-10-04-reranker-port Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-4-retrieval. Update Purpose after archive.
+Provide a replaceable reranking interface to score and reorder retrieval candidates while reporting model and license identity.
 ## Requirements
 ### Requirement: RerankerPort contract
 

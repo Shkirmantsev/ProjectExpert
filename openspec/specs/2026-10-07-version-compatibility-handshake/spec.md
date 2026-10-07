@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change implement-phase-6-agent-integration. Update Purpose after archive.
+Check client compatibility across independently versioned platform, API, skill, adapter, profile, and schema dimensions before integration.
 
 ## Requirements
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change implement-phase-6-agent-integration. Update Purpose after archive.
+Define the vendor-neutral agent integration operations for detection, installation, configuration, compatibility, health checks, and removal.
 
 ## Requirements
 

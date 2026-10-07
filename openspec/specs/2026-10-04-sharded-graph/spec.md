@@ -1,7 +1,7 @@
 # 2026-10-04-sharded-graph Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-3-storage. Update Purpose after archive.
+Store and retrieve knowledge graph entities and relations in content-addressed shards with reproducible manifests.
 ## Requirements
 ### Requirement: GraphPort contract
 

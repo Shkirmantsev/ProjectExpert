@@ -1,7 +1,7 @@
 # 2026-10-04-sparse-index Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-3-storage. Update Purpose after archive.
+Index documents for lexical BM25 retrieval and return ranked matches with snippets through a replaceable sparse index.
 ## Requirements
 ### Requirement: SparseIndexPort contract
 

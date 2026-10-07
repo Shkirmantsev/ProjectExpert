@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change implement-phase-6-agent-integration. Update Purpose after archive.
+Generate a portable Codex and ChatGPT integration package from the canonical Agent Skill and MCP configuration.
 
 ## Requirements
 

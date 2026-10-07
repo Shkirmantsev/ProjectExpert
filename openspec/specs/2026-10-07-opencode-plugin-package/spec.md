@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change implement-phase-6-agent-integration. Update Purpose after archive.
+Generate an OpenCode integration package containing the canonical Agent Skill, plugin entry point, and MCP configuration.
 
 ## Requirements
 

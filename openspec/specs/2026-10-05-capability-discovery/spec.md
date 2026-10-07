@@ -1,7 +1,7 @@
 # 2026-10-05-capability-discovery Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-5-orchestration. Update Purpose after archive.
+Describe available runtime features and their independent version identities so agents can choose compatible capabilities.
 ## Requirements
 ### Requirement: CapabilityDiscoveryPort contract
 

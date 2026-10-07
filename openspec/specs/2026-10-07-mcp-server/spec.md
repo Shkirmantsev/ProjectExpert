@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change implement-phase-6-agent-integration. Update Purpose after archive.
+Expose platform retrieval, knowledge, orchestration, and approval-controlled write capabilities through semantic MCP tools and capability discovery.
 
 ## Requirements
 

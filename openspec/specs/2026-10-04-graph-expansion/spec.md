@@ -1,7 +1,7 @@
 # 2026-10-04-graph-expansion Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-3-storage. Update Purpose after archive.
+Define bounded graph expansion from seed entities, with hop, edge-type, and result-budget controls.
 ## Requirements
 ### Requirement: GraphExpansionPort contract
 

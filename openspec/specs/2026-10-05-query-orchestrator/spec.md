@@ -1,7 +1,7 @@
 # 2026-10-05-query-orchestrator Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-5-orchestration. Update Purpose after archive.
+Select the cheapest sufficient query processing level and coordinate retrieval, context assembly, and optional language-model escalation.
 ## Requirements
 ### Requirement: QueryOrchestratorPort contract
 

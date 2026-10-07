@@ -1,7 +1,7 @@
 # 2026-10-04-graph-expansion-production Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-4-retrieval. Update Purpose after archive.
+Expand retrieval evidence by traversing the canonical knowledge graph while respecting hop, edge-type, and budget limits.
 ## Requirements
 ### Requirement: production GraphExpansion adapter
 

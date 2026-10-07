@@ -1,7 +1,7 @@
 # 2026-10-04-provenance-state-model Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-3-storage. Update Purpose after archive.
+Maintain knowledge states and evidence-backed transitions so callers can distinguish verified, inferred, conflicting, stale, and unknown facts.
 ## Requirements
 ### Requirement: KnowledgeState enum and transition table
 

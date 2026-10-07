@@ -1,7 +1,7 @@
 # 2026-10-05-local-llm-port Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-5-orchestration. Update Purpose after archive.
+Provide an optional local language-model interface with availability, model identity, and license reporting for controlled orchestration.
 ## Requirements
 ### Requirement: LocalLLMPort contract
 

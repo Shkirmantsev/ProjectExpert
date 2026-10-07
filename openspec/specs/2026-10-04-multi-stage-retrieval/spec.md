@@ -1,7 +1,7 @@
 # 2026-10-04-multi-stage-retrieval Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-4-retrieval. Update Purpose after archive.
+Coordinate candidate generation, fusion, filtering, graph expansion, reranking, and bounded context assembly with observable stage results.
 ## Requirements
 ### Requirement: MultiStageRetrievalPort contract
 

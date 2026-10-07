@@ -1,7 +1,7 @@
 # 2026-10-04-freshness-tracking Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-3-storage. Update Purpose after archive.
+Track when facts were verified and detect staleness from source changes and upstream dependencies.
 ## Requirements
 ### Requirement: FreshnessTrackerPort contract
 

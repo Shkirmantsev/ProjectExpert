@@ -1,7 +1,7 @@
 # 2026-10-04-metadata-filters Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-4-retrieval. Update Purpose after archive.
+Restrict retrieval evidence by project version, time, language, business domain, module, and requirement metadata.
 ## Requirements
 ### Requirement: MetadataFilter contract
 

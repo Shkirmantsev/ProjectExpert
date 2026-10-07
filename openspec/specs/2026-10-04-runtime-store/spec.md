@@ -1,7 +1,7 @@
 # 2026-10-04-runtime-store Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-3-storage. Update Purpose after archive.
+Cache content-addressed runtime artefacts across Git versions with recoverable writes, state-aware status, and version identity.
 ## Requirements
 ### Requirement: per-shard content-addressed cache
 

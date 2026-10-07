@@ -1,7 +1,7 @@
 # 2026-10-04-hybrid-retrieval Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-4-retrieval. Update Purpose after archive.
+Combine sparse, dense, and exact identifier retrieval into ranked evidence with metadata filtering.
 ## Requirements
 ### Requirement: HybridRetrievalPort contract
 

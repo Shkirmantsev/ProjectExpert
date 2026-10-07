@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change implement-phase-6-agent-integration. Update Purpose after archive.
+Serve discoverable, versioned Agent Skill resources and distribution manifests from canonical skill files over MCP.
 
 ## Requirements
 

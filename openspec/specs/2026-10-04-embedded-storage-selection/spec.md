@@ -1,7 +1,7 @@
 # 2026-10-04-embedded-storage-selection Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-3-storage. Update Purpose after archive.
+Record the default embedded storage engine, optional enterprise alternatives, licensing, and the rationale for the storage choices.
 ## Requirements
 ### Requirement: embedded storage engine selection
 

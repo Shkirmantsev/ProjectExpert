@@ -1,7 +1,7 @@
 # 2026-10-05-task-context-builder Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-5-orchestration. Update Purpose after archive.
+Build and validate bounded, version-aware context bundles for agent tasks from retrieval evidence.
 ## Requirements
 ### Requirement: TaskContextBuilderPort contract
 

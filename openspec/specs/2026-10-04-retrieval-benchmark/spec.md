@@ -1,7 +1,7 @@
 # 2026-10-04-retrieval-benchmark Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-4-retrieval. Update Purpose after archive.
+Evaluate retrieval quality, latency, and cross-branch reuse against a fixed corpus and labelled query set.
 ## Requirements
 ### Requirement: RetrievalBenchmark fixture contract
 

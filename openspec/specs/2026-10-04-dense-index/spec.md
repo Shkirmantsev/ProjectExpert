@@ -1,7 +1,7 @@
 # 2026-10-04-dense-index Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-3-storage. Update Purpose after archive.
+Store chunk embeddings and retrieve chunks by vector similarity through a replaceable dense index.
 ## Requirements
 ### Requirement: DenseIndexPort contract
 

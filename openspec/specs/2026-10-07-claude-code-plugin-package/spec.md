@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change implement-phase-6-agent-integration. Update Purpose after archive.
+Generate a deterministic Claude Code plugin package from the canonical Agent Skill and MCP configuration.
 
 ## Requirements
 

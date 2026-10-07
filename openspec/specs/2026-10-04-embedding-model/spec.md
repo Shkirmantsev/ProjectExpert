@@ -1,7 +1,7 @@
 # 2026-10-04-embedding-model Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-4-retrieval. Update Purpose after archive.
+Provide a replaceable text embedding interface with consistent dimensions, batch support, model identity, and license reporting.
 ## Requirements
 ### Requirement: EmbeddingModelPort contract
 

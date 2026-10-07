@@ -1,7 +1,7 @@
 # 2026-10-04-full-text-index Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-3-storage. Update Purpose after archive.
+Index document text and return ranked full-text matches with snippets through the embedded SQLite backend.
 ## Requirements
 ### Requirement: FullTextIndexPort contract
 

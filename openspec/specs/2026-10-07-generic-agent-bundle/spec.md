@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change implement-phase-6-agent-integration. Update Purpose after archive.
+Generate a vendor-neutral integration bundle with the canonical Agent Skill, MCP transport examples, and agent instructions.
 
 ## Requirements
 

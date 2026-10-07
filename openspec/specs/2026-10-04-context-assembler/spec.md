@@ -1,7 +1,7 @@
 # 2026-10-04-context-assembler Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-4-retrieval. Update Purpose after archive.
+Assemble retrieval hits into bounded context with deduplication, citations, authority and conflict annotations, and explicit budget decisions.
 ## Requirements
 ### Requirement: ContextAssemblerPort contract
 

@@ -1,7 +1,7 @@
 # 2026-10-05-retrieval-first-policy Specification
 
 ## Purpose
-TBD - created by archiving change implement-phase-5-orchestration. Update Purpose after archive.
+Enforce retrieval before language-model escalation or direct source scanning, with regression evidence and violation reporting.
 ## Requirements
 ### Requirement: retrieval-first policy regression test
 
