@@ -7,7 +7,7 @@ summary: Track nine independently evolving version dimensions (platform, mcpApi,
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md#39
   - project-intelligence-platform-architecture-v0.8.md#47
-  - openspec/specs/2026-10-05-version-compatibility-handshake/spec.md
+  - openspec/specs/2026-10-07-version-compatibility-handshake/spec.md
   - pi_platform/ports/agent_integration/__init__.py
   - pi_platform/core/agent_integration/version_compatibility.py
 maintenance:
@@ -20,7 +20,7 @@ maintenance:
 - Date: 2026-10-07
 - Deciders: Phase 6 implementation change
 - Source spec:
-  [`2026-10-05-version-compatibility-handshake`](../../../openspec/specs/2026-10-05-version-compatibility-handshake/spec.md)
+  [`2026-10-07-version-compatibility-handshake`](../../../openspec/specs/2026-10-07-version-compatibility-handshake/spec.md)
 - Architecture baseline:
   [`project-intelligence-platform-architecture-v0.8.md`](../../../project-intelligence-platform-architecture-v0.8.md)
   §39 (Protocol and Artifact Version Compatibility) and

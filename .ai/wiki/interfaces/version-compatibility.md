@@ -9,7 +9,7 @@ sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md#47
   - pi_platform/ports/agent_integration/__init__.py
   - pi_platform/core/agent_integration/version_compatibility.py
-  - openspec/specs/2026-10-05-version-compatibility-handshake/spec.md
+  - openspec/specs/2026-10-07-version-compatibility-handshake/spec.md
 maintenance:
   mode: authored
 related:

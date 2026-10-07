@@ -7,7 +7,7 @@ summary: Phase 6 §48 — typed gate every packager invokes before emit; ten doc
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md#48
   - pi_platform/core/agent_integration/supply_chain_gate.py
-  - openspec/specs/2026-10-05-plugin-supply-chain-security/spec.md
+  - openspec/specs/2026-10-07-plugin-supply-chain-security/spec.md
 maintenance:
   mode: authored
 related:

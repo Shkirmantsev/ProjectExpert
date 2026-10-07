@@ -6,8 +6,8 @@ status: active
 summary: Observed Phase 1–5 workflow and outstanding prerequisites for the proposed Phase 6 agent integration.
 sourceRefs:
   - openspec/CURRENT.md
-  - openspec/changes/prepare-phase-6-agent-integration/design.md
-  - openspec/changes/implement-phase-6-agent-integration/tasks.md
+  - openspec/changes/archive/2026-10-07-prepare-phase-6-agent-integration/design.md
+  - openspec/changes/archive/2026-10-07-implement-phase-6-agent-integration/tasks.md
   - pi_platform/core/sync/materialise.py
   - pi_platform/core/orchestration/query_orchestrator.py
   - pi_platform/core/orchestration/capability_discovery.py
@@ -41,7 +41,7 @@ and CURRENT updates follow implementation verification rather than preparation.
 
 ## Observed gaps before integration
 
-The [proposed design](../../../openspec/changes/prepare-phase-6-agent-integration/design.md)
+The [proposed design](../../../openspec/changes/archive/2026-10-07-prepare-phase-6-agent-integration/design.md)
 records the detailed mappings and prerequisites. Source review found:
 
 - MaterialiseService checks nonempty approval tokens for REQUIRE_APPROVAL but
@@ -69,7 +69,7 @@ contracts, not evidence of runtime success.
 ## Next iteration
 
 Use the [implementation prompt](../../../docs/handoff/phase-6-implementation-prompt.md)
-and [implementation tasks](../../../openspec/changes/implement-phase-6-agent-integration/tasks.md).
+and [implementation tasks](../../../openspec/changes/archive/2026-10-07-implement-phase-6-agent-integration/tasks.md).
 Keep preparation/review task completion separate from Phase 6 implementation
 completion. Record actual checks as PASS, FAIL or NOT RUN; prerequisites are
 not satisfied merely because prior regression counts were green.

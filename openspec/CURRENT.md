@@ -60,16 +60,16 @@ project product.
 | [Task context builder](specs/2026-10-05-task-context-builder/spec.md) |
 | [Capability discovery](specs/2026-10-05-capability-discovery/spec.md) |
 | [Retrieval first policy](specs/2026-10-05-retrieval-first-policy/spec.md) |
-| [MCP server](specs/2026-10-05-mcp-server/spec.md) |
-| [Skill distribution plane](specs/2026-10-05-skill-distribution-plane/spec.md) |
-| [Agent skill canonical](specs/2026-10-05-agent-skill-canonical/spec.md) |
-| [Version compatibility handshake](specs/2026-10-05-version-compatibility-handshake/spec.md) |
-| [Codex plugin package](specs/2026-10-05-codex-plugin-package/spec.md) |
-| [Claude Code plugin package](specs/2026-10-05-claude-code-plugin-package/spec.md) |
-| [OpenCode plugin package](specs/2026-10-05-opencode-plugin-package/spec.md) |
-| [Generic agent bundle](specs/2026-10-05-generic-agent-bundle/spec.md) |
-| [Agent adapter contract](specs/2026-10-05-agent-adapter-contract/spec.md) |
-| [Plugin supply chain security](specs/2026-10-05-plugin-supply-chain-security/spec.md) |
+| [MCP server](specs/2026-10-07-mcp-server/spec.md) |
+| [Skill distribution plane](specs/2026-10-07-skill-distribution-plane/spec.md) |
+| [Agent skill canonical](specs/2026-10-07-agent-skill-canonical/spec.md) |
+| [Version compatibility handshake](specs/2026-10-07-version-compatibility-handshake/spec.md) |
+| [Codex plugin package](specs/2026-10-07-codex-plugin-package/spec.md) |
+| [Claude Code plugin package](specs/2026-10-07-claude-code-plugin-package/spec.md) |
+| [OpenCode plugin package](specs/2026-10-07-opencode-plugin-package/spec.md) |
+| [Generic agent bundle](specs/2026-10-07-generic-agent-bundle/spec.md) |
+| [Agent adapter contract](specs/2026-10-07-agent-adapter-contract/spec.md) |
+| [Plugin supply chain security](specs/2026-10-07-plugin-supply-chain-security/spec.md) |
 
 These product capabilities define the foundation, ingestion,
 storage, retrieval, orchestration and agent integration phases of

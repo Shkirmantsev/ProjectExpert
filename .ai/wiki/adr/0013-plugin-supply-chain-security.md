@@ -6,7 +6,7 @@ status: accepted
 summary: Adopt a typed supply-chain security gate every packager invokes before emit; gate enforces pinned version, content hash, MCP API range, license allow-list, source provenance, permissions, network requirements, no hidden auto-install, and signature support against a configured trusted key; the verdict is recorded in the bundle's provenance payload.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md#48
-  - openspec/specs/2026-10-05-plugin-supply-chain-security/spec.md
+  - openspec/specs/2026-10-07-plugin-supply-chain-security/spec.md
   - pi_platform/core/agent_integration/supply_chain_gate.py
 maintenance:
   mode: authored
@@ -18,7 +18,7 @@ maintenance:
 - Date: 2026-10-07
 - Deciders: Phase 6 implementation change
 - Source spec:
-  [`2026-10-05-plugin-supply-chain-security`](../../../openspec/specs/2026-10-05-plugin-supply-chain-security/spec.md)
+  [`2026-10-07-plugin-supply-chain-security`](../../../openspec/specs/2026-10-07-plugin-supply-chain-security/spec.md)
 - Architecture baseline:
   [`project-intelligence-platform-architecture-v0.8.md`](../../../project-intelligence-platform-architecture-v0.8.md)
   §48 (Security and Trust for Skills and Plugins)
