@@ -68,6 +68,9 @@ from pi_platform.core.sync import (  # noqa: E402
     ReconcileService,
     WriteAheadLog,
 )
+from pi_platform.core.sync.trusted_approval import (  # noqa: E402
+    HmacTrustedApprovalBoundary,
+)
 from pi_platform.core.licensing import (  # noqa: E402
     DependencyInventory,
     LicenseGate,
@@ -506,7 +509,9 @@ class MaterialiseTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.tmp = Path(self.temp.name)
+        root = Path(self.temp.name)
+        # Exercise path normalization even when the OS returns a canonical path.
+        self.tmp = root / ".." / root.name
         self.cache = self.tmp / "cache"
         subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
         subprocess.run(["git", "-C", str(self.tmp), "config", "user.email",
@@ -523,6 +528,10 @@ class MaterialiseTests(unittest.TestCase):
 
     def test_materialise_requires_approval_token(self) -> None:
         from pi_platform.ports import ApprovalRequired
+        # Without an HMAC boundary wired, the service fails closed on
+        # the default closed boundary. This is the prerequisite 1
+        # guarantee: ``project.materialize_knowledge`` MUST fail
+        # closed until the trusted approval boundary is wired.
         service = MaterialiseService()
         with self.assertRaises(ApprovalRequired):
             service.materialise_durable_changes(self.tmp,
@@ -530,9 +539,15 @@ class MaterialiseTests(unittest.TestCase):
                                                 approval_token=None)
 
     def test_materialise_no_changes_is_noop(self) -> None:
-        service = MaterialiseService(filesystem=self.fs)
+        boundary = HmacTrustedApprovalBoundary(key=b"test-key")
+        service = MaterialiseService(filesystem=self.fs, boundary=boundary)
+        from pi_platform.ports import ApprovalRequest
+        token = boundary.issue(
+            ApprovalRequest(action="materialise", repo_root=str(self.tmp.resolve())),
+            ttl_seconds=60,
+        )
         report = service.materialise_durable_changes(
-            self.tmp, cache_root=self.cache, approval_token="manual",
+            self.tmp, cache_root=self.cache, approval_token=token,
         )
         self.assertEqual(report.diff_files, ())
         self.assertEqual(report.excluded_local_only, ())
@@ -554,9 +569,18 @@ class MaterialiseTests(unittest.TestCase):
             source=Source(id="src-1", uri="file:///tmp/y.md", family="markdown",
                           contentHash=content_address_bytes(b"y")),
         )
-        service = MaterialiseService(filesystem=self.fs)
+        boundary = HmacTrustedApprovalBoundary(key=b"test-key")
+        service = MaterialiseService(filesystem=self.fs, boundary=boundary)
+        from pi_platform.ports import ApprovalRequest
+        token = boundary.issue(
+            ApprovalRequest(
+                action="materialise", repo_root=str(self.tmp.resolve()),
+                change_ids=("rc-local", "rc-durable"),
+            ),
+            ttl_seconds=60,
+        )
         report = service.materialise_durable_changes(
-            self.tmp, cache_root=self.cache, approval_token="manual",
+            self.tmp, cache_root=self.cache, approval_token=token,
             changes=[local_change, durable_change],
         )
         self.assertIn("rc-local", report.excluded_local_only)
@@ -570,7 +594,9 @@ class SyncRoundtripTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.tmp = Path(self.temp.name)
+        root = Path(self.temp.name)
+        # Exercise path normalization even when the OS returns a canonical path.
+        self.tmp = root / ".." / root.name
         self.cache = self.tmp / "cache"
         subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
         subprocess.run(["git", "-C", str(self.tmp), "config", "user.email",
@@ -595,8 +621,15 @@ class SyncRoundtripTests(unittest.TestCase):
         save_manifest(fs.knowledge_root / "manifests" / "objects-manifest.yaml",
                      manifest_from_shards("objects", [shard]))
         HydrateService().restore_runtime(self.tmp, cache_root=self.cache)
-        report = MaterialiseService(filesystem=fs).materialise_durable_changes(
-            self.tmp, cache_root=self.cache, approval_token="manual"
+        boundary = HmacTrustedApprovalBoundary(key=b"roundtrip-key")
+        service = MaterialiseService(filesystem=fs, boundary=boundary)
+        from pi_platform.ports import ApprovalRequest
+        token = boundary.issue(
+            ApprovalRequest(action="materialise", repo_root=str(self.tmp.resolve())),
+            ttl_seconds=60,
+        )
+        report = service.materialise_durable_changes(
+            self.tmp, cache_root=self.cache, approval_token=token,
         )
         self.assertEqual(report.diff_files, ())
 
@@ -844,6 +877,31 @@ class CliEntrypointTests(unittest.TestCase):
         rc = cli_main(["init-project", "--target", str(self.tmp)])
         self.assertEqual(rc, 0)
         self.assertTrue((self.tmp / "project-knowledge").is_dir())
+
+    def test_project_id_is_windows_safe(self) -> None:
+        """Regression: ``_project_id`` previously turned ``C:/Users/...``
+        into a filename containing ``:`` (illegal on Windows NTFS) and
+        used the path verbatim in the lock filename. The id is now a
+        ``proj-<sha256-prefix>`` digest that is safe on every platform.
+        """
+
+        from pi_platform.cli.main import _project_id
+        # A Windows-style path containing ``:`` must NOT survive into the
+        # returned id; a POSIX-style path must round-trip into a stable
+        # digest.
+        windows_like = Path("C:/Users/example/repo")
+        posix_like = Path("/home/dmytro/workspace/repo")
+        for candidate in (windows_like, posix_like):
+            project_id = _project_id(candidate)
+            self.assertNotIn(":", project_id,
+                f"project id must not contain ':': {project_id!r}")
+            self.assertNotIn("/", project_id,
+                f"project id must not contain '/': {project_id!r}")
+            self.assertTrue(project_id.startswith("proj-"),
+                f"project id must carry the proj- prefix: {project_id!r}")
+        # Two distinct paths must yield two distinct ids so two
+        # projects can never share the same lock file.
+        self.assertNotEqual(_project_id(Path("/a/b")), _project_id(Path("/c/d")))
 
     def test_health_subcommand(self) -> None:
         rc = cli_main(["health"])

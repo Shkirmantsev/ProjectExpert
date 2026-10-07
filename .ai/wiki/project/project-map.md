@@ -88,7 +88,8 @@ maintenance:
 - `python3 -m pi_platform.cli ...` — direct entry point for
   the documented subcommands (`init-project`, `hydrate`,
   `materialise`, `license-gate`, `okf-validate`,
-  `version-identity`, `wal-recover`, `health`).
+  `version-identity`, `wal-recover`, `ingest-sources`,
+  `runtime-status`, `graph-rebuild`, `health`).
 
 ## Important configuration
 
@@ -116,3 +117,12 @@ subprocesses and cache records carry explicit provenance. See the
 [source interface](../interfaces/source-adapters.md), [chunker](../interfaces/chunker.md)
 and [enrichment](../interfaces/enrichment.md) contracts. Persistent storage and retrieval
 remain future phases.
+
+## Phase 3 storage
+
+The [runtime store module](../modules/runtime-store.md) and the [graph module](../modules/graph.md)
+implement the Phase 3 storage surface — the embedded runtime store, three indexes
+(BM25-sparse, ANN-dense, FTS5-secondary), the canonical sharded knowledge graph, the
+`GraphExpansion` preview port, the `KnowledgeState` lifecycle and the
+`FreshnessTracker` snapshot. The default backend uses Python stdlib `sqlite3`; the
+PostgreSQL backend is opt-in for the enterprise-scale profile.

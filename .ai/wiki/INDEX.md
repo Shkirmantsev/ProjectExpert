@@ -34,6 +34,17 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Git interface](interfaces/git.md)
 - [Sync interface](interfaces/sync.md)
 - [Licensing interface](interfaces/licensing.md)
+- [Phase 6 MCP server module](modules/mcp-server.md)
+- [Phase 6 agent-integration core module](modules/agent-integration.md)
+- [Phase 6 plugin packagers module](modules/plugin-packagers.md)
+- [MCP server tool contracts](interfaces/mcp-tools.md)
+- [Skill distribution plane contract](interfaces/skill-distribution.md)
+- [Plugin distribution profiles](interfaces/plugin-distribution.md)
+- [Version compatibility handshake contract](interfaces/version-compatibility.md)
+- [Agent integration adapter contract](interfaces/agent-adapter-contract.md)
+- [Plugin supply-chain security gate](interfaces/plugin-supply-chain.md)
+- [Trusted approval boundary contract](interfaces/trusted-approval-boundary.md)
+- [Knowledge readiness gate contract](interfaces/runtime-readiness.md)
 - [Domain glossary](glossary/domain.md)
 - [Platform glossary](glossary/platform.md)
 - [OpenSpec workflow](../../openspec/README.md) — current behavior and proposed changes.
@@ -46,6 +57,46 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Context enrichment interface](interfaces/enrichment.md)
 - [Use an isolated tree-sitter Java parser](adr/0006-phase-2-parser-selection.md)
 - [Default inbox sources to LOCAL_ONLY](adr/0007-phase-2-inbox-policy-default.md)
+
+## Phase 3 storage
+
+- [Phase 3 runtime store module map](modules/runtime-store.md)
+- [Phase 3 sharded graph module map](modules/graph.md)
+- [RuntimeStorePort interface](interfaces/runtime-store.md)
+- [SparseIndexPort interface](interfaces/sparse-index.md)
+- [DenseIndexPort interface](interfaces/dense-index.md)
+- [FullTextIndexPort interface](interfaces/full-text-index.md)
+- [GraphExpansionPort interface (Phase 4 preview)](interfaces/graph-expansion.md)
+- [ProvenancePort interface](interfaces/provenance.md)
+- [FreshnessTrackerPort interface](interfaces/freshness.md)
+- [Embedded storage engine selection](adr/0008-embedded-storage-selection.md)
+
+## Phase 4 retrieval
+
+- [Phase 4 retrieval module map](modules/retrieval.md)
+- [Phase 4 embedding-model module map](modules/embeddings.md)
+- [Phase 4 context-assembler module map](modules/context-assembler.md)
+- [HybridRetrievalPort interface](interfaces/hybrid-retrieval.md)
+- [RerankerPort interface](interfaces/reranker.md)
+- [Embedding model selection](adr/0009-embedding-model-selection.md)
+- [Hybrid fusion strategy](adr/0010-hybrid-fusion-strategy.md)
+
+## Phase 5 orchestration
+
+- [Phase 5 query orchestrator module map](modules/orchestrator.md)
+- [Phase 5 local LLM port module map](modules/llm-port.md)
+- [Phase 5 task context builder module map](modules/task-context.md)
+- [CapabilityDiscoveryPort interface](interfaces/capability-discovery.md)
+
+## Phase 6 preparation (proposed)
+
+- [Phase 6 readiness and outstanding gaps](project/phase-6-readiness.md)
+
+## Phase 6 agent integration (accepted)
+
+- [ADR: Phase 6 agent integration packaging](adr/0011-agent-integration-packaging.md)
+- [ADR: Phase 6 version compatibility handshake](adr/0012-version-compatibility-handshake.md)
+- [ADR: Phase 6 plugin supply-chain security](adr/0013-plugin-supply-chain-security.md)
 
 ## Knowledge areas
 

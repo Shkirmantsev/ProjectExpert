@@ -23,29 +23,62 @@ project product.
 ## Project product capabilities
 
 | Accepted capability | Canonical requirements |
-|---|---|
-| Project knowledge repository layout | [Spec](specs/2026-10-04-project-knowledge-repository-layout/spec.md) |
-| Canonical knowledge schema | [Spec](specs/2026-10-04-canonical-knowledge-schema/spec.md) |
-| Git version-aware runtime | [Spec](specs/2026-10-04-git-version-aware-runtime/spec.md) |
-| Bidirectional canonical runtime sync | [Spec](specs/2026-10-04-bidirectional-canonical-runtime-sync/spec.md) |
-| License governance | [Spec](specs/2026-10-04-license-governance/spec.md) |
-| Content addressed processing | [Spec](specs/2026-10-04-content-addressed-processing/spec.md) |
-| Context enrichment | [Spec](specs/2026-10-04-context-enrichment/spec.md) |
-| Document source adapters | [Spec](specs/2026-10-04-document-source-adapters/spec.md) |
-| Ingestion pipeline driver | [Spec](specs/2026-10-04-ingestion-pipeline-driver/spec.md) |
-| Jar dependency intelligence | [Spec](specs/2026-10-04-jar-dependency-intelligence/spec.md) |
-| Local source inbox | [Spec](specs/2026-10-04-local-source-inbox/spec.md) |
-| Openspec change adapter | [Spec](specs/2026-10-04-openspec-change-adapter/spec.md) |
-| Semantic structural chunking | [Spec](specs/2026-10-04-semantic-structural-chunking/spec.md) |
-| Structured code intelligence | [Spec](specs/2026-10-04-structured-code-intelligence/spec.md) |
+| --- | --- |
+| [Project knowledge repository layout](specs/2026-10-04-project-knowledge-repository-layout/spec.md) |
+| [Canonical knowledge schema](specs/2026-10-04-canonical-knowledge-schema/spec.md) |
+| [Git version aware runtime](specs/2026-10-04-git-version-aware-runtime/spec.md) |
+| [Bidirectional canonical runtime sync](specs/2026-10-04-bidirectional-canonical-runtime-sync/spec.md) |
+| [License governance](specs/2026-10-04-license-governance/spec.md) |
+| [Content addressed processing](specs/2026-10-04-content-addressed-processing/spec.md) |
+| [Context enrichment](specs/2026-10-04-context-enrichment/spec.md) |
+| [Document source adapters](specs/2026-10-04-document-source-adapters/spec.md) |
+| [Ingestion pipeline driver](specs/2026-10-04-ingestion-pipeline-driver/spec.md) |
+| [Jar dependency intelligence](specs/2026-10-04-jar-dependency-intelligence/spec.md) |
+| [Local source inbox](specs/2026-10-04-local-source-inbox/spec.md) |
+| [Openspec change adapter](specs/2026-10-04-openspec-change-adapter/spec.md) |
+| [Semantic structural chunking](specs/2026-10-04-semantic-structural-chunking/spec.md) |
+| [Structured code intelligence](specs/2026-10-04-structured-code-intelligence/spec.md) |
+| [Embedded storage selection](specs/2026-10-04-embedded-storage-selection/spec.md) |
+| [Runtime store](specs/2026-10-04-runtime-store/spec.md) |
+| [Sparse index](specs/2026-10-04-sparse-index/spec.md) |
+| [Dense index](specs/2026-10-04-dense-index/spec.md) |
+| [Full text index](specs/2026-10-04-full-text-index/spec.md) |
+| [Sharded graph](specs/2026-10-04-sharded-graph/spec.md) |
+| [Graph expansion](specs/2026-10-04-graph-expansion/spec.md) |
+| [Provenance state model](specs/2026-10-04-provenance-state-model/spec.md) |
+| [Freshness tracking](specs/2026-10-04-freshness-tracking/spec.md) |
+| [Embedding model](specs/2026-10-04-embedding-model/spec.md) |
+| [Hybrid retrieval](specs/2026-10-04-hybrid-retrieval/spec.md) |
+| [Multi stage retrieval](specs/2026-10-04-multi-stage-retrieval/spec.md) |
+| [Graph expansion production](specs/2026-10-04-graph-expansion-production/spec.md) |
+| [Reranker port](specs/2026-10-04-reranker-port/spec.md) |
+| [Metadata filters](specs/2026-10-04-metadata-filters/spec.md) |
+| [Context assembler](specs/2026-10-04-context-assembler/spec.md) |
+| [Retrieval benchmark](specs/2026-10-04-retrieval-benchmark/spec.md) |
+| [Query orchestrator](specs/2026-10-05-query-orchestrator/spec.md) |
+| [Local LLM port](specs/2026-10-05-local-llm-port/spec.md) |
+| [Task context builder](specs/2026-10-05-task-context-builder/spec.md) |
+| [Capability discovery](specs/2026-10-05-capability-discovery/spec.md) |
+| [Retrieval first policy](specs/2026-10-05-retrieval-first-policy/spec.md) |
+| [MCP server](specs/2026-10-07-mcp-server/spec.md) |
+| [Skill distribution plane](specs/2026-10-07-skill-distribution-plane/spec.md) |
+| [Agent skill canonical](specs/2026-10-07-agent-skill-canonical/spec.md) |
+| [Version compatibility handshake](specs/2026-10-07-version-compatibility-handshake/spec.md) |
+| [Codex plugin package](specs/2026-10-07-codex-plugin-package/spec.md) |
+| [Claude Code plugin package](specs/2026-10-07-claude-code-plugin-package/spec.md) |
+| [OpenCode plugin package](specs/2026-10-07-opencode-plugin-package/spec.md) |
+| [Generic agent bundle](specs/2026-10-07-generic-agent-bundle/spec.md) |
+| [Agent adapter contract](specs/2026-10-07-agent-adapter-contract/spec.md) |
+| [Plugin supply chain security](specs/2026-10-07-plugin-supply-chain-security/spec.md) |
 
-These product capabilities define the foundation and ingestion phases of the v0.8
-Project Intelligence Platform. Subsequent phases (Storage,
-Retrieval, Orchestration, Agent integration, Control plane, Security,
-Distribution, A2A and quality gates) will introduce additional
-accepted capabilities. Create new specs through the OpenSpec workflow
-(`openspec/changes/<id>/` → `openspec/specs/YYYY-MM-DD-domain-capability/`)
-and link them here when adopted.
+These product capabilities define the foundation, ingestion,
+storage, retrieval, orchestration and agent integration phases of
+the v0.8 Project Intelligence Platform. Subsequent phases
+(Control plane, Security, Distribution, A2A and quality gates)
+will introduce additional accepted capabilities. Create new specs
+through the OpenSpec workflow (`openspec/changes/<id>/` →
+`openspec/specs/YYYY-MM-DD-domain-capability/`) and link them here
+when adopted.
 
 Maintain this inventory with every accepted addition, retirement or identity
 migration. Dates record first acceptance, not the latest edit. Run

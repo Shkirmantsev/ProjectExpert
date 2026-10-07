@@ -35,3 +35,5 @@ needs, then run `make runtime` to regenerate client configs.
 
 - [Phase 2 problem statement and resolution](handoff/phase-2-problem-statement.md)
 - [Phase 3 follow-up prompt](handoff/phase-3-prompt.md)
+
+- [Phase 6 implementation prompt and readiness](handoff/phase-6-implementation-prompt.md)

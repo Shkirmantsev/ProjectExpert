@@ -306,90 +306,90 @@ implements exactly the Phase 1 tasks (13-44) defined here.
 
 ## Phase 3 — Storage (runtime DB, sharded graph, provenance/freshness)
 
-- [ ] 61. Select the embedded storage engine(s) capable of
+- [x] 61. Select the embedded storage engine(s) capable of
   relational metadata, full-text search, vector search and graph
   traversal within one deployable unit. Document the decision in
   an ADR (`adr.embedded-storage-selection`) and record the license
   rationale.
-- [ ] 62. Implement `platform.runtime.RuntimeStore` with
+- [x] 62. Implement `platform.runtime.RuntimeStore` with
   per-shard content-addressed cache, version stamp, write-ahead
   log and per-project advisory file lock.
-- [ ] 63. Implement `platform.runtime.SparseIndex` (BM25 or
+- [x] 63. Implement `platform.runtime.SparseIndex` (BM25 or
   equivalent) and metadata index.
-- [ ] 64. Implement `platform.runtime.DenseIndex` with at least one
+- [x] 64. Implement `platform.runtime.DenseIndex` with at least one
   ANN backend (HNSW or flat) behind a `DenseIndexPort`.
-- [ ] 65. Implement `platform.runtime.FullTextIndex`.
-- [ ] 66. Implement the canonical knowledge graph
+- [x] 65. Implement `platform.runtime.FullTextIndex`.
+- [x] 66. Implement the canonical knowledge graph
   (`platform.core.graph.Graph`) with sharded nodes/edges,
   content-addressed entity bodies, entity families from §16 and
   relation families from §16; implement the graph with a clear
   separation between ANN graph and knowledge graph.
-- [ ] 67. Implement knowledge provenance (`KnowledgeState`) and
+- [x] 67. Implement knowledge provenance (`KnowledgeState`) and
   freshness tracking; record the staleness map on every reconcile.
-- [ ] 68. Add focused regression tests including a 50k-entity
+- [x] 68. Add focused regression tests including a 50k-entity
   sharding test that asserts the documented shard counts and the
   32 MiB single-file cap.
-- [ ] 69. Update Wiki (new `modules/runtime-store`, `modules/graph`,
+- [x] 69. Update Wiki (new `modules/runtime-store`, `modules/graph`,
   `interfaces/sparse-index`, `interfaces/dense-index`), archive the
   Phase 3 change, update `openspec/CURRENT.md`.
 
 ## Phase 4 — Retrieval (hybrid, multi-stage, reranking, contextual assembly)
 
-- [ ] 70. Implement `platform.embeddings.EmbeddingModelPort` with
+- [x] 70. Implement `platform.embeddings.EmbeddingModelPort` with
   one default multilingual embedding model (English, German,
   Ukrainian, optionally Russian) that satisfies §25 requirements
   and the model license gate.
-- [ ] 71. Implement `platform.retrieval.HybridRetrieval` with
+- [x] 71. Implement `platform.retrieval.HybridRetrieval` with
   dense ANN + sparse/BM25 + exact identifier lookup, fused into a
   single ranked candidate set.
-- [ ] 72. Implement `platform.retrieval.MultiStageRetrieval`
+- [x] 72. Implement `platform.retrieval.MultiStageRetrieval`
   (candidate generation → fusion → metadata/version/security
   filter → graph expansion → hierarchy expansion → rerank).
-- [ ] 73. Implement `platform.retrieval.GraphExpansion` and
+- [x] 73. Implement `platform.retrieval.GraphExpansion` and
   `platform.retrieval.HierarchyExpansion` bounded by documented
   budgets.
-- [ ] 74. Implement pluggable advanced rerankers (cross-encoder,
+- [x] 74. Implement pluggable advanced rerankers (cross-encoder,
   ColBERT-style, etc.) behind a `RerankerPort`; rerankers run on
   bounded candidate sets only.
-- [ ] 75. Implement metadata-driven temporal/version/security
+- [x] 75. Implement metadata-driven temporal/version/security
   filters (`validFrom <= queryDate AND (validTo IS NULL OR
   validTo >= queryDate)`).
-- [ ] 76. Implement `platform.context.ContextAssembler` with
+- [x] 76. Implement `platform.context.ContextAssembler` with
   deduplication, context budget, citation preservation,
   authoritative-evidence preference, conflict detection and
   uncertainty surfacing.
-- [ ] 77. Add evaluation fixtures and a retrieval benchmark test
+- [x] 77. Add evaluation fixtures and a retrieval benchmark test
   (`tests/test_retrieval_benchmark.py`) recording recall/precision,
   reranker quality, latency, cache reuse.
-- [ ] 78. Update Wiki (new `modules/retrieval`, `modules/embeddings`,
+- [x] 78. Update Wiki (new `modules/retrieval`, `modules/embeddings`,
   `modules/context-assembler`, `interfaces/hybrid-retrieval`,
   `interfaces/reranker`), archive the Phase 4 change, update
   `openspec/CURRENT.md`.
 
 ## Phase 5 — Orchestration (query, local LLM, task context, capability discovery)
 
-- [ ] 79. Implement `platform.orchestrator.QueryOrchestrator` with
+- [x] 79. Implement `platform.orchestrator.QueryOrchestrator` with
   three escalation levels (L0 direct retrieval, L1 retrieval +
   small local LLM, L2 strong external agent) and the
   retrieval-first escalation order from §33.
-- [ ] 80. Implement `platform.llm.LocalLLMPort` behind a stable
+- [x] 80. Implement `platform.llm.LocalLLMPort` behind a stable
   interface; do not bind any specific model in the default
   container; declare the local-LLM capability as optional in
   capability discovery.
-- [ ] 81. Implement `platform.task.TaskContextBuilder` producing
+- [x] 81. Implement `platform.task.TaskContextBuilder` producing
   the bounded TaskContext bundle shape from §52.
-- [ ] 82. Implement `platform.orchestrator.CapabilityDiscovery`
+- [x] 82. Implement `platform.orchestrator.CapabilityDiscovery`
   returning the structured capability descriptor from §47.
-- [ ] 83. Add focused regression tests including a retrieval-first
+- [x] 83. Add focused regression tests including a retrieval-first
   policy test asserting that an implementation question does not
   trigger broad source scanning before MCP retrieval.
-- [ ] 84. Update Wiki (new `modules/orchestrator`, `modules/llm-port`,
+- [x] 84. Update Wiki (new `modules/orchestrator`, `modules/llm-port`,
   `modules/task-context`, `interfaces/capability-discovery`),
   archive the Phase 5 change, update `openspec/CURRENT.md`.
 
 ## Phase 6 — Agent integration (MCP, skill, adapters, distribution profiles)
 
-- [ ] 85. Implement the MCP server
+- [x] 85. Implement the MCP server
   (`platform.mcp.McpServer`) exposing the semantic tools from §36
   (`project.search`, `project.retrieve_context`,
   `project.get_entity`, `project.get_component`,
@@ -400,40 +400,40 @@ implements exactly the Phase 1 tasks (13-44) defined here.
   `project.get_conflicts`, `project.get_stale_knowledge`,
   `project.build_task_context`, `project.materialize_knowledge`,
   `project.refresh_sources`) and `describe_capabilities`.
-- [ ] 86. Implement skill distribution resources
+- [x] 86. Implement skill distribution resources
   (`project-intelligence://distribution/manifest`,
   `project-intelligence://skills/index`,
   `project-intelligence://skills/<name>/<version>/SKILL.md` and
   referenced files).
-- [ ] 87. Author the canonical Agent Skill at
+- [x] 87. Author the canonical Agent Skill at
   `distribution/skills/project-intelligence/SKILL.md` per §37 with
   progressive disclosure (concise main file + references for MCP
   tools, retrieval policy, versioning, OKF profile, security).
-- [ ] 88. Implement the version-compatibility handshake (§39) for
+- [x] 88. Implement the version-compatibility handshake (§39) for
   MCP API, knowledge schema, OKF profile, agent adapter,
   plugin-distribution schema.
-- [ ] 89. Implement the Codex/ChatGPT plugin packager that emits
+- [x] 89. Implement the Codex/ChatGPT plugin packager that emits
   `dist/codex/plugin.json`, `dist/codex/mcp.json`, the bundled
   skill and assets, and the `.codex-plugin/plugin.json`
   compatibility fallback. Add a smoke test.
-- [ ] 90. Implement the Claude Code plugin packager emitting
+- [x] 90. Implement the Claude Code plugin packager emitting
   `dist/claude-code/.claude-plugin/plugin.json`,
   `dist/claude-code/.mcp.json`, skill, optional commands/agents.
-- [ ] 91. Implement the OpenCode plugin package emitting
+- [x] 91. Implement the OpenCode plugin package emitting
   `dist/opencode/package.json`, `dist/opencode/plugin/*.ts`,
   skill, `config/opencode.example.jsonc`.
-- [ ] 92. Implement the generic agent bundle
+- [x] 92. Implement the generic agent bundle
   (`dist/generic-agent/skills/`, `mcp/`, `AGENTS.example.md`,
   `README.md`).
-- [ ] 93. Implement the agent adapter contract from §46
+- [x] 93. Implement the agent adapter contract from §46
   (`AgentIntegrationAdapter` with `detect`, `install`,
   `configureMcp`, `installSkill`, `verifyCompatibility`,
   `healthCheck`, `uninstall`, `describe`).
-- [ ] 94. Implement the plugin supply-chain security gate
+- [x] 94. Implement the plugin supply-chain security gate
   (pinned version, content hash, SBOM, license/scan, source
   provenance, signature support, no hidden auto-install,
   approval-gated materialise tools).
-- [ ] 95. Update Wiki (new `interfaces/mcp-tools`,
+- [x] 95. Update Wiki (new `interfaces/mcp-tools`,
   `interfaces/skill-distribution`, `interfaces/plugin-distribution`),
   archive the Phase 6 change, update `openspec/CURRENT.md`.
 

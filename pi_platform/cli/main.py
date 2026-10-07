@@ -110,6 +110,32 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--config", type=Path, default=None)
     ingest.add_argument("--cache-root", type=Path, default=Path("tmp/local/pi-platform-ingest"))
 
+    runtime_status = sub.add_parser("runtime-status", help="print the Phase 3 runtime store status")
+    runtime_status.add_argument("--target", type=Path, default=Path("."))
+    runtime_status.add_argument("--cache-root", type=Path,
+                                default=DEFAULT_RUNTIME_CACHE)
+    runtime_status.add_argument("--policy", type=str, default="DURABLE",
+                                choices=["DURABLE", "ALL", "STALE"])
+
+    graph_rebuild = sub.add_parser("graph-rebuild", help="rebuild the canonical knowledge graph manifest")
+    graph_rebuild.add_argument("--target", type=Path, default=Path("."))
+    graph_rebuild.add_argument("--cache-root", type=Path,
+                               default=Path(".project-intelligence-cache/graph"))
+
+    sub.add_parser("embedding-status",
+                   help="print the active §25 EmbeddingModelPort status")
+    sub.add_parser("retrieval-status",
+                   help="print the Phase 4 retrieval pipeline status")
+    sub.add_parser("reranker-status",
+                   help="print the active §30 RerankerPort status")
+
+    sub.add_parser("orchestrator-status",
+                   help="print the Phase 5 §34 query orchestrator status")
+    sub.add_parser("llm-status",
+                   help="print the active §35 LocalLLMPort status")
+    sub.add_parser("capabilities",
+                   help="print the §47 capability discovery descriptor")
+
     sub.add_parser("health", help="lightweight liveness check")
     sub.add_parser("--help", help="show this help message and exit")
     return parser
@@ -462,8 +488,79 @@ def _cmd_health(_: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_runtime_status(args: argparse.Namespace) -> int:
+    from ..adapters.runtime.sqlite_runtime_store import SqliteRuntimeStore
+    from ..core.canonical.value_types import ProjectVersion
+
+    target = args.target.resolve()
+    cache_root = _resolve_cache_root(args)
+    version = compute_version_identity(target)
+    store = SqliteRuntimeStore(cache_root=cache_root, version=ProjectVersion(
+        gitHead=version.gitHead,
+        workingTreeFingerprint=version.workingTreeFingerprint,
+        knowledgeSchemaVersion=version.knowledgeSchemaVersion,
+        embeddingModelVersion=version.embeddingModelVersion,
+        indexSchemaVersion=version.indexSchemaVersion,
+    ))
+    report = store.runtime_status(policy=args.policy)
+    payload = {
+        "bound_version": {
+            "gitHead": report.bound_version.gitHead,
+            "workingTreeFingerprint": report.bound_version.workingTreeFingerprint,
+            "knowledgeSchemaVersion": report.bound_version.knowledgeSchemaVersion,
+            "embeddingModelVersion": report.bound_version.embeddingModelVersion,
+            "indexSchemaVersion": report.bound_version.indexSchemaVersion,
+        },
+        "backend": report.backend,
+        "cache_entries": report.cache_entries,
+        "wal_tail_length": report.wal_tail_length,
+        "families": list(report.families),
+        "family_counts": dict(report.family_counts),
+        "policy": args.policy,
+        "cache_root": str(cache_root),
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_graph_rebuild(args: argparse.Namespace) -> int:
+    from ..adapters.runtime.sharded_graph import LocalShardedGraph
+
+    graph_root = args.cache_root
+    if not graph_root.is_absolute():
+        graph_root = args.target.resolve() / graph_root
+    graph = LocalShardedGraph(graph_root)
+    manifest = graph.rebuild_manifest()
+    payload = {
+        "graph_root": str(graph_root),
+        "family": manifest.family,
+        "schemaVersion": manifest.schemaVersion,
+        "entity_count": manifest.entity_count,
+        "relation_count": manifest.relation_count,
+        "shards": [
+            {"id": s.id, "path": s.path, "count": s.count}
+            for s in manifest.shards
+        ],
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
 def _project_id(target: Path) -> str:
-    return target.resolve().as_posix().replace("/", "-").lstrip("-") or "default"
+    """Return a stable, cross-platform project lock identifier.
+
+    Uses the SHA-256 hex digest of the resolved canonical path so the
+    lock filename is safe on every platform (no ``:`` on Windows, no
+    ``/`` anywhere) and two distinct projects can never share a lock
+    even when their paths differ only in case or symlink resolution.
+    The digest is also stable across runs, which lets an operator
+    inspect / correlate ``tmp/local/project-locks/<id>.lock`` files
+    without leaking the absolute path.
+    """
+
+    canonical = str(target.resolve()).lower()
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:32]
+    return f"proj-{digest}"
 
 
 _DISPATCH = {
@@ -476,6 +573,8 @@ _DISPATCH = {
     "wal-recover": _cmd_wal_recover,
     "health": _cmd_health,
     "ingest-sources": _cmd_ingest_sources,
+    "runtime-status": _cmd_runtime_status,
+    "graph-rebuild": _cmd_graph_rebuild,
 }
 
 
@@ -490,6 +589,277 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     except Exception as exc:  # noqa: BLE001
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         return 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 retrieval subcommands
+# ---------------------------------------------------------------------------
+
+
+def _cmd_embedding_status(args: argparse.Namespace) -> int:
+    """Report the active §25 EmbeddingModelPort status."""
+
+    from ..adapters.retrieval.hashing_embedding_model import (
+        HashingEmbeddingAdapter,
+    )
+    from ..adapters.retrieval.multilingual_st_embedding_model import (
+        ADAPTER_NAME as _MULTILINGUAL_NAME,
+        DEFAULT_LICENSE_ID,
+        EXPECTED_DIMENSION,
+        MultilingualSentenceTransformerEmbeddingModel,
+    )
+
+    hashing = HashingEmbeddingAdapter()
+    backend_name = "hashing"
+    model_version = hashing.model_version()
+    license_id = hashing.license_id()
+    dimension = hashing.dimension()
+    try:
+        MultilingualSentenceTransformerEmbeddingModel()
+        multilingual_available = True
+    except Exception:
+        multilingual_available = False
+    payload = {
+        "active_backend": backend_name,
+        "active_model_version": model_version,
+        "active_license_id": license_id,
+        "active_dimension": dimension,
+        "multilingual_available": multilingual_available,
+        "multilingual_adapter_name": _MULTILINGUAL_NAME,
+        "multilingual_default_model_id": "paraphrase-multilingual-MiniLM-L12-v2",
+        "multilingual_default_license_id": DEFAULT_LICENSE_ID,
+        "multilingual_expected_dimension": EXPECTED_DIMENSION,
+        "stats": dict(hashing.stats()),
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_reranker_status(args: argparse.Namespace) -> int:
+    """Report the active §30 RerankerPort status."""
+
+    from ..adapters.retrieval.bm25_light_reranker import (
+        Bm25LightRerankerAdapter,
+    )
+    from ..adapters.retrieval.cross_encoder_reranker import (
+        ADAPTER_NAME as _CROSS_ENCODER_NAME,
+        CrossEncoderRerankerAdapter,
+    )
+    from ..adapters.retrieval.colbert_style_reranker import (
+        ADAPTER_NAME as _COLBERT_NAME,
+        ColBertStyleRerankerAdapter,
+    )
+
+    bm25 = Bm25LightRerankerAdapter()
+    payload = {
+        "active_family": bm25.family(),
+        "active_model_version": bm25.model_version(),
+        "active_license_id": bm25.license_id(),
+        "budget": bm25.budget,
+        "stats": dict(bm25.stats()),
+    }
+    for label, adapter_cls, name in (
+        ("cross-encoder", CrossEncoderRerankerAdapter, _CROSS_ENCODER_NAME),
+        ("colbert-style", ColBertStyleRerankerAdapter, _COLBERT_NAME),
+    ):
+        try:
+            adapter_cls()
+            available = True
+        except Exception:
+            available = False
+        payload[f"{label}_available"] = available
+        payload[f"{label}_adapter_name"] = name
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_retrieval_status(args: argparse.Namespace) -> int:
+    """Report the Phase 4 retrieval pipeline status."""
+
+    from ..adapters.retrieval.context_assembler_adapter import (
+        ContextAssemblerAdapter,
+    )
+    from ..adapters.retrieval.hybrid_retrieval import HybridRetrievalAdapter
+    from ..adapters.retrieval.identifier_query_detector import (
+        IdentifierQueryDetector,
+    )
+    from ..adapters.retrieval.metadata_filter_adapter import (
+        MetadataFilterAdapter,
+    )
+    from ..adapters.retrieval.bm25_light_reranker import Bm25LightRerankerAdapter
+    from ..adapters.runtime.graph_expansion import (
+        DEFAULT_BUDGET as _PRODUCTION_GRAPH_BUDGET,
+        DEFAULT_EDGE_TYPES as _PRODUCTION_GRAPH_EDGE_TYPES,
+        ProductionGraphExpansion,
+    )
+    from ..core.retrieval.multi_stage_retrieval import (
+        DEFAULT_BUDGETS as _DEFAULT_STAGE_BUDGETS,
+    )
+
+    hybrid = HybridRetrievalAdapter(
+        dense_query=lambda text, k: (),
+        sparse_query=lambda text, k: (),
+    )
+    payload = {
+        "active_fusion_strategy": hybrid.fusion_strategy,
+        "hybrid_level": hybrid.stats().get("level", 0),
+        "identifier_detector": IdentifierQueryDetector.name,
+        "metadata_filter_adapter": "metadata-filter-default",
+        "context_assembler_adapter": "context-assembler-default",
+        "reranker_family": Bm25LightRerankerAdapter().family(),
+        "production_graph_expansion": {
+            "default_budget": _PRODUCTION_GRAPH_BUDGET,
+            "default_edge_types": list(_PRODUCTION_GRAPH_EDGE_TYPES),
+        },
+        "stage_budgets": dict(_DEFAULT_STAGE_BUDGETS),
+        "stats": {
+            "hybrid": dict(hybrid.stats()),
+            "metadata": dict(MetadataFilterAdapter().stats()),
+            "context_assembler": dict(ContextAssemblerAdapter().stats()),
+            "reranker": dict(Bm25LightRerankerAdapter().stats()),
+        },
+    }
+    payload["graph_expansion_class"] = ProductionGraphExpansion.__name__
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_orchestrator_status(args: argparse.Namespace) -> int:
+    """Report the Phase 5 §34 query orchestrator status."""
+
+    from ..adapters.orchestration.query_orchestrator import (
+        DefaultQueryOrchestratorAdapter,
+    )
+    from ..adapters.orchestration.stub_local_llm import (
+        StubLocalLLMAdapter,
+    )
+    from ..adapters.orchestration.task_context import (
+        DefaultTaskContextBuilderAdapter,
+    )
+    from ..adapters.runtime.graph_expansion import (
+        ProductionGraphExpansion,
+    )
+    from ..adapters.retrieval.bm25_light_reranker import (
+        Bm25LightRerankerAdapter,
+    )
+    from ..adapters.retrieval.context_assembler_adapter import (
+        ContextAssemblerAdapter,
+    )
+    from ..adapters.retrieval.hybrid_retrieval import (
+        HybridRetrievalAdapter,
+    )
+    from ..adapters.retrieval.metadata_filter_adapter import (
+        MetadataFilterAdapter,
+    )
+    from ..core.retrieval.multi_stage_retrieval import (
+        MultiStageRetrievalCore,
+    )
+
+    hybrid = HybridRetrievalAdapter(
+        dense_query=lambda text, k: (),
+        sparse_query=lambda text, k: (),
+    )
+    pipeline = MultiStageRetrievalCore(
+        hybrid=hybrid,
+        metadata=MetadataFilterAdapter(),
+        graph_expansion=ProductionGraphExpansion(_GraphAdapter()),
+        reranker=Bm25LightRerankerAdapter(),
+        context_assembler=ContextAssemblerAdapter(),
+    )
+    local_llm = StubLocalLLMAdapter()
+    builder = DefaultTaskContextBuilderAdapter()
+    orchestrator = DefaultQueryOrchestratorAdapter(
+        retrieval=pipeline,
+        local_llm=local_llm,
+        task_context_builder=builder,
+    )
+    payload = {
+        "active_backend": "query-orchestrator-default",
+        "levels": {
+            "L0": "direct retrieval",
+            "L1": "retrieval + small local LLM",
+            "L2": "strong external agent (task context bundle)",
+        },
+        "default_level": int(orchestrator.stats() and 0),
+        "local_llm_available": local_llm.is_available(),
+        "local_llm_family": local_llm.family(),
+        "local_llm_license": local_llm.license_id(),
+        "task_context_knowledge_schema_version": builder._knowledge_schema_version,
+        "task_context_okf_versions": list(builder._okf_versions),
+        "stats": dict(orchestrator.stats()),
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_llm_status(args: argparse.Namespace) -> int:
+    """Report the active §35 LocalLLMPort status."""
+
+    from ..adapters.orchestration.stub_local_llm import (
+        StubLocalLLMAdapter,
+    )
+
+    stub = StubLocalLLMAdapter()
+    payload = {
+        "active_backend": "local-llm-stub",
+        "is_available": stub.is_available(),
+        "family": stub.family(),
+        "model_version": stub.model_version(),
+        "license_id": stub.license_id(),
+        "stats": dict(stub.stats()),
+        "opt_in_families": ["llama-cpp", "transformers", "external-llm"],
+        "note": "default container ships with the stub only; opt-in "
+                "LLM backends register as adapters when the "
+                "corresponding Python package is installed AND "
+                "project-context.yaml:orchestrator.local_llm.family "
+                "is set to the family's name.",
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_capabilities(args: argparse.Namespace) -> int:
+    """Print the §47 capability discovery descriptor."""
+
+    from ..adapters.orchestration.capability_discovery import (
+        DefaultCapabilityDiscoveryAdapter,
+    )
+    from ..adapters.orchestration.stub_local_llm import (
+        StubLocalLLMAdapter,
+    )
+
+    discovery = DefaultCapabilityDiscoveryAdapter(
+        local_llm=StubLocalLLMAdapter(),
+    )
+    payload = discovery.describe().as_dict()
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+class _GraphAdapter:
+    """In-memory graph stub used by the orchestrator-status CLI."""
+
+    def expand(self, seeds, *, hops, edge_types, budget):
+        from pi_platform.ports.runtime.graph_expansion import GraphExpansion
+        return GraphExpansion(
+            seeds=tuple(seeds), expandedEntities=(),
+            expandedRelations=(), hops=hops, budget_exhausted=False,
+        )
+
+    def stats(self) -> dict:
+        return {}
+
+
+_DISPATCH.update(
+    {
+        "embedding-status": _cmd_embedding_status,
+        "retrieval-status": _cmd_retrieval_status,
+        "reranker-status": _cmd_reranker_status,
+        "orchestrator-status": _cmd_orchestrator_status,
+        "llm-status": _cmd_llm_status,
+        "capabilities": _cmd_capabilities,
+    }
+)
 
 
 if __name__ == "__main__":

@@ -513,8 +513,23 @@ class LocalPipelineDriver(PipelineDriverPort):
             category = StageErrorCategory.PERMANENT
             message = str(exc)
         except Exception as exc:
-            category = StageErrorCategory.PERMANENT
-            message = str(exc)
+            # Anything reaching this handler is outside the failure
+            # vocabulary the pipeline documents for the operator (source
+            # errors, configuration errors, retries). Treat it as an
+            # internal programming bug rather than a permanent source
+            # error so the operator can distinguish "the source is bad"
+            # from "the code has a regression" without having to dig
+            # through tracebacks. ``logger.exception`` ensures the
+            # traceback lands in the diagnostic stream alongside the
+            # ``INTERNAL`` category marker.
+            category = StageErrorCategory.INTERNAL
+            message = f"unexpected internal error: {exc!r}"
+            log.exception(
+                "stage=%s source=%s category=internal_error exc_type=%s",
+                stage,
+                source.id,
+                type(exc).__name__,
+            )
         stages.append(
             StageOutcome(
                 stage,

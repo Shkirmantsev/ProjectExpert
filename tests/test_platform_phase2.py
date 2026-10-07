@@ -111,6 +111,31 @@ class PipelineDriverTests(Fixture):
         unknown = dataclasses.replace(bad, family="absent")
         self.assertEqual(len(d.run_many((unknown, good), self.root)), 1)
 
+    def test_unexpected_exception_is_internal_error(self):
+        """Regression: programming bugs (KeyError, AttributeError, ...)
+        must NOT masquerade as ``permanent`` source errors. The pipeline
+        must categorise them as ``internal_error`` so the operator can
+        distinguish "the source is bad" from "the code has a regression"
+        without having to dig through tracebacks.
+        """
+
+        from pi_platform.ports.ingest.pipeline_driver import StageErrorCategory
+        d = LocalPipelineDriver()
+        s = self.source("body", "good.md")
+        with patch.object(MarkdownAdapter, "parse",
+                           side_effect=KeyError("simulated programming bug")):
+            report = d.run(s, self.root)
+        self.assertFalse(report.ok)
+        failing_stages = [o for o in report.stages if o.error_category]
+        self.assertTrue(failing_stages,
+                        "at least one stage should have an error_category")
+        for outcome in failing_stages:
+            self.assertEqual(outcome.error_category,
+                             StageErrorCategory.INTERNAL.value,
+                             f"unexpected exception must surface as "
+                             f"internal_error, got {outcome.error_category!r}: "
+                             f"{outcome.error_message!r}")
+
 
 class LocalSourceInboxScannerTests(Fixture):
     def test_policy_relative_glob_and_serialization(self):

@@ -8,7 +8,14 @@
 # Run:    docker run --rm -p 8765:8765 \
 #               -v "$(pwd):/repo" \
 #               project-intelligence:dev --help
-FROM python:3.11-slim AS runtime
+#
+# The base image is pinned by digest (sha256:...) so rebuilds are
+# reproducible; a mutable `python:3.11-slim` tag would silently
+# pull whatever the Docker Hub maintainers published today vs. next
+# week, breaking the §5.5 / §34 supply-chain reproducibility goal.
+# To refresh: pull `python:3.11-slim-bookworm` and update the digest
+# here, then commit a new pinned reference.
+FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -33,6 +40,19 @@ COPY distribution/licenses ./distribution/licenses
 COPY distribution/sbom ./distribution/sbom
 
 RUN pip install --no-cache-dir .
+
+# Phase 4 retrieval opt-in dependencies. The default image ships
+# without the heavy multilingual sentence-transformer stack so the
+# CPU-only fallback (`HashingEmbeddingAdapter`) covers the
+# multilingual-DE/EN/UK retrieval scenario. Install the
+# `retrieval` extra in a derived image to enable the multilingual
+# sentence-transformer adapter and the cross-encoder reranker.
+# The ColBERT-style late-interaction adapter remains off by
+# default; install the optional `colbert` extra in a derived
+# image to enable it. All three extras pass `LicenseGate` against
+# the SPDX inventory at `distribution/licenses/dependency-inventory.json`.
+# RUN pip install --no-cache-dir ".[retrieval]"
+
 # Java native libraries remain optional: install the approved java extra in a
 # derived image to enable the isolated parser. Default uses metadata-only mode.
 

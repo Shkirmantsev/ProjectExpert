@@ -1,0 +1,49 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Authored 8 Phase 4 ports (pi_platform/ports/retrieval/); authored default cores (pi_platform/core/retrieval/); authored default adapters (pi_platform/adapters/retrieval/); replaced Phase 3 graph_expansion stub with production ProductionGraphExpansion adapter; added SPDX entries for sentence-transformers / cross-encoder / multilingual-MiniLM; added Containerfile opt-in note; added CLI subcommands embedding-status / retrieval-status / reranker-status; wrote tests/test_platform_phase4.py (38 tests) and tests/test_retrieval_benchmark.py (8 tests); updated Wiki (modules/retrieval, modules/embeddings, modules/context-assembler, interfaces/hybrid-retrieval, interfaces/reranker, INDEX, platform-overview, glossary); authored ADR 0009 (embedding-model-selection) and ADR 0010 (hybrid-fusion-strategy); updated openspec/CURRENT.md; flipped plan tasks 70-78 to [x]; archived both changes (2026-10-05-prepare-phase-4-retrieval and 2026-10-05-implement-phase-4-retrieval)."
+    ],
+    "todo": [
+      "Author 8 Phase 4 ports; Author default cores; Author default adapters; Replace Phase 3 graph_expansion stub; SPDX entries; Containerfile; CLI status subcommands; test_retrieval_benchmark.py; test_platform_phase4.py; Wiki + ADR + CURRENT.md; Run verification gates; Archive both changes; Final commit"
+    ]
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-05T21:54:35+00:00",
+    "id": "implement-phase-4-retrieval",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-05T22:16:49+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "All verification gates PASS: harness.py check; openspec validate implement-phase-4-retrieval --strict returns valid; openspec validate --all --strict returns no failures; wiki-validate ok; artifact-manifest PASS; license-gate exits 0; Phase 1-3 regression suites green. openspec/specs/2026-10-04-*/ contains 8 Phase 4 capabilities. openspec/CURRENT.md lists the 8 Phase 4 capabilities. plan-v0-8-platform-architecture/tasks.md rows 70-78 are [x]. Both archive directories exist."
+    ],
+    "goal": "Ship production code consuming the 8 Phase 4 capability specs (embedding-model, hybrid-retrieval, multi-stage-retrieval, graph-expansion-production, reranker-port, metadata-filters, context-assembler, retrieval-benchmark). Author ports, cores, adapters; replace Phase 3 graph_expansion stub; ship test_retrieval_benchmark fixture and per-capability regression suite; Wiki/ADR/CURRENT.md updates; archive both changes; flip plan rows 70-78 to [x].",
+    "openspec_change": "implement-phase-4-retrieval",
+    "status": "reviewing"
+  },
+  "verification": {
+    "passed": [
+      "harness.py check: Configuration PASS, OpenSpec project schema PASS, wiki-validate ok=true (43 docs, 0 issues), license-gate passed=true; openspec validate --all --strict: 38 passed 0 failed; artifact_manifest verify: PASS (568 files); license-gate passed; python -m unittest tests.{platform_phase1,platform_phase2,content_address_cross_branch,canonical_roundtrip,platform_phase3,graph_50k,platform_phase4,retrieval_benchmark}: 197 OK; 8 Phase 4 specs in openspec/specs/; CURRENT.md updated; plan tasks 70-78 [x]; both changes archived under openspec/changes/archive/2026-10-05-{prepare,implement}-phase-4-retrieval."
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

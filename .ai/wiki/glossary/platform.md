@@ -219,3 +219,201 @@ subprocesses and cache records carry explicit provenance. See the
 [source interface](../interfaces/source-adapters.md), [chunker](../interfaces/chunker.md)
 and [enrichment](../interfaces/enrichment.md) contracts. Persistent storage and retrieval
 remain future phases.
+
+## Phase 3 runtime store
+
+The [runtime store module](../modules/runtime-store.md) fills in the Phase 1 placeholder
+runtime cache: per-shard content-addressed cache, version stamp, write-ahead log,
+per-project advisory file lock. The default backend uses SQLite (stdlib `sqlite3`)
+through [`RuntimeStorePort`](../interfaces/runtime-store.md); PostgreSQL is opt-in for
+the enterprise-scale profile (gated on `storage.backend: postgres` plus a `LicenseGate`
+pass for the `psycopg` Apache-2.0 driver). Phase 3 also adds the three indexes
+(`SparseIndexPort`, `DenseIndexPort`, `FullTextIndexPort`), the sharded graph
+(`GraphPort`), the `GraphExpansion` preview port, the `ProvenancePort` state machine
+and the `FreshnessTrackerPort` snapshot.
+
+## Phase 3 sharded graph
+
+The [graph module](../modules/graph.md) implements the canonical knowledge graph with
+hash-prefix shards (§10.1, §16, §17). Every entity body is stored by its SHA-256
+content address under `objects/<prefix>/<hash>.json` so identical entity bodies across
+branches share one canonical artefact. The 50 000-entity property test
+(`tests/test_graph_50k.py`) asserts both the shard count distribution and the
+32 MiB per-file cap. ANN vectors and the canonical knowledge graph are kept strictly
+separate (§17 invariant).
+
+## Phase 4 retrieval pipeline
+
+The [retrieval module](../modules/retrieval.md) composes the Phase 3 storage layer and
+the §25 embedding model into the seven-stage §29 multi-stage pipeline. The pipeline
+implements the §33 retrieval-first escalation policy (exact → sparse → dense → hybrid →
+graph → hierarchy → rerank → bounded context). Per-stage telemetry
+(`candidatesIn`, `candidatesOut`, `durationMs`, `budgetExhausted`) feeds the §49
+evaluation fixture.
+
+## EmbeddingModelPort
+
+The `EmbeddingModelPort` is the §25 abstract embedding port. It exposes a
+multilingual, CPU-capable, replaceable, commercially-licensed embedding backend
+through `embed`, `embed_batch`, `dimension`, `model_version`, `license_id` and
+`stats` operations. The default adapter is the stdlib-only
+`HashingEmbeddingAdapter`; the opt-in adapter is the
+`MultilingualSentenceTransformerEmbeddingModel` (Apache-2.0 weights + runtime).
+See [ADR 0009](../adr/0009-embedding-model-selection.md).
+
+## HybridRetrievalPort
+
+The `HybridRetrievalPort` is the §27 abstract hybrid retrieval port. It composes
+the dense ANN, the sparse BM25 and the exact-identifier lookup behind a single
+ranked candidate set. The `RetrievalHit` value type is the lingua-franca record
+exchanged across every Phase 4 stage. The default fusion strategy is
+reciprocal rank fusion (RRF) with `k=60`; the linear weighted sum is the
+documented fallback. See [ADR 0010](../adr/0010-hybrid-fusion-strategy.md).
+
+## RerankerPort
+
+The `RerankerPort` is the §30 abstract pluggable reranker port. The cross-encoder
+(`cross-encoder/ms-marco-MiniLM-L-6-v2`, MIT) is the documented default; the
+BM25-light (Apache-2.0) is the stdlib fallback; the ColBERT-style late-interaction
+reranker (MIT) is the optional opt-in. Rerankers operate on bounded candidate
+sets only; the multi-stage pipeline enforces a `rerankBudget` cap.
+
+## MetadataFilter / MetadataFilterPort
+
+The `MetadataFilter` value type and the `MetadataFilterPort` port enforce the §24
+temporal validity rule (`validFrom <= queryDate AND (validTo IS NULL OR
+validTo >= queryDate)`), the project-version filter, the §56
+security-classification allow-list and the language / domain / module /
+requirement filters. The drop reasons appear in the documented evaluation order
+(`temporal_invalid`, `version_mismatch`, `security_denied`, `language_mismatch`,
+`domain_mismatch`, `module_mismatch`, `requirement_mismatch`).
+
+## ContextAssemblerPort
+
+The `ContextAssemblerPort` is the §32 abstract port that builds a bounded
+context bundle from the multi-stage retrieval pipeline output. The bundle
+deduplicates overlapping evidence, enforces the `ContextBudget`, preserves
+`Citation` records, prefers authoritative evidence, surfaces conflicts and
+flags uncertain hits. The bundle is the language-passport contract between
+the Phase 4 retrieval pipeline and the Phase 5 orchestrator / Phase 6 MCP
+server.
+
+## Retrieval benchmark fixture
+
+The `retrieval-benchmark` capability is the §49 evaluation fixture contract.
+The fixture exercises the multi-stage pipeline against a deterministic 1 000+-
+chunk / 100+-entity corpus with 100+ labelled queries, recording recall,
+precision, MRR, latency, cache reuse, branch-switch hydration time,
+stale-knowledge detection and plugin setup success rate. The fixture contract
+ships as the `tests/test_retrieval_benchmark.py` test module.
+
+## Phase 4 production graph expansion
+
+The Phase 3 `graph-expansion` preview port is closed by the Phase 4
+`ProductionGraphExpansion` adapter (in
+`pi_platform/adapters/runtime/graph_expansion.py`). The production adapter
+walks the Phase 3 `GraphPort` (NOT the ANN graph), enforces `hops`,
+`edge_types` and `budget` parameters and applies the documented default
+edge-type set per §31. The Phase 3 stub
+`BoundedGraphExpansion` remains available for Phase 3 regression tests.
+
+## QueryOrchestrator
+
+The `QueryOrchestratorPort` is the §34 abstract port that selects between
+three escalation levels (L0 direct retrieval, L1 retrieval + small local
+LLM, L2 strong external agent) per the §33 retrieval-first escalation
+policy. The orchestrator composes the Phase 4 `MultiStageRetrievalPort`
+and the Phase 5 `LocalLLMPort` / `TaskContextBuilderPort`. The default
+implementation is `DefaultQueryOrchestrator`; the
+`retrieval-first-violation` counter increments when an L2 bundle is
+emitted without prior retrieval evidence.
+
+## LocalLLMPort
+
+The `LocalLLMPort` is the §35 abstract port that exposes the optional
+local LLM the orchestrator consumes at L1. The default container ships
+with the deterministic `StubLocalLLMAdapter` (Apache-2.0, no new runtime
+dependency) whose `is_available()` returns `False`. Opt-in LLM backends
+(`llama-cpp`, `transformers`, `external-llm`) are registered as
+additional adapters when the corresponding Python package is installed
+AND `project-context.yaml:orchestrator.local_llm.family` is set to the
+family's name.
+
+## TaskContextBuilder
+
+The `TaskContextBuilderPort` is the §52 abstract port that builds the
+bounded ephemeral `TaskContextBundle` the L2 orchestrator emits. The
+bundle aggregates the requirement, the relevant OpenSpec, the Wiki
+sections, the source code, the interfaces, the dependencies, the
+architecture constraints, the graph neighbourhood, the tests and the
+Git diff. The bundle is NOT canonical knowledge; it is an ephemeral
+transport artifact the external agent consumes. The default
+implementation is `DefaultTaskContextBuilder`; the budget truncation
+honours the documented `BUNDLE_SLOT_PRIORITY` (requirement > openSpec >
+tests > source code > interfaces > dependencies > architecture > graph >
+wiki > diff).
+
+## CapabilityDiscovery
+
+The `CapabilityDiscoveryPort` is the §47 abstract port that returns the
+deterministic `CapabilityDescriptor` JSON the Phase 6 MCP
+`describe_capabilities` tool exposes. The descriptor carries
+`serverVersion`, `mcpApiVersion`, `knowledgeSchemaVersion`,
+`okfVersions` and the `features` map (`hybridRetrieval`,
+`graphExpansion`, `okf`, `materialization`, `a2a`, `localLlm`). Skills
+and plugins read the descriptor at startup; they MUST NOT assume
+every deployment exposes every optional feature.
+
+## Phase 5 retrieval-first policy
+
+The `retrieval-first-policy` capability is the §33 escalation policy
+encoded in the orchestrator. The regression contract
+(`tests/test_orchestration_policy.py`) asserts that the orchestrator
+runs the retrieval pipeline first, that the LLM completion is
+requested only at L1, that the `TaskContextBuilder` is invoked only at
+L2 and that the `retrieval_first_violations` counter is `0` for the
+documented compliant query set. The test is TDD-first and exercises the
+real `DefaultQueryOrchestratorAdapter` with a recording
+`MultiStageRetrievalPort`-shaped collaborator.
+
+## Phase 6 agent integration glossary
+
+The Phase 6 surface introduces the following terms:
+
+- **MCP server** — thin adapter over Phase 4 retrieval ports
+  and Phase 5 orchestration ports; exposes 17 §36 tools plus
+  `describe_capabilities`; consults the readiness gate and
+  the trusted approval boundary.
+- **Skill distribution plane** — the
+  `pi_platform.mcp.skill_plane.SkillDistributionPlane`
+  exposing the canonical Agent Skill under the documented
+  URI namespace.
+- **Trusted approval boundary** — the
+  `pi_platform.core.sync.trusted_approval.HmacTrustedApprovalBoundary`
+  signing and verifying approval envelopes scoped to action,
+  repository, change ids and validity window.
+- **Readiness gate** — the
+  `pi_platform.core.sync.readiness.DefaultKnowledgeReadiness`
+  recording the latest `HydrateReport` and `ReconcileReport`
+  and exposing the bounded `ReadinessSnapshot`.
+- **Version compatibility handshake** — the
+  `pi_platform.core.agent_integration.version_compatibility.DefaultVersionCompatibilityPolicy`
+  enforcing the §39 nine-dimension handshake with a typed
+  `VersionIncompatibleError`.
+- **Plugin supply-chain security gate** — the
+  `pi_platform.core.agent_integration.supply_chain_gate.PluginSupplyChainSecurityGate`
+  enforcing the §48 supply-chain controls.
+- **Agent integration adapter** — the documented 8-operation
+  contract (`detect`, `install`, `configure_mcp`,
+  `install_skill`, `verify_compatibility`, `health_check`,
+  `uninstall`, `describe`); adapters MUST NOT own retrieval
+  or business rules.
+- **Deterministic build runner** — the
+  `pi_platform.adapters.agent_integration.packagers.runner.DeterministicBuildRunner`
+  coordinating the four per-vendor packagers and asserting
+  byte-identical output across two isolated runs.
+- **Release input set** — the
+  `pi_platform.adapters.agent_integration.packagers.codex.ReleaseInputSet`
+  consumed by every packager; the four vendor bundles MUST
+  agree on skill content hash, version, MCP API range,
+  license and server identity.

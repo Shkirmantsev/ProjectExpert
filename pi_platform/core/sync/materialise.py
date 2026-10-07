@@ -25,12 +25,17 @@ from ...core.canonical import (
 )
 from ...core.licensing import LicenseGate
 from ...ports import (
+    ApprovalGrant,
+    ApprovalRejected,
+    ApprovalRequest,
     ApprovalRequired,
     MaterialisePort,
     MaterialiseReport,
     PolicyDecision,
+    TrustedApprovalBoundary,
 )
 from .policy_stub import PolicyDecisionStub
+from .trusted_approval import ClosedTrustedApprovalBoundary, deny_if_denied
 from .wal import WriteAheadLog
 
 __all__ = ["MaterialiseService", "LocalOnlySource"]
@@ -65,11 +70,18 @@ class MaterialiseService(MaterialisePort):
                  filesystem: Optional[LocalFilesystemAdapter] = None,
                  wal: Optional[WriteAheadLog] = None,
                  policy: Optional[PolicyDecisionStub] = None,
-                 license_gate: Optional[LicenseGate] = None):
+                 license_gate: Optional[LicenseGate] = None,
+                 boundary: Optional[TrustedApprovalBoundary] = None):
         self.filesystem = filesystem
         self.wal = wal
         self.policy = policy or PolicyDecisionStub()
         self.license_gate = license_gate
+        # Default to the closed boundary: every write fails closed
+        # until the platform operator wires an HMAC-signed boundary.
+        # Both ``project.materialize_knowledge`` and
+        # ``project.refresh_sources`` MUST fail closed until the
+        # boundary accepts a scoped, signed token.
+        self.boundary = boundary or ClosedTrustedApprovalBoundary()
 
     # ------------------------------------------------------------------
     # public API
@@ -85,12 +97,24 @@ class MaterialiseService(MaterialisePort):
         wal = self.wal or WriteAheadLog(cache_root)
         changes = tuple(changes or ())
 
+        # Trusted write boundary — must reject DENY unconditionally
+        # and require a boundary-verified token for REQUIRE_APPROVAL.
+        # The prior implementation only checked non-empty token presence
+        # and skipped DENY entirely; the prerequisite fix closes both
+        # gaps (v0.8 §48 supply-chain invariants).
+        deny_if_denied(self.policy, "materialise")
         decision = self.policy.decide("materialise")
-        if decision is PolicyDecision.REQUIRE_APPROVAL and not approval_token:
-            raise ApprovalRequired(
-                "materialise requires an explicit approval_token; the "
-                "default policy decision is REQUIRE_APPROVAL"
+
+        if decision is PolicyDecision.REQUIRE_APPROVAL:
+            grant = self._verify_approval(repo_root, changes, approval_token)
+            log.info(
+                "approval verified: action=materialise repo=%s issuer=%s "
+                "exp=%s",
+                str(repo_root), grant.issuer, grant.not_after,
             )
+
+        durable = [c for c in changes if not _is_local_only(c)]
+        excluded_local = tuple(c.id for c in changes if _is_local_only(c))
 
         durable = [c for c in changes if not _is_local_only(c)]
         excluded_local = tuple(c.id for c in changes if _is_local_only(c))
@@ -131,6 +155,32 @@ class MaterialiseService(MaterialisePort):
     # ------------------------------------------------------------------
     # helpers
     # ------------------------------------------------------------------
+
+    def _verify_approval(self, repo_root: Path,
+                         changes: Iterable[RuntimeChange],
+                         approval_token: Optional[str]
+                         ) -> ApprovalGrant:
+        """Verify the supplied token against the trusted boundary.
+
+        ``raise ApprovalRequired`` when the token is missing for a
+        REQUIRE_APPROVAL action; raise :class:`ApprovalRejected` for
+        any boundary failure (forged signature, wrong action, wrong
+        repository, change-superset mismatch, expired window, missing
+        operator key). ``LOCAL_ONLY`` exclusion still applies: a token
+        that authorises ``change_ids={a,b,c}`` does not permit
+        materialising change ``d`` alongside.
+        """
+        if approval_token is None or approval_token == "":
+            raise ApprovalRequired(
+                "materialise requires an explicit approval_token; the "
+                "default policy decision is REQUIRE_APPROVAL"
+            )
+        request = ApprovalRequest(
+            action="materialise",
+            repo_root=str(repo_root.resolve()),
+            change_ids=tuple(c.id for c in changes),
+        )
+        return self.boundary.verify(request, approval_token)
 
     def _write_durable_changes(self, fs: LocalFilesystemAdapter,
                                changes: Iterable[RuntimeChange]
