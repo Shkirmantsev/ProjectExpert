@@ -8,11 +8,16 @@ dimension. Unavailable dimensions on the client side are skipped,
 never compared; unavailable server dimensions are reported
 upfront so the client can fall back.
 
+The verifier populates the typed error with both sides of the
+handshake — the server-offered range and the client-offered
+value — so the failing payload is unambiguous without parsing
+prose.
+
 Design choices:
 
 * Range comparisons use simple semver MAJOR.MINOR.PATCH tuples.
-* OKF is an identifier set, not a semver range. ``okf_profile_set``
-  is checked for membership of the client's single OKF version.
+* OKF and plugin-distribution-schema are identifier sets; the
+  client's single identifier is checked for membership.
 * The verifier is non-throwing on missing client values where
   the dimension is opt-in; required dimensions raise.
 """
@@ -20,7 +25,7 @@ Design choices:
 from __future__ import annotations
 
 import json
-from typing import Optional
+from typing import Mapping, Optional
 
 from ...ports.agent_integration import (
     ClientCapabilityReport,
@@ -50,78 +55,75 @@ class DefaultVersionCompatibilityPolicy(VersionCompatibilityPolicy):
     def verify(self, client: ClientCapabilityReport) -> None:
         # 1. mcpApiVersion — required.
         if client.mcp_api_version is None:
-            self._raise(
-                "mcpApiVersion", offered=self._range.mcp_api_version.minimum,
-                constraint=f">={self._range.mcp_api_version.minimum} "
-                           f"<{self._range.mcp_api_version.maximum_exclusive}",
+            self._raise_semver(
+                "mcpApiVersion", client_value="",
+                server_range=self._range.mcp_api_version,
             )
         if not self._range.mcp_api_version.contains(client.mcp_api_version):
-            self._raise(
+            self._raise_semver(
                 "mcpApiVersion",
-                offered=client.mcp_api_version,
-                constraint=f">={self._range.mcp_api_version.minimum} "
-                           f"<{self._range.mcp_api_version.maximum_exclusive}",
+                client_value=client.mcp_api_version,
+                server_range=self._range.mcp_api_version,
             )
 
         # 2. platformVersion — required.
         if client.platform_version is None:
-            self._raise(
-                "platformVersion", offered=self._range.platform_version.minimum,
-                constraint=f">={self._range.platform_version.minimum} "
-                           f"<{self._range.platform_version.maximum_exclusive}",
+            self._raise_semver(
+                "platformVersion", client_value="",
+                server_range=self._range.platform_version,
             )
         if not self._range.platform_version.contains(client.platform_version):
-            self._raise(
+            self._raise_semver(
                 "platformVersion",
-                offered=client.platform_version,
-                constraint=f">={self._range.platform_version.minimum} "
-                           f"<{self._range.platform_version.maximum_exclusive}",
+                client_value=client.platform_version,
+                server_range=self._range.platform_version,
             )
 
-        # 3. mcpSdkVersion — optional; skip if absent.
-        if (client.mcp_sdk_version is not None
-                and not self._range.mcp_sdk_version.contains(
-                    client.mcp_sdk_version)):
-            self._raise(
-                "mcpSdkVersion",
-                offered=client.mcp_sdk_version,
-                constraint=f">={self._range.mcp_sdk_version.minimum} "
-                           f"<{self._range.mcp_sdk_version.maximum_exclusive}",
-            )
-
-        # 4. knowledgeSchemaVersion — optional; skip if absent.
+        # 3. knowledgeSchemaVersion — optional; skip if absent.
         if (client.knowledge_schema_version is not None
                 and not self._range.knowledge_schema_version.contains(
                     client.knowledge_schema_version)):
-            self._raise(
+            self._raise_semver(
                 "knowledgeSchemaVersion",
-                offered=client.knowledge_schema_version,
-                constraint=f">={self._range.knowledge_schema_version.minimum} "
-                           f"<{self._range.knowledge_schema_version.maximum_exclusive}",
+                client_value=client.knowledge_schema_version,
+                server_range=self._range.knowledge_schema_version,
             )
 
-        # 5. skillVersion — optional; skip if absent.
+        # 4. skillVersion — optional; skip if absent.
         if (client.skill_version is not None
                 and not self._range.skill_version.contains(
                     client.skill_version)):
-            self._raise(
+            self._raise_semver(
                 "skillVersion",
-                offered=client.skill_version,
-                constraint=f">={self._range.skill_version.minimum} "
-                           f"<{self._range.skill_version.maximum_exclusive}",
+                client_value=client.skill_version,
+                server_range=self._range.skill_version,
             )
 
-        # 6. okfProfileVersion — required to be in the set.
+        # 5. okfProfileVersion — required to be in the set.
         if client.okf_profile_version is None:
-            self._raise(
-                "okfProfileVersion", offered=None,
-                constraint=f"one of {{{','.join(self._range.okf_profile_set)}}}",
+            self._raise_set(
+                "okfProfileVersion", client_value="",
+                server_set=self._range.okf_profile_set,
             )
         if client.okf_profile_version not in self._range.okf_profile_set:
-            self._raise(
+            self._raise_set(
                 "okfProfileVersion",
-                offered=client.okf_profile_version,
-                constraint=f"one of {{{','.join(self._range.okf_profile_set)}}}",
+                client_value=client.okf_profile_version,
+                server_set=self._range.okf_profile_set,
+            )
+
+        # 6. pluginDistributionSchemaVersion — required to be in the set.
+        if client.plugin_distribution_schema_version is None:
+            self._raise_set(
+                "pluginDistributionSchemaVersion", client_value="",
+                server_set=self._range.plugin_distribution_schema,
+            )
+        if (client.plugin_distribution_schema_version
+                not in self._range.plugin_distribution_schema):
+            self._raise_set(
+                "pluginDistributionSchemaVersion",
+                client_value=client.plugin_distribution_schema_version,
+                server_set=self._range.plugin_distribution_schema,
             )
 
         # 7. Unavailable server-side dimensions: report upfront so
@@ -132,21 +134,25 @@ class DefaultVersionCompatibilityPolicy(VersionCompatibilityPolicy):
                  self._range.a2a_adapter_version),
                 ("agent_adapter_version", "agentAdapterVersion",
                  self._range.agent_adapter_version),
+                ("runtime_index_schema_version",
+                 "runtimeIndexSchemaVersion",
+                 self._range.runtime_index_schema_version),
         ):
             if server_range is None:
                 client_value = getattr(client, attr_name)
                 if client_value is not None:
-                    self._raise(
-                        dim_name,
-                        offered=client_value,
-                        constraint="server: unavailable",
+                    raise VersionIncompatibleError(
+                        dimension=dim_name,
+                        server_offered_range="(unavailable)",
+                        client_offered_value=client_value,
+                        applicable_adapter=self._adapter_name,
+                        upgrade_instructions=self.upgrade_hint(dim_name),
                     )
 
     def upgrade_hint(self, dimension: str) -> str:
         adapter_hint = (
             f" consult adapter {self._adapter_name!r}"
-            if self._adapter_name else ""
-        )
+            if self._adapter_name else "")
         hints = {
             "platformVersion":
                 "upgrade the platform package to a compatible release"
@@ -155,9 +161,9 @@ class DefaultVersionCompatibilityPolicy(VersionCompatibilityPolicy):
                 "the client advertises an unsupported product "
                 "tool-schema API; upgrade the client or server to a "
                 "compatible MCP API release",
-            "mcpSdkVersion":
-                "upgrade the MCP Python SDK to the range declared by the "
-                "distribution manifest",
+            "a2aAdapterVersion":
+                "A2A integration is not implemented until Phase 10; "
+                "disable A2A on the client side until then",
             "knowledgeSchemaVersion":
                 "upgrade or downgrade the canonical knowledge schema "
                 "to the range declared by the distribution manifest",
@@ -167,22 +173,43 @@ class DefaultVersionCompatibilityPolicy(VersionCompatibilityPolicy):
             "okfProfileVersion":
                 "switch to an OKF profile in the supported set "
                 "(see distribution manifest)",
-            "a2aAdapterVersion":
-                "A2A integration is not implemented until Phase 10; "
-                "disable A2A on the client side until then",
+            "pluginDistributionSchemaVersion":
+                "switch to a plugin distribution schema in the "
+                "supported set (see distribution manifest)",
             "agentAdapterVersion":
                 "agent adapter contract is not implemented until "
                 "Phase 7+; install a compatible adapter",
+            "runtimeIndexSchemaVersion":
+                "the runtime index schema is not yet implemented; "
+                "disable the runtime index on the client side "
+                "until Phase 7+",
         }
         return hints.get(dimension, "consult the distribution manifest")
 
-    def _raise(self, dimension: str, *,
-               offered: Optional[str],
-               constraint: str) -> None:
+    def _raise_semver(self, dimension: str, *,
+                      client_value: str,
+                      server_range: VersionRange) -> None:
+        server_offered_range = (
+            f">={server_range.minimum} <{server_range.maximum_exclusive}"
+        )
         raise VersionIncompatibleError(
             dimension=dimension,
-            offered_value=offered,
-            client_constraint=constraint,
+            server_offered_range=server_offered_range,
+            client_offered_value=client_value,
+            applicable_adapter=self._adapter_name,
+            upgrade_instructions=self.upgrade_hint(dimension),
+        )
+
+    def _raise_set(self, dimension: str, *,
+                   client_value: str,
+                   server_set: tuple[str, ...]) -> None:
+        server_offered_range = (
+            f"one of {{{','.join(server_set)}}}"
+        )
+        raise VersionIncompatibleError(
+            dimension=dimension,
+            server_offered_range=server_offered_range,
+            client_offered_value=client_value,
             applicable_adapter=self._adapter_name,
             upgrade_instructions=self.upgrade_hint(dimension),
         )
@@ -191,11 +218,12 @@ class DefaultVersionCompatibilityPolicy(VersionCompatibilityPolicy):
         payload = {
             "platformVersion": self._range.platform_version.as_dict(),
             "mcpApiVersion": self._range.mcp_api_version.as_dict(),
-            "mcpSdkVersion": self._range.mcp_sdk_version.as_dict(),
             "knowledgeSchemaVersion":
                 self._range.knowledge_schema_version.as_dict(),
             "skillVersion": self._range.skill_version.as_dict(),
             "okfProfileVersion": list(self._range.okf_profile_set),
+            "pluginDistributionSchemaVersion":
+                list(self._range.plugin_distribution_schema),
             "a2aAdapterVersion": (
                 self._range.a2a_adapter_version.as_dict()
                 if self._range.a2a_adapter_version is not None else None
@@ -203,6 +231,11 @@ class DefaultVersionCompatibilityPolicy(VersionCompatibilityPolicy):
             "agentAdapterVersion": (
                 self._range.agent_adapter_version.as_dict()
                 if self._range.agent_adapter_version is not None else None
+            ),
+            "runtimeIndexSchemaVersion": (
+                self._range.runtime_index_schema_version.as_dict()
+                if self._range.runtime_index_schema_version is not None
+                else None
             ),
         }
         return json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -227,9 +260,6 @@ def policy_from_distribution_manifest(
                 mcp_api_version=_semver_range(
                     str(manifest["mcpApiRange"])
                 ),
-                mcp_sdk_version=_semver_range(
-                    str(manifest["mcpSdkRange"])
-                ),
                 knowledge_schema_version=_semver_range(
                     str(manifest["knowledgeSchemaRange"])
                 ),
@@ -237,6 +267,9 @@ def policy_from_distribution_manifest(
                     str(manifest["skillVersionRange"])
                 ),
                 okf_profile_set=tuple(manifest["okfProfileSet"]),
+                plugin_distribution_schema=tuple(
+                    manifest["pluginDistributionSchemaSet"]
+                ),
                 a2a_adapter_version=(
                     _semver_range(str(manifest["a2aAdapterRange"]))
                     if manifest.get("a2aAdapterRange") else None
@@ -244,6 +277,13 @@ def policy_from_distribution_manifest(
                 agent_adapter_version=(
                     _semver_range(str(manifest["agentAdapterRange"]))
                     if manifest.get("agentAdapterRange") else None
+                ),
+                runtime_index_schema_version=(
+                    _semver_range(
+                        str(manifest["runtimeIndexSchemaVersionRange"])
+                    )
+                    if manifest.get("runtimeIndexSchemaVersionRange")
+                    else None
                 ),
             ),
             adapter_name=adapter_name,

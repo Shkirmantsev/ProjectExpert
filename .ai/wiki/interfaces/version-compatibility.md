@@ -25,30 +25,32 @@ related:
 - `mcpApiVersion` — the product tool-schema API; distinct
   from the MCP SDK package version and the MCP wire
   protocol version.
-- `mcpSdkVersion` — installed MCP Python SDK.
-- `mcpWireProtocolVersion` — negotiated wire protocol.
+- `a2aAdapterVersion` — UNIMPLEMENTED until Phase 10.
 - `knowledgeSchemaVersion` — canonical knowledge schema.
 - `okfProfileVersion` — supported OKF profile versions
   (identifier set, not semver).
 - `skillVersion` — canonical Agent Skill version.
-- `a2aAdapterVersion` — UNIMPLEMENTED until Phase 10.
+- `pluginDistributionSchemaVersion` — release manifest
+  schema identifier (identifier set, not semver).
 - `agentAdapterVersion` — UNIMPLEMENTED until Phase 7+.
+- `runtimeIndexSchemaVersion` — the runtime index schema
+  version (UNIMPLEMENTED until Phase 7+).
 
 ## Semver vs identifier set
 
 Semver `MAJOR.MINOR.PATCH` ranges apply to
-`platformVersion`, `mcpApiVersion`, `mcpSdkVersion`,
+`platformVersion`, `mcpApiVersion`,
 `knowledgeSchemaVersion`, `skillVersion`. The OKF
-profile is an identifier set; clients pick one member
-of the set.
+profile and the plugin-distribution schema are identifier
+sets; clients pick one member of the set.
 
 ## Unavailable dimensions
 
-`a2aAdapterVersion` and `agentAdapterVersion` are
-reported with `available: false` in the
-`CapabilityDescriptor.dimensions` block. The verifier
-SKIPS unavailable dimensions, never compares them
-against invented values.
+`a2aAdapterVersion`, `agentAdapterVersion` and
+`runtimeIndexSchemaVersion` are reported with
+`available: false` in the `CapabilityDescriptor.dimensions`
+block. The verifier SKIPS unavailable dimensions, never
+compares them against invented values.
 
 ## Typed `VersionIncompatibleError`
 
@@ -56,10 +58,12 @@ A failing dimension raises
 `VersionIncompatibleError` carrying:
 
 - `dimension` — the failing dimension name;
-- `offeredValue` — the server / client advertised value;
-- `clientConstraint` — the semver range or identifier set;
-- `applicableAdapter` — the adapter the client configured,
-  or `null`;
+- `serverOfferedRange` — the range the server advertised
+  (e.g. `>=1.3.0 <2.0.0` or `one of {0.2}` or
+  `(unavailable)`);
+- `clientOfferedValue` — the value the client declared;
+- `applicableAdapter` — the adapter the client is configured
+  with, or `null`;
 - `upgradeInstructions` — typed upgrade messaging.
 
 ## Byte-stability

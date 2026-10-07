@@ -64,14 +64,19 @@ for an unchanged deployment.
 
 `mcpApiVersion` is the **product tool-schema API**; it is
 distinct from the MCP SDK package version and the MCP wire
-protocol version. `a2aAdapterVersion` and
-`agentAdapterVersion` are reported unavailable until Phase 10
-and Phase 7+ respectively; the verifier skips unavailable
-dimensions, never compares them against invented values.
+protocol version. `a2aAdapterVersion`,
+`agentAdapterVersion` and `runtimeIndexSchemaVersion` are
+reported unavailable until Phase 10, Phase 7+ and Phase 7+
+respectively; the verifier skips unavailable dimensions,
+never compares them against invented values.
 
 The capability descriptor exposes the same nine dimensions
 through the new `dimensions` block; the legacy short-form
 fields are retained for backward compatibility.
+
+The typed error carries both sides of the handshake —
+`server_offered_range` and `client_offered_value` — so the
+failing payload is unambiguous without parsing prose.
 
 ## Consequences
 

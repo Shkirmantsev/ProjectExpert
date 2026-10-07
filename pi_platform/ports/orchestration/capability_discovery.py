@@ -64,42 +64,37 @@ class DimensionValue:
 class VersionDimensions:
     """Phase 6 prerequisite 5 — honest 9-dimension version block.
 
-    Dimensions:
-        ``platformVersion`` — the package / platform release.
-        ``mcpApiVersion`` — the product tool-schema API exposed by
-            the MCP server (independent of the MCP SDK package
-            version and the MCP wire protocol version).
-        ``mcpSdkVersion`` — the installed MCP Python SDK version.
-        ``mcpWireProtocolVersion`` — the negotiated MCP wire
-            protocol version (when available).
-        ``knowledgeSchemaVersion`` — the canonical knowledge schema.
-        ``okfProfileVersion`` — supported OKF profile versions.
-        ``skillVersion`` — the canonical Agent Skill version.
-        ``a2aAdapterVersion`` — UNIMPLEMENTED until Phase 10.
-        ``agentAdapterVersion`` — UNIMPLEMENTED until Phase 7+.
+    The 9 dimensions mirror the §39 architecture list. Each
+    carries ``value`` (the actual advertised metadata) and
+    ``available`` (False when the dimension is not yet
+    implemented). Unavailable dimensions are reported with
+    ``value=None`` rather than fabricated.
     """
 
     platformVersion: DimensionValue
     mcpApiVersion: DimensionValue
-    mcpSdkVersion: DimensionValue
-    mcpWireProtocolVersion: DimensionValue
+    a2aAdapterVersion: DimensionValue
     knowledgeSchemaVersion: DimensionValue
     okfProfileVersion: DimensionValue
     skillVersion: DimensionValue
-    a2aAdapterVersion: DimensionValue
+    pluginDistributionSchemaVersion: DimensionValue
     agentAdapterVersion: DimensionValue
+    runtimeIndexSchemaVersion: DimensionValue
 
     def as_dict(self) -> dict:
         return {
             "platformVersion": self.platformVersion.as_dict(),
             "mcpApiVersion": self.mcpApiVersion.as_dict(),
-            "mcpSdkVersion": self.mcpSdkVersion.as_dict(),
-            "mcpWireProtocolVersion": self.mcpWireProtocolVersion.as_dict(),
-            "knowledgeSchemaVersion": self.knowledgeSchemaVersion.as_dict(),
+            "a2aAdapterVersion": self.a2aAdapterVersion.as_dict(),
+            "knowledgeSchemaVersion":
+                self.knowledgeSchemaVersion.as_dict(),
             "okfProfileVersion": self.okfProfileVersion.as_dict(),
             "skillVersion": self.skillVersion.as_dict(),
-            "a2aAdapterVersion": self.a2aAdapterVersion.as_dict(),
+            "pluginDistributionSchemaVersion":
+                self.pluginDistributionSchemaVersion.as_dict(),
             "agentAdapterVersion": self.agentAdapterVersion.as_dict(),
+            "runtimeIndexSchemaVersion":
+                self.runtimeIndexSchemaVersion.as_dict(),
         }
 
     @property
@@ -107,10 +102,11 @@ class VersionDimensions:
         return tuple(
             d.name for d in (
                 self.platformVersion, self.mcpApiVersion,
-                self.mcpSdkVersion, self.mcpWireProtocolVersion,
+                self.a2aAdapterVersion,
                 self.knowledgeSchemaVersion, self.okfProfileVersion,
-                self.skillVersion, self.a2aAdapterVersion,
-                self.agentAdapterVersion,
+                self.skillVersion,
+                self.pluginDistributionSchemaVersion,
+                self.agentAdapterVersion, self.runtimeIndexSchemaVersion,
             ) if not d.available
         )
 

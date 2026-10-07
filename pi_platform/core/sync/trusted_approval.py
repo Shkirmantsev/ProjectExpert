@@ -64,15 +64,6 @@ def _b64decode(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + pad)
 
 
-@dataclass(frozen=True)
-class _BoundaryError(Exception):
-    reason: str
-    message: str = ""
-
-    def __str__(self) -> str:  # pragma: no cover - trivial
-        return self.message or self.reason
-
-
 class HmacTrustedApprovalBoundary(TrustedApprovalBoundary):
     """HMAC-SHA-256 trusted approval boundary.
 

@@ -208,10 +208,10 @@ class IntegrationQualityGateTests(unittest.TestCase):
             range_=CompatibilityRange(
                 platform_version=VersionRange("0.8.0", "1.0.0"),
                 mcp_api_version=VersionRange("1.3.0", "2.0.0"),
-                mcp_sdk_version=VersionRange("1.30.0", "2.0.0"),
                 knowledge_schema_version=VersionRange("0.7.0", "1.0.0"),
                 skill_version=VersionRange("1.4.0", "2.0.0"),
                 okf_profile_set=("0.2",),
+                plugin_distribution_schema=("1",),
             ),
         )
         with self.assertRaises(Exception) as cm:
@@ -221,6 +221,7 @@ class IntegrationQualityGateTests(unittest.TestCase):
                 knowledge_schema_version="0.7.0",
                 skill_version="1.4.0",
                 okf_profile_version="0.2",
+                plugin_distribution_schema_version="1",
             ))
         self.assertIn("version-incompatible", str(cm.exception).lower())
 

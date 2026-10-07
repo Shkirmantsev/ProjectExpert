@@ -207,6 +207,15 @@ class KnowledgeReadinessPort(abc.ABC):
     @abc.abstractmethod
     def record_failure(self, reason: str) -> None: ...
 
+    @abc.abstractmethod
+    def begin_refresh(self) -> None:
+        """Mark a refresh as in progress; consumers see
+        ``in_progress=True`` and the gate is NOT ready."""
+
+    @abc.abstractmethod
+    def end_refresh(self) -> None:
+        """Mark the in-progress refresh as complete."""
+
 
 class RuntimeNotReadyError(RuntimeError):
     """Raised by :class:`KnowledgeReadinessPort` consumers (the
