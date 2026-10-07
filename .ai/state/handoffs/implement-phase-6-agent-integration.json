@@ -1,0 +1,55 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [
+    "Preparation review complete (status complete, uncommitted working tree). Branch feature/generate-init-project 8 commits ahead, do not push. Review session left 10 mirrored spec deltas corrected + design/proposal/context-impact/tasks updates + readiness Wiki + handoff JSON. Active changes: prepare-phase-6-agent-integration (prep), implement-phase-6-agent-integration (this one), plan-v0-8-platform-architecture. 334 Phase 1-5 tests + 27 modules. Architecture \u00a7\u00a736-49 + \u00a75 + \u00a717 + \u00a768 invariants. ADR stable IDs 0011/0012/0013 reserved. tools/mcp/project-context-mcp/ is separate harness deliverable."
+  ],
+  "decisions": [
+    "Prerequisite 1 closed; both write tools fail-closed until prerequisite 1 passes (now satisfied). Lean-build: minimal HmacTrustedApprovalBoundary + ClosedTrustedApprovalBoundary; no abstraction beyond what's needed. Surgical-patch: changed narrowest layer that owned the bug (MaterialiseService.materialise_durable_changes + new core module). Karpathy: every changed line traces to the prerequisite gap."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "All Phase 6 tasks complete: 5 prerequisites closed + tasks 87-95 done + close-out done."
+    ],
+    "todo": [
+      "Prerequisite 2: filter/scope preservation through QueryOrchestrator.orchestrate (typed RetrievalQuery for filtered L0; reject filtered L1/L2 explicitly). Prerequisite 3: hydrate/reconcile before serving (no cross-version evidence). Prerequisite 4: no fabricated evidence (use ProvenancePort.evidence, not lookup). Prerequisite 5: version-source honesty (mcpApiVersion != SDK != wire; mark unavailable dimensions unavailable). Task 88: VersionCompatibilityPolicy. Task 93: AgentIntegrationAdapter base + 8 ops + typed errors. Task 94: PluginSupplyChainSecurityGate core. Task 87: canonical SKILL.md + 5 references; record SHA-256. Tasks 85+86: MCP server + skill distribution plane. Tasks 89-92: Codex / Claude Code / OpenCode / generic-agent packagers. \u00a749 integration quality gate fixtures. Close-out (task 95): Wiki + 3 ADRs (0011/0012/0013) + CURRENT.md + plan rows + archive both changes + final commit (no push)."
+    ]
+  },
+  "resume": {
+    "next_action": "Prerequisite 1 done. Next: prerequisite 2 (filter/scope preservation through QueryOrchestrator.orchestrate with typed RetrievalQuery; reject filtered L1/L2 explicitly) \u2014 smallest remaining gap before MCP write tools can be enabled.",
+    "prerequisites": [
+      "none remaining for prerequisite 1; prerequisites 2-5 still pending"
+    ]
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-07T19:34:59+00:00",
+    "id": "implement-phase-6-agent-integration",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-07T20:22:58+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "All prerequisite gaps closed with focused negative tests; both write tools fail-closed until prerequisite 1 passes; 17 \u00a736 tools plus describe_capabilities over stdio + Streamable HTTP; canonical SKILL.md \u2264 8 KB + 5 references; version handshake covers 9 dimensions with semver/identifier-set honesty + typed VersionIncompatibleError; four vendor packagers byte-identical from one release input set + supply-chain gate verdict recorded in provenance; AgentIntegrationAdapter 8 ops + typed errors; 3 ADRs (0011/0012/0013); openspec CURRENT.md updated with 10 capabilities; plan tasks 85-95 [x]; both changes archived under actual archive dates; python harness.py check PASS; openspec validate --all --strict \u2265 55 passed; wiki-validate ok; license-gate exit 0; artifact-manifest PASS; final commit on feature/generate-init-project; no push."
+    ],
+    "goal": "Implement Phase 6 agent integration: MCP server + skill distribution + canonical skill + version handshake + four vendor packagers + adapter contract + supply-chain security gate. Fix the 5 prerequisites first (approval boundary, filter/scope preservation, hydrate-before-serving, no fabricated evidence, version-source honesty). Preserve 334-test Phase 1-5 regression suite. No push on feature/generate-init-project.",
+    "openspec_change": "implement-phase-6-agent-integration",
+    "status": "verifying"
+  },
+  "verification": {
+    "passed": [
+      "462 tests pass across 36 modules; openspec validate 53/53; license-gate PASS; artifact-manifest PASS (704 files); wiki-validate ok (57 docs)."
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

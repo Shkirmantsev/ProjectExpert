@@ -28,11 +28,18 @@ __all__ = [
     "HydrateReport",
     "ReconcilePort",
     "ReconcileReport",
+    "KnowledgeReadinessPort",
+    "ReadinessSnapshot",
+    "RuntimeNotReadyError",
     "MaterialisePort",
     "MaterialiseReport",
     "PolicyDecision",
     "PolicyDecisionPort",
     "ApprovalRequired",
+    "ApprovalRequest",
+    "ApprovalGrant",
+    "ApprovalRejected",
+    "TrustedApprovalBoundary",
     "LicensePolicy",
     "LicenseGateFinding",
     "LicenseGatePort",
@@ -151,6 +158,73 @@ class ReconcilePort(abc.ABC):
 
 
 @dataclass(frozen=True)
+class ReadinessSnapshot:
+    """A bounded snapshot of the runtime readiness state.
+
+    ``consistent`` is True only when the most recent
+    hydrate/reconcile cycle succeeded AND no in-progress refresh
+    is pending. ``current_head`` and ``working_tree_fingerprint``
+    identify the runtime project version the snapshot describes;
+    mismatched heads between snapshot and caller indicate a
+    cross-version evidence attempt that the gate rejects.
+    """
+
+    consistent: bool
+    current_head: str = ""
+    working_tree_fingerprint: str = ""
+    last_hydrate_at: int = 0       # unix seconds
+    last_reconcile_at: int = 0
+    reason: str = ""               # "" when consistent; else short reason
+    in_progress: bool = False      # True while a refresh is mid-flight
+
+
+class KnowledgeReadinessPort(abc.ABC):
+    """Phase 6 prerequisite 3 — readiness gate.
+
+    The port is the trusted single source of truth the MCP server
+    (and any other tool serving project knowledge) consults before
+    returning evidence. ``is_ready()`` returns True only when the
+    latest hydrate / reconcile cycle is consistent. Any
+    inconsistent snapshot MUST be rejected with a typed
+    :class:`RuntimeNotReadyError` rather than served, even
+    partially.
+    """
+
+    @abc.abstractmethod
+    def snapshot(self) -> ReadinessSnapshot: ...
+
+    @abc.abstractmethod
+    def is_ready(self) -> bool: ...
+
+    @abc.abstractmethod
+    def record_hydrate(self, report: HydrateReport) -> None: ...
+
+    @abc.abstractmethod
+    def record_reconcile(self, report: ReconcileReport,
+                         *, current_head: str,
+                         working_tree_fingerprint: str) -> None: ...
+
+    @abc.abstractmethod
+    def record_failure(self, reason: str) -> None: ...
+
+
+class RuntimeNotReadyError(RuntimeError):
+    """Raised by :class:`KnowledgeReadinessPort` consumers (the
+    Phase 6 MCP server) when project knowledge cannot be served
+    because the runtime is not in a consistent state.
+    """
+
+    def __init__(self, snapshot: ReadinessSnapshot):
+        self.snapshot = snapshot
+        reason = snapshot.reason or "runtime not ready"
+        super().__init__(
+            f"runtime not ready: {reason} "
+            f"(consistent={snapshot.consistent} "
+            f"in_progress={snapshot.in_progress})"
+        )
+
+
+@dataclass(frozen=True)
 class MaterialiseReport:
     diff_files: tuple
     excluded_local_only: tuple
@@ -186,6 +260,94 @@ class PolicyDecisionPort(abc.ABC):
 class ApprovalRequired(RuntimeError):
     """Raised by :class:`MaterialisePort` when an approval token is
     required but not supplied."""
+
+
+# ---------------------------------------------------------------------------
+# Trusted approval boundary
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ApprovalRequest:
+    """Scoped, time-bounded approval envelope presented for verification.
+
+    The boundary uses this envelope to decide whether a caller-supplied
+    token authorizes a specific write action against a specific
+    repository and an explicit (possibly empty) set of change ids.
+    """
+
+    action: str           # "materialise" | "refresh_sources" | …
+    repo_root: str        # canonical path of the target repository
+    change_ids: tuple = ()  # allowed change ids; subset relation vs grant
+    issued_at: int = 0    # unix seconds; 0 ⇒ unset (boundary stamps)
+
+
+@dataclass(frozen=True)
+class ApprovalGrant:
+    """A verified, scope-matched approval token."""
+
+    request: ApprovalRequest
+    not_before: int  # unix seconds
+    not_after: int   # unix seconds
+    issuer: str      # operator id that issued the grant
+
+
+class ApprovalRejected(RuntimeError):
+    """Raised when an approval token is rejected by the boundary.
+
+    The :attr:`reason` attribute holds one of the documented reason
+    codes (see :class:`TrustedApprovalBoundary`).
+    """
+
+    REASONS = (
+        "missing_token",
+        "policy_denied",
+        "forged_signature",
+        "expired",
+        "not_yet_valid",
+        "wrong_action",
+        "wrong_repository",
+        "change_superset_mismatch",
+        "malformed_token",
+        "no_issuer_key",
+    )
+
+    def __init__(self, reason: str, message: str = ""):
+        if reason not in self.REASONS:
+            raise ValueError(
+                f"unknown ApprovalRejected reason: {reason!r}; "
+                f"allowed: {self.REASONS!r}"
+            )
+        super().__init__(message or reason)
+        self.reason = reason
+
+
+class TrustedApprovalBoundary(abc.ABC):
+    """Issue and verify scoped, time-bounded approval tokens.
+
+    The boundary owns an operator signing key. Tokens are issued by
+    the boundary itself (or by an external operator process that
+    holds the key) — never caller-supplied. Every verify() call
+    enforces:
+
+    * authenticity (HMAC signature against the operator key);
+    * action match (token bound to the requested action);
+    * repository match (token bound to the canonical repo path);
+    * change-id scope (token change ids must be a subset of grant);
+    * validity window (issued ≤ now < expires);
+    * policy :data:`PolicyDecision.DENY` rejection.
+
+    Any violation raises :class:`ApprovalRejected` with a typed
+    reason. The boundary fails closed by default.
+    """
+
+    @abc.abstractmethod
+    def issue(self, request: ApprovalRequest, *, ttl_seconds: int = 300,
+              issuer: str = "operator") -> str: ...
+
+    @abc.abstractmethod
+    def verify(self, request: ApprovalRequest, token: Optional[str]
+               ) -> ApprovalGrant: ...
 
 
 # ---------------------------------------------------------------------------

@@ -3,12 +3,12 @@ id: architecture.platform-overview
 title: Platform Architecture Overview
 kind: architecture
 status: active
-summary: High-level boundaries, runtime flows, control plane and data plane responsibilities of the v0.8 Project Intelligence Platform; describes the Phase 1 implementation and the boundary between this implementation project and the runtime data it operates on.
+summary: High-level boundaries, runtime flows, control plane and data plane responsibilities of the v0.8 Project Intelligence Platform; describes the Phase 1–5 implementation and the boundary between this implementation project and the runtime data it operates on.
 sourceRefs:
   - project-intelligence-platform-architecture-v0.8.md
   - openspec/changes/plan-v0-8-platform-architecture/proposal.md
   - openspec/changes/plan-v0-8-platform-architecture/design.md
-  - openspec/changes/implement-phase-1-foundation/design.md
+  - openspec/changes/archive/2026-10-04-implement-phase-1-foundation/design.md
   - pi_platform/core/canonical/value_types.py
   - pi_platform/core/sync/hydrate.py
   - pi_platform/core/licensing/policy.py
@@ -39,8 +39,8 @@ Project Intelligence Platform. It contains:
   hexagonal/ports-and-adapters + micro-kernel extension style);
 - the container build files (`Containerfile`, `docker-compose.yml`,
   launcher scripts) and the OCI distribution artefacts;
-- the default control-plane UI assets, the plugin generation
-  pipelines and the canonical Agent Skill;
+- planned control-plane UI, plugin generation pipelines and canonical Agent
+  Skill (future phases; scaffolding is not a released integration);
 - the OpenSpec governance of the platform
   (`openspec/specs/` for accepted behaviour, `openspec/changes/`
   for proposed behaviour);
@@ -219,9 +219,9 @@ Summary of phases:
 | 1 | Foundation | Phase 0 | complete (this change) |
 | 2 | Ingestion (parsers, content addressing) | Phase 1 | complete |
 | 3 | Storage (runtime DB, sharded graph) | Phase 2 | complete |
-| 4 | Retrieval (hybrid, multi-stage, reranking) | Phase 3 | planned |
-| 5 | Orchestration (query, local LLM, task context) | Phase 4 | planned |
-| 6 | Agent integration (MCP, skill, adapters) | Phase 5 | planned |
+| 4 | Retrieval (hybrid, multi-stage, reranking) | Phase 3 | complete |
+| 5 | Orchestration (query, local LLM, task context) | Phase 4 | complete |
+| 6 | Agent integration (MCP, skill, adapters) | Phase 5 | complete |
 | 7 | Control plane (registry, hooks, capabilities, secrets) | Phase 6 | planned |
 | 8 | Security (enterprise boundary) | Phase 7 | planned |
 | 9 | Distribution (UI, container, OCI, one-click) | Phase 8 | planned |
@@ -303,3 +303,46 @@ default container, and the deterministic
 reports the §47 descriptor. The §33 retrieval-first escalation policy is
 encoded in the orchestrator and asserted by the
 `tests/test_orchestration_policy.py` regression test.
+
+## Phase 6 agent integration
+
+The Phase 6 agent integration layer ships:
+
+- the [`McpServer`](../modules/mcp-server.md) (17 §36 tools +
+  `describe_capabilities`) composing the Phase 4 retrieval ports
+  and the Phase 5 orchestration ports;
+- the [`SkillDistributionPlane`](../interfaces/skill-distribution.md)
+  exposing the canonical Agent Skill under the documented URI
+  namespace;
+- the [`DefaultVersionCompatibilityPolicy`](../interfaces/version-compatibility.md)
+  enforcing the §39 nine-dimension handshake with a typed
+  `VersionIncompatibleError`;
+- the [`PluginSupplyChainSecurityGate`](../interfaces/plugin-supply-chain.md)
+  enforcing the §48 supply-chain controls; the verdict is
+  recorded in every bundle's `PROVENANCE.json`;
+- the [`TrustedApprovalBoundary`](../interfaces/trusted-approval-boundary.md)
+  (HMAC-SHA-256) replacing the prior stub that accepted any
+  non-empty token; both write tools fail closed until an
+  operator key is configured;
+- the [`KnowledgeReadinessPort`](../interfaces/runtime-readiness.md)
+  gate that every MCP tool consults before serving evidence;
+- four per-vendor
+  [`plugin packagers`](../modules/plugin-packagers.md) (Codex /
+  Claude Code / OpenCode / generic agent) driven by one
+  `ReleaseInputSet` and coordinated by `DeterministicBuildRunner`;
+- the canonical [`AgentIntegrationAdapter`](../interfaces/agent-adapter-contract.md)
+  base exposing the documented eight operations and the typed
+  error vocabulary;
+- the [`AgentIntegration` core](../modules/agent-integration.md)
+  carrying the version handshake, supply-chain gate, adapter
+  base and trusted-approval boundary.
+
+The §49 integration quality gate fixtures
+(`tests/test_phase_6_quality_gates.py`) exercise the documented
+representative agent scenarios against the deterministic Phase 6
+surface. Live agent evals remain optional and are reported
+separately. Three ADRs (`0011-agent-integration-packaging`,
+`0012-version-compatibility-handshake`,
+`0013-plugin-supply-chain-security`) record the Phase 6
+decisions. The harness MCP server
+(`tools/mcp/project-context-mcp/`) remains a separate deliverable.

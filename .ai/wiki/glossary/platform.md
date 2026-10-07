@@ -375,3 +375,45 @@ L2 and that the `retrieval_first_violations` counter is `0` for the
 documented compliant query set. The test is TDD-first and exercises the
 real `DefaultQueryOrchestratorAdapter` with a recording
 `MultiStageRetrievalPort`-shaped collaborator.
+
+## Phase 6 agent integration glossary
+
+The Phase 6 surface introduces the following terms:
+
+- **MCP server** — thin adapter over Phase 4 retrieval ports
+  and Phase 5 orchestration ports; exposes 17 §36 tools plus
+  `describe_capabilities`; consults the readiness gate and
+  the trusted approval boundary.
+- **Skill distribution plane** — the
+  `pi_platform.mcp.skill_plane.SkillDistributionPlane`
+  exposing the canonical Agent Skill under the documented
+  URI namespace.
+- **Trusted approval boundary** — the
+  `pi_platform.core.sync.trusted_approval.HmacTrustedApprovalBoundary`
+  signing and verifying approval envelopes scoped to action,
+  repository, change ids and validity window.
+- **Readiness gate** — the
+  `pi_platform.core.sync.readiness.DefaultKnowledgeReadiness`
+  recording the latest `HydrateReport` and `ReconcileReport`
+  and exposing the bounded `ReadinessSnapshot`.
+- **Version compatibility handshake** — the
+  `pi_platform.core.agent_integration.version_compatibility.DefaultVersionCompatibilityPolicy`
+  enforcing the §39 nine-dimension handshake with a typed
+  `VersionIncompatibleError`.
+- **Plugin supply-chain security gate** — the
+  `pi_platform.core.agent_integration.supply_chain_gate.PluginSupplyChainSecurityGate`
+  enforcing the §48 supply-chain controls.
+- **Agent integration adapter** — the documented 8-operation
+  contract (`detect`, `install`, `configure_mcp`,
+  `install_skill`, `verify_compatibility`, `health_check`,
+  `uninstall`, `describe`); adapters MUST NOT own retrieval
+  or business rules.
+- **Deterministic build runner** — the
+  `pi_platform.adapters.agent_integration.packagers.runner.DeterministicBuildRunner`
+  coordinating the four per-vendor packagers and asserting
+  byte-identical output across two isolated runs.
+- **Release input set** — the
+  `pi_platform.adapters.agent_integration.packagers.codex.ReleaseInputSet`
+  consumed by every packager; the four vendor bundles MUST
+  agree on skill content hash, version, MCP API range,
+  license and server identity.

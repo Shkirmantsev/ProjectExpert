@@ -22,9 +22,11 @@ from __future__ import annotations
 
 from typing import Mapping, Optional
 
+from pi_platform.core.canonical.value_types import ProjectVersion
 from pi_platform.ports.orchestration.local_llm import LocalLLMPort
 from pi_platform.ports.orchestration.query_orchestrator import (
     EscalationCapError,
+    FilteredEscalationNotSupportedError,
     OrchestrationLevel,
     OrchestrationResult,
     QueryOrchestratorError,
@@ -34,6 +36,7 @@ from pi_platform.ports.orchestration.task_context import (
     TaskContextBuilderPort,
     TaskContextBundle,
 )
+from pi_platform.ports.retrieval.metadata_filter import MetadataFilter
 from pi_platform.ports.retrieval.multi_stage_retrieval import (
     MultiStageRetrievalPort,
     RetrievalQuery,
@@ -79,19 +82,36 @@ class DefaultQueryOrchestrator(QueryOrchestratorPort):
     def orchestrate(
         self, query: str, *, level: Optional[int] = None,
         task_context: object = None,
+        filters: Optional[MetadataFilter] = None,
+        project_version: Optional[ProjectVersion] = None,
     ) -> OrchestrationResult:
         target = (
             OrchestrationLevel.from_int(level)
             if level is not None else self._default_level
         )
-        retrieval_result = self._retrieval.retrieve(
-            RetrievalQuery(
-                text=query,
-                top_k=10,
-                contextBudget=max(2000, 0),
-                enableReranking=(target == OrchestrationLevel.L1_RETRIEVAL_PLUS_LLM),
-            ),
+        # Prerequisite 2: filter / scope preservation through
+        # orchestration. L0 preserves the typed filters /
+        # project-version; L1 / L2 reject filtered queries
+        # explicitly until a separately specified extension
+        # preserves them through escalation. Filters that are
+        # bound to the project_version (e.g. validFrom /
+        # validTo) MUST be scoped to a specific project version
+        # for L0.
+        has_filters = filters is not None
+        if has_filters and target is not OrchestrationLevel.L0_DIRECT_RETRIEVAL:
+            raise FilteredEscalationNotSupportedError(
+                level=target, filters=filters,
+                project_version=project_version,
+            )
+        retrieval_query = RetrievalQuery(
+            text=query,
+            top_k=10,
+            contextBudget=max(2000, 0),
+            filters=filters,
+            projectVersion=project_version,
+            enableReranking=(target == OrchestrationLevel.L1_RETRIEVAL_PLUS_LLM),
         )
+        retrieval_result = self._retrieval.retrieve(retrieval_query)
         if target == OrchestrationLevel.L0_DIRECT_RETRIEVAL:
             self._level0_calls += 1
             return OrchestrationResult(

@@ -34,6 +34,17 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Git interface](interfaces/git.md)
 - [Sync interface](interfaces/sync.md)
 - [Licensing interface](interfaces/licensing.md)
+- [Phase 6 MCP server module](modules/mcp-server.md)
+- [Phase 6 agent-integration core module](modules/agent-integration.md)
+- [Phase 6 plugin packagers module](modules/plugin-packagers.md)
+- [MCP server tool contracts](interfaces/mcp-tools.md)
+- [Skill distribution plane contract](interfaces/skill-distribution.md)
+- [Plugin distribution profiles](interfaces/plugin-distribution.md)
+- [Version compatibility handshake contract](interfaces/version-compatibility.md)
+- [Agent integration adapter contract](interfaces/agent-adapter-contract.md)
+- [Plugin supply-chain security gate](interfaces/plugin-supply-chain.md)
+- [Trusted approval boundary contract](interfaces/trusted-approval-boundary.md)
+- [Knowledge readiness gate contract](interfaces/runtime-readiness.md)
 - [Domain glossary](glossary/domain.md)
 - [Platform glossary](glossary/platform.md)
 - [OpenSpec workflow](../../openspec/README.md) — current behavior and proposed changes.
@@ -76,6 +87,16 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Phase 5 local LLM port module map](modules/llm-port.md)
 - [Phase 5 task context builder module map](modules/task-context.md)
 - [CapabilityDiscoveryPort interface](interfaces/capability-discovery.md)
+
+## Phase 6 preparation (proposed)
+
+- [Phase 6 readiness and outstanding gaps](project/phase-6-readiness.md)
+
+## Phase 6 agent integration (accepted)
+
+- [ADR: Phase 6 agent integration packaging](adr/0011-agent-integration-packaging.md)
+- [ADR: Phase 6 version compatibility handshake](adr/0012-version-compatibility-handshake.md)
+- [ADR: Phase 6 plugin supply-chain security](adr/0013-plugin-supply-chain-security.md)
 
 ## Knowledge areas
 

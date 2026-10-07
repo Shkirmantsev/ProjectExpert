@@ -389,7 +389,7 @@ implements exactly the Phase 1 tasks (13-44) defined here.
 
 ## Phase 6 — Agent integration (MCP, skill, adapters, distribution profiles)
 
-- [ ] 85. Implement the MCP server
+- [x] 85. Implement the MCP server
   (`platform.mcp.McpServer`) exposing the semantic tools from §36
   (`project.search`, `project.retrieve_context`,
   `project.get_entity`, `project.get_component`,
@@ -400,40 +400,40 @@ implements exactly the Phase 1 tasks (13-44) defined here.
   `project.get_conflicts`, `project.get_stale_knowledge`,
   `project.build_task_context`, `project.materialize_knowledge`,
   `project.refresh_sources`) and `describe_capabilities`.
-- [ ] 86. Implement skill distribution resources
+- [x] 86. Implement skill distribution resources
   (`project-intelligence://distribution/manifest`,
   `project-intelligence://skills/index`,
   `project-intelligence://skills/<name>/<version>/SKILL.md` and
   referenced files).
-- [ ] 87. Author the canonical Agent Skill at
+- [x] 87. Author the canonical Agent Skill at
   `distribution/skills/project-intelligence/SKILL.md` per §37 with
   progressive disclosure (concise main file + references for MCP
   tools, retrieval policy, versioning, OKF profile, security).
-- [ ] 88. Implement the version-compatibility handshake (§39) for
+- [x] 88. Implement the version-compatibility handshake (§39) for
   MCP API, knowledge schema, OKF profile, agent adapter,
   plugin-distribution schema.
-- [ ] 89. Implement the Codex/ChatGPT plugin packager that emits
+- [x] 89. Implement the Codex/ChatGPT plugin packager that emits
   `dist/codex/plugin.json`, `dist/codex/mcp.json`, the bundled
   skill and assets, and the `.codex-plugin/plugin.json`
   compatibility fallback. Add a smoke test.
-- [ ] 90. Implement the Claude Code plugin packager emitting
+- [x] 90. Implement the Claude Code plugin packager emitting
   `dist/claude-code/.claude-plugin/plugin.json`,
   `dist/claude-code/.mcp.json`, skill, optional commands/agents.
-- [ ] 91. Implement the OpenCode plugin package emitting
+- [x] 91. Implement the OpenCode plugin package emitting
   `dist/opencode/package.json`, `dist/opencode/plugin/*.ts`,
   skill, `config/opencode.example.jsonc`.
-- [ ] 92. Implement the generic agent bundle
+- [x] 92. Implement the generic agent bundle
   (`dist/generic-agent/skills/`, `mcp/`, `AGENTS.example.md`,
   `README.md`).
-- [ ] 93. Implement the agent adapter contract from §46
+- [x] 93. Implement the agent adapter contract from §46
   (`AgentIntegrationAdapter` with `detect`, `install`,
   `configureMcp`, `installSkill`, `verifyCompatibility`,
   `healthCheck`, `uninstall`, `describe`).
-- [ ] 94. Implement the plugin supply-chain security gate
+- [x] 94. Implement the plugin supply-chain security gate
   (pinned version, content hash, SBOM, license/scan, source
   provenance, signature support, no hidden auto-install,
   approval-gated materialise tools).
-- [ ] 95. Update Wiki (new `interfaces/mcp-tools`,
+- [x] 95. Update Wiki (new `interfaces/mcp-tools`,
   `interfaces/skill-distribution`, `interfaces/plugin-distribution`),
   archive the Phase 6 change, update `openspec/CURRENT.md`.
 

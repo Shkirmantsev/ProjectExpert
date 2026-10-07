@@ -1,0 +1,65 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [
+    "openspec/changes/prepare-phase-6-agent-integration",
+    "project-intelligence-platform-architecture-v0.8.md"
+  ],
+  "decisions": [
+    "No product code implemented. Full harness sandbox invocation FAIL due socket denial; affected MCP suite passed on retry with local socket access. No further broad rerun required. Trusted materialisation approval/DENY enforcement and filtered L1/L2 remain explicit prerequisites."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Independent review corrected mirrored contracts and shared design; refreshed Wiki/readiness and implementation prompt; verified links/mirrors/unchecked plan and all applicable test components."
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Review complete; future work begins from docs/handoff/phase-6-implementation-prompt.md.",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-06T21:21:32+00:00",
+    "id": "review-phase-6-preparation",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-06T21:29:24+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Preparation aligns with architecture and observed code; substantive gaps corrected in both changes; Wiki and handoff refreshed; plan tasks 85-95 unchecked; verification outcomes recorded accurately."
+    ],
+    "goal": "Review and correct Phase 6 preparation artifacts without implementation; supersedes preparation authoring for this user-requested review.",
+    "openspec_change": "prepare-phase-6-agent-integration",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "PASS: both strict Phase 6 changes, all-item validation 45 passed 0 failed; Wiki 48 documents 0 issues; license-gate; manifest 712 files; 334 repository tests; affected MCP suite retry 10 tests; mirror/link/unchecked plan checks; diff whitespace."
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": ".ai/wiki/project/phase-6-readiness.md",
+      "sha256": "ddab7552bb8a1733b9073610fa9f2a081f0ec42d969b123d1c69ca5537bf1532"
+    },
+    {
+      "path": "docs/handoff/phase-6-implementation-prompt.md",
+      "sha256": "93e96f9b9b3e3815aea10c0b0e4480d4189f82cf82aba50ed4f646be2e0bae11"
+    },
+    {
+      "path": "openspec/changes/prepare-phase-6-agent-integration/design.md",
+      "sha256": "22fa68b0404a626c9f007d4542047c5831eeb8628fabf863956947aab141ca46"
+    }
+  ]
+}

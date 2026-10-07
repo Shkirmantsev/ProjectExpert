@@ -68,6 +68,9 @@ from pi_platform.core.sync import (  # noqa: E402
     ReconcileService,
     WriteAheadLog,
 )
+from pi_platform.core.sync.trusted_approval import (  # noqa: E402
+    HmacTrustedApprovalBoundary,
+)
 from pi_platform.core.licensing import (  # noqa: E402
     DependencyInventory,
     LicenseGate,
@@ -523,6 +526,10 @@ class MaterialiseTests(unittest.TestCase):
 
     def test_materialise_requires_approval_token(self) -> None:
         from pi_platform.ports import ApprovalRequired
+        # Without an HMAC boundary wired, the service fails closed on
+        # the default closed boundary. This is the prerequisite 1
+        # guarantee: ``project.materialize_knowledge`` MUST fail
+        # closed until the trusted approval boundary is wired.
         service = MaterialiseService()
         with self.assertRaises(ApprovalRequired):
             service.materialise_durable_changes(self.tmp,
@@ -530,9 +537,15 @@ class MaterialiseTests(unittest.TestCase):
                                                 approval_token=None)
 
     def test_materialise_no_changes_is_noop(self) -> None:
-        service = MaterialiseService(filesystem=self.fs)
+        boundary = HmacTrustedApprovalBoundary(key=b"test-key")
+        service = MaterialiseService(filesystem=self.fs, boundary=boundary)
+        from pi_platform.ports import ApprovalRequest
+        token = boundary.issue(
+            ApprovalRequest(action="materialise", repo_root=str(self.tmp)),
+            ttl_seconds=60,
+        )
         report = service.materialise_durable_changes(
-            self.tmp, cache_root=self.cache, approval_token="manual",
+            self.tmp, cache_root=self.cache, approval_token=token,
         )
         self.assertEqual(report.diff_files, ())
         self.assertEqual(report.excluded_local_only, ())
@@ -554,9 +567,18 @@ class MaterialiseTests(unittest.TestCase):
             source=Source(id="src-1", uri="file:///tmp/y.md", family="markdown",
                           contentHash=content_address_bytes(b"y")),
         )
-        service = MaterialiseService(filesystem=self.fs)
+        boundary = HmacTrustedApprovalBoundary(key=b"test-key")
+        service = MaterialiseService(filesystem=self.fs, boundary=boundary)
+        from pi_platform.ports import ApprovalRequest
+        token = boundary.issue(
+            ApprovalRequest(
+                action="materialise", repo_root=str(self.tmp),
+                change_ids=("rc-local", "rc-durable"),
+            ),
+            ttl_seconds=60,
+        )
         report = service.materialise_durable_changes(
-            self.tmp, cache_root=self.cache, approval_token="manual",
+            self.tmp, cache_root=self.cache, approval_token=token,
             changes=[local_change, durable_change],
         )
         self.assertIn("rc-local", report.excluded_local_only)
@@ -595,8 +617,15 @@ class SyncRoundtripTests(unittest.TestCase):
         save_manifest(fs.knowledge_root / "manifests" / "objects-manifest.yaml",
                      manifest_from_shards("objects", [shard]))
         HydrateService().restore_runtime(self.tmp, cache_root=self.cache)
-        report = MaterialiseService(filesystem=fs).materialise_durable_changes(
-            self.tmp, cache_root=self.cache, approval_token="manual"
+        boundary = HmacTrustedApprovalBoundary(key=b"roundtrip-key")
+        service = MaterialiseService(filesystem=fs, boundary=boundary)
+        from pi_platform.ports import ApprovalRequest
+        token = boundary.issue(
+            ApprovalRequest(action="materialise", repo_root=str(self.tmp)),
+            ttl_seconds=60,
+        )
+        report = service.materialise_durable_changes(
+            self.tmp, cache_root=self.cache, approval_token=token,
         )
         self.assertEqual(report.diff_files, ())
 

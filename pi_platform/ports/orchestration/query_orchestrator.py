@@ -17,12 +17,16 @@ import enum
 from dataclasses import dataclass, field
 from typing import Mapping, Optional, Sequence
 
+from pi_platform.core.canonical.value_types import ProjectVersion
+from pi_platform.ports.retrieval.metadata_filter import MetadataFilter
+
 
 __all__ = [
     "OrchestrationLevel",
     "OrchestrationResult",
     "QueryOrchestratorError",
     "QueryOrchestratorPort",
+    "FilteredEscalationNotSupportedError",
 ]
 
 
@@ -51,6 +55,32 @@ class EscalationCapError(QueryOrchestratorError):
     """Raised when the orchestrator is asked to escalate past L2."""
 
 
+class FilteredEscalationNotSupportedError(QueryOrchestratorError):
+    """Phase 6 prerequisite 2: filters + project version are only
+    preserved through the L0 direct-retrieval path. L1 / L2
+    escalation must explicitly reject filtered queries until a
+    separately specified extension preserves those filters
+    through the LLM call or the task-context bundle.
+
+    The error carries the requested level, the active filters and
+    the requested project version (if any) so the caller can
+    re-issue the query with a narrowed filter set or fall back
+    to L0.
+    """
+
+    def __init__(self, *, level: "OrchestrationLevel",
+                 filters: Optional[MetadataFilter],
+                 project_version: Optional[ProjectVersion]):
+        super().__init__(
+            f"filtered escalation not supported for level={int(level)}; "
+            f"filters={filters!r} project_version={project_version!r}; "
+            "use L0 (direct retrieval) for filtered queries"
+        )
+        self.level = level
+        self.filters = filters
+        self.project_version = project_version
+
+
 @dataclass(frozen=True)
 class OrchestrationResult:
     """The orchestrator's per-query output."""
@@ -76,6 +106,8 @@ class QueryOrchestratorPort(abc.ABC):
     def orchestrate(
         self, query: str, *, level: Optional[int] = None,
         task_context: object = None,
+        filters: Optional[MetadataFilter] = None,
+        project_version: Optional[ProjectVersion] = None,
     ) -> OrchestrationResult: ...
 
     @abc.abstractmethod
