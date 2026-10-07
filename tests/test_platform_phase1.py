@@ -509,7 +509,9 @@ class MaterialiseTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.tmp = Path(self.temp.name)
+        root = Path(self.temp.name)
+        # Exercise path normalization even when the OS returns a canonical path.
+        self.tmp = root / ".." / root.name
         self.cache = self.tmp / "cache"
         subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
         subprocess.run(["git", "-C", str(self.tmp), "config", "user.email",
@@ -541,7 +543,7 @@ class MaterialiseTests(unittest.TestCase):
         service = MaterialiseService(filesystem=self.fs, boundary=boundary)
         from pi_platform.ports import ApprovalRequest
         token = boundary.issue(
-            ApprovalRequest(action="materialise", repo_root=str(self.tmp)),
+            ApprovalRequest(action="materialise", repo_root=str(self.tmp.resolve())),
             ttl_seconds=60,
         )
         report = service.materialise_durable_changes(
@@ -572,7 +574,7 @@ class MaterialiseTests(unittest.TestCase):
         from pi_platform.ports import ApprovalRequest
         token = boundary.issue(
             ApprovalRequest(
-                action="materialise", repo_root=str(self.tmp),
+                action="materialise", repo_root=str(self.tmp.resolve()),
                 change_ids=("rc-local", "rc-durable"),
             ),
             ttl_seconds=60,
@@ -592,7 +594,9 @@ class SyncRoundtripTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.tmp = Path(self.temp.name)
+        root = Path(self.temp.name)
+        # Exercise path normalization even when the OS returns a canonical path.
+        self.tmp = root / ".." / root.name
         self.cache = self.tmp / "cache"
         subprocess.run(["git", "init", "-q", str(self.tmp)], check=True)
         subprocess.run(["git", "-C", str(self.tmp), "config", "user.email",
@@ -621,7 +625,7 @@ class SyncRoundtripTests(unittest.TestCase):
         service = MaterialiseService(filesystem=fs, boundary=boundary)
         from pi_platform.ports import ApprovalRequest
         token = boundary.issue(
-            ApprovalRequest(action="materialise", repo_root=str(self.tmp)),
+            ApprovalRequest(action="materialise", repo_root=str(self.tmp.resolve())),
             ttl_seconds=60,
         )
         report = service.materialise_durable_changes(

@@ -1,0 +1,51 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [
+    "Native Windows not available locally; run 37686420040 failed exactly these 3 test cases on both Python versions; no push"
+  ],
+  "decisions": [
+    "Reviewed complete diff: token issuers resolve repository roots, caller paths remain unresolved to exercise normalization, unrelated fixtures and production checks unchanged"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Fixed and committed the remaining Windows approval fixture failures; portable alias reproduction proves all three cases; full harness and diff review passed"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Rerun GitHub Windows checks after publishing the follow-up commit; no push performed",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-07T21:10:42+00:00",
+    "id": "fix-remaining-windows-ci",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-07T21:13:44+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Root causes traced from current remote logs; focused regression and full harness pass; report native Windows verification accurately; no push"
+    ],
+    "goal": "Diagnose and fix the remaining Windows CI failures in GitHub run 37686420040",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "python3 harness.py check PASS: 464 repository tests + 10 MCP tests; strict OpenSpec 53/53 PASS; config/Wiki/session/manifest PASS; focused 92 tests PASS; pre-fix alias reproduction failed in all 3 reported cases"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
