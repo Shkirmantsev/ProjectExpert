@@ -57,8 +57,8 @@ The MCP server surfaces these typed errors as JSON
 - `RuntimeNotReadyError.snapshot.consistent` is `False` when
   the runtime project knowledge is not in a consistent state.
 - `VersionIncompatibleError.dimension` is the failing
-  dimension; `offered_value`, `client_constraint`,
-  `applicable_adapter`, `upgradeInstructions` are populated.
+  dimension; `server_offered_range`, `client_offered_value`,
+  `applicable_adapter`, `upgrade_instructions` are populated.
 - `FilteredEscalationNotSupportedError.level` is the
   requested escalation level; `filters` and
   `project_version` describe the rejected envelope.

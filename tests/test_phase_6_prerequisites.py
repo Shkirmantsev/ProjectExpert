@@ -357,14 +357,22 @@ class VersionDimensionHonestyTests(unittest.TestCase):
         # or any architecture example number.
         self.assertIsNone(descriptor.dimensions.a2aAdapterVersion.value)
 
-    def test_mcp_sdk_version_uses_installed_package_when_available(self):
-        from pi_platform.core.orchestration.capability_discovery import (
-            _resolve_mcp_sdk_version,
+    def test_all_9_dimensions_present_in_descriptor(self):
+        from pi_platform.adapters.orchestration.capability_discovery import (
+            DefaultCapabilityDiscoveryAdapter,
         )
-        version = _resolve_mcp_sdk_version()
-        # Either installed (returns string) or absent (returns None).
-        # Either way the resolver never invents a version.
-        self.assertTrue(version is None or isinstance(version, str))
+        descriptor = DefaultCapabilityDiscoveryAdapter().describe()
+        self.assertIsNotNone(descriptor.dimensions)
+        for dim_name in (
+            "platformVersion", "mcpApiVersion", "a2aAdapterVersion",
+            "knowledgeSchemaVersion", "okfProfileVersion", "skillVersion",
+            "pluginDistributionSchemaVersion", "agentAdapterVersion",
+            "runtimeIndexSchemaVersion",
+        ):
+            self.assertTrue(
+                hasattr(descriptor.dimensions, dim_name),
+                msg=f"missing dimension {dim_name}",
+            )
 
     def test_dimension_serialization_round_trip_is_deterministic(self):
         from pi_platform.adapters.orchestration.capability_discovery import (

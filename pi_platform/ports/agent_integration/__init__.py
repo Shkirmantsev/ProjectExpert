@@ -1,27 +1,31 @@
-"""Phase 6 version-compatibility port (§39 + §47).
+"""Phase 6 §39 / §47 version compatibility port.
 
 The platform tracks nine independently evolving version
 dimensions and exposes a single typed compatibility handshake
 that skills, adapters and plugins call at startup.
 
-Dimensions (the 9 §39 dimensions the platform tracks):
+Dimensions (the 9 §39 dimensions the platform tracks, per the
+v0.8 architecture baseline):
 
 * ``platformVersion`` — package release.
 * ``mcpApiVersion`` — product tool-schema API; independent of
   the MCP SDK package and the MCP wire protocol.
-* ``mcpSdkVersion`` — installed MCP SDK.
-* ``mcpWireProtocolVersion`` — negotiated wire protocol.
+* ``a2aAdapterVersion`` — UNIMPLEMENTED until Phase 10.
 * ``knowledgeSchemaVersion`` — canonical knowledge schema.
 * ``okfProfileVersion`` — supported OKF profile versions.
 * ``skillVersion`` — canonical Agent Skill version.
-* ``a2aAdapterVersion`` — UNIMPLEMENTED until Phase 10.
+* ``pluginDistributionSchemaVersion`` — release manifest
+  schema identifier (not semver).
 * ``agentAdapterVersion`` — UNIMPLEMENTED until Phase 7+.
+* ``runtimeIndexSchemaVersion`` — runtime index schema
+  version (UNIMPLEMENTED until Phase 7+).
 
 Semver-style ranges apply to ``platformVersion``,
-``mcpApiVersion``, ``mcpSdkVersion``, ``knowledgeSchemaVersion``
-and ``skillVersion``. The OKF profile is an identifier set
-(``{"0.2"}``); the remaining dimensions report availability and
-must not be compared with invented values.
+``mcpApiVersion``, ``knowledgeSchemaVersion`` and
+``skillVersion``. The OKF profile and the plugin distribution
+schema are identifier sets / opaque identifiers; the remaining
+dimensions report availability and must not be compared with
+invented values.
 
 This module is intentionally small: policy + verifier + error.
 Adapters and MCP clients reuse it; packagers include it in the
@@ -50,13 +54,13 @@ __all__ = [
 ALL_DIMENSIONS: tuple[str, ...] = (
     "platformVersion",
     "mcpApiVersion",
-    "mcpSdkVersion",
-    "mcpWireProtocolVersion",
+    "a2aAdapterVersion",
     "knowledgeSchemaVersion",
     "okfProfileVersion",
     "skillVersion",
-    "a2aAdapterVersion",
+    "pluginDistributionSchemaVersion",
     "agentAdapterVersion",
+    "runtimeIndexSchemaVersion",
 )
 
 
@@ -97,36 +101,43 @@ class CompatibilityRange:
     """Per-dimension compatibility ranges advertised by the server.
 
     Each ``semver_range`` is the inclusive range the server
-    accepts (e.g. ``>=1.3.0 <2.0.0``). ``okf_profile_set`` is an
-    identifier set. ``unavailable`` dimensions are reported
+    accepts (e.g. ``>=1.3.0 <2.0.0``). ``okf_profile_set`` and
+    ``plugin_distribution_schema`` are identifier sets / opaque
+    identifiers. ``unavailable`` dimensions are reported
     explicitly with ``available=False``; the verifier does not
     compare unavailable dimensions.
     """
 
     platform_version: VersionRange
     mcp_api_version: VersionRange
-    mcp_sdk_version: VersionRange
     knowledge_schema_version: VersionRange
     skill_version: VersionRange
     okf_profile_set: tuple[str, ...]
-    mcp_wire_protocol_version: Optional[str] = None
+    plugin_distribution_schema: tuple[str, ...]
     a2a_adapter_version: Optional[VersionRange] = None
     agent_adapter_version: Optional[VersionRange] = None
+    runtime_index_schema_version: Optional[VersionRange] = None
 
     def __post_init__(self) -> None:
         if not self.okf_profile_set:
             raise ValueError(
                 "okf_profile_set must list at least one supported OKF version"
             )
+        if not self.plugin_distribution_schema:
+            raise ValueError(
+                "plugin_distribution_schema must list at least one "
+                "supported schema identifier"
+            )
 
     def dimension_ranges(self) -> Mapping[str, object]:
         return {
             "platformVersion": self.platform_version,
             "mcpApiVersion": self.mcp_api_version,
-            "mcpSdkVersion": self.mcp_sdk_version,
             "knowledgeSchemaVersion": self.knowledge_schema_version,
             "skillVersion": self.skill_version,
             "okfProfileVersion": self.okf_profile_set,
+            "pluginDistributionSchemaVersion":
+                self.plugin_distribution_schema,
         }
 
 
@@ -141,13 +152,13 @@ class ClientCapabilityReport:
 
     platform_version: Optional[str] = None
     mcp_api_version: Optional[str] = None
-    mcp_sdk_version: Optional[str] = None
-    mcp_wire_protocol_version: Optional[str] = None
+    a2a_adapter_version: Optional[str] = None
     knowledge_schema_version: Optional[str] = None
     okf_profile_version: Optional[str] = None
     skill_version: Optional[str] = None
-    a2a_adapter_version: Optional[str] = None
+    plugin_distribution_schema_version: Optional[str] = None
     agent_adapter_version: Optional[str] = None
+    runtime_index_schema_version: Optional[str] = None
 
 
 class VersionCompatibilityError(RuntimeError):
@@ -157,28 +168,34 @@ class VersionCompatibilityError(RuntimeError):
 class VersionIncompatibleError(RuntimeError):
     """Typed error returned to clients when a dimension fails.
 
-    The error carries the failed ``dimension`` name, the
-    ``offered_value`` the server advertised, the
-    ``client_constraint`` the client advertised (a semver range or
-    an OKF identifier set), the applicable ``adapter`` family (if
-    any), and ``upgrade_instructions`` the client can follow.
+    Field semantics (mirroring the architecture §39 payload):
+    * ``dimension`` — the failing dimension name.
+    * ``server_offered_range`` — the range the SERVER advertised
+      for that dimension (e.g. ``">=1.3.0 <2.0.0"``); the empty
+      string when the server does not yet expose the dimension.
+    * ``client_offered_value`` — the value the CLIENT advertised
+      for that dimension (single semver / identifier); the empty
+      string when the client omitted it.
+    * ``applicable_adapter`` — the adapter the client is
+      configured with, or ``None``.
+    * ``upgrade_instructions`` — typed upgrade messaging.
     """
 
     def __init__(self, *,
                  dimension: str,
-                 offered_value: Optional[str],
-                 client_constraint: str,
+                 server_offered_range: str,
+                 client_offered_value: str,
                  applicable_adapter: Optional[str],
                  upgrade_instructions: str):
         self.dimension = dimension
-        self.offered_value = offered_value
-        self.client_constraint = client_constraint
+        self.server_offered_range = server_offered_range
+        self.client_offered_value = client_offered_value
         self.applicable_adapter = applicable_adapter
         self.upgrade_instructions = upgrade_instructions
         super().__init__(
             f"version-incompatible: dimension={dimension} "
-            f"offered={offered_value!r} "
-            f"client_constraint={client_constraint!r} "
+            f"server_offered_range={server_offered_range!r} "
+            f"client_offered_value={client_offered_value!r} "
             f"applicable_adapter={applicable_adapter!r}; "
             f"{upgrade_instructions}"
         )

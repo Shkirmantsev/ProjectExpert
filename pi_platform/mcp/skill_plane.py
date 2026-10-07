@@ -55,9 +55,9 @@ class _DistributionManifest:
     skill: Mapping[str, str] = field(default_factory=dict)
     okf: Mapping[str, Sequence[str]] = field(default_factory=dict)
     agentAdapters: Mapping[str, str] = field(default_factory=dict)
-    mcpWireProtocolVersion: Optional[str] = None
     a2aAdapterVersion: Optional[str] = None
     agentAdapterVersion: Optional[str] = None
+    runtimeIndexSchemaVersion: Optional[str] = None
 
     def as_dict(self) -> dict:
         out = {
@@ -71,12 +71,13 @@ class _DistributionManifest:
             },
             "agentAdapters": dict(self.agentAdapters),
         }
-        if self.mcpWireProtocolVersion is not None:
-            out["mcpWireProtocolVersion"] = self.mcpWireProtocolVersion
         if self.a2aAdapterVersion is not None:
             out["a2aAdapterVersion"] = self.a2aAdapterVersion
         if self.agentAdapterVersion is not None:
             out["agentAdapterVersion"] = self.agentAdapterVersion
+        if self.runtimeIndexSchemaVersion is not None:
+            out["runtimeIndexSchemaVersion"] = (
+                self.runtimeIndexSchemaVersion)
         return out
 
 
@@ -103,9 +104,9 @@ class SkillDistributionPlane:
                  mcp_api_version: str = "1.3.0",
                  knowledge_schema_version: str = "0.7.0",
                  agent_adapters: Optional[Mapping[str, str]] = None,
-                 mcp_wire_protocol_version: Optional[str] = None,
                  a2a_adapter_version: Optional[str] = None,
-                 agent_adapter_version: Optional[str] = None):
+                 agent_adapter_version: Optional[str] = None,
+                 runtime_index_schema_version: Optional[str] = None):
         self._skills_root = Path(skills_root)
         if not self._skills_root.is_dir():
             raise SkillDistributionError(
@@ -115,9 +116,10 @@ class SkillDistributionPlane:
         self._mcp_api_version = mcp_api_version
         self._knowledge_schema_version = knowledge_schema_version
         self._agent_adapters = dict(agent_adapters or {})
-        self._mcp_wire_protocol_version = mcp_wire_protocol_version
         self._a2a_adapter_version = a2a_adapter_version
         self._agent_adapter_version = agent_adapter_version
+        self._runtime_index_schema_version = (
+            runtime_index_schema_version)
         self._manifest = self._build_manifest()
 
     @property
@@ -168,9 +170,9 @@ class SkillDistributionPlane:
                 },
             okf={"supported": ["0.2"]},
             agentAdapters=self._agent_adapters,
-            mcpWireProtocolVersion=self._mcp_wire_protocol_version,
             a2aAdapterVersion=self._a2a_adapter_version,
             agentAdapterVersion=self._agent_adapter_version,
+            runtimeIndexSchemaVersion=self._runtime_index_schema_version,
         )
 
     def list_resources(self) -> tuple[str, ...]:

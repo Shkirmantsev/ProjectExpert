@@ -27,7 +27,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from importlib import metadata
 from typing import Mapping, Optional
 
 from pi_platform.ports.orchestration.capability_discovery import (
@@ -62,18 +61,10 @@ DEFAULT_OKF_VERSIONS: tuple[str, ...] = ("0.2",)
 # ``a2aAdapterVersion``; Phase 7+ will populate
 # ``agentAdapterVersion``.
 DEFAULT_SKILL_VERSION: str | None = None  # populated by packagers
-DEFAULT_MCP_SDK_VERSION: str | None = None
-DEFAULT_MCP_WIRE_PROTOCOL_VERSION: str | None = None
 DEFAULT_PLATFORM_VERSION: str | None = None
 DEFAULT_A2A_ADAPTER_VERSION: str | None = None
 DEFAULT_AGENT_ADAPTER_VERSION: str | None = None
-
-
-def _resolve_mcp_sdk_version() -> Optional[str]:
-    try:
-        return metadata.version("mcp")
-    except metadata.PackageNotFoundError:
-        return None
+DEFAULT_RUNTIME_INDEX_SCHEMA_VERSION: str | None = None
 
 
 def _build_dimensions(
@@ -83,8 +74,8 @@ def _build_dimensions(
     knowledge_schema_version: str,
     okf_versions: tuple[str, ...],
     skill_version: Optional[str],
+    plugin_distribution_schema: tuple[str, ...] = ("1",),
 ) -> VersionDimensions:
-    sdk = _resolve_mcp_sdk_version()
     return VersionDimensions(
         platformVersion=DimensionValue(
             name="platformVersion", value=platform_version,
@@ -93,13 +84,10 @@ def _build_dimensions(
         mcpApiVersion=DimensionValue(
             name="mcpApiVersion", value=mcp_api_version, available=True,
         ),
-        mcpSdkVersion=DimensionValue(
-            name="mcpSdkVersion", value=sdk, available=sdk is not None,
-        ),
-        mcpWireProtocolVersion=DimensionValue(
-            name="mcpWireProtocolVersion",
-            value=DEFAULT_MCP_WIRE_PROTOCOL_VERSION,
-            available=DEFAULT_MCP_WIRE_PROTOCOL_VERSION is not None,
+        a2aAdapterVersion=DimensionValue(
+            name="a2aAdapterVersion",
+            value=DEFAULT_A2A_ADAPTER_VERSION,
+            available=False,  # Phase 10 not yet implemented
         ),
         knowledgeSchemaVersion=DimensionValue(
             name="knowledgeSchemaVersion",
@@ -114,14 +102,19 @@ def _build_dimensions(
             name="skillVersion", value=skill_version,
             available=skill_version is not None,
         ),
-        a2aAdapterVersion=DimensionValue(
-            name="a2aAdapterVersion",
-            value=DEFAULT_A2A_ADAPTER_VERSION,
-            available=False,  # Phase 10 not yet implemented
+        pluginDistributionSchemaVersion=DimensionValue(
+            name="pluginDistributionSchemaVersion",
+            value=",".join(plugin_distribution_schema),
+            available=bool(plugin_distribution_schema),
         ),
         agentAdapterVersion=DimensionValue(
             name="agentAdapterVersion",
             value=DEFAULT_AGENT_ADAPTER_VERSION,
+            available=False,  # Phase 7+ not yet implemented
+        ),
+        runtimeIndexSchemaVersion=DimensionValue(
+            name="runtimeIndexSchemaVersion",
+            value=DEFAULT_RUNTIME_INDEX_SCHEMA_VERSION,
             available=False,  # Phase 7+ not yet implemented
         ),
     )
