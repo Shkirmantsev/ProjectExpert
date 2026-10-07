@@ -85,8 +85,8 @@ class TrustedApprovalBoundaryTests(unittest.TestCase):
     def test_verify_rejects_forged_signature(self) -> None:
         token = self.boundary.issue(self.request, ttl_seconds=60)
         payload, signature = token.split(".", 1)
-        # Flip one byte in the signature by truncating it.
-        forged = f"{payload}.{signature[:-1]}A"
+        # Change significant signature bits, not unused base64 padding bits.
+        forged = f"{payload}.{'A' if signature[0] != 'A' else 'B'}{signature[1:]}"
         with self.assertRaises(ApprovalRejected) as cm:
             self.boundary.verify(self.request, forged)
         self.assertEqual(cm.exception.reason, "forged_signature")
@@ -199,7 +199,7 @@ class MaterialiseBoundaryIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.tmp = Path(self.temp.name)
+        self.tmp = Path(self.temp.name).resolve()
         self.clock = _FixedClock()
         self.boundary = HmacTrustedApprovalBoundary(
             key=self.KEY, clock=self.clock,
@@ -252,7 +252,9 @@ class MaterialiseBoundaryIntegrationTests(unittest.TestCase):
     def test_forged_token_is_rejected_at_materialise(self) -> None:
         service = self._service()
         token = self.boundary.issue(self._request(), ttl_seconds=60)
-        forged = token[:-1] + ("A" if token[-1] != "A" else "B")
+        payload, signature = token.split(".")
+        # Change significant signature bits, not unused base64 padding bits.
+        forged = f"{payload}.{'A' if signature[0] != 'A' else 'B'}{signature[1:]}"
         with self.assertRaises(ApprovalRejected) as cm:
             service.materialise_durable_changes(
                 self.tmp, cache_root=self.tmp / "cache",

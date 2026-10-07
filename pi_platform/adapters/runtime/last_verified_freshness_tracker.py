@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import sqlite3
+from contextlib import closing
 from typing import Mapping, Optional, Sequence
 
 from pi_platform.core.canonical.value_types import (
@@ -47,7 +48,7 @@ class LastVerifiedFreshnessTracker(FreshnessTrackerPort):
         self._init_schema()
 
     def _init_schema(self) -> None:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             conn.execute(
                 f"CREATE TABLE IF NOT EXISTS {self._TABLE} ("
                 "fact_id TEXT PRIMARY KEY, "
@@ -63,7 +64,7 @@ class LastVerifiedFreshnessTracker(FreshnessTrackerPort):
         version: ProjectVersion,
     ) -> None:
         ts = _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat()
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             conn.execute(
                 f"INSERT OR REPLACE INTO {self._TABLE}(fact_id, source_hash, last_verified_at, git_head, working_tree_fingerprint) VALUES(?, ?, ?, ?, ?)",
                 (fact_id, source_hash, ts,
@@ -72,7 +73,7 @@ class LastVerifiedFreshnessTracker(FreshnessTrackerPort):
             conn.commit()
 
     def is_stale(self, fact_id: str, *, current_source_hash: str) -> bool:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             row = conn.execute(
                 f"SELECT source_hash FROM {self._TABLE} WHERE fact_id = ?",
                 (fact_id,),
@@ -94,7 +95,7 @@ class LastVerifiedFreshnessTracker(FreshnessTrackerPort):
 
     def snapshot(self) -> FreshnessSnapshot:
         captured = _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat()
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             rows = conn.execute(
                 f"SELECT fact_id, source_hash, last_verified_at, git_head, working_tree_fingerprint FROM {self._TABLE}"
             ).fetchall()

@@ -192,7 +192,7 @@ class McpServerDispatchTests(unittest.TestCase):
         from pi_platform.ports import ApprovalRequest
         token = self.context.boundary.issue(
             ApprovalRequest(action="materialise",
-                            repo_root="/tmp",
+                            repo_root=str(self.context.repo_root.resolve()),
                             change_ids=()),
             ttl_seconds=60,
         )

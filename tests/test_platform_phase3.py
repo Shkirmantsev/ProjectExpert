@@ -16,6 +16,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from pi_platform.adapters.runtime.bm25_sparse_index import Bm25SparseIndex
 from pi_platform.adapters.runtime.bounded_graph_expansion import BoundedGraphExpansion
@@ -45,7 +46,7 @@ from pi_platform.ports.runtime.freshness import FreshnessSnapshot
 from pi_platform.ports.runtime.full_text_index import FullTextHit
 from pi_platform.ports.runtime.graph import GraphManifest, Shard
 from pi_platform.ports.runtime.graph_expansion import GraphExpansion
-from pi_platform.ports.runtime.runtime_store import RuntimeStatusReport
+from pi_platform.ports.runtime.runtime_store import RuntimeStatusReport, RuntimeStoreError
 from pi_platform.ports.runtime.sparse_index import SparseHit
 
 
@@ -322,7 +323,7 @@ class GraphTests(Fixture):
         g = LocalShardedGraph(self.root / "graph")
         address = content_address_bytes(b"x")
         shard = g.shard_by(address)
-        self.assertTrue(str(shard.path).startswith("nodes/"))
+        self.assertEqual(Path(shard.path).parts[0], "nodes")
         self.assertIn(address[:2], str(shard.path))
 
     def test_content_addressed_entity_bodies_share_canonical_artefact(self):
@@ -527,6 +528,80 @@ class FreshnessTests(Fixture):
         self.assertEqual(snap_before.facts["f1"].source_hash, "sha-256:A")
         self.assertEqual(snap_after.facts["f1"].source_hash, "sha-256:B")
         self.assertTrue(port.is_stale("f1", current_source_hash="sha-256:A"))
+
+
+class SqliteConnectionLifetimeTests(Fixture):
+    def test_failed_write_rolls_back_and_releases_connection(self):
+        store = SqliteRuntimeStore(self.root / "cache", version=self.version)
+        connections = []
+        connect = sqlite3.connect
+
+        class FailingConnection(sqlite3.Connection):
+            def execute(self, sql, *args):
+                if sql.startswith("INSERT INTO runtime_families"):
+                    raise sqlite3.OperationalError("injected write failure")
+                return super().execute(sql, *args)
+
+        def tracked_connect(*args, **kwargs):
+            conn = connect(*args, factory=FailingConnection, **kwargs)
+            connections.append(conn)
+            return conn
+
+        self.addCleanup(lambda: [conn.close() for conn in connections])
+        with patch("sqlite3.connect", side_effect=tracked_connect):
+            with self.assertRaisesRegex(sqlite3.OperationalError, "injected"):
+                store.put("chunk", {"id": "failed"})
+        self.assertEqual(store.stats()["entries"], 0)
+        self.assertEqual(len(connections), 1)
+        with self.assertRaises(sqlite3.ProgrammingError):
+            connections[0].execute("SELECT 1")
+
+    def test_operations_release_connections_without_garbage_collection(self):
+        # Keep strong references so garbage collection cannot hide leaked handles.
+        connections = []
+        connect = sqlite3.connect
+
+        def tracked_connect(*args, **kwargs):
+            conn = connect(*args, **kwargs)
+            connections.append(conn)
+            return conn
+
+        self.addCleanup(lambda: [conn.close() for conn in connections])
+        with patch("sqlite3.connect", side_effect=tracked_connect):
+            store = SqliteRuntimeStore(self.root / "cache", version=self.version)
+            address = store.put("chunk", {"id": "c1", "text": "hello"})
+            store.get(address)
+            store.has(address)
+            store.stats()
+            store.runtime_status()
+            store.recover_wal()
+            store.evict(address)
+            store.evict(address)  # early return on a missing entry
+            with self.assertRaises(RuntimeStoreError):
+                store.get(address)
+            fulltext = SqliteFtsFullTextIndex(store)
+            fulltext.index_document("md", "d1", "hello world", {})
+            self.assertEqual(len(fulltext.query("hello")), 1)
+            fulltext.query('"')  # handled FTS syntax error
+            fulltext.stats()
+            fulltext.delete_document("d1")
+            provenance = LocalProvenanceTracker(store)
+            provenance.transition("e1", from_state=KnowledgeState.VERIFIED,
+                                  to_state=KnowledgeState.VERIFIED, evidence={})
+            provenance.transition("e1", from_state=KnowledgeState.VERIFIED,
+                                  to_state=KnowledgeState.STALE, evidence={})
+            provenance.current_state("e1")
+            provenance.evidence("e1")
+            provenance.events("e1")
+            provenance.staleness_map()
+            freshness = LastVerifiedFreshnessTracker(store, provenance)
+            freshness.mark_verified("f1", source_hash="hash", version=self.version)
+            self.assertFalse(freshness.is_stale("f1", current_source_hash="hash"))
+            freshness.snapshot()
+        self.assertGreater(len(connections), 20)
+        for conn in connections:
+            with self.assertRaises(sqlite3.ProgrammingError):
+                conn.execute("SELECT 1")
 
 
 class EmbeddedStorageSelectionTests(unittest.TestCase):

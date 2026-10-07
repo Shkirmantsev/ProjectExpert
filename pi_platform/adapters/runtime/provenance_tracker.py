@@ -9,6 +9,7 @@ dedicated SQLite table inside the
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from typing import Mapping, Optional, Sequence
 
 from pi_platform.core.canonical.content_address import content_address_bytes
@@ -60,7 +61,7 @@ class LocalProvenanceTracker(ProvenancePort):
         self._init_schema()
 
     def _init_schema(self) -> None:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             conn.executescript(
                 f"""
                 CREATE TABLE IF NOT EXISTS {self._STATE_TABLE} (
@@ -87,7 +88,7 @@ class LocalProvenanceTracker(ProvenancePort):
         evidence: Mapping[str, object],
     ) -> None:
         if from_state == to_state:
-            with sqlite3.connect(self._db_path) as conn:
+            with closing(sqlite3.connect(self._db_path)) as conn, conn:
                 row = conn.execute(
                     f"SELECT state FROM {self._STATE_TABLE} WHERE entity_id = ?",
                     (entity_id,),
@@ -105,7 +106,7 @@ class LocalProvenanceTracker(ProvenancePort):
             )
         evidence_bytes = canonical_dump_json(dict(evidence))
         evidence_hash = content_address_bytes(evidence_bytes)
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             conn.execute(
                 f"INSERT OR REPLACE INTO {self._STATE_TABLE}(entity_id, state, updated_at) VALUES(?, ?, datetime('now'))",
@@ -124,7 +125,7 @@ class LocalProvenanceTracker(ProvenancePort):
             conn.commit()
 
     def current_state(self, entity_id: str) -> Optional[KnowledgeState]:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             row = conn.execute(
                 f"SELECT state FROM {self._STATE_TABLE} WHERE entity_id = ?",
                 (entity_id,),
@@ -134,7 +135,7 @@ class LocalProvenanceTracker(ProvenancePort):
         return KnowledgeState(row[0])
 
     def evidence(self, entity_id: str) -> Sequence[Evidence]:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             rows = conn.execute(
                 f"SELECT from_state, to_state, evidence_json FROM {self._EVENT_TABLE} WHERE entity_id = ? ORDER BY seq",
                 (entity_id,),
@@ -151,14 +152,14 @@ class LocalProvenanceTracker(ProvenancePort):
         return tuple(chain)
 
     def staleness_map(self) -> Mapping[str, KnowledgeState]:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             rows = conn.execute(
                 f"SELECT entity_id, state FROM {self._STATE_TABLE}"
             ).fetchall()
         return {row[0]: KnowledgeState(row[1]) for row in rows}
 
     def events(self, entity_id: str) -> Sequence[ProvenanceEvent]:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             rows = conn.execute(
                 f"SELECT from_state, to_state, evidence_hash, evidence_json FROM {self._EVENT_TABLE} WHERE entity_id = ? ORDER BY seq",
                 (entity_id,),

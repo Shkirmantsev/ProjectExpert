@@ -69,6 +69,14 @@ storage surface ships as a port-and-adapter pair: ports under
   `LastVerifiedFreshnessTracker` (default `FreshnessTrackerPort`
   impl; SQLite-backed).
 
+## Connection lifetime
+
+The SQLite runtime store, full-text index, provenance tracker, and
+freshness tracker close each connection when an operation exits,
+including errors and early returns. Transaction contexts still commit
+or roll back before closing. Cache cleanup does not rely on garbage
+collection to release database handles on Windows.
+
 ## Backward compatibility shim
 
 `pi_platform/runtime/cache.py` is the Phase 1 placeholder runtime

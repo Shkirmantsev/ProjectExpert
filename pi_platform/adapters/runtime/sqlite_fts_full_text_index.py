@@ -8,6 +8,7 @@ a dedicated virtual table inside the same SQLite database file.
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from typing import Mapping, Sequence
 
 from pi_platform.ports.runtime.full_text_index import (
@@ -38,7 +39,7 @@ class SqliteFtsFullTextIndex(FullTextIndexPort):
         self._init_fts()
 
     def _init_fts(self) -> None:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             conn.execute(
                 f"CREATE VIRTUAL TABLE IF NOT EXISTS {self._TABLE} USING fts5("
                 "document_id UNINDEXED, family UNINDEXED, text"
@@ -50,7 +51,7 @@ class SqliteFtsFullTextIndex(FullTextIndexPort):
         metadata: Mapping[str, object],
     ) -> None:
         self.delete_document(documentId)
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             conn.execute(
                 f"INSERT INTO {self._TABLE}(document_id, family, text) VALUES(?, ?, ?)",
                 (documentId, family, text),
@@ -58,7 +59,7 @@ class SqliteFtsFullTextIndex(FullTextIndexPort):
             conn.commit()
 
     def delete_document(self, documentId: str) -> None:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             conn.execute(
                 f"DELETE FROM {self._TABLE} WHERE document_id = ?",
                 (documentId,),
@@ -66,7 +67,7 @@ class SqliteFtsFullTextIndex(FullTextIndexPort):
             conn.commit()
 
     def query(self, text: str, top_k: int = 10) -> Sequence[FullTextHit]:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             try:
                 rows = conn.execute(
                     f"SELECT document_id, snippet({self._TABLE}, 2, '<', '>', '...', 16) "
@@ -86,7 +87,7 @@ class SqliteFtsFullTextIndex(FullTextIndexPort):
         return tuple(hits)
 
     def stats(self) -> Mapping[str, int]:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             count = conn.execute(
                 f"SELECT COUNT(*) FROM {self._TABLE}"
             ).fetchone()[0]

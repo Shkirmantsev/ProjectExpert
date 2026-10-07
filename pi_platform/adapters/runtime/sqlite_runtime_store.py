@@ -18,6 +18,7 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import sqlite3
+from contextlib import closing
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -79,7 +80,7 @@ class SqliteRuntimeStore(RuntimeStorePort):
         self._init_db()
 
     def _init_db(self) -> None:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             conn.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS runtime_entries (
@@ -177,7 +178,7 @@ class SqliteRuntimeStore(RuntimeStorePort):
         path = self._content_path(content_hash)
         path.parent.mkdir(parents=True, exist_ok=True)
         with self._lock.acquire():
-            with sqlite3.connect(self._db_path) as conn:
+            with closing(sqlite3.connect(self._db_path)) as conn, conn:
                 conn.execute("BEGIN IMMEDIATE")
                 try:
                     conn.execute(
@@ -217,7 +218,7 @@ class SqliteRuntimeStore(RuntimeStorePort):
         return content_hash
 
     def get(self, content_hash: str) -> RuntimeEntry:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             row = conn.execute(
                 "SELECT content_hash, family, body_json FROM runtime_entries WHERE content_hash = ?",
                 (content_hash,),
@@ -228,7 +229,7 @@ class SqliteRuntimeStore(RuntimeStorePort):
         return RuntimeEntry(content_hash=row[0], family=row[1], body=body)
 
     def has(self, content_hash: str) -> bool:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             row = conn.execute(
                 "SELECT 1 FROM runtime_entries WHERE content_hash = ?",
                 (content_hash,),
@@ -237,7 +238,7 @@ class SqliteRuntimeStore(RuntimeStorePort):
 
     def evict(self, content_hash: str) -> None:
         with self._lock.acquire():
-            with sqlite3.connect(self._db_path) as conn:
+            with closing(sqlite3.connect(self._db_path)) as conn, conn:
                 conn.execute("BEGIN IMMEDIATE")
                 row = conn.execute(
                     "SELECT family FROM runtime_entries WHERE content_hash = ?",
@@ -264,14 +265,14 @@ class SqliteRuntimeStore(RuntimeStorePort):
             self._save_index(index)
 
     def stats(self) -> Mapping[str, int]:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             total = conn.execute("SELECT COUNT(*) FROM runtime_entries").fetchone()[0]
         return {"entries": total, "wal_tail_length": self.wal_tail_length()}
 
     def runtime_status(
         self, *, policy: str = KnowledgeStatePolicy.DURABLE,
     ) -> RuntimeStatusReport:
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             rows = conn.execute(
                 "SELECT family, COUNT(*) FROM runtime_entries GROUP BY family"
             ).fetchall()
@@ -305,7 +306,7 @@ class SqliteRuntimeStore(RuntimeStorePort):
         records = self._load_wal()
         if not records:
             return
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(sqlite3.connect(self._db_path)) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             for record in records:
                 row = conn.execute(
