@@ -208,7 +208,7 @@ c05aa0534cb933ba33792b46fb5419485b30b90ddf54be93d4b795b16b2a64cc  ./.ai/wiki/mod
 5e42db2c98bf5cd082a28dd1210319809246b0aa49c6441fa9f809fdac318620  ./.ai/wiki/modules/orchestrator.md
 34b7e0d8aabc388709f1ab98b6ad354a50457e0e8d6348b41f38b6ffd4d2ffd0  ./.ai/wiki/modules/platform-core.md
 8dece01cfc460cc9055dbcd1e4b709dca7c0248742d5d08a23fc6c698e6a87d0  ./.ai/wiki/modules/plugin-packagers.md
-e48be7e72d949b11132107942935f884dbd23d9f98e2bdbac12c6eec7039af9e  ./.ai/wiki/modules/retrieval.md
+700b7cd4e8acb504fc0118a773c56bfa1a5a34da18373c96844aa60b5cbb7332  ./.ai/wiki/modules/retrieval.md
 a0916759fe4bbec1039b631d790f77bbde1f89dbad83455aa396b4b4475825f4  ./.ai/wiki/modules/runtime-store.md
 57c60a34e2e4f77cdc227d654699eaee3a06a865f370eed88d72afcb718045fe  ./.ai/wiki/modules/task-context.md
 09a2028eea23a3be197213a5a2376f9d3f64a56887a9089fb6fb934ab6751039  ./.ai/wiki/project/harness-command-lifecycle.md
@@ -738,7 +738,7 @@ e421cd9fb1d0dfe1ae5a9d367b78e98fbd117e48136f1052489c15738404a3f7  ./tests/test_p
 a80d89d9a8796b383c21875dad475b8cf415e71d2968a910171332ebb84f94e9  ./tests/test_platform_phase4.py
 29f55bf8743f22c45b98a93bf884b13cc75e281217961b53c30fa9bc22f7570f  ./tests/test_production_reliability.py
 1ea96b8d331c530eb03aa9634b6b1b92b70a5d00332cd32705163d0ace5d8a7d  ./tests/test_remote_sidecar.py
-29863cca8b3792be00ea96a73a56f6d0de2e56aa18fbf33165c0668aea68cd98  ./tests/test_retrieval_benchmark.py
+512e7d6afa6d52c3f4f1ca8cd3e5603fb63de03373dbc0de44f983aa650f3e56  ./tests/test_retrieval_benchmark.py
 d91fc87badc3207ee4d655fa2867f4b63063b5778ca1cf338e8d596c8a810152  ./tests/test_skill_plane.py
 5bac8518ab4bfb2b803537496c24f60534ff66290377e145932cbd6fdfed6d15  ./tests/test_skill_router_eval.py
 2727e445188245651424580a33e917b78fdf36070bd690ccb69c54a30c48cc64  ./tests/test_skill_runtime.py

@@ -81,6 +81,8 @@ __all__ = [
 MIN_CHUNKS = 1_000
 MIN_ENTITIES = 100
 MIN_QUERIES = 100
+# Wall-clock latency is measured in milliseconds; tolerate 50 ms of runner jitter.
+LATENCY_TOLERANCE_MS = 50
 
 
 def _hit(
@@ -531,9 +533,11 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         b = RetrievalBenchmarkFixture().run()
         for key in (
             "aggregate_recall", "aggregate_precision", "aggregate_mrr",
-            "aggregate_latency_p50",
         ):
             self.assertAlmostEqual(a[key], b[key], delta=0.05)
+        self.assertAlmostEqual(a["aggregate_latency_p50"],
+                               b["aggregate_latency_p50"],
+                               delta=LATENCY_TOLERANCE_MS)
 
     def test_aggregate_report_is_machine_readable(self):
         fixture = RetrievalBenchmarkFixture()

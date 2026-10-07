@@ -140,3 +140,12 @@ and agents can introspect the platform without reading source:
 - `python -m pi_platform.cli reranker-status` — active reranker
   family, budget and license identifier, cross-encoder and
   ColBERT-style availability.
+
+
+## Benchmark repeatability
+
+The benchmark compares repeated recall, precision, and MRR with an
+absolute tolerance of 0.05. Median wall-clock latency is measured in
+milliseconds and allows 50 ms of runner scheduling jitter. Latency
+remains measured and compared separately from dimensionless quality
+scores; the test does not require sub-millisecond timing stability.
