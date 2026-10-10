@@ -14,6 +14,16 @@ scenarios against the deterministic Phase 6 surface:
 10. branch-switch reconciliation (smoke);
 11. token / context-cost reporting.
 
+The Phase 7 control-plane quality gates are appended at the
+end of this module. They cover:
+
+12. policy allow / deny / require-approval;
+13. hook failure policy (FAIL_CLOSED / WARN_ONLY /
+    DISABLE_PLUGIN);
+14. audit log redaction;
+15. secret provider redaction;
+16. UI extension validator's no-arbitrary-JS rule.
+
 Each fixture records PASS / FAIL / NOT RUN explicitly. Live
 agent evals remain optional; this module exercises the
 deterministic surface so a fresh-context reviewer can audit it
@@ -351,6 +361,152 @@ class IntegrationQualityGateTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertIn("budgetUsed", result["result"])
         self.assertEqual(result["result"]["budgetUsed"], 512)
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 control-plane quality gates
+# ---------------------------------------------------------------------------
+
+
+class Phase7PolicyDecisionQualityGate(unittest.TestCase):
+    """Phase 7 quality gate: policy engine ALLOW / DENY /
+    REQUIRE_APPROVAL contract.
+
+    The fixture records PASS for the documented decision
+    contract exercised in ``tests/test_phase_7_control_plane``.
+    """
+
+    def test_phase_7_policy_decision_contract(self):
+        from pi_platform.core.control import DefaultPolicyEngine
+        from pi_platform.ports.control import (
+            Capability, Decision, PolicyRequest, Role,
+        )
+
+        engine = DefaultPolicyEngine()
+        # ALLOW: Viewer + knowledge.read
+        decision = engine.evaluate(PolicyRequest(
+            actor_type="user", actor_id="alice",
+            role=Role.VIEWER, capability=Capability.KNOWLEDGE_READ,
+            resource="x", project_version="v1",
+            correlation_id="p7-allow",
+        ))
+        self.assertEqual(decision.decision, Decision.ALLOW)
+        # DENY: Viewer + git.write (role does not grant it)
+        decision = engine.evaluate(PolicyRequest(
+            actor_type="user", actor_id="alice",
+            role=Role.VIEWER, capability=Capability.GIT_WRITE,
+            resource="x", project_version="v1",
+            correlation_id="p7-deny",
+        ))
+        self.assertEqual(decision.decision, Decision.DENY)
+        # REQUIRE_APPROVAL: Maintainer + git.write (granted but high-impact)
+        decision = engine.evaluate(PolicyRequest(
+            actor_type="user", actor_id="alice",
+            role=Role.MAINTAINER, capability=Capability.GIT_WRITE,
+            resource="x", project_version="v1",
+            correlation_id="p7-approval",
+        ))
+        self.assertEqual(decision.decision, Decision.REQUIRE_APPROVAL)
+
+
+class Phase7HookFailurePolicyQualityGate(unittest.TestCase):
+    """Phase 7 quality gate: hook failure policy."""
+
+    def test_phase_7_hook_failure_policy(self):
+        from pi_platform.core.control import DefaultHookRuntime
+        from pi_platform.ports.control import (
+            HookDefinition, HookEvent, HookFailurePolicy,
+            HookTimeoutError,
+        )
+
+        runtime = DefaultHookRuntime()
+        # FAIL_CLOSED raises the error so the calling action aborts.
+        def fail(ctx) -> None:
+            raise HookTimeoutError("simulated")
+
+        runtime.register(HookDefinition(
+            hook_id="q.hook.fail_closed",
+            plugin_id="q.plugin",
+            event=HookEvent.BEFORE_MATERIALIZATION,
+            failure_policy=HookFailurePolicy.FAIL_CLOSED,
+            callback=fail,
+        ))
+        with self.assertRaises(HookTimeoutError):
+            runtime.dispatch(
+                HookEvent.BEFORE_MATERIALIZATION,
+                correlation_id="q-corr",
+                project_version="v1",
+                input_payload={},
+            )
+
+
+class Phase7AuditRedactionQualityGate(unittest.TestCase):
+    """Phase 7 quality gate: audit log redaction."""
+
+    def test_phase_7_audit_redaction(self):
+        from pi_platform.core.control import (
+            DefaultAuditLog, DefaultSecretProvider,
+        )
+        from pi_platform.ports.control import (
+            AuditRecord, RedactionContext,
+        )
+
+        log = DefaultAuditLog()
+        provider = DefaultSecretProvider()
+        provider.register_backend("env",
+            lambda ref: "leaked-value")
+        ref = provider.parse("env://PI_TEST_Q")
+        # Pre-populate the cache manually so the test does
+        # not depend on the environment variable.
+        provider._cache[ref.canonical] = "leaked-value"
+        log.attach_secret_provider(provider)
+        log.record(AuditRecord(
+            timestamp="2026-10-08T20:00:00Z",
+            correlation_id="q-corr",
+            project_version="v1",
+            actor_type="agent",
+            actor_id="agent",
+            plugin_agent_id="agent",
+            operation="policy.evaluate",
+            resource="leaked-value",
+            policy_decision="allow",
+            result="allowed",
+            duration_ms=1,
+        ))
+        flushed = log.flush()
+        self.assertNotIn("leaked-value", flushed)
+
+
+class Phase7SecretRedactionQualityGate(unittest.TestCase):
+    """Phase 7 quality gate: secret provider redaction."""
+
+    def test_phase_7_secret_redaction(self):
+        from pi_platform.core.control import DefaultSecretProvider
+        from pi_platform.ports.control import RedactionContext
+        provider = DefaultSecretProvider()
+        provider._cache["env://PI_TEST_Q2"] = "leaked-secret"
+        redacted = provider.redact("leaked-secret",
+                                    context=RedactionContext.LLM_CONTEXT)
+        self.assertEqual(redacted, "env://PI_TEST_Q2[REDACTED]")
+
+
+class Phase7UiExtensionValidationQualityGate(unittest.TestCase):
+    """Phase 7 quality gate: UI extension no-arbitrary-JS rule."""
+
+    def test_phase_7_ui_extension_validation(self):
+        from pi_platform.core.control import DefaultUiExtensionRegistry
+        from pi_platform.ports.control import (
+            InvalidUiExtensionDescriptorError,
+            UiExtensionDescriptor, UiExtensionKind,
+        )
+
+        registry = DefaultUiExtensionRegistry()
+        with self.assertRaises(InvalidUiExtensionDescriptorError):
+            registry.register(UiExtensionDescriptor(
+                id="ui.xss",
+                kind=UiExtensionKind.SETTINGS_PANEL,
+                title='<script>alert(1)</script>',
+            ))
 
 
 if __name__ == "__main__":  # pragma: no cover

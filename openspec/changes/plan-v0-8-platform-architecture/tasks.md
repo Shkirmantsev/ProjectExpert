@@ -439,12 +439,12 @@ implements exactly the Phase 1 tasks (13-44) defined here.
 
 ## Phase 7 — Control plane (registry, hooks, capabilities, secrets, policy, audit)
 
-- [ ] 96. Implement `platform.control.FeatureRegistry` and
+- [x] 96. Implement `platform.control.FeatureRegistry` and
   `PluginRegistry` with the lifecycle states from §59 (installed,
   enabled, disabled, failed, incompatible, blocked-by-policy,
   update-available) and manifest validation (license, capabilities,
   compatibility).
-- [ ] 97. Implement `platform.control.HookRuntime` with the
+- [x] 97. Implement `platform.control.HookRuntime` with the
   lifecycle events from §59 (`beforeIngestion`, `afterIngestion`,
   `beforeIndexUpdate`, `afterIndexUpdate`, `beforeRetrieval`,
   `afterRetrieval`, `beforeContextAssembly`, `afterContextAssembly`,
@@ -455,26 +455,26 @@ implements exactly the Phase 1 tasks (13-44) defined here.
   result, correlation id, audit record, bounded retries, failure
   policies (`FAIL_OPEN`, `FAIL_CLOSED`, `WARN_ONLY`,
   `DISABLE_PLUGIN`).
-- [ ] 98. Implement `platform.control.PolicyEngine` with
+- [x] 98. Implement `platform.control.PolicyEngine` with
   capability-based authorization, the capability vocabulary from
   §59, role defaults (`Viewer`, `Developer`, `Maintainer`,
   `Administrator`), and the
   `ALLOW / DENY / REQUIRE_APPROVAL` decision contract.
-- [ ] 99. Implement `platform.control.SecretProvider` with the
+- [x] 99. Implement `platform.control.SecretProvider` with the
   `secret://` reference vocabulary and redaction in MCP/A2A
   responses, audit payloads and LLM context.
-- [ ] 100. Implement `platform.control.AuditLog` and
+- [x] 100. Implement `platform.control.AuditLog` and
   `OperationalLog` separation; never write secrets or unnecessary
   source contents into audit records.
-- [ ] 101. Implement `platform.control.FeatureFlags` scoped by
+- [x] 101. Implement `platform.control.FeatureFlags` scoped by
   machine / project / branch / user / deployment profile.
-- [ ] 102. Implement `platform.control.UiExtension` registry
+- [x] 102. Implement `platform.control.UiExtension` registry
   (declarative UI descriptors, no arbitrary JS injection for
   untrusted plugins).
-- [ ] 103. Add focused regression tests including a policy-engine
+- [x] 103. Add focused regression tests including a policy-engine
   test verifying the read-only coding-agent capability set from
   §59.
-- [ ] 104. Update Wiki (new `modules/registry`, `modules/hooks`,
+- [x] 104. Update Wiki (new `modules/registry`, `modules/hooks`,
   `modules/policy-engine`, `modules/secret-provider`,
   `interfaces/capabilities`), archive the Phase 7 change, update
   `openspec/CURRENT.md`.
