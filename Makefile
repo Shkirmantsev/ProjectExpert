@@ -9,7 +9,7 @@ STACK := $(PYTHON) scripts/stack.py
 .PHONY: help init init-mcp env-sync runtime check wiki-index wiki-validate openspec-check mcp-install \
         config plan pull build up start stop restart down status ps logs client-config \
         skills-sync-local skills-sync-remote skills-check manifest-generate manifest-check hermes-host-setup hermes-host-revoke \
-        hermes-sidecar-copy hermes-remote-instructions hermes-check hermes-import verify verify-models test clean \
+        hermes-sidecar-copy hermes-remote-instructions hermes-patch hermes-check hermes-import verify verify-models test clean \
         platform-init platform-hydrate platform-materialise license gate license-gate okf-validate \
         version-identity wal-recover platform-test
 
@@ -109,6 +109,9 @@ hermes-sidecar-copy: ## Optional: copy Claude-specific Hermes MCP sidecar source
 
 hermes-remote-instructions: ## Optional: generate remote Hermes setup instructions.
 	@$(PYTHON) scripts/render_hermes_remote_setup.py
+
+hermes-patch: ## Optional: re-apply the harness resolver patch on the remote Hermes source.
+	@$(PYTHON) scripts/hermes_patch.py
 
 hermes-check: ## Optional: verify remote Hermes control paths without paid inference.
 	@$(PYTHON) scripts/verify.py --only-hermes
