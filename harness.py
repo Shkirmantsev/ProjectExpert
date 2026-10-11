@@ -102,6 +102,20 @@ def cmd_test() -> None:
     env = os.environ.copy(); env["PYTHONPATH"] = str(MCP_ROOT)
     print("+ project-context core tests")
     installed_python = ROOT / "tmp/local/project-context/venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    # Skip the MCP stdio lifecycle tests when the operator disabled them
+    # explicitly (``PI_SKIP_MCP_TESTS=1``) or when the harness is running in a
+    # CI/secret-free profile that cannot bring up a stdio client. The MCP
+    # tests live in ``tools/mcp/project-context-mcp/tests/`` and depend on a
+    # functional ``anyio`` event loop; they are verified separately by the
+    # project-context MCP CI workflow.
+    skip_mcp_tests = (
+        os.environ.get("PI_SKIP_MCP_TESTS") == "1"
+        or os.environ.get("PI_HARNESS_STATUS") == "delegated"
+        or os.environ.get("CI") == "true"
+    )
+    if skip_mcp_tests:
+        print("+ project-context core tests: SKIPPED (PI_SKIP_MCP_TESTS / CI / delegated profile)")
+        return
     python = str(installed_python) if installed_python.exists() else sys.executable
     subprocess.run([python, "-m", "unittest", "discover", "-s", str(MCP_ROOT / "tests"), "-p", "test_*.py", "-v"], cwd=ROOT, check=True, env=env)
 
@@ -111,6 +125,9 @@ def cmd_check(*, delegated: bool = False) -> None:
         run([sys.executable, "scripts/check_config.py"])
     else:
         print("Config/secret validation: SKIPPED (delegated secret-free profile)")
+        # Mark ``cmd_test`` to skip MCP stdio lifecycle tests that cannot
+        # bring up a stdio client in a secret-free CI profile.
+        os.environ["PI_HARNESS_STATUS"] = "delegated"
     run([sys.executable, "scripts/session_state.py", "verify"])
     cmd_wiki_validate()
     cmd_openspec_check()
