@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "goal_loop": {
-    "max_steps": 18,
+    "max_steps": 120,
     "max_delegation_depth": 2,
     "max_children_per_agent": 3,
     "max_parallel_agents": 3,
@@ -39,7 +39,7 @@
     },
     "reasoning-high": {
       "max_active_skills": 7,
-      "max_steps": 18,
+"max_steps": 120,
       "instruction_style": "full",
       "escalate_below_confidence": 0.5
     }

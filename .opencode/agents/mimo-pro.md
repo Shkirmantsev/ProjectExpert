@@ -3,7 +3,7 @@ description: Highest-capability escalation worker for architecture, security, co
 mode: subagent
 model: openrouter/xiaomi/mimo-v2.6-pro
 variant: high
-maxSteps: 18
+maxSteps: 64
 permission:
   task:
     "*": deny

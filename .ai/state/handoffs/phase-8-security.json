@@ -1,7 +1,7 @@
 {
   "budgets": {
     "steps_max": 18,
-    "steps_used": 0
+    "steps_used": 18
   },
   "context": [
     "Architecture baseline \u00a756 Enterprise Security Boundary + \u00a759 secret/audit/policy controls built in Phase 7; Phase 4 metadata filter is in pi_platform/core/retrieval/metadata_filter.py"
@@ -9,29 +9,19 @@
   "decisions": [],
   "progress": {
     "blocked": [],
-    "done": [],
-    "todo": [
-      "Author prepare-phase-8-security proposal/design/context-impact/tasks",
-      "Author Phase 8 spec delta (enterprise-security-boundary)",
-      "Validate openspec + harness.py check for prepare change",
-      "Implement EnterpriseBoundary core + security-aware metadata filter + egress port + classification under pi_platform/core/security/ and pi_platform/ports/security/",
-      "Author tests/test_phase_8_security.py",
-      "Run mimo-flash pre-review/refactor pass on each module",
-      "Run deepseek-verify review + fixes",
-      "Update Wiki (modules/security, interfaces/egress, glossary) + adr + Index interconnection",
-      "Archive prep change; archive implement change; flip plan-v0-8 tasks 105-108 [x]; update openspec/CURRENT.md",
-      "mimo-pro final review",
-      "Commit changes"
-    ]
+    "done": [
+      "Phase 8 shipped and committed (32bbd16, 48e3cd7, 2b19592); tasks 105-108 [x]; both changes archived 2026-10-11"
+    ],
+    "todo": []
   },
   "resume": {
-    "next_action": "",
+    "next_action": "superseded by prepare-phase-9-distribution",
     "prerequisites": []
   },
   "runtime": {
     "last_failure_fingerprint": "",
-    "next_decision": "reflect",
-    "no_progress_windows": 1,
+    "next_decision": "stop",
+    "no_progress_windows": 0,
     "repeated_failure_count": 0
   },
   "schema_version": "1.0",
@@ -39,7 +29,7 @@
     "created_at": "2026-10-10T21:40:24+00:00",
     "id": "phase-8-security",
     "project": "ProjectExpert",
-    "updated_at": "2026-10-10T22:51:39+00:00"
+    "updated_at": "2026-10-11T10:41:32+00:00"
   },
   "task": {
     "acceptance": [
@@ -47,10 +37,12 @@
     ],
     "goal": "Prepare and implement Phase 8 Enterprise Security Boundary: secret detection, source-level permissions, security classification, outbound filtering, redaction, egress policy, auditability; add security metadata to retrieval filter; tests; Wiki; archive; harness.py check PASS",
     "openspec_change": "prepare-phase-8-security",
-    "status": "planning"
+    "status": "complete"
   },
   "verification": {
-    "passed": [],
+    "passed": [
+      "test_phase_8_security 54 tests OK; full tests 580 OK; harness.py openspec-check PASS (openspec 1.13.0 + node 22.14.0)"
+    ],
     "pending": []
   },
   "working_set": []

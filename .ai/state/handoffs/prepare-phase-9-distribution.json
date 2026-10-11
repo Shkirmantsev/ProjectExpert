@@ -1,0 +1,60 @@
+{
+  "budgets": {
+    "steps_max": 60,
+    "steps_used": 0
+  },
+  "context": [
+    "Architecture baseline v0.8: 10 OKF profile, 57 human interfaces, 58 one-click distribution, 60 deployment model, 68 invariants",
+    "Phase 1-8 shipped; openspec CLI pinned 1.13.0 (1.14.1 breaks strict gate) with node 22 in ~/.local/node22"
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Hygiene: openspec CLI 1.13.0 + node22 provisioned; KB index rebuilt (83 docs/459 chunks); PROJECT_ROOT corrected; README drift fixed; limits raised (orchestrator maxSteps 80, goal_loop.max_steps 60); phase-8 closed",
+      "OpenSpec prepare-phase-9-distribution + implement-phase-9-distribution authored (proposal, design, context-impact, tasks, 3 mirrored spec deltas each)",
+      "Block A1: pi_platform/ports/ui/rest_api.py + pi_platform/core/ui/rest_service.py (22 tests OK)",
+      "Block A2: pi_platform/adapters/ui/{composition,http_server}.py",
+      "Block B: pi_platform/adapters/ui/static/{app.js,index.html,styles.css} (served, traversal locked)",
+      "Block C: pi_platform/adapters/ui/openai_compat.py Open WebUI shim + DefaultFeatureFlagRegistry.open-webui-adapter (DISABLED, scope DEPLOYMENT_PROFILE)",
+      "Block D: core/sync/materialise.py _okf_validation_errors(fs) gate before write; report.okf_validation_errors populated",
+      "CLI: serve (--target/--cache-root/--host/--port) and health --ready (exit 1 + reason when not hydrated)",
+      "Phase 9 tests: tests/test_phase_9_rest_core.py + tests/test_phase_9_distribution.py = 57 tests OK (loopback-bind, liveness\u2260readiness, bearer, OKF gate, Open WebUI flag, stdlib-only, no require(process.env), no admin/upload)"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Phase 9 shipped; user will push. ContextAssemblerPort (Phase 6) parked as follow-up.",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-11T10:41:32+00:00",
+    "id": "prepare-phase-9-distribution",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-11T17:29:59+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "prepare-phase-9-distribution validates strict; plan-v0-8 tasks 109-116 [x]; tests/test_phase_9_distribution.py green; full suite green; harness.py check PASS; wiki nodes modules/ui, interfaces/rest-api, project/distribution-vendors added; openspec/CURRENT.md updated; change archived; commit on feature/generate-init-project"
+    ],
+    "goal": "Refresh project state (indexes, wiki, docs, README), author the prepare-phase-9-distribution OpenSpec change, and implement Phase 9 distribution: RestApi UI surface, lightweight static UI, Open WebUI adapter, OKF wiki profile distribution, one-click launchers, single-container finalization, launch smoke tests, wiki/CURRENT updates, archive.",
+    "openspec_change": "prepare-phase-9-distribution",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "harness.py check PASS",
+      "openspec validate --all --strict 65/65",
+      "81/81 Phase 9 tests"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
