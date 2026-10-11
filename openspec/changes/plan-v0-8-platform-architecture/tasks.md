@@ -555,32 +555,32 @@ implements exactly the Phase 1 tasks (13-44) defined here.
 
 ## Phase 9 — Distribution (UI, container, OCI, one-click, OKF wiki)
 
-- [ ] 109. Implement `platform.ui.RestApi` exposing the UI API
+- [x] 109. Implement `platform.ui.RestApi` exposing the UI API
   surface from §57 (`query`, `retrieve`, `sources`, `graph`,
   `wiki`, `project-version`, `indexing-status`,
   `knowledge-status`, `materialize`, `agent-delegation`).
-- [ ] 110. Implement the lightweight custom UI (default Ionic or
+- [x] 110. Implement the lightweight custom UI (default Ionic or
   documented equivalent) compiled to static assets, served by the
   core deployment, no Node.js required at runtime.
-- [ ] 111. Implement the Open WebUI adapter (optional, not bundled
+- [x] 111. Implement the Open WebUI adapter (optional, not bundled
   by default) behind a feature flag; verify the Open WebUI
   license version before bundling.
-- [ ] 112. Implement the OKF wiki profile distribution
+- [x] 112. Implement the OKF wiki profile distribution
   (validate / package OKF bundle into the container, ship the
   profile adapter).
-- [ ] 113. Implement the one-click launcher scripts
+- [x] 113. Implement the one-click launcher scripts
   (`project-intelligence` binary for Linux,
   `ProjectIntelligence.exe` / `Start-ProjectIntelligence.ps1` for
   Windows) that verify Docker/Podman, create volumes, mount the
   repository, start the container(s), wait for health readiness,
   open the browser.
-- [ ] 114. Finalise the single-container default image
+- [x] 114. Finalise the single-container default image
   (`Containerfile` / `Dockerfile`) and the optional two-container
   profile via `docker-compose.yml` with documented profiles.
-- [ ] 115. Add launch smoke tests verifying that the container
+- [x] 115. Add launch smoke tests verifying that the container
   starts, hydrates against a small synthetic project, opens the UI
   port, and reports health.
-- [ ] 116. Update Wiki (new `modules/ui`, `interfaces/rest-api`,
+- [x] 116. Update Wiki (new `modules/ui`, `interfaces/rest-api`,
   `project/distribution-vendors`), archive the Phase 9 change,
   update `openspec/CURRENT.md`.
 

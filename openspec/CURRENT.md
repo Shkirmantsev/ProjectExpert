@@ -79,12 +79,15 @@ project product.
 | [UI Extension Registry](specs/2026-10-08-ui-extension/spec.md) |
 | [Capabilities](specs/2026-10-08-capabilities/spec.md) |
 | [Enterprise Security Boundary](specs/2026-10-11-enterprise-security-boundary/spec.md) |
+| [Human interface web UI](specs/2026-10-11-human-interface-web-ui/spec.md) |
+| [OKF wiki profile distribution](specs/2026-10-11-okf-wiki-profile-distribution/spec.md) |
+| [One-click distribution](specs/2026-10-11-one-click-distribution/spec.md) |
 
 These product capabilities define the foundation, ingestion,
 storage, retrieval, orchestration, agent integration,
-control plane and security phases of the v0.8 Project
-Intelligence Platform. Subsequent phases (Distribution,
-A2A and quality gates) will introduce additional accepted
+control plane, security and distribution phases of the v0.8 Project
+Intelligence Platform. Subsequent phases (A2A and
+quality gates) will introduce additional accepted
 capabilities. Create new specs through the OpenSpec
 workflow (`openspec/changes/<id>/` →
 `openspec/specs/YYYY-MM-DD-domain-capability/`) and link

@@ -134,6 +134,15 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Phase 8 Egress Decision interface](interfaces/egress.md)
 - [ADR: Phase 8 Enterprise Security Boundary](adr/0017-phase-8-enterprise-security-boundary.md)
 
+## Phase 9 distribution (accepted)
+
+- [Phase 9 UI module map](modules/ui.md)
+- [Phase 9 UI REST interface contract](interfaces/rest-api.md)
+- [Phase 9 distribution vendor inventory](project/distribution-vendors.md)
+- [ADR: Phase 9 REST transport choice](adr/0018-rest-transport.md)
+- [ADR: Phase 9 static frontend equivalence](adr/0019-static-frontend-equivalence.md)
+- [ADR: Phase 9 Open WebUI shim](adr/0020-open-webui-shim.md)
+
 ## Knowledge areas
 
 - `architecture/` — system boundaries, runtime flows, architecture views.

@@ -1,20 +1,21 @@
 # syntax=docker/dockerfile:1.7
-# Phase 1 skeleton for the v0.8 Project Intelligence Platform container.
-# Final image behaviour ships in Phase 9 (one-click launcher); this image
-# installs the platform Python package, copies the documented stub
-# license/SBOM artifacts and exposes the control-plane port (default 8765).
+# One-click container for the v0.8 Project Intelligence Platform (Phase 9).
 #
 # Build:  docker build -t project-intelligence:dev .
 # Run:    docker run --rm -p 8765:8765 \
 #               -v "$(pwd):/repo" \
-#               project-intelligence:dev --help
+#               -e PI_TARGET_ROOT=/repo \
+#               project-intelligence:dev serve --target /repo
 #
-# The base image is pinned by digest (sha256:...) so rebuilds are
-# reproducible; a mutable `python:3.11-slim` tag would silently
-# pull whatever the Docker Hub maintainers published today vs. next
-# week, breaking the §5.5 / §34 supply-chain reproducibility goal.
-# To refresh: pull `python:3.11-slim-bookworm` and update the digest
-# here, then commit a new pinned reference.
+# Composition (per design.md §45.1 "single-container default"):
+#   - backend, REST surface, static UI, runtime store and MCP all in one image
+#   - the lightweight static UI is served by this same container at GET /
+#   - Node.js / npm are deliberately absent from the final image
+#   - the OKF v0.2 compatibility profile ships at /opt/.../distribution/okf-profile
+#
+# Supply-chain (§5.5 / §34):
+#   - base image pinned by digest (sha256:...) so rebuilds are reproducible
+#   - refresh: pull `python:3.11-slim-bookworm`, update the digest, commit
 FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
@@ -31,11 +32,13 @@ RUN apt-get update \
 
 WORKDIR /opt/project-intelligence
 
-# Phase 1 ships the platform package itself; later phases copy additional
-# adapters (ingest parsers, embeddings, control-plane web assets).
-COPY pi_platform ./pi_platform
+# Phase 9 ships the full platform package plus the UI assets and the OKF
+# compatibility profile. Bundling project Wiki content is explicitly forbidden
+# (Block D2 anti-goals); the profile and template only are copied.
 COPY pyproject.toml ./pyproject.toml
 COPY README.md ./README.md
+COPY pi_platform ./pi_platform
+COPY distribution/okf-profile ./distribution/okf-profile
 COPY distribution/licenses ./distribution/licenses
 COPY distribution/sbom ./distribution/sbom
 
@@ -58,8 +61,11 @@ RUN pip install --no-cache-dir .
 
 EXPOSE 8765
 
+# Liveness probe. The readiness signal is exposed at /health/ready inside the
+# HTTP adapter and reflects whether knowledge hydration finished; readiness is
+# distinct from liveness (Block F1, #default-profile-is-one-container).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD python -m pi_platform.cli health || exit 1
 
 ENTRYPOINT ["python", "-m", "pi_platform.cli"]
-CMD ["--help"]
+CMD ["serve", "--target", "/repo", "--host", "0.0.0.0", "--port", "8765"]
