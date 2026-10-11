@@ -177,7 +177,11 @@ class InProcessServerSmokeTests(unittest.TestCase):
         self._cache.mkdir(exist_ok=True)
         # Pin an approval key so the materialise path can sign and verify
         # a token end-to-end without falling through to the closed boundary.
+        # Capture the prior value and register a cleanup so the mutation
+        # never leaks to sibling tests even if setUp raises mid-flight.
+        self._previous_approval_key = os.environ.get("PI_APPROVAL_KEY")
         os.environ["PI_APPROVAL_KEY"] = "phase9-smoke-key"
+        self.addCleanup(self._restore_approval_key)
 
         from pi_platform.adapters.ui.composition import build_ui_service
         from pi_platform.adapters.ui.http_server import UiHttpServer
@@ -192,6 +196,12 @@ class InProcessServerSmokeTests(unittest.TestCase):
         self._server.start_background()
         self.addCleanup(self._server.stop)
         self._base = f"http://{self._server.host}:{self._server.port}"
+
+    def _restore_approval_key(self) -> None:
+        if self._previous_approval_key is None:
+            os.environ.pop("PI_APPROVAL_KEY", None)
+        else:
+            os.environ["PI_APPROVAL_KEY"] = self._previous_approval_key
 
     def test_health_is_liveness_not_readiness(self) -> None:
         """Liveness precedes readiness: hydration is unstarted here."""
