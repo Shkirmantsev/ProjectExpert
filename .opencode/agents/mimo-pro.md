@@ -7,6 +7,7 @@ maxSteps: 64
 permission:
   task:
     "*": deny
+  edit: ask
   bash:
     "*": ask
     "git status": allow
@@ -29,6 +30,23 @@ Focus on:
 - migrations and data-loss risk;
 - difficult cross-module causality;
 - conflicting requirements.
+
+Check:
+- whether the claimed root cause follows from evidence;
+- correctness of the code/change;
+- edge cases and regressions;
+- concurrency/transaction implications where relevant;
+- missing tests;
+- incorrect assumptions;
+- simpler or safer alternatives.
+
+Classify findings:
+BLOCKER
+MAJOR
+MINOR
+NONE
+
+For every BLOCKER or MAJOR finding, provide concrete file/symbol/evidence and a corrective action.
 
 Before implementation state:
 1. root cause / architectural problem;

@@ -253,7 +253,7 @@ cd60e3a9811804e13d1212f1da1aa187839d155543acbcd2a8ac8bb52bb0b0c2  ./.gitattribut
 d8c58083d0075d277ce47c100b12b8deaaab1000eaff144057a0080ef61291a9  ./.opencode/.gitignore
 8a69fd70e31b546f4e8eac15086c57f95d4816ccf711785ace4ba00b1fa86e06  ./.opencode/agents/deepseek-verify.md
 dacd2a1b8d99e274f811b13bc6663f811f68906168b61e0cf1ec844ad119a0c5  ./.opencode/agents/mimo-flash.md
-ff2f7589a0211ae5e64b43b99e2a17a879277f22fe17a2bc8c1fe9d330830440  ./.opencode/agents/mimo-pro.md
+917f1fc9f73d65eec71fab3330e264bf9859758bc437f7a50d9afe2eeddbe104  ./.opencode/agents/mimo-pro.md
 e5a3dbd780abb752af803fbf2499fc684c8535a1fb4171441716f9b87fac7b77  ./.opencode/agents/orchestrator.md
 6a842e8892955b5859ff70c7af75960503715cd958cc56d992ae5bd580ba96c1  ./.opencode/commands/route.md
 4a63ec3f741990f8e103c4e727c1c3cc9622a636424dd324761400cb70542a90  ./.opencode/package.json
