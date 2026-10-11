@@ -116,3 +116,17 @@ class SecretProviderPort(abc.ABC):
 
     @abc.abstractmethod
     def serialise(self) -> str: ...
+
+    def has_resolved(self, value: str) -> bool:
+        """Return ``True`` when ``value`` carries a previously
+        resolved secret value, including as a substring of
+        a larger field.
+
+        The default implementation returns ``False`` so the
+        abstract port remains backward compatible with any
+        existing adapter; the production in-process
+        :class:`DefaultSecretProvider` overrides this and the
+        Phase 8 redaction pipeline consults the override.
+        """
+
+        return False
