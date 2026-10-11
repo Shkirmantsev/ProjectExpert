@@ -481,17 +481,77 @@ implements exactly the Phase 1 tasks (13-44) defined here.
 
 ## Phase 8 — Security (enterprise boundary)
 
-- [ ] 105. Implement `platform.security.EnterpriseBoundary`
-  including secret detection, source-level permissions, security
-  classification, outbound filtering, redaction, egress policy and
-  auditability.
-- [ ] 106. Add the security metadata to the retrieval filtering
+- [x] 105. Implement `platform.security.EnterpriseBoundary`
+  including secret detection, source-level permissions,
+  security classification, outbound filtering, redaction,
+  egress policy and auditability.
+  → `pi_platform/ports/security/{boundary,classification,
+    permission,detection,egress,redaction,audit}.py` (7
+    ports, new),
+    `pi_platform/core/security/{boundary,classification,
+    permission,detection,egress,redaction,audit}.py` (7
+    default implementations, new),
+    `pi_platform/adapters/security/{detection_patterns,
+    egress_classifier}.py` (2 adapters, new).
+  → Architect review (mimo-pro) and 7 critical-bug fix
+    cycle applied; `tests/test_phase_8_security.py` (52
+    tests) reports `OK`.
+- [x] 106. Add the security metadata to the retrieval filtering
   pipeline so security classification participates in retrieval
   decisions.
-- [ ] 107. Add focused regression tests for secret detection,
+  → `pi_platform/ports/retrieval/metadata_filter.py`
+    extended with `DROP_SECURITY_EGRESS_DENIED` and
+    `DROP_SECURITY_REDACTED` drop reasons (Phase 4
+    `DROP_SECURITY_DENIED` preserved), and the
+    `MetadataFilter` dataclass now carries the
+    `actor_role` and `actor_capabilities` fields plus a
+    `with_actor(...)` helper.
+  → `pi_platform/core/retrieval/metadata_filter.py` —
+    `MetadataFilterCore` extended with optional
+    `enterprise_boundary` parameter; allow-list runs
+    first so the Phase 4 `security_denied` reason stays
+    canonical, then the boundary is consulted for
+    source-permission REDACT (kept) / DENY (dropped) /
+    ALLOW (passthrough). A new `redacted_count` property
+    exposes the kept-but-redacted hit count.
+  → Phase 4 regression suite (`tests/test_platform_phase4`)
+    reports `OK` (38 tests).
+- [x] 107. Add focused regression tests for secret detection,
   outbound filtering, and retrieval redaction.
-- [ ] 108. Update Wiki (new `modules/security`, `interfaces/egress`),
+  → `tests/test_phase_8_security.py` (52 tests organised
+    by Requirement block): classification vocabulary (6),
+    secret detection (9), source permissions (8), egress
+    policy (8), redaction pipeline (7), retrieval filter
+    integration (5), auditability (4), capability
+    delegation (3), §68.50 operator-approval gate (2).
+  → All 52 tests pass; full Phase 7 (51 tests), Phase 4
+    (38 tests) and retrieval-benchmark (8 tests) suites
+    continue to pass.
+- [x] 108. Update Wiki (new `modules/security`, `interfaces/egress`),
   archive the Phase 8 change, update `openspec/CURRENT.md`.
+  → `.ai/wiki/modules/security.md` (new) and
+    `.ai/wiki/interfaces/egress.md` (new).
+  → `.ai/wiki/glossary/platform.md` extended with
+    `EgressPolicy`, `SecretDetection`, `SourcePermission`,
+    `SecurityClassification`, `RedactionPipeline`.
+  → `.ai/wiki/INDEX.md` updated with the new nodes and
+    the Phase 8 section; cross-links to Phase 7
+    `policy-engine` and `secret-provider` modules.
+  → `.ai/wiki/architecture/system-overview.md` extended
+    with the Phase 8 paragraph and the relevant §68
+    invariants.
+  → `.ai/wiki/adr/0017-phase-8-enterprise-security-boundary.md`
+    (new) — the Phase 8 architecture decision.
+  → `openspec/changes/prepare-phase-8-security/`
+    archived under
+    `openspec/changes/archive/YYYY-MM-DD-prepare-phase-8-security/`.
+  → `openspec/changes/implement-phase-8-security/`
+    archived under
+    `openspec/changes/archive/YYYY-MM-DD-implement-phase-8-security/`.
+  → `openspec/CURRENT.md` updated to add the one new
+    accepted capability
+    (`enterprise-security-boundary`).
+  → `python harness.py check` PASS.
 
 ## Phase 9 — Distribution (UI, container, OCI, one-click, OKF wiki)
 
