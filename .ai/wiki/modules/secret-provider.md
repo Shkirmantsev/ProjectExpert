@@ -84,3 +84,13 @@ carries a known resolved secret value through the typed
 The public surface lives under
 `pi_platform.core.control.secrets.DefaultSecretProvider`.
 The port is `pi_platform.ports.control.secrets.SecretProviderPort`.
+
+## Phase 8 reuse
+
+The Phase 8 [Redaction Pipeline](security.md) composes this
+Secret Provider as step 1 of the documented two-step
+pipeline, then applies classification-driven redaction
+(`[REDACTED:<LEVEL>]`) as step 2. The pipeline asserts the
+no-resolved-value invariant via the new
+`SecretProviderPort.has_resolved()` method (added in Phase 8
+with a backward-compatible default returning `False`).

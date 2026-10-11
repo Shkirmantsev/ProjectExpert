@@ -98,3 +98,14 @@ behind the existing `PolicyDecisionPort`. The Phase 1
 The public surface lives under
 `pi_platform.core.control.policy.DefaultPolicyEngine`. The
 port is `pi_platform.ports.control.policy.PolicyEnginePort`.
+
+## Phase 8 reuse
+
+The Phase 8 [Enterprise Security Boundary](security.md) consults
+this Policy Engine for every egress evaluation; the egress
+port threads the *real* actor role + granted capabilities +
+optional `approval_token` through the documented
+`PolicyRequest` contract. The `NETWORK_EXTERNAL` capability
+gates every non-loopback call, and a missing `approval_token`
+on a RESTRICTED egress routes through the `REQUIRE_APPROVAL`
+contract per §68.50.

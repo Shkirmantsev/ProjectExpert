@@ -417,3 +417,50 @@ The Phase 6 surface introduces the following terms:
   consumed by every packager; the four vendor bundles MUST
   agree on skill content hash, version, MCP API range,
   license and server identity.
+
+## Phase 8 vocabulary
+
+- **Enterprise Security Boundary** — the §56 composition
+  root that separates local access from external
+  transmission. Lives at
+  `pi_platform.core.security.boundary.DefaultEnterpriseBoundary`
+  and wires the four Phase 8 ports (classification,
+  source permission, egress, redaction) plus the secret
+  detector around the Phase 7 Secret / Policy / Audit
+  foundation.
+- **Security Classification** — the four-level typed
+  vocabulary (`PUBLIC` / `INTERNAL` / `CONFIDENTIAL` /
+  `RESTRICTED`) carried by
+  `pi_platform.ports.security.classification.ClassificationLevel`.
+  A stable ordered integral `RANK` is used for
+  comparison. Unlabelled chunks default to `PUBLIC`;
+  unknown values raise
+  `UnknownClassificationLevelError`.
+- **Source Permission** — the typed port
+  `pi_platform.ports.security.permission.SourcePermissionPort`
+  that maps every `(source_id, classification, actor_role)`
+  triple to `ALLOW` / `REDACT` / `DENY` per the documented
+  default policy. Implemented by
+  `DefaultSourcePermissionPolicy` in
+  `pi_platform.core.security.permission`.
+- **Secret Detection** — the typed port
+  `pi_platform.ports.security.detection.SecretDetectorPort`
+  that scans transient values with the documented regex
+  bank (AWS / GitHub / PEM / JWT / generic API-key) plus
+  a Shannon-entropy base64 heuristic. Complements the
+  Phase 7 Secret Provider; never replaces it.
+- **Egress Policy** — the typed port
+  `pi_platform.ports.security.egress.EgressDecisionPort`
+  that inspects every outbound call. The default
+  `DefaultEgressPolicy` is fail-closed: loopback
+  ALLOW, otherwise `network.external` capability +
+  classification / endpoint allow-list + §68.50
+  `approval_token` for high-impact operations.
+- **Redaction Pipeline** — the typed port
+  `pi_platform.ports.security.redaction.RedactionPipelinePort`
+  that composes Phase 7 Secret Provider redaction with
+  classification-driven redaction, asserting the
+  no-resolved-value invariant via
+  `SecretProvider.has_resolved`. Implemented by
+  `DefaultRedactionPipeline` in
+  `pi_platform.core.security.redaction`.

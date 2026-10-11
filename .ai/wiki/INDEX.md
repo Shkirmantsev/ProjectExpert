@@ -40,6 +40,9 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Phase 7 Audit Log module map](modules/audit-log.md)
 - [Phase 7 Feature Flags module map](modules/feature-flags.md)
 - [Phase 7 UI Extension Registry module map](modules/ui-extensions.md)
+- [Phase 8 Enterprise Security Boundary module map](modules/security.md)
+- [Phase 8 Egress Decision interface](interfaces/egress.md)
+- [ADR: Phase 8 Enterprise Security Boundary](adr/0017-phase-8-enterprise-security-boundary.md)
 - [Capability vocabulary interface](interfaces/capabilities.md)
 - [Control Registry interface](interfaces/control-registry.md)
 - [Hook Runtime interface](interfaces/hook-runtime.md)
@@ -115,6 +118,21 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [ADR: Phase 6 agent integration packaging](adr/0011-agent-integration-packaging.md)
 - [ADR: Phase 6 version compatibility handshake](adr/0012-version-compatibility-handshake.md)
 - [ADR: Phase 6 plugin supply-chain security](adr/0013-plugin-supply-chain-security.md)
+
+## Phase 7 control plane (accepted)
+
+- [Phase 7 control plane module map](modules/registry.md) and related
+  Phase 7 module maps (`hooks`, `policy-engine`, `secret-provider`,
+  `audit-log`, `feature-flags`, `ui-extensions`).
+- Phase 7 ADRs: `0014-control-plane-policy-engine.md`,
+  `0015-secret-references-and-redaction.md`,
+  `0016-audit-vs-operational-log-separation.md`.
+
+## Phase 8 enterprise security (accepted)
+
+- [Phase 8 Enterprise Security Boundary module map](modules/security.md)
+- [Phase 8 Egress Decision interface](interfaces/egress.md)
+- [ADR: Phase 8 Enterprise Security Boundary](adr/0017-phase-8-enterprise-security-boundary.md)
 
 ## Knowledge areas
 
