@@ -39,6 +39,12 @@ or removing an operation is a breaking interface change.
 
 ## Transport
 
+The UI service resolves its repository root before checking approval tokens
+or invoking materialisation. Token issuers must use `str(repo_root.resolve())`,
+matching the materialiser's canonical repository identity. Exact repository,
+action, signature, change-set and expiry checks remain enforced; native Windows
+path casing and equivalent path spellings must not create two approval scopes.
+
 - stdlib `ThreadingHTTPServer`; no third-party imports
 - loopback bind (`127.0.0.1`) by default
 - bearer token gate when `PI_UI_TOKEN` is configured

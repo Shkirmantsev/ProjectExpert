@@ -203,7 +203,7 @@ e10d762b74bb05a2ba23ed0becb6126c3c3b989d2c5a6164056d1a48f536d6bb  ./.ai/wiki/int
 1ca5cef3d2214896b6d5bf5228e62427c4df84e0d0656055e51712f422cb2af9  ./.ai/wiki/interfaces/policy-engine.md
 a8973b6e458c7ed40af154c197c386c44ba03a18741c423685ca1493a885336c  ./.ai/wiki/interfaces/provenance.md
 9d8bd382c8d0f7fe3ca0188d833cb29959a82f8feb016a29d886013141327071  ./.ai/wiki/interfaces/reranker.md
-7aed9e365ae867db051e9e00f341b82a429eb10ffa88acf8983ca24536d98fd1  ./.ai/wiki/interfaces/rest-api.md
+f9195515923c9b64cc4c805aca246e4ac9c38f7f85d2376b4a006f61a6af707e  ./.ai/wiki/interfaces/rest-api.md
 33d8e1f91dd91e4bf6579aa8ff042b5d3651f8f3a39495c81a0fba2912e9d2bb  ./.ai/wiki/interfaces/runtime-readiness.md
 258e71fd165c13d216d4b0cfdd62dfe232826606546f8a664fc5cc51709b65bc  ./.ai/wiki/interfaces/runtime-store.md
 f645683d86c8988ad15498d253d4130cbff42cd4c54330ec29bb663ac5db21b0  ./.ai/wiki/interfaces/secret-provider.md
@@ -599,7 +599,6 @@ fff01106c73f745d9c213ac0113e167380059aed94ba76e1fd61fb60c214999d  ./openspec/spe
 309659d2cbb07055c80486674af20e1d6e5e9bd68eaacdd5ac84b93c6e0c13c7  ./openspec/specs/2026-10-11-one-click-distribution/spec.md
 b1a24fe09a4c240c66200421e505d8642b19109e61b32e19c24b236f4001f4ba  ./patches/hermes-agent/0001-resolver-backed-api-run-approvals.patch
 b4ba6bcefcb29973b5aacb063061e3de72171e77c5814a21f44d211e0e768c35  ./patches/hermes-agent/0002-legacy-981101-advertise-run-approval-resolver.patch
-a34b3bb651b8a8b940cb2bc9d1b6055ee715f5fa9cbab786520a112b7fb80c96  ./patches/hermes-agent/0003-port-to-79af3f6c-resolver-backed-api-run-approvals.patch
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./pi_platform/__init__.py
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./pi_platform/adapters/__init__.py
 4940598ae21425aff40826b6c2ab40b75cccb20f0996735ec7ea0459110b024f  ./pi_platform/adapters/agent_integration/packagers/claude_code.py
@@ -746,7 +745,7 @@ dc442fd30a0a3882c1eae44d62e48cec8afd05669d2cae1fa12d9ce415887125  ./pi_platform/
 e1dd4fc4775eaa6948463a96fd1be6d8b436a3aecb39a553b3aa183886213fa1  ./pi_platform/core/sync/trusted_approval.py
 130a230807ec4bb0d253bc3847f141e2e9d33d237829bb8471b8267cae449f9d  ./pi_platform/core/sync/wal.py
 d774c3a0f1993c50b4345c7ed0cef151ccd748979d61be28924bf57dbc8079ae  ./pi_platform/core/ui/__init__.py
-abbef189535a22e838744a504f09292a30f5eae55adb52d7d3ca5dab08af20a0  ./pi_platform/core/ui/rest_service.py
+10cd99d849ed23402a50432234ee03a3a9c139bebc365fca94a8883536cef1fe  ./pi_platform/core/ui/rest_service.py
 631a79c6846b3ef2292a50ed0e82864e79ee8987e11cef7b7b23a92813dc94f4  ./pi_platform/mcp/server.py
 15f47f881be95d401449963cf3bf82fc80b4977617e961abca8c5f77c6a45a97  ./pi_platform/mcp/skill_plane.py
 8ee7b14e58b0f1fdb3621c3a305fb94c1f8e0b6d872793cfd56b5a099a3a8f52  ./pi_platform/ports/__init__.py
@@ -830,7 +829,7 @@ a32d5d54b441eb385a6ebef27dd8728c7ed457ddfcb68b63058277d769d76342  ./requirements
 ceb2085b4285f7f3cfa31a7a87f9c1f90453190804f799c1d831e7dbd4eda23b  ./scripts/artifact_manifest.py
 f785e691fc88e57f06bc0f542779ead1aa0389148983c29a7875e74dd05d82ee  ./scripts/bootstrap_env.py
 959809ac6918571b1241d55243dd2c8372dfa2af78e5aeb4dc87d7bccbd40259  ./scripts/check_config.py
-b5cd7c6a2e6fba929ebbf671a1dff8750703f7887a46d25fe95a0f520419556a  ./scripts/common.py
+032f29fd27db7641f49dd1e7f8689e9fc6469d9202245ccbc8df54318030ffad  ./scripts/common.py
 cdecb72e1f9bd4803acc073f5b9a5daa50b2f9aea756cd4c31b673948a6de3e4  ./scripts/configure_clients.py
 37f80f7a0583bc2517bb76d25487fb346129b161f408bb2fef1e203c6754bae2  ./scripts/context_pack.py
 3bafb942962463a7ecc3581b66cb0dad89c36573c72ae84ea2120891a32a0d5e  ./scripts/copy_remote_sidecar.py
@@ -878,9 +877,9 @@ b4090d9caf1f0d1cc3fa50cb5b6f1eeaabdb07babb2fbfff9603ab17ce058728  ./tests/test_o
 2f3b6ea9cc0c0703e180f5e3202b6bd341308cd1ced6cb71fd9ea80b599887d1  ./tests/test_phase_6_quality_gates.py
 07e390c62d91f8d049ecff19abf14c744a4eb970f3b71e5d5f18edeeab70df47  ./tests/test_phase_7_control_plane.py
 7b72b1331e9ab9c512e9174a92bbfac4920f2828f2099219d6bbf8f32668fd7b  ./tests/test_phase_8_security.py
-f915a5b1b5bdd97d5dcfe14fadd23ba60c3f5e604930253a7d918023949dd8b2  ./tests/test_phase_9_distribution.py
+47bc2d6c72a6b12c2d87808c36a4dcd769805fe8628406887fbc29fbfea01e68  ./tests/test_phase_9_distribution.py
 e0447cb8916b85a069a057ec9098c6fafadc50d2bafb226bc3f9e555f040fa9c  ./tests/test_phase_9_launch_smoke.py
-ba79d5e11673b04582393bd10f84b216c0f0f28de5a9948592761fe0f71728f1  ./tests/test_phase_9_rest_core.py
+16a8b745a05d74bab36614e1c13c8064c2710a39910042a060d696f2c48cbf79  ./tests/test_phase_9_rest_core.py
 fc35da877cf890199a998e20574ec2bd9d758be4a3e2276a4307f7567289a7a1  ./tests/test_platform_phase1.py
 272b6c6197ac3c014b9b84fb169a6683b4b041f57d8cc1f3c88da12acff17585  ./tests/test_platform_phase2.py
 e421cd9fb1d0dfe1ae5a9d367b78e98fbd117e48136f1052489c15738404a3f7  ./tests/test_platform_phase3.py

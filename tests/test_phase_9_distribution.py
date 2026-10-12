@@ -68,7 +68,10 @@ def _git(repo: Path, *args: str) -> None:
 class TempRepoMixin:
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
-        self.repo = Path(self._tmp.name) / "repo"
+        root = Path(self._tmp.name)
+        # Retain a noncanonical spelling to exercise approval path handling
+        # on every OS, even when its temporary-directory path is canonical.
+        self.repo = root / ".." / root.name / "repo"
         self.repo.mkdir()
         _git(self.repo, "init", "-q")
         (self.repo / "project-knowledge" / "wiki").mkdir(parents=True)
@@ -435,7 +438,7 @@ class MaterialiseOkfGateTests(TempRepoMixin, unittest.TestCase):
         from pi_platform.ports import ApprovalRequest
 
         return HmacTrustedApprovalBoundary(key=b"phase9-test-key").issue(
-            ApprovalRequest(action="materialise", repo_root=str(self.repo))
+            ApprovalRequest(action="materialise", repo_root=str(self.repo.resolve()))
         )
 
     def _change(self) -> RuntimeChange:

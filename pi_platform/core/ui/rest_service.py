@@ -148,7 +148,9 @@ class RestService(RestApiPort):
         conflicts: Optional[ConflictsPort] = None,
         context: Optional[UiContext] = None,
     ) -> None:
-        self._repo_root = Path(repo_root)
+        # Approval tokens bind the canonical repository path. Use the same
+        # identity as MaterialiseService, including Windows path casing.
+        self._repo_root = Path(repo_root).resolve()
         self._policy = policy
         self._orchestrator = orchestrator
         self._retrieval = retrieval

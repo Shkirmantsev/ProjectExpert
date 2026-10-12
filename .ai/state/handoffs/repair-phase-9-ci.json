@@ -1,0 +1,51 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Local repair complete on Linux/Python3.12/OpenSpec1.13; native GitHub Windows3.11/3.13 verification NOT RUN; no commit or push. Manifest includes pre-existing common.py edit; untracked Hermes patch unchanged. Existing Open WebUI enabled-default implementation conflicts with accepted disabled-default spec, outside CI repair scope."
+  ],
+  "decisions": [
+    "Existing canonical-path contract restored without altering HMAC checks, accepted requirements, architecture or CI gates"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Repaired canonical UI approval identity and phase9 token fixture; added alias-path regression; removed uncommitted patch manifest entry; refreshed hashes; updated REST Wiki; reviewed against accepted specs and v0.8"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Publish current repaired tree including existing common.py edit covered by manifest, then rerun PR6 checks",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-12T20:24:28+00:00",
+    "id": "repair-phase-9-ci",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-12T20:33:17+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "All reported causes repaired; focused tests and harness check and strict OpenSpec pass; repository approval binding and OKF gate preserved"
+    ],
+    "goal": "Repair PR 6 phase 9 Linux and Windows CI failures while preserving v0.8 and accepted OpenSpec requirements",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full harness check PASS: 672 tests including 10 MCP tests; OpenSpec strict65/65; config/session/Wiki and 914-file manifest PASS. Unit discovery662 PASS (one container opt-in skip); tracked-only snapshot manifest PASS; diff whitespace PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

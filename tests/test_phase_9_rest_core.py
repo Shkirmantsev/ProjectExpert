@@ -334,6 +334,23 @@ class AuthorisationTests(unittest.TestCase):
 
 
 class MaterialisationTests(unittest.TestCase):
+    def test_materialize_uses_canonical_repository_for_approval_and_write(self):
+        from pi_platform.core.sync.trusted_approval import HmacTrustedApprovalBoundary
+
+        canonical = Path.cwd().resolve()
+        alias = canonical / ".." / canonical.name
+        boundary = HmacTrustedApprovalBoundary(key=b"phase9-path-test")
+        materialise = FakeMaterialise()
+        service = build_service(
+            repo_root=alias, approval=boundary, materialise=materialise
+        )
+        token = boundary.issue(
+            ApprovalRequest(action="materialise", repo_root=str(canonical))
+        )
+        result = service.materialize(ACTOR, MaterializeRequest(approval_token=token))
+        self.assertTrue(result.materialized)
+        self.assertEqual(materialise.calls, [(canonical, token)])
+
     def test_materialize_without_token_writes_nothing(self):
         materialise = FakeMaterialise()
         service = build_service(materialise=materialise)
