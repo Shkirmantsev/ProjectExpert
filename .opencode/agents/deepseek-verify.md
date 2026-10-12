@@ -3,7 +3,7 @@ description: Independent DeepSeek V4.1 Flash verifier and alternate difficult te
 mode: subagent
 model: openrouter/deepseek/deepseek-v4.1-flash
 variant: high
-maxSteps: 16
+maxSteps: 48
 permission:
   task:
     "*": deny

@@ -70,15 +70,28 @@ project product.
 | [Generic agent bundle](specs/2026-10-07-generic-agent-bundle/spec.md) |
 | [Agent adapter contract](specs/2026-10-07-agent-adapter-contract/spec.md) |
 | [Plugin supply chain security](specs/2026-10-07-plugin-supply-chain-security/spec.md) |
+| [Control Registry](specs/2026-10-08-control-registry/spec.md) |
+| [Hook Runtime](specs/2026-10-08-hook-runtime/spec.md) |
+| [Policy Engine](specs/2026-10-08-policy-engine/spec.md) |
+| [Secret Provider](specs/2026-10-08-secret-provider/spec.md) |
+| [Audit Log](specs/2026-10-08-audit-log/spec.md) |
+| [Feature Flags](specs/2026-10-08-feature-flags/spec.md) |
+| [UI Extension Registry](specs/2026-10-08-ui-extension/spec.md) |
+| [Capabilities](specs/2026-10-08-capabilities/spec.md) |
+| [Enterprise Security Boundary](specs/2026-10-11-enterprise-security-boundary/spec.md) |
+| [Human interface web UI](specs/2026-10-11-human-interface-web-ui/spec.md) |
+| [OKF wiki profile distribution](specs/2026-10-11-okf-wiki-profile-distribution/spec.md) |
+| [One-click distribution](specs/2026-10-11-one-click-distribution/spec.md) |
 
 These product capabilities define the foundation, ingestion,
-storage, retrieval, orchestration and agent integration phases of
-the v0.8 Project Intelligence Platform. Subsequent phases
-(Control plane, Security, Distribution, A2A and quality gates)
-will introduce additional accepted capabilities. Create new specs
-through the OpenSpec workflow (`openspec/changes/<id>/` →
-`openspec/specs/YYYY-MM-DD-domain-capability/`) and link them here
-when adopted.
+storage, retrieval, orchestration, agent integration,
+control plane, security and distribution phases of the v0.8 Project
+Intelligence Platform. Subsequent phases (A2A and
+quality gates) will introduce additional accepted
+capabilities. Create new specs through the OpenSpec
+workflow (`openspec/changes/<id>/` →
+`openspec/specs/YYYY-MM-DD-domain-capability/`) and link
+them here when adopted.
 
 Maintain this inventory with every accepted addition, retirement or identity
 migration. Dates record first acceptance, not the latest edit. Run

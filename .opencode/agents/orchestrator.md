@@ -1,7 +1,7 @@
 ---
 description: Primary MiniMax M3 context owner and JEV-assisted cost-aware router.
 mode: primary
-maxSteps: 30
+maxSteps: 160
 permission:
   task:
     "*": deny

@@ -65,12 +65,38 @@ class LocalFilesystemAdapter:
 
     # -- canonical tree ------------------------------------------------
 
+    # Minimal OKF v0.2 ``WikiIndex`` stub. The §10 materialise gate runs
+    # ``validate_wiki_bundle`` before the first durable write and refuses to
+    # commit when the bundle is invalid, so the scaffold must seed enough
+    # frontmatter for a freshly-initialised project to survive its first
+    # hydrate→materialise cycle. The body is intentionally trivial: it is a
+    # placeholder for the operator to edit, not a curated index.
+    _OKF_WIKI_INDEX_STUB = (
+        "---\n"
+        "okf_version: '0.2'\n"
+        "type: 'WikiIndex'\n"
+        "title: 'Project Knowledge Index'\n"
+        "---\n"
+        "# Project Knowledge Index\n"
+        "\n"
+        "Replace this stub with your curated OKF Wiki bundle. See the\n"
+        "`okf-profile` distribution under `distribution/okf-profile/` for\n"
+        "templates and the §10 OKF conformance rules.\n"
+    )
+
     def ensure_canonical_tree(self) -> None:
         """Create the documented canonical knowledge directory tree."""
 
         for sub in ("wiki", "graph", "chunks", "sources", "objects",
                     "manifests"):
             (self.knowledge_root / sub).mkdir(parents=True, exist_ok=True)
+        # Seed the reserved ``wiki/index.md`` with a valid OKF v0.2
+        # ``WikiIndex`` stub so a freshly-initialised project passes the
+        # §10 materialise gate without an extra manual step. The file is
+        # only written when missing, so existing real indexes are preserved.
+        wiki_index = self.knowledge_root / "wiki" / "index.md"
+        if not wiki_index.exists():
+            wiki_index.write_text(self._OKF_WIKI_INDEX_STUB, encoding="utf-8")
 
     def ensure_distribution_tree(self) -> None:
         for sub in ("licenses", "skills", "codex", "claude-code",

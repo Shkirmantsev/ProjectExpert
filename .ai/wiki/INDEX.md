@@ -29,7 +29,28 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [ADR: License governance default](adr/0003-license-governance-default.md)
 - [ADR: Ports-and-adapters extension style](adr/0004-ports-and-adapters-extension-style.md)
 - [ADR: Platform source language](adr/0005-platform-source-language.md)
+- [ADR: Phase 7 central policy engine](adr/0014-control-plane-policy-engine.md)
+- [ADR: Phase 7 secret references and redaction](adr/0015-secret-references-and-redaction.md)
+- [ADR: Phase 7 audit vs operational log separation](adr/0016-audit-vs-operational-log-separation.md)
 - [Platform core modules](modules/platform-core.md)
+- [Phase 7 Feature / Plugin Registry module map](modules/registry.md)
+- [Phase 7 Hook Runtime module map](modules/hooks.md)
+- [Phase 7 Policy Engine module map](modules/policy-engine.md)
+- [Phase 7 Secret Provider module map](modules/secret-provider.md)
+- [Phase 7 Audit Log module map](modules/audit-log.md)
+- [Phase 7 Feature Flags module map](modules/feature-flags.md)
+- [Phase 7 UI Extension Registry module map](modules/ui-extensions.md)
+- [Phase 8 Enterprise Security Boundary module map](modules/security.md)
+- [Phase 8 Egress Decision interface](interfaces/egress.md)
+- [ADR: Phase 8 Enterprise Security Boundary](adr/0017-phase-8-enterprise-security-boundary.md)
+- [Capability vocabulary interface](interfaces/capabilities.md)
+- [Control Registry interface](interfaces/control-registry.md)
+- [Hook Runtime interface](interfaces/hook-runtime.md)
+- [Policy Engine interface](interfaces/policy-engine.md)
+- [Secret Provider interface](interfaces/secret-provider.md)
+- [Audit Log interface](interfaces/audit-log.md)
+- [Feature Flags interface](interfaces/feature-flags.md)
+- [UI Extension interface](interfaces/ui-extension.md)
 - [Canonical interface](interfaces/canonical.md)
 - [Git interface](interfaces/git.md)
 - [Sync interface](interfaces/sync.md)
@@ -97,6 +118,30 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [ADR: Phase 6 agent integration packaging](adr/0011-agent-integration-packaging.md)
 - [ADR: Phase 6 version compatibility handshake](adr/0012-version-compatibility-handshake.md)
 - [ADR: Phase 6 plugin supply-chain security](adr/0013-plugin-supply-chain-security.md)
+
+## Phase 7 control plane (accepted)
+
+- [Phase 7 control plane module map](modules/registry.md) and related
+  Phase 7 module maps (`hooks`, `policy-engine`, `secret-provider`,
+  `audit-log`, `feature-flags`, `ui-extensions`).
+- Phase 7 ADRs: `0014-control-plane-policy-engine.md`,
+  `0015-secret-references-and-redaction.md`,
+  `0016-audit-vs-operational-log-separation.md`.
+
+## Phase 8 enterprise security (accepted)
+
+- [Phase 8 Enterprise Security Boundary module map](modules/security.md)
+- [Phase 8 Egress Decision interface](interfaces/egress.md)
+- [ADR: Phase 8 Enterprise Security Boundary](adr/0017-phase-8-enterprise-security-boundary.md)
+
+## Phase 9 distribution (accepted)
+
+- [Phase 9 UI module map](modules/ui.md)
+- [Phase 9 UI REST interface contract](interfaces/rest-api.md)
+- [Phase 9 distribution vendor inventory](project/distribution-vendors.md)
+- [ADR: Phase 9 REST transport choice](adr/0018-rest-transport.md)
+- [ADR: Phase 9 static frontend equivalence](adr/0019-static-frontend-equivalence.md)
+- [ADR: Phase 9 Open WebUI shim](adr/0020-open-webui-shim.md)
 
 ## Knowledge areas
 

@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Iterable, Optional
@@ -50,6 +51,8 @@ from ..core.sync import (
 __all__ = ["main", "build_parser"]
 
 
+DEFAULT_UI_HOST = "127.0.0.1"
+DEFAULT_UI_PORT = 8765
 DEFAULT_PROJECT_KNOWLEDGE = Path("project-knowledge")
 DEFAULT_RUNTIME_CACHE = Path(".project-intelligence-cache")
 
@@ -136,7 +139,22 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("capabilities",
                    help="print the §47 capability discovery descriptor")
 
-    sub.add_parser("health", help="lightweight liveness check")
+    health = sub.add_parser(
+        "health", help="liveness check; --ready reports readiness"
+    )
+    health.add_argument(
+        "--ready", action="store_true",
+        help="exit 0 only when knowledge hydration is consistent",
+    )
+    health.add_argument("--target", type=Path, default=Path.cwd())
+    health.add_argument("--cache-root", type=Path, default=DEFAULT_RUNTIME_CACHE)
+    serve = sub.add_parser(
+        "serve", help="serve the human UI API and static frontend"
+    )
+    serve.add_argument("--target", type=Path, default=Path.cwd())
+    serve.add_argument("--cache-root", type=Path, default=DEFAULT_RUNTIME_CACHE)
+    serve.add_argument("--host", default=DEFAULT_UI_HOST)
+    serve.add_argument("--port", type=int, default=DEFAULT_UI_PORT)
     sub.add_parser("--help", help="show this help message and exit")
     return parser
 
@@ -483,8 +501,95 @@ def _cmd_ingest_sources(args: argparse.Namespace) -> int:
     return 0 if all(r.ok for r in reports) else 1
 
 
-def _cmd_health(_: argparse.Namespace) -> int:
-    print(json.dumps({"status": "ok"}))
+def _cmd_health(args: argparse.Namespace) -> int:
+    """Liveness by default; ``--ready`` reports hydration readiness (§62)."""
+    if not getattr(args, "ready", False):
+        print(json.dumps({"status": "ok"}))
+        return 0
+    from ..adapters.ui import build_ui_service
+
+    target = Path(getattr(args, "target", Path.cwd())).resolve()
+    _service, readiness = build_ui_service(
+        repo_root=target, cache_root=_resolve_cache_root(args)
+    )
+    snapshot = readiness.snapshot()
+    ready = bool(snapshot.consistent) and not bool(snapshot.in_progress)
+    print(json.dumps({
+        "status": "ok",
+        "ready": ready,
+        "current_head": snapshot.current_head,
+        "last_hydrate_at": snapshot.last_hydrate_at,
+        "reason": snapshot.reason,
+    }))
+    return 0 if ready else 1
+
+
+def _cmd_serve(args: argparse.Namespace) -> int:
+    """Serve the human UI API and static frontend from the core container."""
+    from ..adapters.ui import (
+        OPEN_WEBUI_FLAG,
+        OpenAiCompatShim,
+        UiHttpServer,
+        build_flag_registry,
+        build_ui_service,
+        is_open_webui_enabled,
+    )
+    from ..core.control.flags import FeatureFlagScope, FeatureFlagState
+    from ..ports.ui.rest_api import QueryRequest, UiActor
+
+    target = Path(getattr(args, "target", Path.cwd())).resolve()
+    service, readiness = build_ui_service(
+        repo_root=target, cache_root=_resolve_cache_root(args)
+    )
+    registry = build_flag_registry()
+    # Operator override path: ``PI_OPEN_WEBUI_ADAPTER=0`` flips the flag off;
+    # ``PI_OPEN_WEBUI_ADAPTER=1`` keeps it on. The default is ON so the
+    # local model bundled in ``desktop-lite`` is wired up out of the box.
+    flag_override = os.environ.get("PI_OPEN_WEBUI_ADAPTER")
+    if flag_override == "0":
+        registry.override(
+            OPEN_WEBUI_FLAG,
+            state=FeatureFlagState.DISABLED,
+            scope=FeatureFlagScope.DEPLOYMENT_PROFILE,
+            scope_key=os.environ.get("PI_PROFILE", ""),
+        )
+    # Build a stable actor used by the OpenAI-compatible shim. The
+    # ``RestService`` accepts a ``UiActor`` per operation; we reuse the same
+    # default the HTTP server initialises with so chat-completion requests
+    # are indistinguishable from the ``/api/v1/query`` path.
+    shim_actor = UiActor(
+        actor_type="agent",
+        actor_id="open-webui-adapter",
+        role="viewer",
+    )
+    shim = OpenAiCompatShim(
+        lambda prompt: service.query(shim_actor, QueryRequest(text=prompt)),
+        flag=lambda: is_open_webui_enabled(
+            registry,
+            deployment_profile=os.environ.get("PI_PROFILE", ""),
+        ),
+        model=os.environ.get("PI_OPENAI_MODEL") or None,
+        base_url=os.environ.get("PI_OPENAI_BASE_URL") or None,
+    )
+    server = UiHttpServer(
+        service,
+        host=args.host,
+        port=args.port,
+        readiness=lambda: readiness.is_ready(),
+        openai_compat=shim,
+    )
+    print(json.dumps({
+        "status": "listening",
+        "url": f"http://{args.host}:{args.port}",
+        "target": str(target),
+    }), flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:  # pragma: no cover - operator interrupt
+        pass
+    finally:
+        server.stop()
+    return 0
     return 0
 
 
@@ -572,6 +677,7 @@ _DISPATCH = {
     "version-identity": _cmd_version_identity,
     "wal-recover": _cmd_wal_recover,
     "health": _cmd_health,
+    "serve": _cmd_serve,
     "ingest-sources": _cmd_ingest_sources,
     "runtime-status": _cmd_runtime_status,
     "graph-rebuild": _cmd_graph_rebuild,

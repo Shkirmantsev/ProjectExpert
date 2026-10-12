@@ -1,15 +1,42 @@
-# Phase 1 docker-compose skeleton for the v0.8 Project Intelligence Platform.
-# Profiles documented per plan-v0-8-platform-architecture/tasks.md task 19:
-#   - core-headless      : the core container only (default)
-#   - desktop-lite       : core + lightweight custom UI assets (default UI ships in Phase 9)
-#   - desktop-local-ai   : desktop-lite + optional local LLM sidecar
-#   - open-webui         : desktop-lite + Open WebUI adapter (opt-in)
-#   - enterprise         : core + an OCI distribution sidecar placeholder
+# Phase 9 docker-compose for the v0.8 Project Intelligence Platform.
 #
-# Phase 1 ships the core-headless profile as the default; later profiles
-# light up as Phase 9 finishes the UI / OCI sidecar work.
+# Profiles (per plan-v0-8-platform-architecture/tasks.md task 19 + design.md §45):
+#   - core-headless      : the core container only — REST + UI served by the
+#                          same image. Default for headless / CI usage.
+#                          No model is started; ``query`` returns the
+#                          retrieval-only result. The UI exposes a "Model
+#                          settings" panel for operators who want to wire
+#                          a remote model in.
+#   - desktop-lite       : core + bundled local model sidecar. This is the
+#                          §58 "download → start → open browser" default.
+#                          The local model handles text retrieval and the
+#                          OpenAI-compatible chat shim points at it by
+#                          default. The UI settings panel may override.
+#   - desktop-local-ai   : desktop-lite + a heavier local model (operator
+#                          picks the runtime and the weights).
+#   - open-webui         : desktop-lite + Open WebUI sidecar (pinned to
+#                          0.6.5 from the SPDX inventory). The operator
+#                          configures the model Open WebUI talks to.
+#   - enterprise         : core + an OCI distribution sidecar placeholder.
+#
+# Phase 1 had a `desktop-ui` sidecar in the `desktop-lite` profile. Phase 9
+# collapses that sidecar: the lightweight static UI is served by the core
+# container itself, removing a redundant process and a duplicate image
+# reference. This is documented as a Phase 1 contract reversal in
+# design.md (§"Phase 1 contract reversal").
+#
+# Local model by default (ADR 0020): ``desktop-lite`` starts a small local
+# model sidecar so the platform answers queries out of the box. The UI
+# exposes a "Model settings" panel so operators can swap the endpoint to
+# any OpenAI-compatible service without rebuilding the container.
 
 name: project-intelligence
+
+x-common-env: &common-env
+  PI_PLATFORM_HOME: /opt/project-intelligence
+  PI_DIST_LICENSES: /opt/project-intelligence/distribution/licenses
+  PI_DIST_SBOM: /opt/project-intelligence/distribution/sbom
+  PI_DIST_OKF: /opt/project-intelligence/distribution/okf-profile
 
 services:
   core:
@@ -23,51 +50,46 @@ services:
     volumes:
       - ${PI_TARGET_REPO:-/tmp/pitarget}:/repo:rw
     environment:
-      PI_PLATFORM_HOME: /opt/project-intelligence
+      <<: *common-env
       PI_TARGET_ROOT: /repo
-      PI_DIST_LICENSES: /opt/project-intelligence/distribution/licenses
-      PI_DIST_SBOM: /opt/project-intelligence/distribution/sbom
-    restart: unless-stopped
-
-  desktop-ui:
-    image: project-intelligence:dev
-    profiles: ["desktop-lite", "desktop-local-ai", "open-webui"]
-    depends_on:
-      - core
-    ports:
-      - "${PI_UI_PORT:-8766}:8766"
-    volumes:
-      - ${PI_TARGET_REPO:-/tmp/pitarget}:/repo:ro
-    environment:
-      PI_PLATFORM_HOME: /opt/project-intelligence
-      PI_TARGET_ROOT: /repo
-      PI_MODE: ui-static
+      # ``PI_OPENAI_BASE_URL`` is the URL the OpenAI-compatible shim uses
+      # when the operator has not yet overridden it from the UI. The
+      # default points at the bundled local-llm sidecar in
+      # ``desktop-lite`` and friends; ``core-headless`` overrides it to
+      # the empty string to disable the chat path.
+      PI_OPENAI_BASE_URL: ${PI_OPENAI_BASE_URL:-http://local-llm:8767/v1}
+      PI_OPENAI_MODEL: ${PI_OPENAI_MODEL:-project-intelligence}
     restart: unless-stopped
 
   local-llm:
-    image: ghcr.io/ggml-org/llama.cpp:server
-    profiles: ["desktop-local-ai"]
+    # Bundled local model sidecar (default). The image and the model file
+    # are chosen by the operator via ``PI_LOCAL_LLM_IMAGE`` and
+    # ``PI_LOCAL_LLM_MODEL``; ProjectExpert ships a stable llama.cpp
+    # release tag and a placeholder model path that operators are expected
+    # to override for their hardware and licence policy.
+    image: ${PI_LOCAL_LLM_IMAGE:-ghcr.io/ggml-org/llama.cpp:b3855}
+    profiles: ["desktop-lite", "desktop-local-ai", "open-webui"]
     ports:
       - "${PI_LOCAL_LLM_PORT:-8767}:8767"
     volumes:
       - llm-models:/models:ro
     environment:
-      LLAMA_ARG_MODEL: /models/placeholder.gguf
+      LLAMA_ARG_MODEL: ${PI_LOCAL_LLM_MODEL:-/models/placeholder.gguf}
     restart: unless-stopped
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    # Optional Open WebUI sidecar. Pinned to 0.6.5 — the exact version
+    # recorded in distribution/licenses/dependency-inventory.json (Block C3).
+    # Re-verify the SPDX entry on every version bump before redistribution.
+    # The model endpoint Open WebUI talks to is operator-supplied; teams
+    # set ``OPENAI_API_BASE_URL`` in a project-local override file when
+    # they want Open WebUI to use a specific model.
+    image: ghcr.io/open-webui/open-webui:0.6.5
     profiles: ["open-webui"]
-    depends_on:
-      - core
-      - local-llm
     ports:
       - "${PI_OPEN_WEBUI_PORT:-8768}:8080"
     volumes:
       - open-webui-data:/app/backend/data
-    environment:
-      OPENAI_API_BASE_URL: http://core:8765
-      OPENAI_API_KEY: ${PI_OPEN_WEBUI_KEY:-not-required}
     restart: unless-stopped
 
   enterprise-sidecar:
@@ -76,7 +98,7 @@ services:
     depends_on:
       - core
     environment:
-      PI_PLATFORM_HOME: /opt/project-intelligence
+      <<: *common-env
       PI_MODE: enterprise-sidecar
     restart: unless-stopped
 

@@ -36,7 +36,11 @@ class MetadataFilterError(RuntimeError):
 # these constants per dropped hit.
 DROP_TEMPORAL_INVALID = "temporal_invalid"
 DROP_VERSION_MISMATCH = "version_mismatch"
+# Phase 4 baseline; preserved by Phase 8.
 DROP_SECURITY_DENIED = "security_denied"
+# Phase 8 additions for the Enterprise Security Boundary.
+DROP_SECURITY_EGRESS_DENIED = "security_egress_denied"
+DROP_SECURITY_REDACTED = "security_redacted"
 DROP_LANGUAGE_MISMATCH = "language_mismatch"
 DROP_DOMAIN_MISMATCH = "domain_mismatch"
 DROP_MODULE_MISMATCH = "module_mismatch"
@@ -45,6 +49,8 @@ DROP_REASON_ORDER: Final = (
     DROP_TEMPORAL_INVALID,
     DROP_VERSION_MISMATCH,
     DROP_SECURITY_DENIED,
+    DROP_SECURITY_EGRESS_DENIED,
+    DROP_SECURITY_REDACTED,
     DROP_LANGUAGE_MISMATCH,
     DROP_DOMAIN_MISMATCH,
     DROP_MODULE_MISMATCH,
@@ -75,7 +81,18 @@ class DropReason:
 
 @dataclass(frozen=True)
 class MetadataFilter:
-    """§24 temporal / version / security filter projection."""
+    """§24 temporal / version / security filter projection.
+
+    Phase 8 adds the role-aware ``actor_role`` field so the
+    wired Enterprise Boundary can run source-permission
+    checks for the correct caller. ``actor_capabilities``
+    carries the caller's granted capability set (per the
+    §59.4 vocabulary) so the boundary can enforce
+    capability-based delegation. Both default to
+    ``Role.VIEWER`` and an empty tuple to preserve the
+    Phase 4 baseline behaviour for callers that do not
+    thread role / capability information.
+    """
 
     queryDate: Optional[_dt.date] = None
     projectVersion: Optional[ProjectVersion] = None
@@ -84,6 +101,11 @@ class MetadataFilter:
     modules: Optional[Sequence[str]] = None
     requirementIds: Optional[Sequence[str]] = None
     securityClassifications: Optional[Sequence[str]] = None
+    # Phase 8 additions — frozen dataclass field defaults
+    # must be at the end of the positional list and the
+    # field types must be importable lazily.
+    actor_role: object = field(default=None, repr=False)
+    actor_capabilities: tuple = field(default=(), repr=False)
 
     def issues(self) -> Sequence[str]:
         """Return validation issues (empty list when well-formed)."""
@@ -103,7 +125,34 @@ class MetadataFilter:
             problems.append(
                 "securityClassifications must be a sequence of strings"
             )
+        if self.actor_capabilities and not all(
+            isinstance(s, str) for s in self.actor_capabilities
+        ):
+            problems.append(
+                "actor_capabilities must be a tuple of strings"
+            )
         return tuple(problems)
+
+    def with_actor(self, *, actor_role, actor_capabilities=()) -> "MetadataFilter":
+        """Return a copy with the actor fields populated.
+
+        Used by the multi-stage retrieval pipeline to thread
+        the calling actor's role and granted capabilities
+        through the Phase 8 Enterprise Boundary without
+        breaking the Phase 4 frozen-dataclass contract.
+        """
+
+        return MetadataFilter(
+            queryDate=self.queryDate,
+            projectVersion=self.projectVersion,
+            languages=self.languages,
+            businessDomains=self.businessDomains,
+            modules=self.modules,
+            requirementIds=self.requirementIds,
+            securityClassifications=self.securityClassifications,
+            actor_role=actor_role,
+            actor_capabilities=tuple(actor_capabilities or ()),
+        )
 
 
 class MetadataFilterPort(abc.ABC):

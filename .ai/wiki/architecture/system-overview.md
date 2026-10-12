@@ -120,3 +120,21 @@ subprocesses and cache records carry explicit provenance. See the
 [source interface](../interfaces/source-adapters.md), [chunker](../interfaces/chunker.md)
 and [enrichment](../interfaces/enrichment.md) contracts. Persistent storage and retrieval
 remain future phases.
+
+## Phase 8 enterprise security boundary (accepted)
+
+The [Enterprise Security Boundary module](../modules/security.md) ships the
+§56 composition root that separates local access from external transmission.
+The boundary composes the four Phase 8 ports (classification, source
+permission, egress, redaction) plus the secret detector around the Phase 7
+Secret / Policy / Audit foundation. Honours §68 invariants 14 (security
+metadata participates in retrieval), 26 (external transmission is
+security-policy controlled), 47 (capability-based authorization reuses
+the §59.4 vocabulary), 48 (secrets resolved only via Secret Provider), and
+50 (high-impact operations route through the Phase 7 `REQUIRE_APPROVAL`
+contract).
+
+The Phase 8 regression suite is in
+[`tests/test_phase_8_security.py`](../../../tests/test_phase_8_security.py).
+See also the [Egress Decision interface](../interfaces/egress.md) and
+[ADR 0017](../adr/0017-phase-8-enterprise-security-boundary.md).

@@ -128,7 +128,7 @@
       "scope": "optional",
       "source": "https://huggingface.co/cross-encoder/ms-marco-MiniLM-L-6-v2",
       "extra": "retrieval",
-      "notes": "Phase 4 default cross-encoder reranker model weights. Apache-2.0 model card at huggingface.co; the weight license is MIT (see §5.4 model-license inventory)."
+      "notes": "Phase 4 default cross-encoder reranker model weights. Apache-2.0 model card at huggingface.co; the weight license is MIT (see \u00a75.4 model-license inventory)."
     },
     {
       "name": "paraphrase-multilingual-MiniLM-L12-v2",
@@ -137,7 +137,15 @@
       "scope": "optional",
       "source": "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
       "extra": "retrieval",
-      "notes": "Phase 4 default multilingual sentence-transformer model weights; covers DE/EN/UK and opt-in RU per the §25 spec."
+      "notes": "Phase 4 default multilingual sentence-transformer model weights; covers DE/EN/UK and opt-in RU per the \u00a725 spec."
+    },
+    {
+      "name": "open-webui",
+      "version": "0.6.5",
+      "spdx": "Apache-2.0",
+      "scope": "optional-ui-profile",
+      "source": "https://github.com/open-webui/open-webui",
+      "notes": "Optional Open WebUI profile (\u00a744.2). Not bundled by default; enabled only when the open-webui-adapter feature flag is on. License must be re-verified before redistribution or white-labeling."
     }
   ]
 }

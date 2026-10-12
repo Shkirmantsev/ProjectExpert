@@ -30,7 +30,7 @@ contributor or AI agent can orient quickly.
 | 4 | Retrieval (hybrid, multi-stage, reranking) | Phase 3 | complete (archived) |
 | 5 | Orchestration (query, local LLM, task context) | Phase 4 | complete (archived) |
 | 6 | Agent integration (MCP, skill, adapters) | Phase 5 | complete (archived) |
-| 7 | Control plane (registry, hooks, capabilities, secrets) | Phase 6 | planned |
+| 7 | Control plane (registry, hooks, capabilities, secrets) | Phase 6 | complete (archived) |
 | 8 | Security (enterprise boundary) | Phase 7 | planned |
 | 9 | Distribution (UI, container, one-click) | Phase 8 | planned |
 | 10 | A2A and final quality gates | Phase 9 | planned |
@@ -104,6 +104,99 @@ Phase 6 tasks 85–95 remain unchecked. See [Phase 6 readiness](phase-6-readines
 for the current workflow, integration seams, outstanding approval/filtering gaps
 and the next-iteration implementation prompt. Preparation does not make the
 product MCP server, skill distribution plane or vendor packages available.
+
+## Phase 6 agent integration (complete)
+
+Phase 6 ships the agent integration layer on top of the
+Phase 5 orchestration surface:
+
+- the [`McpServer`](../modules/mcp-server.md) (17 §36 tools +
+  `describe_capabilities`) composing Phase 4 / 5 ports;
+- the [`SkillDistributionPlane`](../interfaces/skill-distribution.md)
+  exposing the canonical Agent Skill under the documented URI
+  namespace;
+- the [`TrustedApprovalBoundary`](../interfaces/trusted-approval-boundary.md)
+  replacing the prior stub that accepted any non-empty token;
+- the [`KnowledgeReadinessPort`](../interfaces/runtime-readiness.md)
+  gate every MCP tool consults before serving evidence;
+- the [`DefaultVersionCompatibilityPolicy`](../interfaces/version-compatibility.md)
+  enforcing the §39 nine-dimension handshake with a typed
+  `VersionIncompatibleError`;
+- the [`PluginSupplyChainSecurityGate`](../interfaces/plugin-supply-chain.md)
+  enforcing the §48 supply-chain controls and recording the
+  verdict in every bundle's `PROVENANCE.json`;
+- the four per-vendor
+  [`plugin packagers`](../modules/plugin-packagers.md) (Codex /
+  Claude Code / OpenCode / generic agent) coordinated by
+  `DeterministicBuildRunner`;
+- the canonical [`AgentIntegrationAdapter`](../interfaces/agent-adapter-contract.md)
+  base exposing the documented eight operations.
+
+The §49 integration quality gate fixtures
+(`tests/test_phase_6_quality_gates.py`) cover skill
+activation, MCP tool-selection compliance, retrieval-first
+compliance, version-mismatch, stale / conflict, security
+filter, plugin install / uninstall smoke, OKF round-trip,
+branch-switch and token / context-cost. Three ADRs
+(`0011-agent-integration-packaging`,
+`0012-version-compatibility-handshake`,
+`0013-plugin-supply-chain-security`) record the decisions.
+The Phase 1-5 regression suite (`tests/test_platform_phase{1-4}.py`,
+`tests/test_orchestration_phase5.py`,
+`tests/test_orchestration_policy.py`) plus the Phase 6 test
+modules stay green; the regression is 462 tests across
+36 modules (one pre-existing benchmark flake excluded).
+
+## Phase 7 control plane (complete)
+
+Phase 7 ships the control plane on top of the Phase 6
+agent integration surface:
+
+- the [`DefaultFeatureRegistry` / `DefaultPluginRegistry`](../modules/registry.md)
+  with the documented §59.1 lifecycle state machine
+  (`installed / enabled / disabled / failed / incompatible /
+  blocked-by-policy / update-available`) and the documented
+  manifest validator (license, capabilities, content hash);
+- the [`DefaultHookRuntime`](../modules/hooks.md) firing the
+  documented §59.6 lifecycle events with bounded timeout,
+  cancellation, correlation id, audit record and the
+  documented §59.7 failure policies (`FAIL_OPEN /
+  FAIL_CLOSED / WARN_ONLY / DISABLE_PLUGIN`);
+- the [`DefaultPolicyEngine`](../modules/policy-engine.md)
+  with the documented §59.4 capability vocabulary, the
+  documented §59.5 role defaults (`Viewer / Developer /
+  Maintainer / Administrator`) and the documented §59.8
+  read-only coding-agent capability set, returning the
+  documented `ALLOW / DENY / REQUIRE_APPROVAL` decision
+  contract;
+- the [`DefaultSecretProvider`](../modules/secret-provider.md)
+  with the `secret://` / `env://` reference vocabulary and
+  mandatory redaction in MCP / A2A / audit / LLM context;
+- the [`DefaultAuditLog` / `DefaultOperationalLog`](../modules/audit-log.md)
+  with the documented §59.13 audit record schema and the
+  strict two-stream separation;
+- the [`DefaultFeatureFlagRegistry`](../modules/feature-flags.md)
+  with the documented §59.15 scope vocabulary
+  (`machine / project / branch / user / deploymentProfile`);
+- the [`DefaultUiExtensionRegistry`](../modules/ui-extensions.md)
+  with declarative UI descriptors and the no-arbitrary-
+  JavaScript rule;
+- the cross-cutting [`capabilities`](../interfaces/capabilities.md)
+  contract consumed by every other Phase 7 module.
+
+The §49 integration quality gate fixtures were extended
+with the Phase 7 policy allow / deny / require-approval
+fixture, the Phase 7 hook failure policy fixture, the
+Phase 7 audit redaction fixture, the Phase 7 secret
+redaction fixture and the Phase 7 UI extension validation
+fixture. Three ADRs
+(`0014-control-plane-policy-engine`,
+`0015-secret-references-and-redaction`,
+`0016-audit-vs-operational-log-separation`) record the
+decisions. The Phase 1-6 regression suite plus the Phase 7
+test module (`tests/test_phase_7_control_plane.py`) stay
+green; the focused regression is 44 tests across 8
+modules.
 
 ## Phase 6 agent integration (complete)
 

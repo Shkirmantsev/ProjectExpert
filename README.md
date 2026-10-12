@@ -87,7 +87,7 @@ The same agent Skill artefact ships for Codex, Claude Code, OpenCode and generic
 
 ## Current architecture
 
-Phases 0 (planning), 1 (foundation) and 2 (ingestion) are complete. Phase 2 implements document and Java/build/JAR/OpenSpec ingestion with content-addressed cache reuse and explicit source policies. Phase 3 storage remains the next work item.
+Phases 0-8 are shipped: plan, foundation, ingestion, storage, retrieval, orchestration, agent integration, control plane and enterprise security boundary. Phase 9 (distribution: REST UI surface, lightweight web UI, Open WebUI adapter, OKF wiki profile, one-click launchers, single-container image) is the next work item; Phase 10 (A2A and final quality gates) follows it.
 
 ### Implementation repo, container, target project
 
@@ -124,21 +124,29 @@ flowchart TB
 
 The container image binds to a target project at runtime. The implementation repo never owns the target's `project-knowledge/`, `.project-intelligence-cache/` or `tmp/local/source/`; those live inside the bound target.
 
-### Module map (Phase 1 implemented)
+### Module map (Phases 1-8 implemented)
 
 ```text
 pi_platform/
-├── core/                  # domain logic, value types, ports
-│   ├── canonical/         # value types, content addressing, manifest, OKF
-│   ├── git/               # CLI adapter, version identity, working-tree overlay
-│   ├── sync/              # hydrate / reconcile / materialise / WAL / lock
-│   └── licensing/         # policy / gate / inventory / SBOM emitter
-├── ports/                 # abstract port interfaces (language-neutral)
-├── adapters/
-│   ├── fs/                # local filesystem adapter
-│   └── git/               # git CLI adapter
-├── runtime/               # content-addressed filesystem cache
-└── cli/                   # `python -m pi_platform.cli` entry point
+├── core/                       # domain logic, value types, ports
+│   ├── canonical/              # value types, content addressing, manifest, OKF
+│   ├── git/                    # CLI adapter, version identity, working-tree overlay
+│   ├── sync/                   # hydrate / reconcile / materialise / WAL / lock
+│   ├── licensing/              # policy / gate / inventory / SBOM emitter
+│   ├── ingest/                 # source adapters, chunking, enrichment pipeline
+│   ├── runtime/                # runtime store, sharded graph, provenance, freshness
+│   ├── retrieval/              # hybrid / multi-stage retrieval, reranking, metadata filters
+│   ├── orchestration/          # query orchestrator, task context, capability discovery
+│   ├── agent_integration/      # MCP tool contracts, version handshake, packagers
+│   ├── control/                # registry, hooks, policy engine, secrets, audit, flags
+│   └── security/               # enterprise boundary, classification, redaction, egress
+├── ports/                      # abstract port interfaces (language-neutral)
+├── adapters/                   # fs, git, java, markdown, pdf, html, openapi, openspec,
+│                               # ingest, retrieval, runtime, orchestration,
+│                               # agent_integration, control, security, mcp
+├── runtime/                    # content-addressed filesystem cache
+├── mcp/                        # MCP server surface
+└── cli/                        # `python -m pi_platform.cli` entry point
 ```
 
 The Python package name is `pi_platform` (not `platform`) because `platform` collides with the Python standard-library `platform` module. The `Containerfile` and the launchers both import `pi_platform.cli`.
@@ -171,7 +179,7 @@ flowchart LR
     UI --> AUD
 ```
 
-Both planes call the same policy engine for authorisation. The control plane configures and observes the data plane; it does not bypass the same rules that apply to agents and plugins. Phase 1 ships a stub policy (`PolicyDecisionStub`) that returns `ALLOW` for `hydrate` and `REQUIRE_APPROVAL` for `materialise`. The full policy engine lands in Phase 7.
+Both planes call the same policy engine for authorisation. The control plane configures and observes the data plane; it does not bypass the same rules that apply to agents and plugins. Phase 7 shipped the policy engine, control registry, hook runtime, secret provider, audit log, feature flags and UI extension registry under `pi_platform/core/control/`; Phase 8 added the enterprise security boundary and egress policy under `pi_platform/core/security/`.
 
 ### Knowledge lifecycle
 
@@ -200,16 +208,16 @@ The canonical tree is the source of truth. The runtime cache is derived. `materi
 | 0 | Plan | complete |
 | 1 | Foundation (canonical, git, sync, licensing) | done |
 | 2 | Ingestion (parsers, content addressing, pipeline driver, chunking, enrichment) | complete |
-| 3 | Storage (runtime DB, sharded graph, provenance) | planned |
-| 4 | Retrieval (hybrid, multi-stage, reranking) | planned |
-| 5 | Orchestration (query, local LLM, task context) | planned |
-| 6 | Agent integration (MCP, skill, adapters) | planned |
-| 7 | Control plane (registry, hooks, capabilities, secrets) | planned |
-| 8 | Security (enterprise boundary) | planned |
-| 9 | Distribution (UI, container, OCI, one-click) | planned |
+| 3 | Storage (runtime DB, sharded graph, provenance) | complete |
+| 4 | Retrieval (hybrid, multi-stage, reranking) | complete |
+| 5 | Orchestration (query, local LLM, task context) | complete |
+| 6 | Agent integration (MCP, skill, adapters) | complete |
+| 7 | Control plane (registry, hooks, capabilities, secrets) | complete |
+| 8 | Security (enterprise boundary) | complete |
+| 9 | Distribution (UI, container, OCI, one-click) | in progress |
 | 10 | A2A and final quality gates | planned |
 
-The full ordered task list lives in [`openspec/changes/plan-v0-8-platform-architecture/tasks.md`](openspec/changes/plan-v0-8-platform-architecture/tasks.md). The nine accepted Phase 2 capabilities are listed in [current requirements](openspec/CURRENT.md). See [ingestion contracts](.ai/wiki/modules/ingest.md) and the [resolved Phase 2 handoff](docs/handoff/phase-2-problem-statement.md).
+The full ordered task list lives in [`openspec/changes/plan-v0-8-platform-architecture/tasks.md`](openspec/changes/plan-v0-8-platform-architecture/tasks.md). The accepted capabilities of every shipped phase are listed in [current requirements](openspec/CURRENT.md). See [ingestion contracts](.ai/wiki/modules/ingest.md), [Phase 8 security boundary](.ai/wiki/modules/security.md) and the [resolved Phase 2 handoff](docs/handoff/phase-2-problem-statement.md).
 
 ## Quick start
 

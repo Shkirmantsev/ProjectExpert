@@ -21,6 +21,18 @@ SUPPORTED_PATCHES = {
         ROOT
         / "patches/hermes-agent/0002-legacy-981101-advertise-run-approval-resolver.patch"
     ),
+    # 79af3f6c is the live hermes-tailscale-worker revision. At this revision
+    # the approval context module was split out of tools/approval.py into
+    # tools/approval_context.py and the /v1/runs/{run_id}/approval handler
+    # moved from api_server.py into api_server_runs.py, so 0001/0002 no longer
+    # apply cleanly. 0003 mirrors the same change set onto the new layout.
+    # Per scripts/render_hermes_remote_setup.py, "re-evaluate the patch
+    # against the installed upstream revision" is the documented procedure
+    # when a refresh drops a previously-applied patch.
+    "79af3f6cea8067284a7ea5725078578b3f790adb": (
+        ROOT
+        / "patches/hermes-agent/0003-port-to-79af3f6c-resolver-backed-api-run-approvals.patch"
+    ),
 }
 
 

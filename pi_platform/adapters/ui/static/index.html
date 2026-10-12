@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Project Intelligence</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Project Intelligence</h1>
+    <p class="subtitle">Local project knowledge, version-aware and agent-neutral.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>1. Ask a project question</h2>
+      <form id="query-form">
+        <input id="query-text" type="text" placeholder="What is the contract of OrderService.cancel?" autocomplete="off" />
+        <button type="submit">Ask</button>
+      </form>
+      <pre id="query-result" class="output">Retrieval → context assembly → answer.</pre>
+    </section>
+
+    <section class="panel">
+      <h2>2. Inspect retrieved evidence</h2>
+      <button id="retrieve-button">Run deterministic retrieval</button>
+      <pre id="retrieve-result" class="output">No retrieval executed yet.</pre>
+    </section>
+
+    <section class="panel">
+      <h2>3. Browse sources</h2>
+      <button id="sources-button">List sources</button>
+      <pre id="sources-result" class="output">—</pre>
+    </section>
+
+    <section class="panel">
+      <h2>4. Navigate the graph</h2>
+      <form id="graph-form">
+        <input id="graph-entity" type="text" placeholder="Entity id" autocomplete="off" />
+        <button type="submit">Expand</button>
+      </form>
+      <pre id="graph-result" class="output">—</pre>
+    </section>
+
+    <section class="panel">
+      <h2>5. Browse the Wiki</h2>
+      <form id="wiki-form">
+        <input id="wiki-query" type="text" placeholder="Wiki query" autocomplete="off" />
+        <button type="submit">Search</button>
+      </form>
+      <pre id="wiki-result" class="output">—</pre>
+    </section>
+
+    <section class="panel">
+      <h2>6. Current project version</h2>
+      <button id="version-button">Show version</button>
+      <pre id="version-result" class="output">—</pre>
+    </section>
+
+    <section class="panel">
+      <h2>7. Indexing status</h2>
+      <button id="indexing-button">Check indexing</button>
+      <pre id="indexing-result" class="output">—</pre>
+    </section>
+
+    <section class="panel">
+      <h2>8. Knowledge status</h2>
+      <button id="knowledge-button">Check stale/conflicting knowledge</button>
+      <pre id="knowledge-result" class="output">—</pre>
+    </section>
+
+    <section class="panel">
+      <h2>9. Materialise approved knowledge</h2>
+      <form id="materialize-form">
+        <input id="approval-token" type="password" placeholder="Approval token" autocomplete="off" />
+        <button type="submit">Materialise</button>
+      </form>
+      <p class="hint">Materialisation is approval-controlled and fails closed without a valid token.</p>
+      <pre id="materialize-result" class="output">—</pre>
+    </section>
+
+    <section class="panel">
+      <h2>10. Delegate a complex task</h2>
+      <form id="delegation-form">
+        <input id="delegation-task" type="text" placeholder="Task for the orchestrator" autocomplete="off" />
+        <input id="delegation-target" type="text" placeholder="Optional egress target" autocomplete="off" />
+        <button type="submit">Delegate</button>
+      </form>
+      <p class="hint">Delegation is refused unless an egress decision allows it.</p>
+      <pre id="delegation-result" class="output">—</pre>
+    </section>
+
+    <section class="panel">
+      <h2>11. Model settings</h2>
+      <p class="hint">
+        A local model ships with <code>desktop-lite</code> for out-of-the-box text
+        retrieval. Point the platform at any other OpenAI-compatible endpoint
+        (remote LLM, larger local model, your team's gateway) without
+        rebuilding the container.
+      </p>
+      <form id="model-form">
+        <label for="model-base-url">Model endpoint URL</label>
+        <input id="model-base-url" type="url"
+               placeholder="http://local-llm:8767/v1" autocomplete="off" />
+        <label for="model-name">Model name</label>
+        <input id="model-name" type="text"
+               placeholder="project-intelligence" autocomplete="off" />
+        <button type="submit">Save</button>
+        <button id="model-reset" type="button">Reset to bundled local model</button>
+      </form>
+      <pre id="model-status" class="output">—</pre>
+    </section>
+  </main>
+
+  <footer>
+    <p>REST contract: <code>/api/v1/</code> · OpenAI-compatible: <code>/v1/</code> · health: <code>/health</code> · readiness: <code>/health/ready</code></p>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

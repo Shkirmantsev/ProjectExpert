@@ -115,9 +115,6 @@ class MaterialiseService(MaterialisePort):
 
         durable = [c for c in changes if not _is_local_only(c)]
         excluded_local = tuple(c.id for c in changes if _is_local_only(c))
-
-        durable = [c for c in changes if not _is_local_only(c)]
-        excluded_local = tuple(c.id for c in changes if _is_local_only(c))
         if not durable:
             wal.commit()
             return MaterialiseReport(
@@ -129,6 +126,18 @@ class MaterialiseService(MaterialisePort):
 
         mid = wal.begin()
         try:
+            # §10 OKF conformance gate. Validation runs before the first write
+            # so an invalid bundle aborts the commit and leaves canonical
+            # knowledge untouched.
+            okf_errors = self._okf_validation_errors(fs)
+            if okf_errors:
+                wal.append("abort", {"id": mid, "reason": "okf-validation"})
+                return MaterialiseReport(
+                    diff_files=(),
+                    excluded_local_only=excluded_local,
+                    policy_decision=decision,
+                    okf_validation_errors=tuple(okf_errors),
+                )
             wal.append("begin", {"id": mid, "count": len(durable)})
             diff = list(self._write_durable_changes(fs, durable))
             wal.append("write", {"diff": [d.path for d in diff]})
@@ -155,6 +164,25 @@ class MaterialiseService(MaterialisePort):
     # ------------------------------------------------------------------
     # helpers
     # ------------------------------------------------------------------
+    def _okf_validation_errors(self, fs: LocalFilesystemAdapter) -> list:
+        """Validate the canonical Wiki bundle before any durable write.
+
+        Only the Git-versioned Wiki tree is validated. Runtime state, the
+        harness ``.ai/wiki`` knowledge area and generated indexes are out of
+        scope: they are derived state, not portable OKF knowledge.
+        """
+        wiki_root = fs.knowledge_root / "wiki"
+        if not wiki_root.is_dir():
+            return []
+        from ...core.canonical import validate_wiki_bundle
+
+        errors = list(validate_wiki_bundle(wiki_root))
+        if errors:
+            log.error(
+                "OKF validation blocked materialise: %s violation(s) in %s",
+                len(errors), wiki_root,
+            )
+        return errors
 
     def _verify_approval(self, repo_root: Path,
                          changes: Iterable[RuntimeChange],

@@ -3,7 +3,7 @@ description: Default intelligent worker for normal non-trivial coding, refactori
 mode: subagent
 model: openrouter/xiaomi/mimo-v2.6-flash
 variant: high
-maxSteps: 18
+maxSteps: 64
 permission:
   task:
     "*": deny

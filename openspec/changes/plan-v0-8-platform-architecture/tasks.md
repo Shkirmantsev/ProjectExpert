@@ -439,12 +439,12 @@ implements exactly the Phase 1 tasks (13-44) defined here.
 
 ## Phase 7 — Control plane (registry, hooks, capabilities, secrets, policy, audit)
 
-- [ ] 96. Implement `platform.control.FeatureRegistry` and
+- [x] 96. Implement `platform.control.FeatureRegistry` and
   `PluginRegistry` with the lifecycle states from §59 (installed,
   enabled, disabled, failed, incompatible, blocked-by-policy,
   update-available) and manifest validation (license, capabilities,
   compatibility).
-- [ ] 97. Implement `platform.control.HookRuntime` with the
+- [x] 97. Implement `platform.control.HookRuntime` with the
   lifecycle events from §59 (`beforeIngestion`, `afterIngestion`,
   `beforeIndexUpdate`, `afterIndexUpdate`, `beforeRetrieval`,
   `afterRetrieval`, `beforeContextAssembly`, `afterContextAssembly`,
@@ -455,72 +455,132 @@ implements exactly the Phase 1 tasks (13-44) defined here.
   result, correlation id, audit record, bounded retries, failure
   policies (`FAIL_OPEN`, `FAIL_CLOSED`, `WARN_ONLY`,
   `DISABLE_PLUGIN`).
-- [ ] 98. Implement `platform.control.PolicyEngine` with
+- [x] 98. Implement `platform.control.PolicyEngine` with
   capability-based authorization, the capability vocabulary from
   §59, role defaults (`Viewer`, `Developer`, `Maintainer`,
   `Administrator`), and the
   `ALLOW / DENY / REQUIRE_APPROVAL` decision contract.
-- [ ] 99. Implement `platform.control.SecretProvider` with the
+- [x] 99. Implement `platform.control.SecretProvider` with the
   `secret://` reference vocabulary and redaction in MCP/A2A
   responses, audit payloads and LLM context.
-- [ ] 100. Implement `platform.control.AuditLog` and
+- [x] 100. Implement `platform.control.AuditLog` and
   `OperationalLog` separation; never write secrets or unnecessary
   source contents into audit records.
-- [ ] 101. Implement `platform.control.FeatureFlags` scoped by
+- [x] 101. Implement `platform.control.FeatureFlags` scoped by
   machine / project / branch / user / deployment profile.
-- [ ] 102. Implement `platform.control.UiExtension` registry
+- [x] 102. Implement `platform.control.UiExtension` registry
   (declarative UI descriptors, no arbitrary JS injection for
   untrusted plugins).
-- [ ] 103. Add focused regression tests including a policy-engine
+- [x] 103. Add focused regression tests including a policy-engine
   test verifying the read-only coding-agent capability set from
   §59.
-- [ ] 104. Update Wiki (new `modules/registry`, `modules/hooks`,
+- [x] 104. Update Wiki (new `modules/registry`, `modules/hooks`,
   `modules/policy-engine`, `modules/secret-provider`,
   `interfaces/capabilities`), archive the Phase 7 change, update
   `openspec/CURRENT.md`.
 
 ## Phase 8 — Security (enterprise boundary)
 
-- [ ] 105. Implement `platform.security.EnterpriseBoundary`
-  including secret detection, source-level permissions, security
-  classification, outbound filtering, redaction, egress policy and
-  auditability.
-- [ ] 106. Add the security metadata to the retrieval filtering
+- [x] 105. Implement `platform.security.EnterpriseBoundary`
+  including secret detection, source-level permissions,
+  security classification, outbound filtering, redaction,
+  egress policy and auditability.
+  → `pi_platform/ports/security/{boundary,classification,
+    permission,detection,egress,redaction,audit}.py` (7
+    ports, new),
+    `pi_platform/core/security/{boundary,classification,
+    permission,detection,egress,redaction,audit}.py` (7
+    default implementations, new),
+    `pi_platform/adapters/security/{detection_patterns,
+    egress_classifier}.py` (2 adapters, new).
+  → Architect review (mimo-pro) and 7 critical-bug fix
+    cycle applied; `tests/test_phase_8_security.py` (52
+    tests) reports `OK`.
+- [x] 106. Add the security metadata to the retrieval filtering
   pipeline so security classification participates in retrieval
   decisions.
-- [ ] 107. Add focused regression tests for secret detection,
+  → `pi_platform/ports/retrieval/metadata_filter.py`
+    extended with `DROP_SECURITY_EGRESS_DENIED` and
+    `DROP_SECURITY_REDACTED` drop reasons (Phase 4
+    `DROP_SECURITY_DENIED` preserved), and the
+    `MetadataFilter` dataclass now carries the
+    `actor_role` and `actor_capabilities` fields plus a
+    `with_actor(...)` helper.
+  → `pi_platform/core/retrieval/metadata_filter.py` —
+    `MetadataFilterCore` extended with optional
+    `enterprise_boundary` parameter; allow-list runs
+    first so the Phase 4 `security_denied` reason stays
+    canonical, then the boundary is consulted for
+    source-permission REDACT (kept) / DENY (dropped) /
+    ALLOW (passthrough). A new `redacted_count` property
+    exposes the kept-but-redacted hit count.
+  → Phase 4 regression suite (`tests/test_platform_phase4`)
+    reports `OK` (38 tests).
+- [x] 107. Add focused regression tests for secret detection,
   outbound filtering, and retrieval redaction.
-- [ ] 108. Update Wiki (new `modules/security`, `interfaces/egress`),
+  → `tests/test_phase_8_security.py` (52 tests organised
+    by Requirement block): classification vocabulary (6),
+    secret detection (9), source permissions (8), egress
+    policy (8), redaction pipeline (7), retrieval filter
+    integration (5), auditability (4), capability
+    delegation (3), §68.50 operator-approval gate (2).
+  → All 52 tests pass; full Phase 7 (51 tests), Phase 4
+    (38 tests) and retrieval-benchmark (8 tests) suites
+    continue to pass.
+- [x] 108. Update Wiki (new `modules/security`, `interfaces/egress`),
   archive the Phase 8 change, update `openspec/CURRENT.md`.
+  → `.ai/wiki/modules/security.md` (new) and
+    `.ai/wiki/interfaces/egress.md` (new).
+  → `.ai/wiki/glossary/platform.md` extended with
+    `EgressPolicy`, `SecretDetection`, `SourcePermission`,
+    `SecurityClassification`, `RedactionPipeline`.
+  → `.ai/wiki/INDEX.md` updated with the new nodes and
+    the Phase 8 section; cross-links to Phase 7
+    `policy-engine` and `secret-provider` modules.
+  → `.ai/wiki/architecture/system-overview.md` extended
+    with the Phase 8 paragraph and the relevant §68
+    invariants.
+  → `.ai/wiki/adr/0017-phase-8-enterprise-security-boundary.md`
+    (new) — the Phase 8 architecture decision.
+  → `openspec/changes/prepare-phase-8-security/`
+    archived under
+    `openspec/changes/archive/YYYY-MM-DD-prepare-phase-8-security/`.
+  → `openspec/changes/implement-phase-8-security/`
+    archived under
+    `openspec/changes/archive/YYYY-MM-DD-implement-phase-8-security/`.
+  → `openspec/CURRENT.md` updated to add the one new
+    accepted capability
+    (`enterprise-security-boundary`).
+  → `python harness.py check` PASS.
 
 ## Phase 9 — Distribution (UI, container, OCI, one-click, OKF wiki)
 
-- [ ] 109. Implement `platform.ui.RestApi` exposing the UI API
+- [x] 109. Implement `platform.ui.RestApi` exposing the UI API
   surface from §57 (`query`, `retrieve`, `sources`, `graph`,
   `wiki`, `project-version`, `indexing-status`,
   `knowledge-status`, `materialize`, `agent-delegation`).
-- [ ] 110. Implement the lightweight custom UI (default Ionic or
+- [x] 110. Implement the lightweight custom UI (default Ionic or
   documented equivalent) compiled to static assets, served by the
   core deployment, no Node.js required at runtime.
-- [ ] 111. Implement the Open WebUI adapter (optional, not bundled
+- [x] 111. Implement the Open WebUI adapter (optional, not bundled
   by default) behind a feature flag; verify the Open WebUI
   license version before bundling.
-- [ ] 112. Implement the OKF wiki profile distribution
+- [x] 112. Implement the OKF wiki profile distribution
   (validate / package OKF bundle into the container, ship the
   profile adapter).
-- [ ] 113. Implement the one-click launcher scripts
+- [x] 113. Implement the one-click launcher scripts
   (`project-intelligence` binary for Linux,
   `ProjectIntelligence.exe` / `Start-ProjectIntelligence.ps1` for
   Windows) that verify Docker/Podman, create volumes, mount the
   repository, start the container(s), wait for health readiness,
   open the browser.
-- [ ] 114. Finalise the single-container default image
+- [x] 114. Finalise the single-container default image
   (`Containerfile` / `Dockerfile`) and the optional two-container
   profile via `docker-compose.yml` with documented profiles.
-- [ ] 115. Add launch smoke tests verifying that the container
+- [x] 115. Add launch smoke tests verifying that the container
   starts, hydrates against a small synthetic project, opens the UI
   port, and reports health.
-- [ ] 116. Update Wiki (new `modules/ui`, `interfaces/rest-api`,
+- [x] 116. Update Wiki (new `modules/ui`, `interfaces/rest-api`,
   `project/distribution-vendors`), archive the Phase 9 change,
   update `openspec/CURRENT.md`.
 

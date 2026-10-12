@@ -76,7 +76,11 @@ def slug(value: str) -> str:
     return value or "default"
 
 def project_root(env: dict[str,str]) -> Path:
-    raw = env.get("PROJECT_ROOT", ".").strip() or "."
+    raw = env.get("PROJECT_ROOT", "").strip()
+    # ``bootstrap_env.main`` resolves these placeholders during ``make init``;
+    # mirror that resolution here so an unbootstrapped ``.env`` still works.
+    if not raw or raw in {"auto", ".", "CHANGE_ME_ABSOLUTE_PROJECT_ROOT"}:
+        return ROOT.resolve()
     p = Path(raw).expanduser()
     if not p.is_absolute(): p = (ROOT / p)
     return p.resolve()

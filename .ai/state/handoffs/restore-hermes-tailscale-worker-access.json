@@ -1,0 +1,48 @@
+{
+  "budgets": {
+    "steps_max": 18,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [],
+    "todo": [
+      "1) Probe native Hermes /v1/models on logos-uhost1.tail35ceaf.ts.net:8642 with HERMES_REMOTE_API_KEY",
+      "2) Probe sidecar /healthz on :8775 with HERMES_SIDECAR_TOKEN",
+      "3) Run a tiny hermes_tailscale_worker round-trip via hermes_delegate (no git push, no secrets)",
+      "4) If any step fails, report the first concrete error and the smallest correction; otherwise checkpoint PASS"
+    ]
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-08T21:42:43+00:00",
+    "id": "restore-hermes-tailscale-worker-access",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-08T21:42:43+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "hermes_delegate returns a run_id with status=running within 30s; hermes_wait reaches terminal state; hermes_result returns the model output; both Tailscale endpoints reachable; no secrets printed to logs"
+    ],
+    "goal": "Restore live access from this harness to the remote hermes-tailscale-worker profile on logos-uhost1.tail35ceaf.ts.net via the native Hermes /v1/runs API (8642) AND the Claude-MCP sidecar (8775).",
+    "openspec_change": "",
+    "status": "planning"
+  },
+  "verification": {
+    "passed": [],
+    "pending": []
+  },
+  "working_set": []
+}

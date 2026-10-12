@@ -1,0 +1,162 @@
+"""Read-only projections used by the §57 UI surface.
+
+The UI service consumes projections through optional ports. Each projection
+degrades gracefully when its backing seam is unavailable (returns an empty
+result rather than raising) so the UI can be wired up in a fresh project
+before any ingestion has occurred.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+from pathlib import Path
+from typing import Any, Iterable, Optional, Sequence
+
+from pi_platform.ports.ui.rest_api import (
+    ConflictsPort,
+    SourceCatalogPort,
+    SourceRecord,
+    WikiReadPort,
+)
+
+__all__ = ["build_read_projections", "FilesystemSourceCatalog",
+           "FilesystemWikiRead", "EmptyConflicts"]
+
+
+class FilesystemSourceCatalog(SourceCatalogPort):
+    """Source catalog backed by ``cfg/sources.yaml`` and the local inbox."""
+
+    DEFAULT_SOURCES_PATH = Path("project-knowledge") / "sources.yaml"
+    DEFAULT_INBOX = Path("tmp") / "local" / "source"
+
+    def __init__(self, repo_root: Path) -> None:
+        self._repo_root = Path(repo_root).resolve()
+
+    def list_sources(self) -> Sequence[SourceRecord]:
+        records: list[SourceRecord] = []
+        configured = self._repo_root / self.DEFAULT_SOURCES_PATH
+        if configured.is_file():
+            for raw in _iter_yaml_records(configured):
+                records.append(_to_source_record(raw))
+        inbox = self._repo_root / self.DEFAULT_INBOX
+        if inbox.is_dir():
+            for path in sorted(inbox.rglob("*")):
+                if not path.is_file():
+                    continue
+                records.append(
+                    SourceRecord(
+                        id=f"local:{path.relative_to(self._repo_root).as_posix()}",
+                        uri=path.absolute().as_uri(),
+                        family=_family_from_suffix(path.suffix),
+                        content_hash="",
+                        policy="LOCAL_ONLY",
+                        metadata={},
+                    )
+                )
+        return tuple(records)
+
+
+class FilesystemWikiRead(WikiReadPort):
+    """Read-only projection over the OKF Wiki bundle."""
+
+    def __init__(self, repo_root: Path) -> None:
+        self._wiki_root = (Path(repo_root).resolve() / "project-knowledge" / "wiki")
+
+    def read(
+        self, *, query: Optional[str] = None, id: Optional[str] = None
+    ) -> Sequence[Any]:
+        if not self._wiki_root.is_dir():
+            return ()
+        documents: list[Any] = []
+        needle = (query or "").strip().lower()
+        for path in sorted(self._wiki_root.rglob("*.md")):
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if id and path.stem != id:
+                continue
+            if needle and needle not in text.lower():
+                continue
+            documents.append({
+                "id": path.stem,
+                "path": str(path.relative_to(self._wiki_root)),
+                "text": text,
+            })
+            if len(documents) >= 50:
+                break
+        return tuple(documents)
+
+
+class EmptyConflicts(ConflictsPort):
+    """No-op conflicts projection used until the Phase 5 conflicts port
+    is wired into the UI composition."""
+
+    def conflicts(self) -> Sequence[Any]:
+        return ()
+
+
+def _family_from_suffix(suffix: str) -> str:
+    mapping = {
+        ".md": "markdown", ".markdown": "markdown",
+        ".html": "html", ".htm": "html",
+        ".pdf": "pdf",
+        ".java": "java", ".kt": "kotlin", ".py": "python",
+        ".yaml": "yaml", ".yml": "yaml", ".json": "json",
+    }
+    return mapping.get(suffix.lower(), "text")
+
+
+def _iter_yaml_records(path: Path) -> Iterable[dict]:
+    """Yield minimal source records from a YAML file.
+
+    We deliberately avoid a third-party YAML dependency; the catalog
+    tolerates non-conforming files by returning an empty list rather
+    than raising.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    records: list[dict] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("- "):
+            records.append({"id": line[2:].strip()})
+    return records
+
+
+def _to_source_record(raw: dict) -> SourceRecord:
+    return SourceRecord(
+        id=str(raw.get("id", "")),
+        uri=str(raw.get("uri", "")),
+        family=str(raw.get("family", "markdown")),
+        content_hash=str(raw.get("content_hash", "")),
+        policy=str(raw.get("policy", "REFERENCE")),
+        metadata=dict(raw.get("metadata", {})),
+    )
+
+
+def build_read_projections(
+    *,
+    repo_root: Path,
+    cache_root: Path,
+    git: Any,
+) -> dict[str, Any]:
+    """Construct the optional read projections used by ``RestService``.
+
+    Returns a dict with keys ``sources``, ``wiki``, ``graph``, ``freshness``,
+    ``runtime_store``, ``conflicts``. Missing entries mean "no projection
+    available; degrade gracefully".
+    """
+    return {
+        "sources": FilesystemSourceCatalog(repo_root),
+        "wiki": FilesystemWikiRead(repo_root),
+        # graph/freshness/runtime_store require ports whose adapters live
+        # outside the UI composition; they are intentionally None until a
+        # wiring port is contributed.
+        "graph": None,
+        "freshness": None,
+        "runtime_store": None,
+        "conflicts": EmptyConflicts(),
+    }

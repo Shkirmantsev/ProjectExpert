@@ -1,0 +1,54 @@
+{
+  "budgets": {
+    "steps_max": 8,
+    "steps_used": 0
+  },
+  "context": [
+    "User request: take tmp/local/opencode-v1-backup/.opencode/opencode.json (V2) and merge into active opencode.json as V1. Active opencode.json is identical to tmp/local/opencode-v1-backup/opencode.json (no new content). V1 scaffold source is tmp/local/scaffold_to_install/opencode-v1-m3-openrouter-jev-clean/opencode.json \u2014 use as translation reference. Subagents reference model IDs as openrouter/<full-id> so provider.openrouter.models keys must be the full OpenRouter IDs."
+  ],
+  "decisions": [
+    "V1 schema confirmed valid; V1 has no permission.git_push so git push/reset/clean deny is via permission.bash patterns"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Merged V2 backup .opencode/opencode.json into active V1 root opencode.json (V1-translated)",
+      "JSON validity + opencode debug config clean + harness.py check PASS"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "user: connect OpenRouter via /connect and start a session",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-08T21:25:05+00:00",
+    "id": "merge-v1-opencode-config",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-08T21:28:24+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "opencode.json is valid V1 schema; openrouter provider present with the three models referenced by subagents (deepseek/deepseek-v4.1-flash, xiaomi/mimo-v2.6-flash, xiaomi/mimo-v2.6-pro); permission.bash and permission.git_push reflect the V2 rules; harness provider, project-context/searxng/crawl4ai MCP, read restrictions on .env, and hermes_* permissions preserved; .opencode/opencode.json still absent from project root; harness.py check PASS; opencode debug config (if available) reports the merged config without schema errors; subagent model: references resolve to provider/model pairs"
+    ],
+    "goal": "Merge V2 backup .opencode/opencode.json (openrouter provider + shell permissions + default_agent/share/snapshot) into the active V1 root opencode.json, translating V2-only keys to V1 schema without breaking the existing harness provider, MCP servers, and read permissions",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "JSON_OK via python3 json.load on opencode.json",
+      "opencode debug config exit 0, no schema errors",
+      "harness.py check: Harness core checks PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
