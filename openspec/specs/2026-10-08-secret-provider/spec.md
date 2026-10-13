@@ -128,7 +128,8 @@ And the materialise service records an audit entry with
 
 ### Requirement: Secret Provider serialise is byte-stable
 
-Two consecutive `serialise()` calls on the same provider
+The Secret Provider serialise MUST be byte-stable. Two consecutive
+`serialise()` calls on the same provider
 MUST return byte-identical JSON. The serialised form MUST
 include the registered `SecretReference` records, the
 configured backends and the cache TTL. The serialised form

@@ -159,7 +159,8 @@ Then the engine returns `PolicyDecision(decision="DENY", capability="knowledge.m
 
 ### Requirement: Policy Engine is the central authorisation source
 
-Every sensitive execution path (MCP tool, A2A request, REST
+The Policy Engine MUST be the central authorisation source. Every
+sensitive execution path (MCP tool, A2A request, REST
 request, plugin, hook, agent delegation, materialisation,
 Git write, secret resolution, external network request) MUST
 consult the Policy Engine. The Phase 1 `PolicyDecisionStub`
@@ -180,7 +181,8 @@ documented §59.13 fields.
 
 ### Requirement: Policy Engine serialise is byte-stable
 
-Two consecutive `serialise()` calls on the same policy
+The Policy Engine serialise MUST be byte-stable. Two consecutive
+`serialise()` calls on the same policy
 engine MUST return byte-identical JSON. The serialised form
 MUST include the documented capability vocabulary, the
 documented role defaults and the currently registered

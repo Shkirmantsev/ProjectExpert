@@ -92,7 +92,8 @@ And the registry records an audit entry with
 
 ### Requirement: Feature Flag registry serialise is byte-stable
 
-Two consecutive `serialise()` calls on the same registry
+The Feature Flag registry serialise MUST be byte-stable. Two
+consecutive `serialise()` calls on the same registry
 MUST return byte-identical JSON. The serialised form MUST
 include every registered flag with its `id`, `version`,
 `state`, `scope` and the resolved value for the current

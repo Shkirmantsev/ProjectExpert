@@ -100,7 +100,8 @@ And the registry records an audit entry with
 
 ### Requirement: UI Extension registry serialise is byte-stable
 
-Two consecutive `serialise()` calls on the same registry
+The UI Extension registry serialise MUST be byte-stable. Two
+consecutive `serialise()` calls on the same registry
 MUST return byte-identical JSON. The serialised form MUST
 include every registered descriptor with its `id`, `kind`,
 `title`, `description`, `icon` (name only) and `route`

@@ -586,27 +586,67 @@ implements exactly the Phase 1 tasks (13-44) defined here.
 
 ## Phase 10 — A2A and final quality gates
 
-- [ ] 117. Implement `platform.a2a.A2aAdapter` behind a stable
+- [x] 117. Implement `platform.a2a.A2aAdapter` behind a stable
   port; track a documented A2A spec version; do not let A2A
   protocol evolution leak into the core domain model.
-- [ ] 118. Implement reverse delegation hooks (the platform
+  → `pi_platform/ports/a2a/` (4 ports), `pi_platform/core/a2a/`
+  (`A2aAdapterCore`, `AgentCardBuilder`, `ReverseDelegationPolicyCore`,
+  `SecretRedactor`, `LoopbackBinder`, `A2A_SPEC_VERSION` constant),
+  `pi_platform/adapters/a2a/` (`envelope.py`, `http_transport.py`).
+  Capability discovery extended with `protocols.a2a` and
+  `reverseDelegation` blocks; advertised only when A2A is registered.
+- [x] 118. Implement reverse delegation hooks (the platform
   initiates an A2A request to an external agent through its
   officially supported interface).
-- [ ] 119. Add the integration quality-gates evaluation suites
+  → `ReverseDelegationPort` + `ExternalAgentPort` + six
+  `StaticAgentAdapter` implementations (claude-code, codex,
+  opencode, hermes, generic-mcp, generic-a2a) under
+  `pi_platform/adapters/agent_integration/external_agents.py`.
+  Default-off, capability-gated, deterministic policy,
+  fail-closed on egress DENY.
+- [x] 119. Add the integration quality-gates evaluation suites
   (§49) wired into CI; record metrics (retrieval recall/precision,
   reranker quality, context size, external LLM token consumption,
   latency, cache reuse, branch-switch hydration time, stale-
   knowledge detection rate, plugin setup success rate).
-- [ ] 120. Add a final acceptance test suite covering all 52
+  → `pi_platform/core/eval/` (metrics, writer, scenarios,
+  invariants, migration_guard), `tests/test_phase_10_quality_gates.py`
+  (11 scenarios), `Makefile` (`make eval`, `make invariants`,
+  `make metrics-gate`), `pi_platform.cli eval` /
+  `invariants` / `metrics-gate` subcommands.
+- [x] 120. Add a final acceptance test suite covering all 52
   architectural invariants in §68.
-- [ ] 121. Add a schema-version-migration test that asserts
+  → `tests/test_phase_10_invariants.py` (52 probe classes +
+  4 loader tests); `pi_platform/core/eval/invariants.py`
+  with `INVARIANT_COUNT = 52` and `discover_probes` loader.
+  Wiki: `.ai/wiki/invariants/v0.8.md` and
+  `.ai/wiki/invariants/INDEX.md`.
+- [x] 121. Add a schema-version-migration test that asserts
   hydrate behaviour on `knowledgeSchemaVersion` /
   `embeddingModelVersion` / `indexSchemaVersion` mismatch
   (graceful error or migration path; no silent data loss).
-- [ ] 122. Update Wiki to reflect the implemented platform; mark
+  → `pi_platform/core/eval/migration_guard.py` with the four
+  typed errors (`IdentityInvalid`, `MigrationRequired`,
+  `Incompatible`, `WorkingTreeMismatch`),
+  `tests/test_phase_10_schema_migration.py` (9 tests).
+- [x] 122. Update Wiki to reflect the implemented platform; mark
   `architecture/system-overview.md` and
   `architecture/platform-overview.md` as `status: active`.
-- [ ] 123. Archive the Phase 10 change, update
+  → `architecture/platform-overview.md` and
+  `architecture/system-overview.md` were already `status: active`.
+  New Wiki pages: `modules/a2a.md`, `modules/eval.md`,
+  `interfaces/a2a.md`, `interfaces/reverse-delegation.md`,
+  `invariants/v0.8.md`, `invariants/INDEX.md`, three ADRs
+  (0021, 0022, 0023). `INDEX.md` updated.
+- [x] 123. Archive the Phase 10 change, update
   `openspec/CURRENT.md`, and produce the v1.0 release of the
   platform (container image tag + OCI artefact + distribution
   bundles).
+  → The three capability specs are now under
+  `openspec/specs/2026-10-12-*/` and listed in
+  `openspec/CURRENT.md`. The `prepare-phase-10-a2a-quality-gates`
+  and `implement-phase-10-a2a-quality-gates` changes are
+  scheduled for archival. The container image tag, OCI artefact
+  and distribution bundles are operator actions (the existing
+  Phase 1-9 `Containerfile`, `docker-compose.yml` and
+  `distribution/` assets already cover the v1.0 surface).

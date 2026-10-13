@@ -29,6 +29,8 @@ from typing import Iterable, Optional
 
 from ..adapters.fs import LocalFilesystemAdapter
 from ..core.canonical import validate_wiki_bundle
+from ..core.eval import runner as eval_runner
+from ..core.eval.thresholds import validate_metrics
 from ..core.git import compute_version_identity
 from ..core.licensing import (
     DEFAULT_DEPENDENCY_INVENTORY_PATH,
@@ -138,6 +140,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="print the active §35 LocalLLMPort status")
     sub.add_parser("capabilities",
                    help="print the §47 capability discovery descriptor")
+    # Phase 10 §49 + §120 quality-gates subcommands.
+    sub.add_parser("eval",
+                   help="run the §49 integration-quality-gates suites")
+    sub.add_parser("invariants",
+                   help="run the §120 52-invariant §68 acceptance suite")
+    sub.add_parser("metrics-gate",
+                   help="verify the last eval/last.json metrics are within the documented thresholds")
 
     health = sub.add_parser(
         "health", help="liveness check; --ready reports readiness"
@@ -668,6 +677,123 @@ def _project_id(target: Path) -> str:
     return f"proj-{digest}"
 
 
+# ---------------------------------------------------------------------------
+# Phase 10 §49 + §120 quality-gates subcommands
+# ---------------------------------------------------------------------------
+
+
+def _run_unittest_module(module_name: str) -> int:
+    """Run a single ``unittest`` module programmatically and return its exit code.
+
+    Phase 10 keeps the runner zero-dependency: ``unittest`` is in the
+    standard library and the test modules are direct children of
+    ``tests/``. The harness never shells out to ``python -m unittest``
+    so the caller's environment stays inside the same process tree.
+    """
+    return 0 if eval_runner.run_unittest_module(module_name).ok else 1
+
+
+def _cmd_eval(args: argparse.Namespace) -> int:
+    """Run the §49 integration-quality-gates suites and record their metrics.
+
+    The suite outcome (inputs and outputs) is written to
+    ``tmp/local/project-context/eval/last.json`` through the atomic
+    writer, as required by the ``integration-quality-gates`` spec:
+    the metrics file is updated even when the suite fails, and the
+    command exits non-zero exactly when the suite does.
+    """
+    outcome = eval_runner.run_unittest_module(eval_runner.QUALITY_GATES_SUITE)
+    report = eval_runner.eval_report(outcome)
+    path = eval_runner.write_report(report)
+    print(json.dumps({
+        **outcome.as_dict(),
+        "scope": report.scope,
+        "metrics_file": str(path),
+    }, indent=2))
+    return outcome.exit_code
+
+
+def _cmd_invariants(args: argparse.Namespace) -> int:
+    """Run the §120 52-invariant §68 acceptance suite.
+
+    Every probe is executed and reported as ``invariants_run`` /
+    ``invariants_passed``; additionally each probe body is classified
+    so the report states the honest ``invariants_enforced`` /
+    ``invariants_declared`` split instead of implying that all 52
+    probes contain real checks.
+    """
+    outcome = eval_runner.run_unittest_module(eval_runner.INVARIANTS_SUITE)
+    summary = eval_runner.probe_summary()
+    report = eval_runner.invariants_report(outcome, summary)
+    path = eval_runner.write_report(report)
+    print(json.dumps({
+        **outcome.as_dict(),
+        "scope": report.scope,
+        "metrics_file": str(path),
+        "invariants_run": summary.total,
+        "invariants_passed": summary.passed,
+        "invariants_failed": summary.failed,
+        "invariants_enforced": summary.enforced,
+        "invariants_declared": summary.declared,
+    }, indent=2))
+    if summary.failed:
+        return 1
+    return outcome.exit_code
+
+
+def _cmd_metrics_gate(args: argparse.Namespace) -> int:
+    """Verify the last ``eval/last.json`` metrics are within the documented thresholds.
+
+    Exit codes: ``0`` all present metrics within bounds, ``1``
+    schema/shape/bound violation (a JSON list of the offending metric
+    names is printed on stdout), ``2`` metrics file missing.
+    """
+    target = eval_runner.resolve_metrics_path()
+    if not target.exists():
+        print(json.dumps({
+            "error": "eval metrics file not found",
+            "path": str(target),
+        }), file=sys.stderr)
+        return 2
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        print(json.dumps({
+            "error": "eval metrics file is not valid JSON",
+            "path": str(target),
+            "detail": str(exc),
+        }), file=sys.stderr)
+        return 1
+    if not isinstance(payload, dict):
+        print(json.dumps({
+            "error": "eval metrics file must be a JSON object",
+            "path": str(target),
+        }), file=sys.stderr)
+        return 1
+    schema = payload.get("schema") or {}
+    if schema.get("name") != "phase-10-eval" or schema.get("version") != "1":
+        print(json.dumps({
+            "error": "eval metrics schema mismatch",
+            "schema": schema,
+        }), file=sys.stderr)
+        return 1
+    violations = validate_metrics(payload.get("metrics"))
+    if violations:
+        print(json.dumps({
+            "ok": False,
+            "violations": [v.metric for v in violations],
+            "details": [v.as_dict() for v in violations],
+            "metrics_file": str(target),
+        }, indent=2))
+        return 1
+    print(json.dumps({
+        "ok": True,
+        "scope": payload.get("scope"),
+        "metrics_file": str(target),
+    }))
+    return 0
+
+
 _DISPATCH = {
     "init-project": _cmd_init_project,
     "hydrate": _cmd_hydrate,
@@ -681,6 +807,9 @@ _DISPATCH = {
     "ingest-sources": _cmd_ingest_sources,
     "runtime-status": _cmd_runtime_status,
     "graph-rebuild": _cmd_graph_rebuild,
+    "eval": _cmd_eval,
+    "invariants": _cmd_invariants,
+    "metrics-gate": _cmd_metrics_gate,
 }
 
 
