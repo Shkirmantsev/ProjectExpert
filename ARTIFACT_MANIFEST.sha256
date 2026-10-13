@@ -617,9 +617,9 @@ d96ac017044f96ee06ecba6d729833032ddaf0ede29cd6b136d394ebfd6da134  ./openspec/spe
 35aa13f6aeec6a9c571474baf8a686f708737f4b8d02133909d603a891aec2ab  ./openspec/specs/2026-10-11-human-interface-web-ui/spec.md
 fff01106c73f745d9c213ac0113e167380059aed94ba76e1fd61fb60c214999d  ./openspec/specs/2026-10-11-okf-wiki-profile-distribution/spec.md
 309659d2cbb07055c80486674af20e1d6e5e9bd68eaacdd5ac84b93c6e0c13c7  ./openspec/specs/2026-10-11-one-click-distribution/spec.md
-705d4d7b8506206692b48e69687dc38e27a59b5ed6b672bf95d19dc5796d704c  ./openspec/specs/2026-10-12-a2a-adapter/spec.md
-71c017d645260e7be4a5da0a0a9ab26496252d8ab63062dd153ac3551bf7dde1  ./openspec/specs/2026-10-12-external-coding-agent-integration/spec.md
-8498f7e3f7dc7027e2049a026049adb48bc46356f38810c27ee8406f8e5b4652  ./openspec/specs/2026-10-12-integration-quality-gates/spec.md
+90e01a0c201f8156a3ace4e98b1d121a0f37ea33b4f05bc2f0d516e068d3f3f9  ./openspec/specs/2026-10-12-a2a-adapter/spec.md
+206774f172c61f668d4fe2aa46dc30dccd821baf4c77a8ff0b30ab565aed961f  ./openspec/specs/2026-10-12-external-coding-agent-integration/spec.md
+22990eea057e3241b292928f23da9397920ca1f6d53bf37d12bbe47142c68e07  ./openspec/specs/2026-10-12-integration-quality-gates/spec.md
 b1a24fe09a4c240c66200421e505d8642b19109e61b32e19c24b236f4001f4ba  ./patches/hermes-agent/0001-resolver-backed-api-run-approvals.patch
 b4ba6bcefcb29973b5aacb063061e3de72171e77c5814a21f44d211e0e768c35  ./patches/hermes-agent/0002-legacy-981101-advertise-run-approval-resolver.patch
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./pi_platform/__init__.py

@@ -1,7 +1,11 @@
 # 2026-10-12-external-coding-agent-integration Specification
 
 ## Purpose
-TBD - created by archiving change prepare-phase-10-a2a-quality-gates. Update Purpose after archive.
+Enable operator-selected external coding agents through deterministic,
+capability-based reverse delegation. Send only bounded TaskContext values
+through supported agent interfaces, enforce approval and egress decisions, and
+audit delegation without giving external agents direct access to runtime state.
+
 ## Requirements
 ### Requirement: Reverse delegation is opt-in by default
 

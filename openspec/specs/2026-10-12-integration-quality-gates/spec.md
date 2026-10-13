@@ -1,7 +1,12 @@
 # 2026-10-12-integration-quality-gates Specification
 
 ## Purpose
-TBD - created by archiving change prepare-phase-10-a2a-quality-gates. Update Purpose after archive.
+Provide deterministic integration evaluations and structured metrics for
+retrieval-first agent behaviour, version compatibility, knowledge freshness,
+security, plugin lifecycle, canonical round trips and all 52 architectural
+invariants. Expose additive eval, invariants and metrics-gate commands without
+requiring network access or a container runtime in the offline suite.
+
 ## Requirements
 ### Requirement: Integration-quality-gates suites are deterministic
 

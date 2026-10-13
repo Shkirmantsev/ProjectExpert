@@ -1,7 +1,12 @@
 # 2026-10-12-a2a-adapter Specification
 
 ## Purpose
-TBD - created by archiving change prepare-phase-10-a2a-quality-gates. Update Purpose after archive.
+Expose optional A2A communication through isolated, versioned adapters that
+translate protocol messages into platform ports and enforce the existing
+authentication, capability, policy and audit boundaries. Keep inbound and
+outbound transports disabled by default and the core independent of A2A wire
+types and third-party protocol libraries.
+
 ## Requirements
 ### Requirement: A2A adapter isolation from the core domain model
 
