@@ -27,7 +27,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from typing import Mapping, Optional
+from dataclasses import dataclass
+from typing import Any, Mapping, Optional
 
 from pi_platform.ports.orchestration.capability_discovery import (
     CapabilityDescriptor,
@@ -57,14 +58,15 @@ DEFAULT_KNOWLEDGE_SCHEMA_VERSION = "0.7.0"
 DEFAULT_OKF_VERSIONS: tuple[str, ...] = ("0.2",)
 
 # Phase 6 honest defaults — these are the *offered* values, not
-# architecture examples. Phase 10 will populate
-# ``a2aAdapterVersion``; Phase 7+ will populate
-# ``agentAdapterVersion``.
+# architecture examples. Phase 10 populates ``a2aAdapterVersion``
+# and the ``protocols.a2a`` / ``reverseDelegation`` blocks; Phase
+# 7+ populates ``agentAdapterVersion``.
 DEFAULT_SKILL_VERSION: str | None = None  # populated by packagers
 DEFAULT_PLATFORM_VERSION: str | None = None
 DEFAULT_A2A_ADAPTER_VERSION: str | None = None
 DEFAULT_AGENT_ADAPTER_VERSION: str | None = None
 DEFAULT_RUNTIME_INDEX_SCHEMA_VERSION: str | None = None
+A2A_PHASE_10_VERSION: str = "phase-10-a2a/1"
 
 
 def _build_dimensions(
@@ -75,6 +77,8 @@ def _build_dimensions(
     okf_versions: tuple[str, ...],
     skill_version: Optional[str],
     plugin_distribution_schema: tuple[str, ...] = ("1",),
+    a2a_available: bool = False,
+    a2a_value: Optional[str] = None,
 ) -> VersionDimensions:
     return VersionDimensions(
         platformVersion=DimensionValue(
@@ -86,8 +90,8 @@ def _build_dimensions(
         ),
         a2aAdapterVersion=DimensionValue(
             name="a2aAdapterVersion",
-            value=DEFAULT_A2A_ADAPTER_VERSION,
-            available=False,  # Phase 10 not yet implemented
+            value=a2a_value if a2a_available else DEFAULT_A2A_ADAPTER_VERSION,
+            available=a2a_available,  # Phase 10 surfaces this when A2A is wired
         ),
         knowledgeSchemaVersion=DimensionValue(
             name="knowledgeSchemaVersion",
@@ -136,6 +140,9 @@ class DefaultCapabilityDiscovery(CapabilityDiscoveryPort):
         materialisation: object = None,
         local_llm: object = None,
         a2a: object = None,
+        reverse_delegation_enabled: bool = False,
+        supported_external_agents: tuple[str, ...] = (),
+        a2a_protocols: tuple[str, ...] = ("tasks/send",),
     ) -> None:
         self._server_version = server_version
         self._mcp_api_version = mcp_api_version
@@ -148,6 +155,9 @@ class DefaultCapabilityDiscovery(CapabilityDiscoveryPort):
         self._materialisation = materialisation
         self._local_llm = local_llm
         self._a2a = a2a
+        self._reverse_delegation_enabled = bool(reverse_delegation_enabled)
+        self._supported_external_agents = tuple(supported_external_agents)
+        self._a2a_protocols = tuple(a2a_protocols)
         self._describe_calls = 0
         self._refresh_calls = 0
 
@@ -164,6 +174,7 @@ class DefaultCapabilityDiscovery(CapabilityDiscoveryPort):
             "describe_calls": self._describe_calls,
             "refresh_calls": self._refresh_calls,
             "feature_count": 6,
+            "a2a_protocols": len(self._a2a_protocols),
         }
 
     # -- internal helpers --------------------------------------------------
@@ -193,8 +204,11 @@ class DefaultCapabilityDiscovery(CapabilityDiscoveryPort):
             knowledge_schema_version=self._knowledge_schema_version,
             okf_versions=self._okf_versions,
             skill_version=self._skill_version,
+            a2a_available=self._a2a is not None,
+            a2a_value=A2A_PHASE_10_VERSION if self._a2a is not None else None,
         )
-        return CapabilityDescriptor(
+        extra = self._build_extra_protocols()
+        descriptor = CapabilityDescriptor(
             serverVersion=self._server_version,
             mcpApiVersion=self._mcp_api_version,
             knowledgeSchemaVersion=self._knowledge_schema_version,
@@ -202,6 +216,33 @@ class DefaultCapabilityDiscovery(CapabilityDiscoveryPort):
             features=features,
             dimensions=dimensions,
         )
+        if extra:
+            descriptor_dict = dict(descriptor.as_dict())
+            descriptor_dict.update(extra)
+            return _ReplacedDescriptor(descriptor, descriptor_dict)
+        return descriptor
+
+    def _build_extra_protocols(self) -> dict:
+        if self._a2a is None:
+            return {}
+        from pi_platform.core.a2a import A2A_SPEC_VERSION
+        a2a_block: dict = {
+            "enabled": True,
+            "specVersion": str(A2A_SPEC_VERSION),
+            "supportedProtocols": list(self._a2a_protocols),
+            "streaming": "not-supported",
+        }
+        reverse_block = {
+            "enabled": self._reverse_delegation_enabled,
+            "supportedAgents": list(self._supported_external_agents),
+        }
+        return {
+            "protocols": {
+                "mcp": {"version": self._mcp_api_version},
+                "a2a": a2a_block,
+            },
+            "reverseDelegation": reverse_block,
+        }
 
     def _local_llm_available(self) -> bool:
         if self._local_llm is None:
@@ -213,6 +254,27 @@ class DefaultCapabilityDiscovery(CapabilityDiscoveryPort):
             except Exception:
                 return False
         return False
+
+
+@dataclass(frozen=True)
+class _ReplacedDescriptor:
+    """Wrap a :class:`CapabilityDescriptor` so the JSON body has the
+    ``protocols`` and ``reverseDelegation`` blocks Phase 10 adds.
+
+    The wrapper preserves the descriptor's dataclass attribute access
+    while extending :meth:`as_dict` for serialisation. Tests, the MCP
+    ``describe_capabilities`` tool and the REST ``indexing-status``
+    surface see the merged shape.
+    """
+
+    inner: "CapabilityDescriptor"
+    payload: dict
+
+    def as_dict(self) -> dict:
+        return dict(self.payload)
+
+    def __getattr__(self, item: str) -> Any:
+        return getattr(self.inner, item)
 
 
 def _stable_digest(payload: dict) -> str:

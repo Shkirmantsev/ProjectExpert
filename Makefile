@@ -11,7 +11,7 @@ STACK := $(PYTHON) scripts/stack.py
         skills-sync-local skills-sync-remote skills-check manifest-generate manifest-check hermes-host-setup hermes-host-revoke \
         hermes-sidecar-copy hermes-remote-instructions hermes-patch hermes-check hermes-import verify verify-models test clean \
         platform-init platform-hydrate platform-materialise license gate license-gate okf-validate \
-        version-identity wal-recover platform-test
+        version-identity wal-recover platform-test eval invariants metrics-gate phase-10-test
 
 help: ## Show all harness commands without a POSIX shell dependency.
 	@$(PYTHON) harness.py help
@@ -155,6 +155,22 @@ wal-recover: ## Recover a crashed materialise from the write-ahead log.
 
 platform-test: ## Run the Phase 1 platform regression suite.
 	@$(PYTHON) -m unittest discover -s tests -p "test_platform_*.py" -v
+
+# ---------------------------------------------------------------------------
+# Phase 10 §49 + §120 quality-gates targets
+# ---------------------------------------------------------------------------
+
+eval: ## Run the §49 integration-quality-gates suites.
+	@$(PYTHON) -m pi_platform.cli eval
+
+invariants: ## Run the §120 52-invariant §68 acceptance suite.
+	@$(PYTHON) -m pi_platform.cli invariants
+
+metrics-gate: ## Verify the last eval/last.json metrics are within the documented thresholds.
+	@$(PYTHON) -m pi_platform.cli metrics-gate
+
+phase-10-test: ## Run the four Phase 10 test modules + adversarial probe coverage in one shot.
+	@$(PYTHON) -m unittest tests.test_phase_10_a2a tests.test_phase_10_quality_gates tests.test_phase_10_invariants tests.test_phase_10_schema_migration tests.test_phase_10_adversarial -v
 
 clean: ## Remove generated clients/index/runtime state; preserve .env and source.
 	@$(PYTHON) harness.py clean
