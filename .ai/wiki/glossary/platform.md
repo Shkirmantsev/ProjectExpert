@@ -464,3 +464,44 @@ The Phase 6 surface introduces the following terms:
   `SecretProvider.has_resolved`. Implemented by
   `DefaultRedactionPipeline` in
   `pi_platform.core.security.redaction`.
+
+# Phase 10 vocabulary
+
+- **A2A Adapter** — the inbound agent-to-agent protocol surface
+  shipped by `pi_platform.core.a2a`. Implements the v0.8 §50 wire
+  surface on the Python standard library. The adapter is isolated
+  from the core domain model (ADR 0021) and tracks a pinned
+  `A2A_SPEC_VERSION` constant.
+- **Agent Card** — the public, redacted descriptor served at
+  `/.well-known/agent-card.json` when the A2A inbound flag is
+  enabled. Built by `AgentCardBuilder` from the capability
+  discovery descriptor.
+- **Reverse Delegation** — the deterministic policy that lets the
+  orchestrator escalate Level 2 tasks to a strong external coding
+  agent through the agent's officially supported interface.
+  Default-off (ADR 0022).
+- **External Agent** — a coding agent identity the platform can
+  delegate to. Phase 10 ships one `ExternalAgentPort` per
+  supported identity: `claude-code`, `codex`, `opencode`,
+  `hermes`, `generic-mcp`, `generic-a2a`.
+- **Integration Quality Gate** — the §49 deterministic scenario
+  suites. Eleven scenarios cover retrieval-first compliance, MCP
+  tool-selection, version-mismatch, stale/conflict, security
+  filter, plugin lifecycle, OKF conformance, round-trip,
+  branch-switch, token-context-cost and the deterministic metric
+  file.
+- **§68 Invariant** — one of the 52 architectural invariants in
+  v0.8 §68. Each invariant has a probe class in
+  `tests.test_phase_10_invariants`. The loader enforces
+  `INVARIANT_COUNT = 52`.
+- **Schema-Version Migration Guard** — the §121 helper that
+  refuses silent hydration when canonical knowledge advertises a
+  different `knowledgeSchemaVersion`,
+  `embeddingModelVersion` or `indexSchemaVersion` than the
+  running runtime supports. The four typed errors are
+  `IdentityInvalid`, `MigrationRequired`, `Incompatible` and
+  `WorkingTreeMismatch`.
+- **Metric Schema** — the structured `phase-10-eval/1` JSON
+  payload written atomically to
+  `tmp/local/project-context/eval/last.json` by the
+  quality-gates suites.

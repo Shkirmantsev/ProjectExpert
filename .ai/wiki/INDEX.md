@@ -143,6 +143,17 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [ADR: Phase 9 static frontend equivalence](adr/0019-static-frontend-equivalence.md)
 - [ADR: Phase 9 Open WebUI shim](adr/0020-open-webui-shim.md)
 
+## Phase 10 A2A and final quality gates (accepted)
+
+- [Phase 10 A2A adapter module map](modules/a2a.md)
+- [Phase 10 Eval core module map](modules/eval.md)
+- [A2A interface contract](interfaces/a2a.md)
+- [Reverse Delegation interface contract](interfaces/reverse-delegation.md)
+- [v0.8 §68 invariants (52)](invariants/v0.8.md)
+- [ADR: Phase 10 A2A adapter isolation](adr/0021-a2a-adapter-isolation.md)
+- [ADR: Phase 10 reverse delegation is opt-in by default](adr/0022-reverse-delegation-default-off.md)
+- [ADR: Phase 10 A2A transport is stdlib-only for v1.0](adr/0023-stdlib-only-a2a-transport.md)
+
 ## Knowledge areas
 
 - `architecture/` — system boundaries, runtime flows, architecture views.
@@ -152,6 +163,7 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - `interfaces/` — external/internal contracts and explanations.
 - `adr/` — architecture decisions.
 - `glossary/` — stable terminology.
+- `invariants/` — architecture invariant map and probe catalogue.
 
 ## Machine entry points
 

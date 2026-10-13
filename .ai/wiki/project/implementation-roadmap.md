@@ -31,9 +31,9 @@ contributor or AI agent can orient quickly.
 | 5 | Orchestration (query, local LLM, task context) | Phase 4 | complete (archived) |
 | 6 | Agent integration (MCP, skill, adapters) | Phase 5 | complete (archived) |
 | 7 | Control plane (registry, hooks, capabilities, secrets) | Phase 6 | complete (archived) |
-| 8 | Security (enterprise boundary) | Phase 7 | planned |
-| 9 | Distribution (UI, container, one-click) | Phase 8 | planned |
-| 10 | A2A and final quality gates | Phase 9 | planned |
+| 8 | Security (enterprise boundary) | Phase 7 | complete (archived) |
+| 9 | Distribution (UI, container, one-click) | Phase 8 | complete (archived) |
+| 10 | A2A and final quality gates | Phase 9 | complete (v1.0 release evidence) |
 
 ## Phase 1 deliverables (complete)
 
