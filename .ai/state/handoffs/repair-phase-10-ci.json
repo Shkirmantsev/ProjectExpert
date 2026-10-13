@@ -1,0 +1,51 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Committed repair:5dd425c restores spec purposes; a6be0fb fixes Windows I09 test. Native Windows3.11/3.13 NOT RUN locally; Linux/Python3.12 verified. User authorized commits; no push performed. Pre-existing untracked tests/__init__.py and Hermes patch untouched."
+  ],
+  "decisions": [
+    "No behavior contract change: accepted spec identities and requirement bodies retained; runtime and CI workflows unchanged"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Repaired all PR7 causes: three archived spec purposes authored; Windows I09 failure injection matches portable paths with failing-before/passing-after regression; Wiki and manifest refreshed; self-review confirms runtime, requirement bodies, security and invariant gates preserved"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Push committed repairs and rerun PR7 native GitHub checks",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-13T22:19:51+00:00",
+    "id": "repair-phase-10-ci",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-13T22:30:03+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "All five job causes diagnosed and fixed; regression proof and full harness gate pass; no weakened requirements or gates"
+    ],
+    "goal": "Repair PR7 Linux and Windows verification failures preserving accepted specs and v0.8 architecture",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full harness745 tests PASS with CI-pinned OpenSpec1.12.0 strict68/68, config/session/Wiki and artifact955. Unit discovery735 PASS (one container opt-in skip); focused37 and tracked-only37 PASS; clean artifact955 PASS; accepted requirement bodies byte-identical. Both repair commits verified against all955 indexed artifact hashes; diff whitespace PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
