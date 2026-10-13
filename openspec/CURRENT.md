@@ -82,16 +82,20 @@ project product.
 | [Human interface web UI](specs/2026-10-11-human-interface-web-ui/spec.md) |
 | [OKF wiki profile distribution](specs/2026-10-11-okf-wiki-profile-distribution/spec.md) |
 | [One-click distribution](specs/2026-10-11-one-click-distribution/spec.md) |
+| [A2A adapter](specs/2026-10-12-a2a-adapter/spec.md) |
+| [External coding agent integration](specs/2026-10-12-external-coding-agent-integration/spec.md) |
+| [Integration quality gates](specs/2026-10-12-integration-quality-gates/spec.md) |
 
 These product capabilities define the foundation, ingestion,
 storage, retrieval, orchestration, agent integration,
-control plane, security and distribution phases of the v0.8 Project
-Intelligence Platform. Subsequent phases (A2A and
-quality gates) will introduce additional accepted
-capabilities. Create new specs through the OpenSpec
-workflow (`openspec/changes/<id>/` →
-`openspec/specs/YYYY-MM-DD-domain-capability/`) and link
-them here when adopted.
+control plane, security, distribution, A2A and quality-gate
+phases of the v0.8 Project Intelligence Platform. The Phase 10
+capabilities close the v0.8 roadmap and ship the v1.0 release
+evidence (container image tag, OCI artefact, distribution
+bundles). Create new specs through the OpenSpec workflow
+(`openspec/changes/<id>/` →
+`openspec/specs/YYYY-MM-DD-domain-capability/`) and link them
+here when adopted.
 
 Maintain this inventory with every accepted addition, retirement or identity
 migration. Dates record first acceptance, not the latest edit. Run
