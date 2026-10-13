@@ -227,7 +227,7 @@ df4e4ddd773d6740bb583b271c6ab602d8cba1402999e1e50ee3faf0943c6fb7  ./.ai/wiki/mod
 15d3eea73ba14505d98ee931f1cf7a231463c6fad2ccdb7c3fe3969be9f3e26e  ./.ai/wiki/modules/audit-log.md
 c05aa0534cb933ba33792b46fb5419485b30b90ddf54be93d4b795b16b2a64cc  ./.ai/wiki/modules/context-assembler.md
 7ddcee601d6327caa8bc7cab7389a17835617905d1ed82027f63d543fd5dc2b4  ./.ai/wiki/modules/embeddings.md
-d384a09dd16e04eb98d5c34c20187fb6d65f7656e0ec75c4305dca4adce7a123  ./.ai/wiki/modules/eval.md
+0ad3ac5cb9415275f31f5046cc7cc84bb93d2ed35732276e612a4fb9a2ddd731  ./.ai/wiki/modules/eval.md
 f616c0166928d683645645044650b283cf2916fa435de8a5696f1f114587bd88  ./.ai/wiki/modules/feature-flags.md
 4f1ee8ace0695316153f3d77970540434e250407da13bcbf6d98cd76b163403e  ./.ai/wiki/modules/graph.md
 6a776f5dc6d8160cc929a25a507066a20c868785a5f6b7e81a6836e50241b181  ./.ai/wiki/modules/hooks.md
@@ -912,7 +912,7 @@ b4090d9caf1f0d1cc3fa50cb5b6f1eeaabdb07babb2fbfff9603ab17ce058728  ./tests/test_o
 21dcb145fbee956395c436a167ca41953da2e35c2d969a9bdec2761d2cfdad7e  ./tests/test_phase_10_a2a.py
 56e23f577240322db6b9a8fc6ad32207f5d76b073c743adc0f1a0396e08f211f  ./tests/test_phase_10_adversarial.py
 7fb5aa74d8cfdfd142a248be4ee71922f305ebafddcfd0ef843d5b51d055d33d  ./tests/test_phase_10_invariants.py
-7a0d3ff3bf5269a5a1a863393182068f5a0f777d5e6af1bbba3fdd790966229c  ./tests/test_phase_10_quality_gates.py
+2e29bd7ea2d29b624bde4fe6254e5551d16ecb9cdcf46546d7f1c81683de1952  ./tests/test_phase_10_quality_gates.py
 79930c62294544ca93438348633e9e1fa9f607563d0fcc933b2d030dfa4d5365  ./tests/test_phase_10_schema_migration.py
 8c3b070d48cab7b7a34c585263693e25ee375d6e2149e02159de1e4c0decb329  ./tests/test_phase_6_prerequisites.py
 2f3b6ea9cc0c0703e180f5e3202b6bd341308cd1ced6cb71fd9ea80b599887d1  ./tests/test_phase_6_quality_gates.py

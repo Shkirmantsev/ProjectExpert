@@ -445,10 +445,14 @@ class ProbeEnforcementClassificationTests(unittest.TestCase):
         real_exists = _pl.Path.exists
 
         def fake_exists(self):
-            if str(self) == "tests/test_content_address_cross_branch.py":
+            if self.as_posix() == "tests/test_content_address_cross_branch.py":
                 return False
             return real_exists(self)
 
+        # Exercise Windows separators even when this test runs on Linux.
+        self.assertFalse(fake_exists(_pl.PureWindowsPath(
+            "tests/test_content_address_cross_branch.py"
+        )))
         _pl.Path.exists = fake_exists
         try:
             summary = r2.probe_summary()

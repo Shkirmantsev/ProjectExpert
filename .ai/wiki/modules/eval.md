@@ -66,6 +66,12 @@ Three subcommands are added to `pi_platform.cli`:
 offline suite deterministic (no A2A, no reverse delegation, no
 container runtime, no network).
 
+The negative I09 test hides the cross-branch cache test through a scoped
+filesystem check. It compares paths using `as_posix()` so Windows separators
+cannot bypass the injected failure. A `PureWindowsPath` regression exercises
+that matching on Linux too; the invariant runner must still report I09 as
+failed when the file is hidden.
+
 ## Related
 
 - `kb://interfaces.a2a`
