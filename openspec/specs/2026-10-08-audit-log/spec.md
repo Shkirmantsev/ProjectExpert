@@ -115,7 +115,8 @@ And no record contains a raw secret value.
 
 ### Requirement: Audit Log serialise and flush are byte-stable
 
-Two consecutive `serialise()` calls on the same audit log
+The audit log serialise and flush MUST be byte-stable. Two
+consecutive `serialise()` calls on the same audit log
 MUST return byte-identical JSON. Two consecutive `flush()`
 calls MUST produce byte-identical JSONL output. The
 serialised / flushed form MUST NOT include resolved secret

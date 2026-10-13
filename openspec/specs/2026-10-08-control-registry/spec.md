@@ -74,7 +74,8 @@ Then the validator raises `ManifestValidationError` with
 
 ### Requirement: enable / disable consult the Policy Engine and record an audit entry
 
-Every `enable` / `disable` / `install` / `uninstall` /
+Every control-registry mutation MUST consult the Policy Engine and
+record an audit entry. Every `enable` / `disable` / `install` / `uninstall` /
 `configure` call MUST consult the Phase 7 `PolicyEngine`
 before mutating registry state. The registry MUST record an
 audit entry with `actorType`, `actorId`, `operation`,
@@ -94,7 +95,8 @@ And the registry records an audit entry with
 
 ### Requirement: serialise() is byte-stable
 
-Two consecutive `serialise()` calls on the same registry
+The control-registry serialise MUST be byte-stable. Two
+consecutive `serialise()` calls on the same registry
 MUST return byte-identical JSON. The serialised form MUST
 include every registered feature and plugin with its
 `id`, `version`, `state`, `capabilities`, `license`,
