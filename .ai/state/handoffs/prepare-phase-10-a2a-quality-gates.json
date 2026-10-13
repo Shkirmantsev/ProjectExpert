@@ -1,0 +1,72 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Phase 10 ports wired; capability descriptor advertises A2A only when a2a adapter registered; no new Python dependency"
+  ],
+  "decisions": [
+    "Tightened _classify_function: a probe is enforced only when the return value references a locally-bound name. Probes that Assign-then-return-literal-True (e.g. _i02) now correctly count as declared. Net shift: 24/28 -> 21/31.",
+    "Did NOT patch tests/test_phase_10_invariants.py to make the 31 declared probes real (out of scope; that is a separate piece of work, not a gate-truthfulness fix)"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Archived prepare-phase-10-a2a-quality-gates: 31 requirements added to 3 main specs (a2a-adapter 9, external-coding-agent-integration 9, integration-quality-gates 13)",
+      "Archived implement-phase-10-a2a-quality-gates with --skip-specs (the change does not introduce new spec-level invariants; it implements the already-accepted prepare changes)",
+      "Fixed MUST-in-first-sentence for 11 pre-existing phase-8 requirements (audit-log #6, control-registry #3 #4, feature-flags #4, policy-engine #5 #6, secret-provider #5, ui-extension #4)",
+      "make check now exits 0 with PATH including project-local openspec CLI: all gates PASS"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Operator: build the v1.0 container image and publish the OCI artefact",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-12T21:27:23+00:00",
+    "id": "prepare-phase-10-a2a-quality-gates",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-13T17:23:03+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Three capability specs (a2a-adapter, external-coding-agent-integration, integration-quality-gates) authored; design + context-impact + tasks + OpenSpec validate --strict PASS with zero production code in this change"
+    ],
+    "goal": "Author Phase 10 OpenSpec change artifacts (A2A adapter, external coding agent integration, integration quality gates) for v0.8 platform final phase",
+    "openspec_change": "prepare-phase-10-a2a-quality-gates",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "make phase-10-test: Ran 73 tests, OK",
+      "make eval | make metrics-gate | make invariants: all exit 0",
+      "Full offline suite: Ran 735 tests, OK (1 skipped)",
+      "openspec validate --all --strict: 68 passed, 0 failed",
+      "make check: PASS (exit 0)"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "openspec/specs/2026-10-12-a2a-adapter/spec.md",
+      "sha256": "705d4d7b8506206692b48e69687dc38e27a59b5ed6b672bf95d19dc5796d704c"
+    },
+    {
+      "path": "openspec/specs/2026-10-12-external-coding-agent-integration/spec.md",
+      "sha256": "71c017d645260e7be4a5da0a0a9ab26496252d8ab63062dd153ac3551bf7dde1"
+    },
+    {
+      "path": "openspec/specs/2026-10-12-integration-quality-gates/spec.md",
+      "sha256": "8498f7e3f7dc7027e2049a026049adb48bc46356f38810c27ee8406f8e5b4652"
+    }
+  ]
+}
