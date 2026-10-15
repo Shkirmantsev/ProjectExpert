@@ -935,6 +935,17 @@ def _cmd_retrieval_status(args: argparse.Namespace) -> int:
         dense_query=lambda text, k: (),
         sparse_query=lambda text, k: (),
     )
+    try:
+        from ..core.retrieval.selection import SelectionCore as _SelectionCore
+        from ..ports.retrieval.selection import (
+            DEFAULT_PRIMARY_TOP_K as _SELECTION_PRIMARY_TOP_K,
+        )
+
+        _selection_class_name = _SelectionCore.__name__
+        _selection_primary_top_k = _SELECTION_PRIMARY_TOP_K
+    except Exception:
+        _selection_class_name = ""
+        _selection_primary_top_k = 0
     payload = {
         "active_fusion_strategy": hybrid.fusion_strategy,
         "hybrid_level": hybrid.stats().get("level", 0),
@@ -947,6 +958,8 @@ def _cmd_retrieval_status(args: argparse.Namespace) -> int:
             "default_edge_types": list(_PRODUCTION_GRAPH_EDGE_TYPES),
         },
         "stage_budgets": dict(_DEFAULT_STAGE_BUDGETS),
+        "selection_core_class": _selection_class_name,
+        "selection_default_primary_top_k": _selection_primary_top_k,
         "stats": {
             "hybrid": dict(hybrid.stats()),
             "metadata": dict(MetadataFilterAdapter().stats()),
@@ -994,12 +1007,19 @@ def _cmd_orchestrator_status(args: argparse.Namespace) -> int:
         dense_query=lambda text, k: (),
         sparse_query=lambda text, k: (),
     )
+    try:
+        from ..core.retrieval.selection import SelectionCore as _SelectionCore
+
+        _selection = _SelectionCore()
+    except Exception:
+        _selection = None
     pipeline = MultiStageRetrievalCore(
         hybrid=hybrid,
         metadata=MetadataFilterAdapter(),
         graph_expansion=ProductionGraphExpansion(_GraphAdapter()),
         reranker=Bm25LightRerankerAdapter(),
         context_assembler=ContextAssemblerAdapter(),
+        selection=_selection,
     )
     local_llm = StubLocalLLMAdapter()
     builder = DefaultTaskContextBuilderAdapter()

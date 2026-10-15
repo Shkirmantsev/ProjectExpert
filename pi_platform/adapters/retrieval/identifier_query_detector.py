@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 
 from pi_platform.core.retrieval.hybrid_retrieval import IDENTIFIER_PATTERN
+from pi_platform.core.retrieval.query_features import QueryFeatures
 
 
 __all__ = [
@@ -42,3 +43,15 @@ class IdentifierQueryDetector:
 
     def match(self, text: str) -> re.Match[str] | None:
         return IDENTIFIER_PATTERN.search(text)
+
+    @staticmethod
+    def detect_features(text: str) -> QueryFeatures:
+        """Return the analysed :class:`QueryFeatures` for ``text``.
+
+        Delegates to
+        :meth:`pi_platform.core.retrieval.query_features.QueryFeatures.from_text`
+        so the detector and the hybrid core share one extraction
+        implementation. Safe for empty / ``None`` input.
+        """
+
+        return QueryFeatures.from_text(text)

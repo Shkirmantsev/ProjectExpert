@@ -205,6 +205,118 @@ class LocalPipelineDriver(PipelineDriverPort):
         self.enricher_context = enricher_context
         self.retry_delay = retry_delay
 
+    def _resolve_chunker(self, family, chunk_ctx):
+        """Return the structural chunker, token-budget-wrapped when needed.
+
+        Change Package B3 wiring: when the active ``ChunkerContext``
+        carries token fields (``target_tokens`` / ``max_tokens``) the
+        structural chunker is wrapped with a
+        :class:`TokenBudgetNormalizer` so oversized pieces are split and
+        compatible peers merged. With no token fields set the legacy
+        byte-based chunker is returned untouched.
+        """
+        structural = self._chunkers.resolve(family)
+        has_token_fields = (
+            getattr(chunk_ctx, "target_tokens", None) is not None
+            or getattr(chunk_ctx, "max_tokens", None) is not None
+        )
+        if not has_token_fields:
+            return structural
+        try:
+            from pi_platform.adapters.ingest.tokenizers import HashingTokenizer
+            from pi_platform.core.ingest.token_budget import TokenBudgetNormalizer
+
+            max_chunk_bytes = (
+                chunk_ctx.max_chunk_bytes
+                if getattr(chunk_ctx, "max_chunk_bytes", 0) > 0
+                else 16384
+            )
+            normalizer = TokenBudgetNormalizer(
+                HashingTokenizer(),
+                max_chunk_bytes=max_chunk_bytes,
+            )
+            return normalizer.wrap(structural)
+        except Exception:
+            return structural
+
+    def _apply_retrieval_text(self, contextual_chunks, enrich_ctx):
+        """Build ``retrieval_text`` for each enriched chunk (B4 wiring).
+
+        Uses :class:`DeterministicRetrievalTextBuilder` by default. When
+        a :class:`LocalContextualizer` is wired on the enricher context
+        and its inference policy allows local models, the opt-in
+        :class:`LocalContextualizerRetrievalTextBuilder` is used so the
+        contextualizer summary is appended as an explicit ``inferred:``
+        part. The built text and its content hash are stored under
+        ``chunk.metadata.extensions``; ``contextualText`` mirrors the
+        retrieval text when one was produced.
+        """
+        import dataclasses
+
+        from pi_platform.core.ingest.retrieval_text_builder import (
+            DeterministicRetrievalTextBuilder,
+            LocalContextualizerRetrievalTextBuilder,
+        )
+
+        local_contextualizer = getattr(enrich_ctx, "local_contextualizer", None)
+        use_local = False
+        if local_contextualizer is not None:
+            try:
+                from pi_platform.ports.ingest.inference_policy import (
+                    policy_allows,
+                )
+
+                use_local = policy_allows(
+                    local_contextualizer.policy, model_kind="local",
+                )
+            except Exception:
+                use_local = False
+        builder = (
+            LocalContextualizerRetrievalTextBuilder()
+            if use_local
+            else DeterministicRetrievalTextBuilder()
+        )
+        document = getattr(enrich_ctx, "document", None) or None
+        output = []
+        for contextual in contextual_chunks:
+            chunk = contextual.chunk
+            local_enrichment = None
+            if use_local:
+                assumption = (chunk.metadata.extensions or {}).get(
+                    "pi_assumption",
+                ) or {}
+                summary_text = assumption.get("context_summary") or ""
+                if summary_text:
+                    from types import SimpleNamespace
+
+                    local_enrichment = SimpleNamespace(
+                        context_summary=summary_text,
+                    )
+            try:
+                retrieval = builder.build(
+                    chunk=chunk,
+                    document=document,
+                    section=None,
+                    metadata=chunk.metadata,
+                    local_enrichment=local_enrichment,
+                )
+            except Exception:
+                output.append(contextual)
+                continue
+            extensions = dict(chunk.metadata.extensions or {})
+            extensions["retrieval_text"] = retrieval.text
+            extensions["retrieval_text_hash"] = retrieval.content_hash
+            new_chunk = dataclasses.replace(
+                chunk,
+                metadata=dataclasses.replace(chunk.metadata, extensions=extensions),
+            )
+            if retrieval.text:
+                new_chunk = dataclasses.replace(
+                    new_chunk, contextualText=retrieval.text,
+                )
+            output.append(dataclasses.replace(contextual, chunk=new_chunk))
+        return tuple(output)
+
     def run(self, source, project_root, *, cancellation=None, cache=None):
         import json
         import logging
@@ -421,9 +533,10 @@ class LocalPipelineDriver(PipelineDriverPort):
                 project_version=self.project_version,
                 cancellation=cancellation,
             )
+            active_chunker = self._resolve_chunker(family, chunk_ctx)
             chunks = operation(
                 STAGE_CHUNK,
-                lambda: self._chunkers.resolve(family).chunk(
+                lambda: active_chunker.chunk(
                     parsed.document, parsed.sections, chunk_ctx
                 ),
             )
@@ -452,7 +565,7 @@ class LocalPipelineDriver(PipelineDriverPort):
                     contextual, _ = self._enrichers.resolve(family).enrich(
                         (c,), enrich_ctx
                     )
-                    output.extend(contextual)
+                    output.extend(self._apply_retrieval_text(contextual, enrich_ctx))
                 return tuple(output)
 
             enriched = operation(STAGE_ENRICH, enrich)

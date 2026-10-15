@@ -1,0 +1,49 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Working tree continues Packages A+B (uncommitted). Constraints: stdlib only, no pip install, no sentence-transformers/torch/usearch/numpy imports, openspec/specs untouched, do not commit or push"
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Package C (C1-C4) complete and GREEN. Full suite 909 OK (856 baseline + 53 new, 0 regressions, 1 pre-existing skip). test_retrieval_benchmark 8 OK byte-identical. openspec-check structural PASS (CLI-absent half is pre-existing env limitation). artifact_manifest generate+verify PASS (955 owned files; new untracked files not adopted, same A/B precedent). No commits."
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Wait for user direction: Wiki/ADR 0026 updates, or continue to Change Package D (ANN backend)",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-14T20:43:37+00:00",
+    "id": "package-c-embeddings",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-14T21:14:00+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "C1-C4 tests added and pass; full suite green (880+ target, 856 baseline, 0 regressions); tests/test_retrieval_benchmark byte-identical; HashingEmbeddingModel remains minimal-profile default; stdlib only (no pip install); openspec-check and artifact_manifest verify green; no commits"
+    ],
+    "goal": "Implement OpenSpec Change Package C (C1-C4): production embeddings and vector persistence from improve-ingestion-retrieval-local-models",
+    "openspec_change": "improve-ingestion-retrieval-local-models",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "909 tests OK (0 regressions, 1 pre-existing skip); 53 new C1-C4 tests. test_retrieval_benchmark 8 OK. openspec-check structural PASS. artifact_manifest PASS (955 files)."
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

@@ -1,0 +1,57 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Working tree has uncommitted A/B/C; stdlib only; openspec/specs untouched; do not commit"
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "All three points complete. C + DeepSeek-verify followups + 3 ADRs (0025/0026/0027) + 9 new Wiki pages + INDEX updated. 921 tests OK (was 909; +12 new wiring tests, 0 regressions). All 3 MAJOR + 7 MINOR DeepSeek findings closed. harness openspec-check + artifact_manifest verify + wiki-validate all PASS."
+    ],
+    "todo": [
+      "FIX-1 redaction",
+      "FIX-2 composition selection wiring",
+      "FIX-3 pipeline driver token-budget+retrieval-text",
+      "FIX-4 CLI selection wiring",
+      "FIX-5 HybridRetrievalPort ABC",
+      "FIX-6 cache_key strategy version",
+      "FIX-7 include_trace gate"
+    ]
+  },
+  "resume": {
+    "next_action": "Wait for user direction: continue to D, hand off to a final reviewer, or commit.",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-14T21:31:00+00:00",
+    "id": "deepseek-verify-fixes",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-14T22:00:59+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "920+ tests OK 0 regressions 1 pre-existing skip; benchmark 8 OK; phase2 41 OK; phase10 50 OK; openspec-check PASS; artifact_manifest verify PASS; no commits"
+    ],
+    "goal": "Fix MAJOR+MINOR DeepSeek-verify findings on improve-ingestion-retrieval-local-models A/B/C: real trace redaction, production wiring of selection/token-budget/retrieval-text, HybridRetrievalPort ABC query_features, LocalContextualizer cache_key enrichment_strategy_version, include_trace-controlled trace attachment",
+    "openspec_change": "improve-ingestion-retrieval-local-models",
+    "status": "executing"
+  },
+  "verification": {
+    "passed": [
+      "921 tests OK (1 pre-existing skip), 0 regressions. test_retrieval_benchmark 8 tests OK byte-identical. test_platform_phase2 41 tests OK byte-identical. test_phase_10_invariants 50 tests OK. harness.py openspec-check structural PASS. artifact_manifest.py verify PASS (955 files). harness.py wiki-validate PASS (110 docs, 0 broken links). No accepted requirement body changes. No new deps. Pre-existing supply-chain issues unchanged."
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

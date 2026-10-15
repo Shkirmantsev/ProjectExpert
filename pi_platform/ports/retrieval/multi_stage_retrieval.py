@@ -56,6 +56,37 @@ STAGE_ORDER: tuple[str, ...] = (
     STAGE_CONTEXT_ASSEMBLY,
 )
 
+# v0.8-refinement stage names (Change Package A3). These are additive:
+# the legacy seven-stage constants above stay byte-identical so code
+# that depends on the original names keeps working.
+STAGE_QUERY_ANALYSIS = "query_analysis"
+STAGE_PRE_RERANK_POOL = "pre_rerank_pool"
+STAGE_RERANK_DIRECT = "rerank_direct"
+STAGE_SELECTION = "selection"
+STAGE_SUPPORT_MARKING = "support_marking"
+STAGE_RESERVE_ESCALATION = "reserve_escalation"
+
+# The twelve-stage order from the multi-stage-retrieval delta spec:
+# query analysis → candidate generation → metadata filter → fusion →
+# pre-rerank pool → rerank DIRECT candidates → selection → graph
+# expansion → hierarchy expansion → mark SUPPORT → context assembly →
+# reserve escalation. The reranker never sees support nodes because
+# expansion runs after selection.
+STAGE_ORDER_V2: tuple[str, ...] = (
+    STAGE_QUERY_ANALYSIS,
+    STAGE_CANDIDATE_GENERATION,
+    STAGE_METADATA_FILTER,
+    STAGE_FUSION,
+    STAGE_PRE_RERANK_POOL,
+    STAGE_RERANK_DIRECT,
+    STAGE_SELECTION,
+    STAGE_GRAPH_EXPANSION,
+    STAGE_HIERARCHY_EXPANSION,
+    STAGE_SUPPORT_MARKING,
+    STAGE_CONTEXT_ASSEMBLY,
+    STAGE_RESERVE_ESCALATION,
+)
+
 
 @dataclass(frozen=True)
 class RetrievalQuery:
@@ -68,6 +99,11 @@ class RetrievalQuery:
     purpose: str = ""
     projectVersion: Optional[ProjectVersion] = None
     enableReranking: bool = False
+    # Additive v0.8-refinement fields (Change Package A3 / A5). The
+    # defaults preserve the pre-change behaviour: no trace is built
+    # and query features are extracted by the v2 pipeline itself.
+    include_trace: bool = False
+    query_features: object = None
 
     def __post_init__(self) -> None:
         if self.top_k <= 0:
@@ -114,6 +150,15 @@ class RetrievalResult:
     conflicts: Sequence[object] = field(default_factory=tuple)
     uncertainties: Sequence[object] = field(default_factory=tuple)
     budgetUsed: int = 0
+    # Additive v0.8-refinement fields (Change Package A3 / A5). The
+    # defaults preserve the pre-change result shape: no trace, zero
+    # selection counts and no selection result attached.
+    trace: object = None
+    primary_count: int = 0
+    reserve_count: int = 0
+    protected_count: int = 0
+    support_count: int = 0
+    selection_result: object = None
 
 
 class MultiStageRetrievalPort(abc.ABC):

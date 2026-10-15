@@ -1,5 +1,14 @@
 """Multilingual sentence-transformer embedding adapter (opt-in).
 
+.. note::
+   Superseded by the profile-aware Change Package C1 stubs
+   (:class:`pi_platform.adapters.retrieval.embeddinggemma2_embedding_model.EmbeddingGemma2EmbeddingModel`
+   and
+   :class:`pi_platform.adapters.retrieval.qwen3_embedding_model.Qwen3EmbeddingModel`).
+   This class remains as the pre-change placeholder; new code binds
+   embedding profiles through
+   :mod:`pi_platform.ports.retrieval.embedding_profile` instead.
+
 Wraps the optional ``sentence-transformers`` Python package as the
 multilingual default embedding backend. The adapter is registered
 only when ``sentence-transformers`` is installed AND

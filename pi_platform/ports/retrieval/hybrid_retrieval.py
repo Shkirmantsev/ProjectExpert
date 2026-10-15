@@ -24,6 +24,7 @@ __all__ = [
     "RetrievalHit",
     "HybridRetrievalPort",
     "HybridRetrievalError",
+    "SELECTION_STATE_ALLOWED",
 ]
 
 
@@ -37,6 +38,18 @@ HIT_SOURCE_EXACT = "exact"
 HIT_SOURCE_HYBRID = "hybrid"
 HIT_SOURCE_ALLOWED: Final = (HIT_SOURCE_DENSE, HIT_SOURCE_SPARSE,
                             HIT_SOURCE_EXACT, HIT_SOURCE_HYBRID)
+
+# Additive candidate-selection states (Change Package A2). The empty
+# string is the legacy default: a hit that has not gone through the
+# selection layer carries no selection state.
+SELECTION_STATE_ALLOWED: Final = (
+    "",
+    "PRIMARY",
+    "RESERVE",
+    "PROTECTED",
+    "SUPPORT",
+    "DROPPED_DUPLICATE",
+)
 
 
 @dataclass(frozen=True)
@@ -57,6 +70,7 @@ class RetrievalHit:
     tokenEstimate: int = 0
     dropReason: str = ""
     evidenceWeight: float = 1.0
+    selection_state: str = ""
 
     def __post_init__(self) -> None:
         if self.source not in HIT_SOURCE_ALLOWED:
@@ -73,6 +87,11 @@ class RetrievalHit:
                 f"RetrievalHit.tokenEstimate must be non-negative, got "
                 f"{self.tokenEstimate}"
             )
+        if self.selection_state not in SELECTION_STATE_ALLOWED:
+            raise ValueError(
+                f"RetrievalHit.selection_state must be one of "
+                f"{SELECTION_STATE_ALLOWED}, got {self.selection_state!r}"
+            )
 
 
 class HybridRetrievalPort(abc.ABC):
@@ -82,8 +101,15 @@ class HybridRetrievalPort(abc.ABC):
     def query(
         self, text: str, *, top_k: int = 50,
         dense_weight: float = 0.5, sparse_weight: float = 0.5,
-        filters: object = None,
-    ) -> Sequence[RetrievalHit]: ...
+        filters: object = None, query_features: object = None,
+    ) -> Sequence[RetrievalHit]:
+        """Return ranked hybrid candidates for ``text``.
+
+        ``query_features`` is the additive v0.8-refinement routing
+        hint (mixed identifier + free-text queries). Legacy
+        implementations may ignore it; the v2 multi-stage path always
+        passes it, so third-party ports must accept the keyword.
+        """
 
     @abc.abstractmethod
     def exact_id(

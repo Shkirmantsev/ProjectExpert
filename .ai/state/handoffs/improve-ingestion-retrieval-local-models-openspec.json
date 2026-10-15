@@ -1,0 +1,53 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Plan source: ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md (3058 lines, reviewed 2026-10-14). Repo baseline: Shkirmantsev/ProjectExpert, branch dev. Phase 10 v1.0 evidence already shipped; this is a v0.8 refinement delta."
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Created openspec/changes/improve-ingestion-retrieval-local-models/{proposal.md,design.md,tasks.md,context-impact.md} and 5 new capability delta specs (rich-document-graph, resumable-document-ingestion, retrieval-candidate-selection, embedding-execution-profile, retrieval-trace) plus 16 accepted-capability delta specs (canonical-knowledge-schema, document-source-adapters, ingestion-pipeline-driver, semantic-structural-chunking, context-enrichment, runtime-store, dense-index, embedding-model, hybrid-retrieval, multi-stage-retrieval, reranker-port, context-assembler, retrieval-benchmark, capability-discovery, one-click-distribution, integration-quality-gates)."
+    ],
+    "todo": [
+      "Run python harness.py openspec-check; record Tier-1 baseline numbers as evals/baselines/pre_change.json; have a reviewer (MiMo Flash) cross-check the change; once green, archive the change per OpenSpec workflow."
+    ]
+  },
+  "resume": {
+    "next_action": "Wait for user direction: continue to implementation Change Package A, or stop after the planning artifacts and hand the change folder to a reviewer (MiMo Flash / DeepSeek) for an independent check.",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-14T07:12:29+00:00",
+    "id": "improve-ingestion-retrieval-local-models-openspec",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-14T07:26:23+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "OpenSpec change folder openspec/changes/improve-ingestion-retrieval-local-models/ contains: proposal.md, design.md, tasks.md, context-impact.md, and a specs/ tree with delta specs (or refs to existing accepted capabilities) covering: query-features + mixed-identifier routing, candidate selection states and trace, reordered multi-stage retrieval (rerank direct before graph expansion), context-assembler PRIMARY/PROTECTED/SUPPORT/RESERVE awareness, tokenizer-aware chunking + ChunkerContext additive extension, retrieval_text builder + LocalContextualizer isolation, real semantic embedding adapter + EmbeddingProfile identity + VectorRecordStorePort, USearch ANN adapter, rich canonical document graph + SourceAnchor, resumable Docling PDF ingestion + IngestionJobStorePort, reranker profiles, retrieval trace, and evaluation tiers. proposal.md cites the plan sections; tasks.md groups work into Change Packages A\u2013H; design.md respects existing pi_platform layout and existing ports; context-impact.md lists Wiki/ADR work."
+    ],
+    "goal": "Create precise OpenSpec change artifacts (proposal, design, tasks, context-impact, and delta specs) for incremental v0.8 ingestion/retrieval improvements defined in ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md. Preserve v0.8 invariants; extend, do not replace, the existing ports/adapters foundation.",
+    "openspec_change": "improve-ingestion-retrieval-local-models",
+    "status": "executing"
+  },
+  "verification": {
+    "passed": [
+      "OpenSpec structural validation: PASS via python harness.py openspec-check (OpenSpec CLI 1.12.0 not installed locally; only the project-schema structural check ran, which is the gate available in this environment). All 21 markdown artifacts created: 4 top-level (proposal/design/tasks/context-impact) + 5 new capability deltas + 16 accepted-capability deltas. No accepted requirement body modified; every delta is ADDED-only or marks a small MODIFIED clarification of an internal stage contract."
+    ],
+    "pending": [
+      "Tier-1 baseline numbers (planned in P0 of tasks.md); reviewer cross-check."
+    ]
+  },
+  "working_set": []
+}

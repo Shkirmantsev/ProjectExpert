@@ -75,9 +75,14 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Phase 2 ingestion](modules/ingest.md)
 - [Source adapter interface](interfaces/source-adapters.md)
 - [Chunker interface](interfaces/chunker.md)
+- [Tokenizer port](interfaces/tokenizer.md) — v0.8 refinement
+- [Retrieval text builder port](interfaces/retrieval-text-builder.md) — v0.8 refinement
+- [Inference policy port](interfaces/inference-policy.md) — v0.8 refinement
+- [Local contextualizer port](interfaces/local-contextualizer.md) — v0.8 refinement
 - [Context enrichment interface](interfaces/enrichment.md)
 - [Use an isolated tree-sitter Java parser](adr/0006-phase-2-parser-selection.md)
 - [Default inbox sources to LOCAL_ONLY](adr/0007-phase-2-inbox-policy-default.md)
+- [InferencePolicy separate from source policy](adr/0027-inference-policy-separate-from-source-policy.md) — v0.8 refinement
 
 ## Phase 3 storage
 
@@ -99,8 +104,15 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Phase 4 context-assembler module map](modules/context-assembler.md)
 - [HybridRetrievalPort interface](interfaces/hybrid-retrieval.md)
 - [RerankerPort interface](interfaces/reranker.md)
+- [SelectionPort contract](interfaces/selection.md) — v0.8 refinement
+- [EmbeddingProfile contract](interfaces/embedding-profile.md) — v0.8 refinement
+- [VectorRecordStorePort contract](interfaces/vector-record-store.md) — v0.8 refinement
+- [Retrieval trace module](modules/retrieval-trace.md) — v0.8 refinement
 - [Embedding model selection](adr/0009-embedding-model-selection.md)
 - [Hybrid fusion strategy](adr/0010-hybrid-fusion-strategy.md)
+- [Rerank direct before graph expansion](adr/0025-rerank-direct-before-graph-expansion.md) — v0.8 refinement
+- [EmbeddingProfile identity and vector namespace](adr/0026-embedding-profile-identity-and-vector-namespace.md) — v0.8 refinement
+- [Non-destructive candidate selection](architecture/retrieval-candidate-selection.md) — v0.8 refinement
 
 ## Phase 5 orchestration
 

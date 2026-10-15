@@ -31,13 +31,33 @@ class ChunkerError(RuntimeError):
 
 @dataclass
 class ChunkerContext:
-    """Per-chunk context passed alongside the document being chunked."""
+    """Per-chunk context passed alongside the document being chunked.
+
+    Change Package B2 extends the context additively with token-budget
+    fields. When ``target_tokens`` / ``max_tokens`` / ``min_tokens``
+    stay ``None`` and ``tokenizer_id`` stays empty the legacy
+    byte-based behaviour is preserved exactly; ``max_chunk_bytes``
+    remains the hard safety limit in every mode.
+    """
 
     project_root: object = None  # Path; kept loose to avoid port -> core cycles
     max_chunk_bytes: int = 4096
     extra: Mapping[str, object] = field(default_factory=dict)
     source_hash: str = ""
     cancellation: object = None
+    target_tokens: Optional[int] = None
+    max_tokens: Optional[int] = None
+    min_tokens: Optional[int] = None
+    tokenizer_id: str = ""
+    merge_peers: bool = True
+
+    def __post_init__(self) -> None:
+        for name in ("target_tokens", "max_tokens", "min_tokens"):
+            value = getattr(self, name)
+            if value is not None and value < 0:
+                raise ValueError(
+                    f"ChunkerContext.{name} must be >= 0, got {value}"
+                )
 
 
 class ChunkerPort(abc.ABC):
