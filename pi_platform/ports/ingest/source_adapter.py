@@ -151,7 +151,19 @@ class SourceAdapterRegistry:
 
 
 PLANNED_ADAPTERS = (
-    {"name": "PdfAdapter", "family": "pdf", "dependency": "pdfplumber", "spdx": "MIT"},
+    {
+        "name": "DoclingPdfAdapter",
+        "family": "pdf",
+        "dependency": "docling",
+        "spdx": "MIT",
+        "note": (
+            "v0.8 refinement: replaces the legacy pdfplumber plan. "
+            "Implements the rich PDF document graph + resumable "
+            "ingestion. The Docling types must not leak past the "
+            "adapter boundary; the core knows only the neutral "
+            "types in pi_platform.core.canonical.document_graph."
+        ),
+    },
     {
         "name": "OpenApiAdapter",
         "family": "openapi",
