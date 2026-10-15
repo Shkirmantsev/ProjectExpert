@@ -24,6 +24,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -145,6 +146,26 @@ def build_parser() -> argparse.ArgumentParser:
                    help="run the §49 integration-quality-gates suites")
     sub.add_parser("invariants",
                    help="run the §120 52-invariant §68 acceptance suite")
+    accel = sub.add_parser(
+        "accelerator", help="manage the host-side embedding accelerator",
+    )
+    accel.add_argument(
+        "accelerator_command", choices=("start", "stop", "status"),
+        help="accelerator lifecycle action",
+    )
+    accel.add_argument(
+        "--bind-host", default=None,
+        help="bind address (default: 127.0.0.1; private requires ACCELERATOR_ALLOW_WIDE_BIND=1)",
+    )
+    accel.add_argument(
+        "--bind-port", type=int, default=None,
+        help="bind port (default: 8791)",
+    )
+    accel.add_argument(
+        "--max-concurrent-requests", type=int, default=None,
+        help="concurrency limit (default: 4)",
+    )
+
     sub.add_parser("metrics-gate",
                    help="verify the last eval/last.json metrics are within the documented thresholds")
 
@@ -794,6 +815,130 @@ def _cmd_metrics_gate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_accelerator(args: argparse.Namespace) -> int:
+    """Manage the host-side embedding accelerator (G)."""
+    from ..host_accelerator.config import (
+        AcceleratorConfig,
+    )
+    from ..host_accelerator.bootstrap import bootstrap_all
+    from ..host_accelerator.security import (
+        ModelAllowList,
+        TokenStore,
+    )
+    from ..host_accelerator.server import (
+        AcceleratorService,
+        build_default_embedding_models,
+    )
+    from ..ports.retrieval.embedding_profile import (
+        EMBEDDINGGEMMA2_512,
+        HASHING_DEFAULT,
+        QWEN3_EMBEDDING_0_6B_1024,
+    )
+
+    def _build_config() -> AcceleratorConfig:
+        kwargs: dict = {}
+        if args.bind_host is not None:
+            kwargs["bind_address"] = args.bind_host
+        if args.bind_port is not None:
+            kwargs["port"] = args.bind_port
+        if args.max_concurrent_requests is not None:
+            kwargs["max_concurrent_requests"] = (
+                args.max_concurrent_requests
+            )
+        return AcceleratorConfig(**kwargs)
+
+    config = _build_config()
+    if args.accelerator_command == "status":
+        # Connect to /health on the configured port.
+        import urllib.error
+        import urllib.request
+        url = f"http://{config.bind_address}:{config.port}/health"
+        try:
+            with urllib.request.urlopen(url, timeout=2.0) as resp:
+                body = resp.read().decode("utf-8")
+                print(json.dumps({
+                    "status": "running",
+                    "url": url,
+                    "health": json.loads(body),
+                }, indent=2))
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            print(json.dumps({
+                "status": "stopped",
+                "url": url,
+                "reason": str(exc),
+            }, indent=2))
+        return 0
+    if args.accelerator_command == "stop":
+        # Send a SIGTERM to the pidfile.
+        import signal as _sig
+        pidfile = os.path.join(
+            os.path.dirname(config.audit_log_path), "pid",
+        )
+        if not os.path.isfile(pidfile):
+            print(json.dumps({
+                "status": "stopped", "reason": "no pidfile",
+            }, indent=2))
+            return 0
+        with open(pidfile, "r", encoding="utf-8") as f:
+            try:
+                pid = int(f.read().strip())
+            except ValueError:
+                print(json.dumps({
+                    "status": "error", "reason": "bad pidfile",
+                }, indent=2))
+                return 1
+        try:
+            os.kill(pid, _sig.SIGTERM)
+        except ProcessLookupError:
+            print(json.dumps({
+                "status": "stopped", "reason": "process not found",
+            }, indent=2))
+            os.unlink(pidfile)
+            return 0
+        print(json.dumps({"status": "stopping", "pid": pid}, indent=2))
+        return 0
+    # start
+    profiles = {
+        HASHING_DEFAULT.identity(): HASHING_DEFAULT,
+        EMBEDDINGGEMMA2_512.identity(): EMBEDDINGGEMMA2_512,
+        QWEN3_EMBEDDING_0_6B_1024.identity(): QWEN3_EMBEDDING_0_6B_1024,
+    }
+    token, log, al = bootstrap_all(config)
+    embedding_models = build_default_embedding_models(profiles)
+    service = AcceleratorService(
+        config=config,
+        token_store=TokenStore(config.token_path),
+        allow_list=al,
+        audit_log=log,
+        embedding_models=embedding_models,
+        profiles_by_id=profiles,
+    )
+    service.serve_forever()
+    pidfile = os.path.join(
+        os.path.dirname(config.audit_log_path), "pid",
+    )
+    os.makedirs(os.path.dirname(pidfile), exist_ok=True)
+    with open(pidfile, "w", encoding="utf-8") as f:
+        f.write(str(os.getpid()))
+    print(json.dumps({
+        "status": "started",
+        "url": f"http://{config.bind_address}:{config.port}",
+        "token_path": config.token_path,
+        "audit_log_path": config.audit_log_path,
+    }, indent=2))
+    print(f"press Ctrl-C to stop (pidfile: {pidfile})")
+    try:
+        while True:
+            time.sleep(1.0)
+    except KeyboardInterrupt:
+        service.shutdown()
+        try:
+            os.unlink(pidfile)
+        except FileNotFoundError:
+            pass
+    return 0
+
+
 _DISPATCH = {
     "init-project": _cmd_init_project,
     "hydrate": _cmd_hydrate,
@@ -810,6 +955,7 @@ _DISPATCH = {
     "eval": _cmd_eval,
     "invariants": _cmd_invariants,
     "metrics-gate": _cmd_metrics_gate,
+    "accelerator": _cmd_accelerator,
 }
 
 
