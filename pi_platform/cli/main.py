@@ -141,9 +141,50 @@ def build_parser() -> argparse.ArgumentParser:
                    help="print the active §35 LocalLLMPort status")
     sub.add_parser("capabilities",
                    help="print the §47 capability discovery descriptor")
-    # Phase 10 §49 + §120 quality-gates subcommands.
-    sub.add_parser("eval",
-                   help="run the §49 integration-quality-gates suites")
+    # Phase 10 §49 + §120 quality-gates subcommands + v0.8 Tier-3 eval subcommands.
+    eval_parser = sub.add_parser(
+        "eval",
+        help="run the §49 integration-quality-gates suites or a Tier-3 retrieval subcommand",
+    )
+    eval_parser.add_argument(
+        "eval_subcommand",
+        nargs="?",
+        choices=("retrieval", "chunk-size-sweep"),
+        default=None,
+        help="optional Tier-3 subcommand ('retrieval' or 'chunk-size-sweep')",
+    )
+    eval_parser.add_argument(
+        "--golden", type=Path,
+        default=Path("evals/corpus/golden_queries.yaml"),
+        help="path to the golden query set (default: evals/corpus/golden_queries.yaml)",
+    )
+    eval_parser.add_argument(
+        "--corpus-root", type=Path, default=Path("evals/corpus"),
+        help="sub-corpus root (default: evals/corpus)",
+    )
+    eval_parser.add_argument(
+        "--out", type=Path, default=None,
+        help="output report path",
+    )
+    eval_parser.add_argument(
+        "--baseline", type=Path,
+        default=Path("evals/baselines/pre_change.json"),
+        help="optional pre-change baseline for drift comparison",
+    )
+    eval_parser.add_argument(
+        "--no-baseline", action="store_true",
+        help="skip the baseline comparison",
+    )
+    eval_parser.add_argument(
+        "--report", type=Path,
+        default=Path("evals/reports/chunk_size_sweep.md"),
+        help="Markdown report path for chunk-size-sweep",
+    )
+    eval_parser.add_argument(
+        "--budgets", type=int, nargs="+",
+        default=[512, 768, 900, 1200],
+        help="context budgets to sweep (default: 512 768 900 1200)",
+    )
     sub.add_parser("invariants",
                    help="run the §120 52-invariant §68 acceptance suite")
     accel = sub.add_parser(
@@ -770,12 +811,17 @@ def _run_unittest_module(module_name: str) -> int:
 def _cmd_eval(args: argparse.Namespace) -> int:
     """Run the §49 integration-quality-gates suites and record their metrics.
 
-    The suite outcome (inputs and outputs) is written to
-    ``tmp/local/project-context/eval/last.json`` through the atomic
-    writer, as required by the ``integration-quality-gates`` spec:
-    the metrics file is updated even when the suite fails, and the
-    command exits non-zero exactly when the suite does.
+    When an optional ``eval_subcommand`` (``retrieval`` or
+    ``chunk-size-sweep``) is supplied, dispatch to the Tier-3
+    retrieval evaluation or chunk-size sweep handler so
+    ``project-intelligence eval retrieval`` works alongside the
+    Phase 10 ``project-intelligence eval`` command.
     """
+    subcommand = getattr(args, "eval_subcommand", None)
+    if subcommand == "retrieval":
+        return _cmd_eval_retrieval(args)
+    if subcommand == "chunk-size-sweep":
+        return _cmd_eval_chunk_size_sweep(args)
     outcome = eval_runner.run_unittest_module(eval_runner.QUALITY_GATES_SUITE)
     report = eval_runner.eval_report(outcome)
     path = eval_runner.write_report(report)
@@ -836,11 +882,12 @@ def _cmd_eval_retrieval(args: argparse.Namespace) -> int:
     module = _ilu.module_from_spec(spec)
     spec.loader.exec_module(module)
     baseline_path = None if args.no_baseline else args.baseline
+    out_path = args.out or Path("evals/reports/tier3_retrieval.json")
     try:
         payload = module.run_eval(
             golden_path=args.golden,
             corpus_root=args.corpus_root,
-            out_path=args.out,
+            out_path=out_path,
             baseline_path=baseline_path,
         )
     except Exception as exc:  # noqa: BLE001
@@ -853,7 +900,7 @@ def _cmd_eval_retrieval(args: argparse.Namespace) -> int:
         "ok": True,
         "scope": payload["scope"],
         "aggregate": payload["aggregate"],
-        "out_path": str(args.out),
+        "out_path": str(out_path),
         "queries_run": len(payload["rows"]),
     }, indent=2))
     return 0
@@ -879,11 +926,12 @@ def _cmd_eval_chunk_size_sweep(args: argparse.Namespace) -> int:
         return 2
     module = _ilu.module_from_spec(spec)
     spec.loader.exec_module(module)
+    out_path = args.out or Path("evals/reports/chunk_size_sweep.json")
     try:
         payload = module.run_chunk_size_sweep(
             golden_path=args.golden,
             corpus_root=args.corpus_root,
-            out_path=args.out,
+            out_path=out_path,
             report_path=args.report,
             budgets=tuple(args.budgets),
         )
@@ -897,7 +945,7 @@ def _cmd_eval_chunk_size_sweep(args: argparse.Namespace) -> int:
         "ok": True,
         "scope": payload["scope"],
         "selected_default_budget": payload["selected_default_budget"],
-        "out_path": str(args.out),
+        "out_path": str(out_path),
         "report_path": str(args.report),
     }, indent=2))
     return 0

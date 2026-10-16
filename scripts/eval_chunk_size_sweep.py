@@ -34,11 +34,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from pi_platform.adapters.ingest.tokenizers import (  # noqa: E402
+    HashingTokenizer,
+)
 from pi_platform.core.eval.golden import (  # noqa: E402
     DEFAULT_GOLDEN_QUERIES_PATH,
     load_golden_queries,
 )
 from pi_platform.core.eval.corpus_loader import (  # noqa: E402
+    CorpusChunk,
     load_corpus_json,
     build_pipeline_hits,
 )
@@ -70,23 +74,38 @@ def run_chunk_size_sweep(
     """Run the sweep and return the per-budget metric set."""
 
     queries = load_golden_queries(golden_path)
-    hits: list = []
+    raw_chunks: list[CorpusChunk] = []
     for name in ("synthetic", "generated-pdf", "multilingual",
                  "java", "requirements"):
-        chunks = load_corpus_json(corpus_root / name)
-        hits.extend(build_pipeline_hits(chunks))
-    pipeline = build_default_pipeline(corpus_hits=hits)
+        raw_chunks.extend(load_corpus_json(corpus_root / name))
+    tokenizer = HashingTokenizer()
     sweep: list[dict] = []
     for budget in budgets:
+        budget_int = max(1, int(budget))
+        budgeted_chunks = [
+            CorpusChunk(
+                chunk_id=c.chunk_id,
+                document_id=c.document_id,
+                text=tokenizer.truncate(c.text, budget_int),
+                language=c.language,
+                valid_from=c.valid_from,
+                from_pdf_prescan=c.from_pdf_prescan,
+            )
+            for c in raw_chunks
+        ]
+        hits = build_pipeline_hits(budgeted_chunks)
+        pipeline = build_default_pipeline(corpus_hits=hits)
         evaluator = Tier3RetrievalEvaluator(
-            pipeline=pipeline, queries=queries, context_budget=int(budget),
+            pipeline=pipeline, queries=queries, context_budget=budget_int,
         )
         report = evaluator.run(
-            scope=f"{SWEEP_SCOPE}@{budget}",
+            scope=f"{SWEEP_SCOPE}@{budget_int}",
             golden_queries_path=str(golden_path),
         )
         sweep.append({
-            "context_budget": int(budget),
+            "context_budget": budget_int,
+            "chunk_max_tokens": budget_int,
+            "tokenizer_id": tokenizer.identity(),
             "aggregate": dict(report.aggregate),
             "queries_run": len(report.rows),
         })
@@ -172,10 +191,10 @@ def _write_markdown(path: Path, payload: dict) -> None:
     lines.append("")
     lines.append(
         "| Context budget | Recall | Recall@5 | MRR | NDCG@10 | "
-        "Context coverage | Avg context tokens | p50 ms | p95 ms |"
+        "Context coverage | Avg context tokens |"
     )
     lines.append(
-        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
+        "|---:|---:|---:|---:|---:|---:|---:|"
     )
     for entry in payload["sweep"]:
         agg = entry["aggregate"]
@@ -186,17 +205,17 @@ def _write_markdown(path: Path, payload: dict) -> None:
             f"| {agg.get('mrr', 0.0):.4f} "
             f"| {agg.get('ndcg_at_10', 0.0):.4f} "
             f"| {agg.get('context_coverage', 0.0):.4f} "
-            f"| {agg.get('average_context_tokens', 0)} "
-            f"| {agg.get('latency_p50_ms', 0)} "
-            f"| {agg.get('latency_p95_ms', 0)} |"
+            f"| {agg.get('average_context_tokens', 0)} |"
         )
     lines.append("")
     lines.append("## Selection rule")
     lines.append("")
     lines.append(
-        "Plan §28.4: pick the budget that maximises the mean of "
-        "[recall, context_coverage]. The 900-token initial candidate "
-        "is preserved when the heuristic ties."
+        "Plan §28.4: evaluate the `512 / 768 / 900 / 1200` token budgets "
+        "(including the `900`-token initial candidate) and pick the "
+        "budget that maximises the mean of `[recall, context_coverage]`, "
+        "breaking ties on the smaller budget so context token cost is "
+        "minimised when recall and coverage are equal."
     )
     lines.append("")
     lines.append("## Notes")
@@ -206,10 +225,9 @@ def _write_markdown(path: Path, payload: dict) -> None:
         "context_budget = 2000 setting for backwards compatibility."
     )
     lines.append(
-        "- The selected default is referenced from the embedding ADR "
-        "(`docs/adrs/0026-embedding-profile-identity-and-vector-"
-        "namespace.md`) and from the `evals/baselines/pre_change.json` "
-        "`metric_definitions` block."
+        "- The selected default is cross-referenced from the embedding ADR "
+        "(`.ai/wiki/adr/0026-embedding-profile-identity-and-vector-"
+        "namespace.md`) and from `evals/baselines/pre_change.json`."
     )
     lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")

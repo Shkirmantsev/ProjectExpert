@@ -16,11 +16,9 @@ tmp/local/**
 !tmp/local/README.md
 .project-intelligence-cache/
 
-# Tier-3 retrieval evaluation reports are regenerated on
-# every test run; the JSON payloads and the chunk-size
-# sweep Markdown are runtime artefacts (re-running the
-# sweep regenerates the Markdown deterministically).
-evals/reports/
+# Tier-3 retrieval evaluation JSON reports are runtime artefacts;
+# evals/reports/chunk_size_sweep.md is the durable sweep report.
+evals/reports/*.json
 
 # Local architecture reference
 /project-intelligence-platform-architecture-v0.8.md

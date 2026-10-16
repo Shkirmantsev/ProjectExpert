@@ -104,15 +104,18 @@ class Tier3EvaluationQualityGateTests(unittest.TestCase):
         report = evaluator.run(
             golden_queries_path=str(GOLDEN_PATH),
         )
-        # Plan §28.3 metric set
-        for key in ("recall", "precision", "mrr", "ndcg_at_10",
-                    "recall_at_5", "context_coverage",
+        # Plan §28.3 complete 13-metric set
+        for key in ("recall", "recall_at_10", "precision", "mrr",
+                    "ndcg_at_10", "recall_at_5", "context_coverage",
                     "protected_hit_retention",
                     "average_context_tokens",
-                    "latency_p50_ms", "latency_p95_ms"):
+                    "latency_p50_ms", "latency_p95_ms",
+                    "peak_ram_mb", "embedding_throughput_qps",
+                    "reranker_throughput_qps", "cache_reuse_rate",
+                    "branch_switch_hydration_ms"):
             self.assertIn(key, report.aggregate,
                           f"missing aggregate metric: {key}")
-        # The 12-query golden set must produce 12 rows.
+        # The golden set must produce one row per query.
         self.assertEqual(len(report.rows), len(queries))
         for row in report.rows:
             self.assertGreaterEqual(row.recall, 0.0)
@@ -121,6 +124,69 @@ class Tier3EvaluationQualityGateTests(unittest.TestCase):
             self.assertLessEqual(row.ndcg_at_10, 1.0)
             self.assertGreaterEqual(row.context_coverage, 0.0)
             self.assertLessEqual(row.context_coverage, 1.0)
+
+    def test_quality_gates_yaml_enforces_thresholds(self) -> None:
+        from pi_platform.core.eval.corpus_loader import (
+            build_pipeline_hits,
+            load_corpus_json,
+        )
+        from pi_platform.core.eval.retrieval_evaluator import (
+            DEFAULT_QUALITY_GATES_PATH,
+            Tier3RetrievalEvaluator,
+            build_default_pipeline,
+            evaluate_quality_gates,
+            load_quality_gates,
+        )
+        gates_path = ROOT / DEFAULT_QUALITY_GATES_PATH
+        self.assertTrue(gates_path.exists(),
+                        f"missing quality gates file: {gates_path}")
+        thresholds = load_quality_gates(gates_path)
+        for required_metric in (
+            "recall_at_5", "recall_at_10", "mrr", "ndcg_at_10",
+            "protected_hit_retention", "context_coverage",
+            "average_context_tokens", "latency_p50_ms",
+            "latency_p95_ms", "peak_ram_mb",
+            "embedding_throughput_qps", "reranker_throughput_qps",
+            "cache_reuse_rate", "branch_switch_hydration_ms",
+        ):
+            self.assertIn(required_metric, thresholds)
+        queries = _load_golden()
+        hits: list = []
+        for name in SUB_CORPORA:
+            hits.extend(build_pipeline_hits(
+                load_corpus_json(CORPUS_ROOT / name),
+            ))
+        evaluator = Tier3RetrievalEvaluator(
+            pipeline=build_default_pipeline(corpus_hits=hits),
+            queries=queries,
+        )
+        report = evaluator.run(golden_queries_path=str(GOLDEN_PATH))
+        violations = evaluate_quality_gates(report.aggregate, thresholds)
+        self.assertEqual(
+            violations, (),
+            f"quality gate violations: {[v.as_dict() for v in violations]}",
+        )
+        # Simulated regression must be caught with metric + threshold.
+        regressed = dict(report.aggregate, recall_at_10=0.01)
+        reg_violations = evaluate_quality_gates(regressed, thresholds)
+        self.assertEqual(len(reg_violations), 1)
+        self.assertEqual(reg_violations[0].metric, "recall_at_10")
+        self.assertEqual(reg_violations[0].bound_kind, "min")
+
+    def test_cli_eval_retrieval_subcommand(self) -> None:
+        import tempfile
+        from pi_platform.cli.main import main as cli_main
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "cli_tier3.json"
+            rc = cli_main([
+                "eval", "retrieval",
+                "--golden", str(GOLDEN_PATH),
+                "--corpus-root", str(CORPUS_ROOT),
+                "--out", str(out),
+                "--no-baseline",
+            ])
+            self.assertEqual(rc, 0)
+            self.assertTrue(out.exists())
 
     def test_tier3_evaluator_serialises_to_json(self) -> None:
         import tempfile

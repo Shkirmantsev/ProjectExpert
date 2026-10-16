@@ -33,3 +33,11 @@ include = ["pi_platform*"]
 
 [tool.setuptools.data-files]
 "distribution/licenses" = ["distribution/licenses/dependency-inventory.json", "distribution/licenses/tree-sitter-LICENSE.txt", "distribution/licenses/tree-sitter-java-LICENSE.txt"]
+
+[tool.pytest.ini_options]
+markers = [
+  "local_model: Tier 2 local-model integration tests (tokenizer, embedding, ANN, reranker)",
+  "pdf: Tier 2 PDF prescan, Docling adapter, table and figure fixture tests",
+  "slow: Tier 2/3 long-document (600-page) and sweep integration tests",
+]
+

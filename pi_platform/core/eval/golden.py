@@ -93,9 +93,13 @@ def _yaml() -> Any:
 
 
 def _load_yaml_mapping(path: Path) -> Mapping[str, Any]:
-    yaml = _yaml()
     text = path.read_text(encoding="utf-8")
-    loaded = yaml.safe_load(text)
+    try:
+        import yaml  # type: ignore
+
+        loaded = yaml.safe_load(text)
+    except ImportError:
+        loaded = _parse_golden_yaml_fallback(text)
     if loaded is None:
         raise GoldenQueryError(
             f"golden_queries.yaml at {path!s} is empty"
@@ -106,6 +110,49 @@ def _load_yaml_mapping(path: Path) -> Mapping[str, Any]:
             f"mapping at the top level, got {type(loaded).__name__}"
         )
     return loaded
+
+
+def _parse_golden_yaml_fallback(text: str) -> Mapping[str, Any]:
+    """Stdlib-only fallback parser for ``evals/corpus/golden_queries.yaml``."""
+    result: dict[str, Any] = {"queries": []}
+    current_q: dict[str, Any] | None = None
+    in_gt = False
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#") or stripped == "---":
+            continue
+        indent = len(raw_line) - len(raw_line.lstrip(" "))
+        if indent == 0 and ":" in stripped:
+            key, _, val = stripped.partition(":")
+            if key.strip() != "queries":
+                result[key.strip()] = val.strip().strip('"').strip("'")
+            continue
+        if stripped.startswith("- id:"):
+            _, _, val = stripped.partition(":")
+            current_q = {"id": val.strip().strip('"').strip("'"), "ground_truth": {}}
+            result["queries"].append(current_q)
+            in_gt = False
+            continue
+        if current_q is None:
+            continue
+        if stripped == "ground_truth:":
+            in_gt = True
+            continue
+        if ":" in stripped:
+            key, _, val = stripped.partition(":")
+            k = key.strip()
+            v = val.strip()
+            if in_gt and indent >= 6:
+                current_q["ground_truth"][k] = json.loads(v) if v.startswith("[") else v
+            else:
+                in_gt = False
+                if v.startswith("["):
+                    current_q[k] = json.loads(v)
+                elif k == "tier":
+                    current_q[k] = int(v)
+                else:
+                    current_q[k] = v.strip('"').strip("'")
+    return result
 
 
 def _as_str_tuple(value: Any, *, field_name: str) -> tuple[str, ...]:
