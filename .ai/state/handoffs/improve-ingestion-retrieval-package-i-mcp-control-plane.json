@@ -1,0 +1,70 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Plan \u00a732 (panels), \u00a733 (MCP additions + agent skill); Change Package I in tasks.md; conventions already established by Packages A+B+C+D+E+F+G (1104 tests OK). Conventions: additive only, no accepted body changes, no third-party deps."
+  ],
+  "decisions": [
+    "deepseek-verify follow-up cross-check returned PASS with no BLOCKER/MAJOR/MINOR; 1164 tests OK (was 1104, +60 Package I tests)"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Addressed all 2 MAJOR + 9 MINOR findings from deepseek-verify cross-check",
+      "MAJOR-1: baseline now records recall_at_5, ndcg_at_10, context_coverage, protected_hit_retention, average_context_tokens + metric_definitions + scope_notes",
+      "MAJOR-2: pi_platform/mcp/context.py ships build_default_tool_context reading PI_MCP_DEBUG + constructing InMemoryRetrievalTraceStore",
+      "MINOR-1: Embeddings panel adds normalization field",
+      "MINOR-2: get_retrieval_trace tool replays trace.timings through builder.add_timing",
+      "MINOR-3/4/5/6: __all__ exports, init annotations, DEBUG_TOOLS comment clarified",
+      "MINOR-7: scope_notes documents the plugin_setup_total/ok pre-existing fixture quirk",
+      "MINOR-8: serialise_v0_8_panels docstring clarified",
+      "MINOR-9: SKILL.md reserve bullet no longer references target_document"
+    ],
+    "todo": [
+      "I1: six v0.8 panels (Ingestion, Chunking, Embeddings, Retrieval, Accelerator, Evaluation) + tests",
+      "I2: MCP retrieve_context extended output (selection_state, source/provenance, project_version, conflicts, support_relationships, retrieval_trace_id)",
+      "I3: RetrievalTraceStore port + in-memory impl + project.get_retrieval_trace(trace_id) MCP tool",
+      "I4: agent skill update for protected candidates, reserve escalation, support context, trace tool",
+      "I5: pre-change evaluation baseline (evals/baselines/pre_change.json + Makefile + tests/test_evaluation_baseline.py)"
+    ]
+  },
+  "resume": {
+    "next_action": "Await user instruction to commit Package I as a single feat(mcp) commit",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-15T21:03:06+00:00",
+    "id": "improve-ingestion-retrieval-package-i-mcp-control-plane",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-15T22:27:27+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Target 1130+ tests OK (0 regressions); six v0.8 control-plane panels registered; MCP retrieve_context output surfaces selection_state / source / project_version / conflicts / support_relationships / retrieval_trace_id; project.get_retrieval_trace tool works in debug/admin mode; agent skill documents protected candidates, reserve escalation, support context, and trace tool; evals/baselines/pre_change.json recorded and reloadable; no accepted requirement body modified"
+    ],
+    "goal": "Change Package I (Control Plane / MCP / distribution polish): extend diagnostics with six v0.8 panels, enrich MCP retrieve_context output, add debug-only project.get_retrieval_trace tool, update the agent skill, and ship the pre-change evaluation baseline.",
+    "openspec_change": "improve-ingestion-retrieval-local-models",
+    "status": "executing"
+  },
+  "verification": {
+    "passed": [
+      "tests.test_mcp_context_factory",
+      "tests.test_mcp_trace_tool.test_trace_tool_replays_timings",
+      "tests.test_evaluation_baseline (extended)",
+      "harness.py openspec-check",
+      "harness.py wiki-validate",
+      "scripts/artifact_manifest.py verify"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
