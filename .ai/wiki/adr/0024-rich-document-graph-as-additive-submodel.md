@@ -16,11 +16,11 @@ sourceRefs:
   - ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md#19
   - ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md#20
   - ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md#21
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/rich-document-graph/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/resumable-document-ingestion/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-document-source-adapters/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-canonical-knowledge-schema/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-ingestion-pipeline-driver/spec.md
+  - openspec/specs/2026-10-16-rich-document-graph/spec.md
+  - openspec/specs/2026-10-16-resumable-document-ingestion/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-document-source-adapters/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-canonical-knowledge-schema/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-ingestion-pipeline-driver/spec.md
   - pi_platform/core/canonical/document_graph.py
   - pi_platform/adapters/pdf/docling_pdf_adapter.py
   - pi_platform/adapters/pdf/docling_chunker.py

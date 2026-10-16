@@ -7,8 +7,8 @@ summary: Non-destructive candidate selection port (PRIMARY / RESERVE / PROTECTED
 sourceRefs:
   - pi_platform/ports/retrieval/selection.py
   - pi_platform/core/retrieval/selection.py
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/retrieval-candidate-selection/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-multi-stage-retrieval/spec.md
+  - openspec/specs/2026-10-16-retrieval-candidate-selection/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-multi-stage-retrieval/spec.md
   - adr.0025-rerank-direct-before-graph-expansion
 maintenance:
   mode: authored

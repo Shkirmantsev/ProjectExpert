@@ -5,9 +5,9 @@
 Structured source: [handoffs/improve-ingestion-retrieval-package-jh-and-archive.json](handoffs/improve-ingestion-retrieval-package-jh-and-archive.json)
 
 Task: `improve-ingestion-retrieval-package-jh-and-archive`
-Status: `executing`
-Updated: `2026-10-16T18:15:31+00:00`
-Active OpenSpec change: `improve-ingestion-retrieval-local-models`
+Status: `complete`
+Updated: `2026-10-16T23:02:20+00:00`
+Active OpenSpec change: none
 
 ## Objective
 
@@ -32,16 +32,7 @@ Change Packages J (Evaluation tiers + chunk-size sweep) and H (Multimodal figure
 
 ## Remaining
 
-- J1: Tier 2 markers + PDF fixtures
-- J2: Tier 3 CLI + corpus + golden_queries.yaml
-- J3: chunk-size sweep
-- J4: tests/test_evaluation_quality_gates.py + tests/test_chunk_size_sweep.py
-- H1: FigureEmbeddingModel stub
-- H2: multimodal.figures flag
-- H3: figure queries + skill update
-- OpenSpec adoption: 5 specs → openspec/specs/
-- OpenSpec archive: change → archive/, CURRENT.md, CHANGELOG
-- Final verification + commits + cross-check
+- none
 
 ## Blocked
 
@@ -49,7 +40,7 @@ Change Packages J (Evaluation tiers + chunk-size sweep) and H (Multimodal figure
 
 ## Decisions
 
-- v0.8 refinement is fully closed: 22 commits ahead of origin (15 from this session + 7 from Packages A-G); all gates green; 1192 tests OK; OpenSpec structure clean
+- Completed full repository consistency audit and fixes across OpenSpec, Packages J/H, Wiki/ADRs, and CLI; 1199 tests OK; all 73 OpenSpec items and 120 Wiki documents pass strict validation
 
 ## Relevant context
 
@@ -61,13 +52,9 @@ Change Packages J (Evaluation tiers + chunk-size sweep) and H (Multimodal figure
 
 ## Verification passed
 
-- tests.test_evaluation_quality_gates
-- tests.test_chunk_size_sweep
-- tests.test_multimodal_figures
-- tests.test_pdf_fixture_generator
-- harness.py openspec-check
-- harness.py wiki-validate
-- scripts.artifact_manifest.verify
+- 1199 unittest tests OK (skipped=1)
+- openspec validate --all --strict: 73 passed, 0 failed
+- wiki-validate: 120 documents, 0 issues
 
 ## Verification pending
 

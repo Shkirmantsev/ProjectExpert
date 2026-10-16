@@ -7,8 +7,8 @@ summary: Distinguishes raw_text (exact source text) from retrieval_text (text ac
 sourceRefs:
   - pi_platform/ports/ingest/retrieval_text_builder.py
   - pi_platform/core/ingest/retrieval_text_builder.py
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-context-enrichment/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-semantic-structural-chunking/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-context-enrichment/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-semantic-structural-chunking/spec.md
   - adr.0027-inference-policy-separate-from-source-policy
 maintenance:
   mode: authored

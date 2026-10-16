@@ -8,8 +8,8 @@ sourceRefs:
   - pi_platform/ports/ingest/tokenizer.py
   - pi_platform/adapters/ingest/tokenizers.py
   - pi_platform/core/ingest/token_budget.py
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-semantic-structural-chunking/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/embedding-execution-profile/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-semantic-structural-chunking/spec.md
+  - openspec/specs/2026-10-16-embedding-execution-profile/spec.md
 maintenance:
   mode: authored
 related:

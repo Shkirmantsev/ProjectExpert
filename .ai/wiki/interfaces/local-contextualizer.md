@@ -8,7 +8,7 @@ sourceRefs:
   - pi_platform/core/ingest/local_contextualizer.py
   - pi_platform/ports/ingest/inference_policy.py
   - pi_platform/ports/orchestration/local_llm.py
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-context-enrichment/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-context-enrichment/spec.md
   - adr.0027-inference-policy-separate-from-source-policy
 maintenance:
   mode: authored

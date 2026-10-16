@@ -15,8 +15,8 @@ related:
 sourceRefs:
   - ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md#4.2
   - ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md#41
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-multi-stage-retrieval/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/retrieval-candidate-selection/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-multi-stage-retrieval/spec.md
+  - openspec/specs/2026-10-16-retrieval-candidate-selection/spec.md
   - pi_platform/ports/retrieval/multi_stage_retrieval.py
   - pi_platform/core/retrieval/multi_stage_retrieval.py
   - pi_platform/ports/retrieval/selection.py

@@ -11,10 +11,10 @@ sourceRefs:
   - pi_platform/core/retrieval/multi_stage_retrieval.py
   - pi_platform/ports/retrieval/context_assembler.py
   - pi_platform/core/retrieval/context_assembler.py
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/retrieval-candidate-selection/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-hybrid-retrieval/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-multi-stage-retrieval/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-context-assembler/spec.md
+  - openspec/specs/2026-10-16-retrieval-candidate-selection/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-hybrid-retrieval/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-multi-stage-retrieval/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-context-assembler/spec.md
   - adr.0025-rerank-direct-before-graph-expansion
 maintenance:
   mode: authored

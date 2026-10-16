@@ -6,8 +6,8 @@ status: active
 summary: EmbeddingProfile descriptor and identity key for vector-namespace isolation. The SHA-256 of the canonical serialisation is the namespace key; the runtime refuses to open an ANN namespace whose profile hash does not match the active profile.
 sourceRefs:
   - pi_platform/ports/retrieval/embedding_profile.py
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/embedding-execution-profile/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-embedding-model/spec.md
+  - openspec/specs/2026-10-16-embedding-execution-profile/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-embedding-model/spec.md
   - adr.0026-embedding-profile-identity-and-vector-namespace
 maintenance:
   mode: authored

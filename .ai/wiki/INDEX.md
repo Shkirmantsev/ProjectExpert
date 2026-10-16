@@ -82,7 +82,11 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Context enrichment interface](interfaces/enrichment.md)
 - [Use an isolated tree-sitter Java parser](adr/0006-phase-2-parser-selection.md)
 - [Default inbox sources to LOCAL_ONLY](adr/0007-phase-2-inbox-policy-default.md)
+- [Rich document graph as additive submodel](adr/0024-rich-document-graph-as-additive-submodel.md) — v0.8 refinement
 - [InferencePolicy separate from source policy](adr/0027-inference-policy-separate-from-source-policy.md) — v0.8 refinement
+- [Rich document graph architecture](architecture/rich-document-graph.md) — v0.8 refinement
+- [DocumentGraphStorePort interface](interfaces/document-graph-store.md) — v0.8 refinement
+- [IngestionJobStorePort interface](interfaces/ingestion-job-store.md) — v0.8 refinement
 
 ## Phase 3 storage
 
@@ -112,7 +116,13 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Hybrid fusion strategy](adr/0010-hybrid-fusion-strategy.md)
 - [Rerank direct before graph expansion](adr/0025-rerank-direct-before-graph-expansion.md) — v0.8 refinement
 - [EmbeddingProfile identity and vector namespace](adr/0026-embedding-profile-identity-and-vector-namespace.md) — v0.8 refinement
+- [USearch as configuration-driven ANN backend](adr/0028-usearch-as-default-ann-backend.md) — v0.8 refinement
 - [Non-destructive candidate selection](architecture/retrieval-candidate-selection.md) — v0.8 refinement
+- [EmbeddingProfile identity architecture](architecture/embedding-profile-identity.md) — v0.8 refinement
+- [Host embedding accelerator module](modules/host-embedding-accelerator.md) — v0.8 refinement
+- [Retrieval evaluation corpus and quality gates](project/retrieval-evaluation-corpus.md) — v0.8 refinement
+- [Deployment execution profiles](project/deployment-profiles.md) — v0.8 refinement
+- [v0.8 ingestion and retrieval refinement invariants](invariants/v0.8-ingestion-retrieval.md) — v0.8 refinement
 
 ## Phase 5 orchestration
 

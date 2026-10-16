@@ -7,7 +7,7 @@ summary: Persistent, redacted, JSON-serialisable trace of every retrieval — qu
 sourceRefs:
   - pi_platform/core/retrieval/retrieval_trace.py
   - pi_platform/core/retrieval/multi_stage_retrieval.py
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/retrieval-trace/spec.md
+  - openspec/specs/2026-10-16-retrieval-trace/spec.md
 maintenance:
   mode: authored
 related:

@@ -7,8 +7,8 @@ summary: Persists embedding vector records separately from the ANN index, keyed 
 sourceRefs:
   - pi_platform/ports/runtime/vector_record_store.py
   - pi_platform/adapters/runtime/sqlite_vector_record_store.py
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/embedding-execution-profile/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-runtime-store/spec.md
+  - openspec/specs/2026-10-16-embedding-execution-profile/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-runtime-store/spec.md
   - adr.0026-embedding-profile-identity-and-vector-namespace
 maintenance:
   mode: authored

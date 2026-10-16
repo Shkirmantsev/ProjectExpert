@@ -18,7 +18,7 @@ sourceRefs:
   - ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md#3.4
   - ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md#11.1
   - ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md#11.2
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-context-enrichment/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-context-enrichment/spec.md
   - pi_platform/ports/ingest/inference_policy.py
   - pi_platform/core/ingest/local_contextualizer.py
   - pi_platform/ports/ingest/context_enricher.py

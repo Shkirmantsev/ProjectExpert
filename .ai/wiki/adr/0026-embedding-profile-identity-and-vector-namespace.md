@@ -17,8 +17,9 @@ sourceRefs:
   - ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md#13
   - ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md#16
   - ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md#17
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/embedding-execution-profile/spec.md
-  - openspec/changes/improve-ingestion-retrieval-local-models/specs/2026-10-04-embedding-model/spec.md
+  - openspec/specs/2026-10-16-embedding-execution-profile/spec.md
+  - openspec/changes/archive/2026-10-16-improve-ingestion-retrieval-local-models/specs/2026-10-04-embedding-model/spec.md
+  - evals/reports/chunk_size_sweep.md
   - pi_platform/ports/retrieval/embedding_profile.py
   - pi_platform/ports/runtime/vector_record_store.py
   - pi_platform/adapters/runtime/sqlite_vector_record_store.py
@@ -173,3 +174,10 @@ pruned) by deleting their registrations in
 `pi_platform/ports/retrieval/embedding_profile.py`. Existing
 vector records in the SQLite store are kept; only the
 `embedding_profile_hash` key in the namespace is gone.
+
+## Evaluation and Chunk-Size Sweep Cross-Reference
+
+The Tier-3 chunk-size sweep over the `512 / 768 / 900 / 1200`
+token budgets (`scripts/eval_chunk_size_sweep.py`) is recorded
+in [`evals/reports/chunk_size_sweep.md`](../../../evals/reports/chunk_size_sweep.md)
+and compared against [`evals/baselines/pre_change.json`](../../../evals/baselines/pre_change.json).
