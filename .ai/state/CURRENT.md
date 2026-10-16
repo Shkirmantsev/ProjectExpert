@@ -5,8 +5,8 @@
 Structured source: [handoffs/improve-ingestion-retrieval-package-jh-and-archive.json](handoffs/improve-ingestion-retrieval-package-jh-and-archive.json)
 
 Task: `improve-ingestion-retrieval-package-jh-and-archive`
-Status: `planning`
-Updated: `2026-10-16T17:06:05+00:00`
+Status: `executing`
+Updated: `2026-10-16T18:15:31+00:00`
 Active OpenSpec change: `improve-ingestion-retrieval-local-models`
 
 ## Objective
@@ -19,7 +19,16 @@ Change Packages J (Evaluation tiers + chunk-size sweep) and H (Multimodal figure
 
 ## Completed
 
-- none
+- J+H implementation + OpenSpec adoption + archive
+- J1: Tier-3 retrieval evaluation command (eval-retrieval CLI + 12-query golden set + 5 sub-corpora JSON + Tier-3 evaluator + 9 tests)
+- J2: chunk-size sweep over 512/768/900/1200 with JSON + Markdown report (6 tests)
+- J3: 10/100/600-page PDF fixtures + 4 sub-corpus JSON manifests (4 tests)
+- H1: FigureEmbeddingModelPort + STUB adapter + multimodal.figures flag (5 tests)
+- H2: first-class figure retrieval bullet in agent skill
+- J+H tests commit (24 tests: tier-3 quality gates, chunk-size, multimodal, PDF fixtures)
+- OpenSpec adoption: 5 specs moved to openspec/specs/ + CURRENT.md updated
+- OpenSpec archive: change folder moved to archive/2026-10-16-...
+- gitignore: evals/reports/*.json ephemeral
 
 ## Remaining
 
@@ -40,7 +49,7 @@ Change Packages J (Evaluation tiers + chunk-size sweep) and H (Multimodal figure
 
 ## Decisions
 
-- none
+- v0.8 refinement is fully closed: 22 commits ahead of origin (15 from this session + 7 from Packages A-G); all gates green; 1192 tests OK; OpenSpec structure clean
 
 ## Relevant context
 
@@ -52,7 +61,13 @@ Change Packages J (Evaluation tiers + chunk-size sweep) and H (Multimodal figure
 
 ## Verification passed
 
-- none
+- tests.test_evaluation_quality_gates
+- tests.test_chunk_size_sweep
+- tests.test_multimodal_figures
+- tests.test_pdf_fixture_generator
+- harness.py openspec-check
+- harness.py wiki-validate
+- scripts.artifact_manifest.verify
 
 ## Verification pending
 

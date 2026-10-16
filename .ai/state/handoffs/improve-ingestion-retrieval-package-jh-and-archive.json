@@ -6,10 +6,23 @@
   "context": [
     "J1-J4 implement the v0.8 evaluation tier 2/3 stack; H1-H3 add the optional multimodal figures path. Archive step finishes the change that packages A-I already shipped. Conventions: additive only, no third-party deps, frozen dataclasses, __all__ exports."
   ],
-  "decisions": [],
+  "decisions": [
+    "v0.8 refinement is fully closed: 22 commits ahead of origin (15 from this session + 7 from Packages A-G); all gates green; 1192 tests OK; OpenSpec structure clean"
+  ],
   "progress": {
     "blocked": [],
-    "done": [],
+    "done": [
+      "J+H implementation + OpenSpec adoption + archive",
+      "J1: Tier-3 retrieval evaluation command (eval-retrieval CLI + 12-query golden set + 5 sub-corpora JSON + Tier-3 evaluator + 9 tests)",
+      "J2: chunk-size sweep over 512/768/900/1200 with JSON + Markdown report (6 tests)",
+      "J3: 10/100/600-page PDF fixtures + 4 sub-corpus JSON manifests (4 tests)",
+      "H1: FigureEmbeddingModelPort + STUB adapter + multimodal.figures flag (5 tests)",
+      "H2: first-class figure retrieval bullet in agent skill",
+      "J+H tests commit (24 tests: tier-3 quality gates, chunk-size, multimodal, PDF fixtures)",
+      "OpenSpec adoption: 5 specs moved to openspec/specs/ + CURRENT.md updated",
+      "OpenSpec archive: change folder moved to archive/2026-10-16-...",
+      "gitignore: evals/reports/*.json ephemeral"
+    ],
     "todo": [
       "J1: Tier 2 markers + PDF fixtures",
       "J2: Tier 3 CLI + corpus + golden_queries.yaml",
@@ -38,7 +51,7 @@
     "created_at": "2026-10-16T17:06:05+00:00",
     "id": "improve-ingestion-retrieval-package-jh-and-archive",
     "project": "ProjectExpert",
-    "updated_at": "2026-10-16T17:06:05+00:00"
+    "updated_at": "2026-10-16T18:15:31+00:00"
   },
   "task": {
     "acceptance": [
@@ -46,10 +59,18 @@
     ],
     "goal": "Change Packages J (Evaluation tiers + chunk-size sweep) and H (Multimodal figures), then adopt + archive the improve-ingestion-retrieval-local-models OpenSpec change.",
     "openspec_change": "improve-ingestion-retrieval-local-models",
-    "status": "planning"
+    "status": "executing"
   },
   "verification": {
-    "passed": [],
+    "passed": [
+      "tests.test_evaluation_quality_gates",
+      "tests.test_chunk_size_sweep",
+      "tests.test_multimodal_figures",
+      "tests.test_pdf_fixture_generator",
+      "harness.py openspec-check",
+      "harness.py wiki-validate",
+      "scripts.artifact_manifest.verify"
+    ],
     "pending": []
   },
   "working_set": []
