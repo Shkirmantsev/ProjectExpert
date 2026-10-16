@@ -74,9 +74,10 @@ redaction marker.
 
 ### Requirement: trace optionality and debug mode
 
-`RetrievalConfig.include_trace` controls whether the
-trace is attached to the normal `RetrievalResult`. In
-debug / evaluation mode the trace is always available.
+The platform MUST gate normal-response trace attachment on
+`RetrievalConfig.include_trace` (or `RetrievalQuery.include_trace`)
+and MUST always make the trace available in debug and evaluation
+modes.
 
 #### Scenario: trace is omitted in the normal API response
 

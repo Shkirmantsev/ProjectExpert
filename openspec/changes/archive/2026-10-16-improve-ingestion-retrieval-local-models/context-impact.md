@@ -183,14 +183,11 @@ pipeline order, the new ports, and the new evaluation tiers:
 - `pi_platform/ports/retrieval/selection.py`
 - `pi_platform/ports/runtime/vector_record_store.py`
 - `pi_platform/adapters/pdf/prescan.py`
-- `pi_platform/adapters/pdf/docling_pdf_adapter.py`
-- `pi_platform/adapters/pdf/docling_mapper.py`
+- `pi_platform/adapters/pdf/docling_pdf_adapter.py` (includes `DoclingMapper`)
 - `pi_platform/adapters/pdf/ocr_policy.py`
 - `pi_platform/adapters/pdf/assets.py`
-- `pi_platform/adapters/pdf/docling_chunker.py`
-- `pi_platform/adapters/ingest/docling_hybrid_chunker.py`
-- `pi_platform/adapters/ingest/embeddinggemma2_tokenizer.py`
-- `pi_platform/adapters/ingest/docling_local_contextualizer.py`
+- `pi_platform/adapters/pdf/docling_chunker.py` (`DoclingHybridChunker`)
+- `pi_platform/adapters/ingest/tokenizers.py` (`EmbeddingGemma2Tokenizer`)
 - `pi_platform/adapters/runtime/usearch_dense_index.py`
 - `pi_platform/adapters/runtime/sqlite_vector_record_store.py`
 - `pi_platform/adapters/runtime/sqlite_document_graph_store.py`
@@ -199,12 +196,21 @@ pipeline order, the new ports, and the new evaluation tiers:
 - `pi_platform/adapters/retrieval/qwen3_embedding_model.py`
 - `pi_platform/adapters/retrieval/qwen3_reranker.py`
 - `pi_platform/adapters/retrieval/host_embedding_client.py`
-- `accelerator/` (new optional package; not built into the
-  default container)
+- `pi_platform/adapters/retrieval/figure_embedding_stub.py`
+- `pi_platform/adapters/retrieval/in_memory_trace_store.py`
+- `pi_platform/ports/retrieval/figure_embedding_model.py`
+- `pi_platform/ports/retrieval/trace_store.py`
+- `pi_platform/core/control/diagnostics/v0_8_panels.py`
+- `pi_platform/core/control/multimodal.py`
+- `pi_platform/mcp/context.py`
+- `pi_platform/host_accelerator/` (optional host accelerator package)
 - `evals/corpus/{synthetic,generated-pdf,multilingual,java,requirements}/`
 - `evals/corpus/golden_queries.yaml`
+- `evals/quality_gates.yaml`
 - `scripts/generate_pdf_fixtures.py`
-- `scripts/chunk_size_sweep.py`
+- `scripts/eval_retrieval.py`
+- `scripts/eval_chunk_size_sweep.py`
+- `scripts/recall_vs_flat.py`
 
 ### Modules / paths (additive modifications)
 
@@ -375,54 +381,54 @@ ADRs to update / cross-reference:
 
 Knowledge / harness acceptance:
 
-- [ ] Wiki nodes listed under "Knowledge to create" exist
+- [x] Wiki nodes listed under "Knowledge to create" exist
       with stable `id` frontmatter, link to the
       corresponding accepted spec or change, and are
       reachable from `.ai/wiki/INDEX.md`.
-- [ ] Wiki nodes listed under "Knowledge to update" are
+- [x] Wiki nodes listed under "Knowledge to update" are
       revised and reviewed for staleness.
-- [ ] New ADRs are committed with the same author /
+- [x] New ADRs are committed with the same author /
       review standard as the existing `0001..0023` series.
-- [ ] `kb_search` returns compact navigation cards for
+- [x] `kb_search` returns compact navigation cards for
       the new nodes (after
       `python scripts/session_state.py ... ; python
       scripts/... kb_refresh` if used).
-- [ ] `kb_validate` reports no broken internal links.
-- [ ] Generated local context index
+- [x] `kb_validate` reports no broken internal links.
+- [x] Generated local context index
       (`tmp/local/project-context/`) is refreshed.
-- [ ] `openspec/CURRENT.md` is updated to list any newly
+- [x] `openspec/CURRENT.md` is updated to list any newly
       adopted specs; the proposed change folder is
       archived per the OpenSpec workflow.
-- [ ] `ARTIFACT_MANIFEST.sha256` is refreshed after the
+- [x] `ARTIFACT_MANIFEST.sha256` is refreshed after the
       implementation work that lands with this change.
-- [ ] `distribution/licenses/model-licenses.json`
+- [x] `distribution/licenses/model-licenses.json`
       records the pinned model revisions, and the
       License Gate (`pi_platform/control/policy_engine.py`
       + `distribution/license-gate/`) accepts the
       additions.
-- [ ] Optional dependency groups in `pyproject.toml`
+- [x] Optional dependency groups in `pyproject.toml`
       (`documents`, `semantic-embeddings`, `ann`,
       `reranking`, `accelerator`, `multimodal`) keep
       `pip install -e .` working without any of them.
-- [ ] Distribution bundles
+- [x] Distribution bundles
       (`distribution/skills/project-intelligence/...`)
       embed the updated agent skill, including the
       `protected exact candidates`, `reserve escalation`,
       and `retrieval trace` guidance.
-- [ ] Control Plane diagnostics
+- [x] Control Plane diagnostics
       (`pi_platform/control/...`) expose the active
       profile, model IDs/revisions, device, RAM/VRAM
       capability result, fallback state, index
       compatibility, and reranker status
       (plan §24, §32).
-- [ ] `Makefile` and `harness.py` add the
+- [x] `Makefile` and `harness.py` add the
       `project-intelligence eval retrieval` command and
       the Tier 2 pytest marker
       (`@pytest.mark.local_model`).
-- [ ] The integration-quality-gate thresholds
+- [x] The integration-quality-gate thresholds
       (plan §28.3) are recorded in
       `evals/quality_gates.yaml`.
-- [ ] Spec/implementation mismatches found during
+- [x] Spec/implementation mismatches found during
       review are resolved or explicitly documented in
       the corresponding Wiki page's "Known mismatches"
       section.

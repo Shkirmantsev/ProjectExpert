@@ -72,7 +72,7 @@ filter and a clear reason is recorded in
 
 ### Requirement: reserve pool and escalation
 
-The reserve pool is retained after reranking. It is
+The platform MUST retain the reserve pool after reranking. It is
 escalated to the Context Assembler when any of the
 following holds: the primary chunks are near-duplicates;
 the answer has multiple subquestions; a needed source
