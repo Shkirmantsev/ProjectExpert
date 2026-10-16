@@ -174,6 +174,34 @@ class MultimodalFiguresTests(unittest.TestCase):
                     f"chunk {chunk_id!r}",
                 )
 
+    def test_multimodal_profile_modality_enum_and_ui_flag_composition(self) -> None:
+        import json
+        from pi_platform.adapters.retrieval.figure_embedding_stub import (
+            FigureEmbeddingModel,
+            FigureEmbeddingModelStub,
+        )
+        from pi_platform.adapters.ui.composition import build_flag_registry
+        from pi_platform.core.control import MULTIMODAL_FIGURES_FLAG
+        from pi_platform.ports.retrieval.embedding_profile import (
+            MULTIMODAL_FIGURE_512,
+            EmbeddingProfileRegistry,
+        )
+        from pi_platform.ports.retrieval.figure_embedding_model import Modality
+
+        self.assertIs(FigureEmbeddingModel, FigureEmbeddingModelStub)
+        self.assertEqual(Modality.MULTIMODAL.value, "multimodal")
+        self.assertEqual(Modality.FIGURE.value, "figure")
+        reg = EmbeddingProfileRegistry()
+        self.assertEqual(reg.default("multimodal"), MULTIMODAL_FIGURE_512)
+        self.assertEqual(FigureEmbeddingModel().profile, MULTIMODAL_FIGURE_512)
+        ui_flags = {fid for fid, _, _ in build_flag_registry().list()}
+        self.assertIn(MULTIMODAL_FIGURES_FLAG, ui_flags)
+        licenses_path = ROOT / "distribution" / "licenses" / "model-licenses.json"
+        self.assertTrue(licenses_path.exists())
+        payload = json.loads(licenses_path.read_text(encoding="utf-8"))
+        model_ids = {m["model_id"] for m in payload["models"]}
+        self.assertIn("multimodal-figure-512", model_ids)
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

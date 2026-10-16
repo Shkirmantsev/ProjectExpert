@@ -30,6 +30,7 @@ __all__ = [
     "HASHING_DEFAULT",
     "EMBEDDINGGEMMA2_512",
     "QWEN3_EMBEDDING_0_6B_1024",
+    "MULTIMODAL_FIGURE_512",
 ]
 
 
@@ -115,10 +116,23 @@ QWEN3_EMBEDDING_0_6B_1024 = EmbeddingProfile(
     strategy_version=EMBEDDING_PROFILE_STRATEGY_VERSION,
 )
 
+MULTIMODAL_FIGURE_512 = EmbeddingProfile(
+    provider="multimodal-figure",
+    model_id="multimodal-figure-512",
+    model_revision="pinned-stub",
+    modality="multimodal",
+    output_dimension=512,
+    normalization="l2",
+    instruction_profile="figure-caption",
+    tokenizer_id="embeddinggemma2/v1-stub",
+    strategy_version=EMBEDDING_PROFILE_STRATEGY_VERSION,
+)
+
 _WELL_KNOWN: Mapping[str, EmbeddingProfile] = {
     "hashing": HASHING_DEFAULT,
     "embeddinggemma2": EMBEDDINGGEMMA2_512,
     "qwen3-embedding-0.6b": QWEN3_EMBEDDING_0_6B_1024,
+    "multimodal": MULTIMODAL_FIGURE_512,
 }
 
 

@@ -28,6 +28,10 @@ from __future__ import annotations
 import hashlib
 from typing import Mapping, Sequence
 
+from pi_platform.ports.retrieval.embedding_profile import (
+    MULTIMODAL_FIGURE_512,
+    EmbeddingProfile,
+)
 from pi_platform.ports.retrieval.figure_embedding_model import (
     FigureEmbeddingModelError,
     FigureEmbeddingModelPort,
@@ -35,7 +39,12 @@ from pi_platform.ports.retrieval.figure_embedding_model import (
 )
 
 
-__all__ = ["FigureEmbeddingModelStub"]
+__all__ = [
+    "FigureEmbeddingModel",
+    "FigureEmbeddingModelStub",
+    "MULTIMODAL_PROFILE_IDENTITY",
+    "STUB_DIMENSION",
+]
 
 
 #: Stable identifier for the multimodal profile. The
@@ -62,10 +71,20 @@ class FigureEmbeddingModelStub(FigureEmbeddingModelPort):
     binding ships in a follow-up change.
     """
 
-    def __init__(self, *, available: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        available: bool = False,
+        profile: EmbeddingProfile = MULTIMODAL_FIGURE_512,
+    ) -> None:
         self._available = bool(available)
+        self._profile = profile
         self._calls = 0
         self._errors = 0
+
+    @property
+    def profile(self) -> EmbeddingProfile:
+        return self._profile
 
     def embed_figure(
         self, request: FigureEmbeddingRequest,
@@ -125,3 +144,6 @@ class FigureEmbeddingModelStub(FigureEmbeddingModelPort):
             "available": int(self._available),
             "dimension": STUB_DIMENSION,
         }
+
+
+FigureEmbeddingModel = FigureEmbeddingModelStub

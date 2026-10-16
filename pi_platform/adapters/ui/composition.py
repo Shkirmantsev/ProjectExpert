@@ -157,6 +157,13 @@ def build_flag_registry() -> DefaultFeatureFlagRegistry:
         state=FeatureFlagState.ENABLED,
         scope=FeatureFlagScope.DEPLOYMENT_PROFILE,
     )
+    from pi_platform.core.control.multimodal import MULTIMODAL_FIGURES_FLAG
+
+    registry.register(
+        MULTIMODAL_FIGURES_FLAG,
+        state=FeatureFlagState.EXPERIMENTAL,
+        scope=FeatureFlagScope.DEPLOYMENT_PROFILE,
+    )
     return registry
 
 

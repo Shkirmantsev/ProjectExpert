@@ -27,6 +27,7 @@ binding can run with the canonical shared embedding space.
 from __future__ import annotations
 
 import abc
+import enum
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
@@ -39,8 +40,13 @@ __all__ = [
 ]
 
 
-class Modality(str, abc.ABC):
-    """The modality supported by a :class:`FigureEmbeddingModelPort`."""
+class Modality(str, enum.Enum):
+    """The modality supported by an embedding or figure-embedding model."""
+
+    TEXT = "text"
+    CODE = "code"
+    FIGURE = "figure"
+    MULTIMODAL = "multimodal"
 
 
 @dataclass(frozen=True)
