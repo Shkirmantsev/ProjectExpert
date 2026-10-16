@@ -90,6 +90,15 @@ should respect:
   `project.get_retrieval_trace(trace_id)` returns the full
   trace JSON for that id. Never call the trace tool without
   operator authorisation; the public surface excludes it.
+* **First-class figure retrieval (optional).** When the
+  operator has enabled the `multimodal.figures` feature
+  flag (off by default), figures and tables become
+  first-class retrievable evidence alongside text chunks.
+  The control plane panel `ui.v0_8.embeddings` reports the
+  multimodal status; the agent should check it before
+  assuming a figure query needs a visual scan. The multimodal
+  binding ships in a follow-up change; the STUB adapter
+  surfaces the panel as `disabled` until then.
 
 Broad repository scans (`Read` / `Glob` / `Grep` against the
 working tree) remain a **fallback** for evidence the retrieval
