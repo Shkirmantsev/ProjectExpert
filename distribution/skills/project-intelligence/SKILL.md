@@ -55,6 +55,48 @@ repository is the secondary surface.
     approved workflow (`project.materialize_knowledge`,
     `project.refresh_sources`) — never silently.
 
+## v0.8 retrieval semantics (Change Package I)
+
+`project.retrieve_context` runs the §36 hybrid / reranked path
+behind the scenes and returns a v0.8 surface that the agent
+should respect:
+
+* **Protected exact candidates.** Engineering identifiers and
+  quoted phrases are marked `PROTECTED` and survive the
+  multi-stage pipeline. Never override a protected hit with a
+  generic semantic match; if a protected hit is missing, treat
+  it as missing rather than substituting.
+* **Reserve escalation.** A `RESERVE` pool is held back from
+  the primary bundle so uncovered subtopics can be filled in
+  without re-running the pipeline. The bundle's
+  `selection_state.reserve` field reports how many candidates
+  remain available; re-run the same `project.retrieve_context`
+  call with a larger `contextBudget` to let the assembler pull
+  reserve candidates in, or narrow the question so the reserve
+  pool is unnecessary.
+* **Support context is attached automatically.** The context
+  bundle carries graph, hierarchy, table and figure support
+  items through the `support_relationships` field. Treat those
+  items as context evidence, not direct candidates — they
+  cannot be cross-encoded and should not be cited as the sole
+  source of a fact.
+* **Conflicts are surfaced.** Conflicting chunk ids are
+  reported through the `conflicts` field; the agent MUST NOT
+  silently pick between them. Either escalate to the operator
+  or quote both with the conflicting `sourceDocumentId`.
+* **Trace tool (debug / admin only).** When the operator has
+  enabled `PI_MCP_DEBUG=1`, `project.retrieve_context` may
+  return a `retrieval_trace_id`. The debug-only tool
+  `project.get_retrieval_trace(trace_id)` returns the full
+  trace JSON for that id. Never call the trace tool without
+  operator authorisation; the public surface excludes it.
+
+Broad repository scans (`Read` / `Glob` / `Grep` against the
+working tree) remain a **fallback** for evidence the retrieval
+surface cannot reach (e.g. uncommitted local-only files outside
+the canonical tree). They are NOT a substitute for
+`project.retrieve_context`.
+
 ## When NOT to use a tool
 
 - Do not call `project.materialize_knowledge` /
@@ -71,6 +113,8 @@ repository is the secondary surface.
   orchestrator; filtered L1 / L2 is rejected explicitly until a
   separately specified extension preserves the filters through
   escalation.
+- Do not call `project.get_retrieval_trace` outside debug /
+  admin mode; the server returns `DebugModeRequiredError`.
 
 ## Stale / conflicting knowledge
 
@@ -109,6 +153,11 @@ are read-only and do not require approval.
 `project.materialize_knowledge` and `project.refresh_sources`
 are write / materialization actions and require an `approval_id`
 issued by the trusted operator boundary.
+
+The debug-only tool `project.get_retrieval_trace(trace_id)`
+requires `PI_MCP_DEBUG=1` on the server; it is read-only but
+exposes internal pipeline state, so the operator must opt in
+explicitly.
 
 ## Reference material
 
