@@ -1,0 +1,56 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "J1-J4 implement the v0.8 evaluation tier 2/3 stack; H1-H3 add the optional multimodal figures path. Archive step finishes the change that packages A-I already shipped. Conventions: additive only, no third-party deps, frozen dataclasses, __all__ exports."
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [],
+    "todo": [
+      "J1: Tier 2 markers + PDF fixtures",
+      "J2: Tier 3 CLI + corpus + golden_queries.yaml",
+      "J3: chunk-size sweep",
+      "J4: tests/test_evaluation_quality_gates.py + tests/test_chunk_size_sweep.py",
+      "H1: FigureEmbeddingModel stub",
+      "H2: multimodal.figures flag",
+      "H3: figure queries + skill update",
+      "OpenSpec adoption: 5 specs \u2192 openspec/specs/",
+      "OpenSpec archive: change \u2192 archive/, CURRENT.md, CHANGELOG",
+      "Final verification + commits + cross-check"
+    ]
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-16T17:06:05+00:00",
+    "id": "improve-ingestion-retrieval-package-jh-and-archive",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-16T17:06:05+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Packages J+H ship: Tier 2 markers + 10/100/600-page PDF fixtures; Tier 3 'project-intelligence eval retrieval' CLI with synthetic/generated-pdf/multilingual/java/requirements sub-corpora + golden_queries.yaml; chunk-size sweep over 512/768/900/1200 with evals/reports/chunk_size_sweep.md; FigureEmbeddingModel STUB behind multimodal profile; multimodal.figures feature flag; figure queries in golden_queries.yaml; agent skill mentions first-class figure retrieval. OpenSpec: 5 delta specs adopted to openspec/specs/, change folder moved to openspec/changes/archive/2026-10-15-improve-ingestion-retrieval-local-models/, CURRENT.md + CHANGELOG updated, no pre-existing spec body modified, all gates green, 1250+ tests OK"
+    ],
+    "goal": "Change Packages J (Evaluation tiers + chunk-size sweep) and H (Multimodal figures), then adopt + archive the improve-ingestion-retrieval-local-models OpenSpec change.",
+    "openspec_change": "improve-ingestion-retrieval-local-models",
+    "status": "planning"
+  },
+  "verification": {
+    "passed": [],
+    "pending": []
+  },
+  "working_set": []
+}
