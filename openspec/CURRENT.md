@@ -85,6 +85,11 @@ project product.
 | [A2A adapter](specs/2026-10-12-a2a-adapter/spec.md) |
 | [External coding agent integration](specs/2026-10-12-external-coding-agent-integration/spec.md) |
 | [Integration quality gates](specs/2026-10-12-integration-quality-gates/spec.md) |
+| [Retrieval candidate selection](specs/2026-10-16-retrieval-candidate-selection/spec.md) |
+| [Retrieval trace](specs/2026-10-16-retrieval-trace/spec.md) |
+| [Embedding execution profile](specs/2026-10-16-embedding-execution-profile/spec.md) |
+| [Rich document graph](specs/2026-10-16-rich-document-graph/spec.md) |
+| [Resumable document ingestion](specs/2026-10-16-resumable-document-ingestion/spec.md) |
 
 These product capabilities define the foundation, ingestion,
 storage, retrieval, orchestration, agent integration,
@@ -92,8 +97,10 @@ control plane, security, distribution, A2A and quality-gate
 phases of the v0.8 Project Intelligence Platform. The Phase 10
 capabilities close the v0.8 roadmap and ship the v1.0 release
 evidence (container image tag, OCI artefact, distribution
-bundles). Create new specs through the OpenSpec workflow
-(`openspec/changes/<id>/` →
+bundles). The 2026-10-16 capabilities are the v0.8 refinement
+adopted from the `improve-ingestion-retrieval-local-models`
+change (Change Packages A–J + H). Create new specs through the
+OpenSpec workflow (`openspec/changes/<id>/` →
 `openspec/specs/YYYY-MM-DD-domain-capability/`) and link them
 here when adopted.
 
