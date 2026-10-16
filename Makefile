@@ -11,7 +11,7 @@ STACK := $(PYTHON) scripts/stack.py
         skills-sync-local skills-sync-remote skills-check manifest-generate manifest-check hermes-host-setup hermes-host-revoke \
         hermes-sidecar-copy hermes-remote-instructions hermes-patch hermes-check hermes-import verify verify-models test clean \
         platform-init platform-hydrate platform-materialise license gate license-gate okf-validate \
-        version-identity wal-recover platform-test eval eval-baseline invariants metrics-gate phase-10-test
+        version-identity wal-recover platform-test eval eval-baseline eval-retrieval eval-chunk-size-sweep invariants metrics-gate phase-10-test
 
 help: ## Show all harness commands without a POSIX shell dependency.
 	@$(PYTHON) harness.py help
@@ -165,6 +165,12 @@ eval: ## Run the §49 integration-quality-gates suites.
 
 eval-baseline: ## Print the recorded Tier-1 pre-change evaluation baseline.
 	@$(PYTHON) scripts/eval_baseline.py show
+
+eval-retrieval: ## Run the v0.8 Tier-3 retrieval evaluation against the golden query set.
+	@$(PYTHON) -m pi_platform.cli eval-retrieval
+
+eval-chunk-size-sweep: ## Sweep the v0.8 Tier-3 chunk-size budgets and pick the default.
+	@$(PYTHON) -m pi_platform.cli eval-chunk-size-sweep
 
 invariants: ## Run the §120 52-invariant §68 acceptance suite.
 	@$(PYTHON) -m pi_platform.cli invariants

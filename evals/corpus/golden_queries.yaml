@@ -1,0 +1,171 @@
+---
+# evals/corpus/golden_queries.yaml
+#
+# The golden query set for the v0.8 Tier-3 evaluation command
+# (Change Package J, plan §28). Every entry pairs a query with
+# the canonical ground truth the retrieval pipeline is expected
+# to surface. The fixture covers every documented sub-corpus so
+# the eval command can run a single pass across the platform
+# rather than a per-corpus loop.
+#
+# Conventions (per Change Package J / plan §28.3):
+# - `id` is the operator-facing name; the eval command uses it
+#   in its summary table.
+# - `corpus` is one of {synthetic, generated-pdf, multilingual,
+#   java, requirements}; the eval command resolves the sub-corpus
+#   from the entry's `corpus` field.
+# - `text` is the query string passed to the multi-stage
+#   retrieval pipeline.
+# - `ground_truth.chunk_ids` is the chunk-id set the pipeline
+#   is expected to surface; `ground_truth.protected` is the set
+#   of chunks that MUST survive the protected path (engineering
+#   identifiers, quoted phrases, target symbols).
+# - `tier` is 1 (deterministic, no model), 2 (local model, opt-in)
+#   or 3 (full integration; the only one this YAML ships).
+# - `tags` drive the per-tag breakdown in the eval report; they
+#   mirror the plan §28.3 query taxonomy.
+
+schema_version: "1"
+generated_at: "2026-10-15"
+tier_default: 3
+recording_for: "improve-ingestion-retrieval-local-models / Package J"
+
+queries:
+  - id: identifier-ILO-5193
+    corpus: synthetic
+    text: "ILO-5193"
+    ground_truth:
+      chunk_ids: ["synthetic-chunk-ilo-5193", "synthetic-chunk-ilo-5193-spec"]
+      protected: ["synthetic-chunk-ilo-5193"]
+    tags: ["identifier", "protected"]
+    tier: 1
+
+  - id: mixed-identifier-with-text-ILO-5193
+    corpus: synthetic
+    text: "Where is ILO-5193 implemented?"
+    ground_truth:
+      chunk_ids: ["synthetic-chunk-ilo-5193", "synthetic-chunk-ilo-5193-impl"]
+      protected: ["synthetic-chunk-ilo-5193"]
+    tags: ["mixed", "protected"]
+    tier: 1
+
+  - id: identifier-PSB-FINISH-PACK
+    corpus: synthetic
+    text: "PSB_FINISH_PACK"
+    ground_truth:
+      chunk_ids: ["synthetic-chunk-psb-finish-pack", "synthetic-chunk-psb-finish-pack-impl"]
+      protected: ["synthetic-chunk-psb-finish-pack"]
+    tags: ["identifier", "protected"]
+    tier: 1
+
+  - id: java-method-RpaVaryToteJpaMapper
+    corpus: java
+    text: "RpaVaryToteJpaMapper.findActiveTotes"
+    ground_truth:
+      chunk_ids: ["java-chunk-rpa-vary-tote-jpa-mapper-impl", "java-chunk-rpa-vary-tote-jpa-mapper-signature"]
+      protected: ["java-chunk-rpa-vary-tote-jpa-mapper-impl"]
+    tags: ["identifier", "java", "protected"]
+    tier: 2
+
+  - id: java-class-loader-constraint
+    corpus: java
+    text: "Where is the class loader constraint enforced?"
+    ground_truth:
+      chunk_ids: ["java-chunk-class-loader-constraint-impl", "java-chunk-class-loader-constraint-doc"]
+      protected: []
+    tags: ["java", "semantic"]
+    tier: 2
+
+  - id: requirements-traceability-REQ-471
+    corpus: requirements
+    text: "REQ-471 traceability"
+    ground_truth:
+      chunk_ids: ["req-chunk-req-471-spec", "req-chunk-req-471-test"]
+      protected: ["req-chunk-req-471-spec"]
+    tags: ["identifier", "requirements", "protected"]
+    tier: 1
+
+  - id: requirements-conflicting-validity
+    corpus: requirements
+    text: "Conflicting requirement validity windows for REQ-900"
+    ground_truth:
+      chunk_ids: ["req-chunk-req-900-v1", "req-chunk-req-900-v2"]
+      protected: []
+    tags: ["requirements", "conflict"]
+    tier: 1
+
+  - id: multilingual-protocol-description-de
+    corpus: multilingual
+    text: "FinishPack-Protokoll Beschreibung"
+    ground_truth:
+      chunk_ids: ["multilingual-chunk-finish-pack-de", "multilingual-chunk-finish-pack-de-summary"]
+      protected: []
+    tags: ["multilingual", "semantic"]
+    tier: 2
+
+  - id: multilingual-protocol-description-fr
+    corpus: multilingual
+    text: "Description du protocole FinishPack"
+    ground_truth:
+      chunk_ids: ["multilingual-chunk-finish-pack-fr", "multilingual-chunk-finish-pack-fr-summary"]
+      protected: []
+    tags: ["multilingual", "semantic"]
+    tier: 2
+
+  - id: generated-pdf-figure-architecture
+    corpus: generated-pdf
+    text: "Architecture diagram from the 100-page PDF"
+    ground_truth:
+      chunk_ids: ["pdf-chunk-100-arch-figure", "pdf-chunk-100-arch-figure-caption"]
+      protected: []
+    tags: ["generated-pdf", "figure"]
+    tier: 2
+
+  - id: generated-pdf-table-constraints
+    corpus: generated-pdf
+    text: "Table of constraints from the 10-page PDF"
+    ground_truth:
+      chunk_ids: ["pdf-chunk-10-constraints-table", "pdf-chunk-10-constraints-table-header"]
+      protected: []
+    tags: ["generated-pdf", "table"]
+    tier: 2
+
+  - id: generated-pdf-600-page-toc
+    corpus: generated-pdf
+    text: "Table of contents from the 600-page generated PDF"
+    ground_truth:
+      chunk_ids: ["pdf-chunk-600-toc"]
+      protected: []
+    tags: ["generated-pdf", "semantic"]
+    tier: 3
+
+  # Tier-2 figure queries (Change Package H). These exercise
+  # the multimodal figures path; the eval report records
+  # recall@10 for the figure chunks while the multimodal
+  # binding ships in a follow-up change.
+  - id: figure-architecture-100-page
+    corpus: generated-pdf
+    text: "Architecture diagram figure in the 100-page PDF"
+    ground_truth:
+      chunk_ids: ["pdf-chunk-100-arch-figure", "pdf-chunk-100-arch-figure-caption"]
+      protected: []
+    tags: ["generated-pdf", "figure", "multimodal"]
+    tier: 2
+
+  - id: figure-constraints-10-page
+    corpus: generated-pdf
+    text: "Table figure in the 10-page PDF"
+    ground_truth:
+      chunk_ids: ["pdf-chunk-10-constraints-table", "pdf-chunk-10-constraints-table-header"]
+      protected: []
+    tags: ["generated-pdf", "figure", "multimodal"]
+    tier: 2
+
+  - id: figure-toc-600-page
+    corpus: generated-pdf
+    text: "Table of contents figure in the 600-page PDF"
+    ground_truth:
+      chunk_ids: ["pdf-chunk-600-toc"]
+      protected: []
+    tags: ["generated-pdf", "figure", "multimodal"]
+    tier: 2
