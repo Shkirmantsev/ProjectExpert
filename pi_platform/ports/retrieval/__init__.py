@@ -45,6 +45,11 @@ from pi_platform.ports.retrieval.reranker import (
     RerankerPort,
     RerankerError,
 )
+from pi_platform.ports.retrieval.trace_store import (
+    DEFAULT_TRACE_STORE_LIMIT,
+    RetrievalTraceRecord,
+    RetrievalTraceStorePort,
+)
 
 
 __all__ = [
@@ -53,6 +58,7 @@ __all__ = [
     "ContextAssemblerPort",
     "ContextBundle",
     "ContextBudget",
+    "DEFAULT_TRACE_STORE_LIMIT",
     "DropReason",
     "EmbeddingModelError",
     "EmbeddingModelPort",
@@ -66,6 +72,8 @@ __all__ = [
     "RetrievalHit",
     "RetrievalQuery",
     "RetrievalResult",
+    "RetrievalTraceRecord",
+    "RetrievalTraceStorePort",
     "RerankerError",
     "RerankerPort",
     "StageReport",
