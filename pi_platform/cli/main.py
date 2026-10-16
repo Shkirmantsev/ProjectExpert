@@ -169,6 +169,59 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("metrics-gate",
                    help="verify the last eval/last.json metrics are within the documented thresholds")
 
+    eval_retrieval = sub.add_parser(
+        "eval-retrieval",
+        help="run the v0.8 Tier-3 retrieval evaluation against the documented golden query set",
+    )
+    eval_retrieval.add_argument(
+        "--golden", type=Path,
+        default=Path("evals/corpus/golden_queries.yaml"),
+        help="path to the golden query set (default: evals/corpus/golden_queries.yaml)",
+    )
+    eval_retrieval.add_argument(
+        "--corpus-root", type=Path, default=Path("evals/corpus"),
+        help="sub-corpus root (default: evals/corpus)",
+    )
+    eval_retrieval.add_argument(
+        "--out", type=Path,
+        default=Path("evals/reports/tier3_retrieval.json"),
+        help="output report path (default: evals/reports/tier3_retrieval.json)",
+    )
+    eval_retrieval.add_argument(
+        "--baseline", type=Path,
+        default=Path("evals/baselines/pre_change.json"),
+        help="optional pre-change baseline for drift comparison",
+    )
+    eval_retrieval.add_argument(
+        "--no-baseline", action="store_true",
+        help="skip the baseline comparison",
+    )
+
+    eval_sweep = sub.add_parser(
+        "eval-chunk-size-sweep",
+        help="sweep the v0.8 Tier-3 chunk-size budgets and pick the default",
+    )
+    eval_sweep.add_argument(
+        "--golden", type=Path,
+        default=Path("evals/corpus/golden_queries.yaml"),
+    )
+    eval_sweep.add_argument(
+        "--corpus-root", type=Path, default=Path("evals/corpus"),
+    )
+    eval_sweep.add_argument(
+        "--out", type=Path,
+        default=Path("evals/reports/chunk_size_sweep.json"),
+    )
+    eval_sweep.add_argument(
+        "--report", type=Path,
+        default=Path("evals/reports/chunk_size_sweep.md"),
+    )
+    eval_sweep.add_argument(
+        "--budgets", type=int, nargs="+",
+        default=[512, 768, 900, 1200],
+        help="context budgets to sweep (default: 512 768 900 1200)",
+    )
+
     health = sub.add_parser(
         "health", help="liveness check; --ready reports readiness"
     )
@@ -762,6 +815,94 @@ def _cmd_invariants(args: argparse.Namespace) -> int:
     return outcome.exit_code
 
 
+def _cmd_eval_retrieval(args: argparse.Namespace) -> int:
+    """Run the v0.8 Tier-3 retrieval evaluation.
+
+    Imports the script-level helpers from
+    ``scripts/eval_retrieval.py`` so the CLI shares the same
+    serialisation + atomic-write contract as the standalone
+    command. Operators can also invoke the script directly.
+    """
+    import importlib.util as _ilu
+    script_path = Path(__file__).resolve().parents[2] / (
+        "scripts/eval_retrieval.py"
+    )
+    spec = _ilu.spec_from_file_location("_eval_retrieval_cli", script_path)
+    if spec is None or spec.loader is None:
+        print(json.dumps({
+            "error": "could not load scripts/eval_retrieval.py",
+        }), file=sys.stderr)
+        return 2
+    module = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    baseline_path = None if args.no_baseline else args.baseline
+    try:
+        payload = module.run_eval(
+            golden_path=args.golden,
+            corpus_root=args.corpus_root,
+            out_path=args.out,
+            baseline_path=baseline_path,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(json.dumps({
+            "ok": False, "error": str(exc),
+            "scope": "tier-3-retrieval",
+        }), file=sys.stderr)
+        return 1
+    print(json.dumps({
+        "ok": True,
+        "scope": payload["scope"],
+        "aggregate": payload["aggregate"],
+        "out_path": str(args.out),
+        "queries_run": len(payload["rows"]),
+    }, indent=2))
+    return 0
+
+
+def _cmd_eval_chunk_size_sweep(args: argparse.Namespace) -> int:
+    """Run the v0.8 Tier-3 chunk-size sweep.
+
+    Imports the script-level helpers from
+    ``scripts/eval_chunk_size_sweep.py`` so the CLI shares
+    the same serialisation + atomic-write contract as the
+    standalone command.
+    """
+    import importlib.util as _ilu
+    script_path = Path(__file__).resolve().parents[2] / (
+        "scripts/eval_chunk_size_sweep.py"
+    )
+    spec = _ilu.spec_from_file_location("_eval_sweep_cli", script_path)
+    if spec is None or spec.loader is None:
+        print(json.dumps({
+            "error": "could not load scripts/eval_chunk_size_sweep.py",
+        }), file=sys.stderr)
+        return 2
+    module = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        payload = module.run_chunk_size_sweep(
+            golden_path=args.golden,
+            corpus_root=args.corpus_root,
+            out_path=args.out,
+            report_path=args.report,
+            budgets=tuple(args.budgets),
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(json.dumps({
+            "ok": False, "error": str(exc),
+            "scope": "tier-3-chunk-size-sweep",
+        }), file=sys.stderr)
+        return 1
+    print(json.dumps({
+        "ok": True,
+        "scope": payload["scope"],
+        "selected_default_budget": payload["selected_default_budget"],
+        "out_path": str(args.out),
+        "report_path": str(args.report),
+    }, indent=2))
+    return 0
+
+
 def _cmd_metrics_gate(args: argparse.Namespace) -> int:
     """Verify the last ``eval/last.json`` metrics are within the documented thresholds.
 
@@ -955,6 +1096,8 @@ _DISPATCH = {
     "eval": _cmd_eval,
     "invariants": _cmd_invariants,
     "metrics-gate": _cmd_metrics_gate,
+    "eval-retrieval": _cmd_eval_retrieval,
+    "eval-chunk-size-sweep": _cmd_eval_chunk_size_sweep,
     "accelerator": _cmd_accelerator,
 }
 
