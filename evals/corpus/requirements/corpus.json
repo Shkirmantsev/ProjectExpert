@@ -1,0 +1,36 @@
+{
+  "schema_version": "1",
+  "corpus": "requirements",
+  "description": "Requirement specification chunks. The platform treats REQ-* and the canonical valid-from window as protected anchors.",
+  "generated_at": "2026-10-15",
+  "chunks": [
+    {
+      "chunk_id": "req-chunk-req-471-spec",
+      "document_id": "req-spec-set-A",
+      "text": "REQ-471: the platform MUST expose a /v1/trace/requirement endpoint that, given a requirement id, returns the implementation sites and the test cases that reference it. Valid from 2026-01-01.",
+      "language": "en",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "req-chunk-req-471-test",
+      "document_id": "req-test-set-A",
+      "text": "Test REQ-471: Given the requirement id REQ-471, the /v1/trace/requirement endpoint returns the implementation sites. The test asserts the response shape against the documented schema.",
+      "language": "en",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "req-chunk-req-900-v1",
+      "document_id": "req-spec-set-B",
+      "text": "REQ-900 v1: a validFrom window of 2025-01-01 to 2025-12-31. The v1 spec described the in-process event bus; deprecated by v2.",
+      "language": "en",
+      "valid_from": "2025-01-01"
+    },
+    {
+      "chunk_id": "req-chunk-req-900-v2",
+      "document_id": "req-spec-set-B",
+      "text": "REQ-900 v2: a validFrom window of 2026-01-01 onwards. The v2 spec describes the canonical message bus and supersedes the in-process event bus described in v1.",
+      "language": "en",
+      "valid_from": "2026-01-01"
+    }
+  ]
+}

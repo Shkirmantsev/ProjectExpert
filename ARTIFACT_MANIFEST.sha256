@@ -336,7 +336,16 @@ a20036df587775fd02ecf49be662fde5662931875b7b648816ec0625130ee20a  ./docs/convent
 4db1524ce0ab1950b186b596372acbbe79d623832ac0e559c42c3430d89fd9a0  ./docs/handoff/phase-3-prompt.md
 87b806d2b73996549a9e03058947530e2161183e9a875580c44386cdd22ff3b9  ./docs/handoff/phase-6-implementation-prompt.md
 a6b2a30d3ba5a6f76f2004b29bc22c62c8adb321fce59308445536674b0c35f4  ./evals/baselines/pre_change.json
+d1bf69519581e345cf88bf340e1efcd2ab312ffea8b4f2f862e930b64201ae56  ./evals/corpus/generated-pdf/10-page.pdf
+936c10f6e4d66ea2ab6e8aae964d30a09e697a80a49397a7bf390a0e4e519f22  ./evals/corpus/generated-pdf/100-page.pdf
+183566f40b54c6f4aca647bb8ee9cf0155fab558c86065c52e5511c09ca02aed  ./evals/corpus/generated-pdf/600-page.pdf
+c60e912f576f56e474540ffdbd06ecab209acb792bb00729a11ab6be5e272343  ./evals/corpus/generated-pdf/corpus.json
+9f912dc628cfc8e847e61e3732ea4836dc97357a54f05bbbb92ec87806d3f3c7  ./evals/corpus/generated-pdf/manifest.json
 920020bf7b3474bcb1951ec2eb602d4cf6c8dd399c4157c7c5fd59049af0f932  ./evals/corpus/golden_queries.yaml
+77b9a89ab5c7f297741eb6b1bbd98eec4eeefa50e30d87bb65ca40a4516baa47  ./evals/corpus/java/corpus.json
+264e0c9fecdb4c8218cc23f0bfe6e840f8688d8df59abc10a46c93fe4d12a3e1  ./evals/corpus/multilingual/corpus.json
+caf568a0e37563d4dff0b471fa99b366f79cde38dcf78393905f6a767f154ae2  ./evals/corpus/requirements/corpus.json
+cf802c1557b9da1ea3fb66053771ae7c31e05e721357f50a5b7531c53dd42b12  ./evals/corpus/synthetic/corpus.json
 cdea6ffc577b634cdec48d8f5e5c4021548542765aafee9d3bc711e2019a4fe1  ./evals/routing/cases.json
 868de7c32ef4517da94ddb706b92bef47195f5d921e1fc1010234d0cc5e0203c  ./harness.py
 03b55cad481b40c6f5bc4fdbf0c5b0306a66882b1cd145242a16f7d615f2719e  ./infra/compose.yaml
@@ -966,6 +975,7 @@ ce4d0c7e9ef49f559d6e4630bf0b97bf2e202f667f77f0225fcdad68b95804e6  ./scripts/eval
 ee573697c5c259f84f61484f67d3dda3271ed87e2e14f0fd026e5350d7ea74d0  ./scripts/eval_retrieval.py
 2ad1f26067fff148eafa91091d2ffb46fd06d899a6133bdb640e3f1e1f3bd31e  ./scripts/file_lock.py
 9dd8fb8d51d189b77cbdf7c4c0aac35b4b132173f4c5cccef64f12062f2d5181  ./scripts/fix_spec_shall_must.py
+659ab25fb51144976cd4151a27ccb3fef4d4f78667197e80516633804789cca2  ./scripts/generate_pdf_fixtures.py
 4c86a6ca8290a69091c4836d6c97f1055bf85feb674e115aaa5e56121ed8a608  ./scripts/hermes_host_setup.py
 e5ba9a524e71d4bcffccf7760390052e8d6d65bc8d589eb81be3d6be4d16d7a5  ./scripts/hermes_import.py
 f52cb7dd998370d4a1fe3420fde09f70b8d238248d87eb434ee00180622238e3  ./scripts/hermes_patch.py

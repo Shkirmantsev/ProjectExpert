@@ -1,0 +1,43 @@
+{
+  "schema_version": "1",
+  "corpus": "synthetic",
+  "description": "Tier-1 deterministic synthetic corpus (the pre-change baseline). Each chunk_id is a stable identifier the golden_queries.yaml ground_truth references.",
+  "generated_at": "2026-10-15",
+  "chunks": [
+    {
+      "chunk_id": "synthetic-chunk-ilo-5193",
+      "document_id": "synthetic-doc-requirements",
+      "text": "ILO-5193: when an inbound tote transitions to allocated state, the warehouse management system MUST publish an ILO-5193 event to the canonical message bus within 100ms of the state transition. This is the protected identifier contract for the FinishPack protocol.",
+      "language": "en",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "synthetic-chunk-ilo-5193-spec",
+      "document_id": "synthetic-doc-requirements",
+      "text": "ILO-5193 is implemented by RpaVaryToteJpaMapper. The mapping delegates to the canonical FinishPack event emitter; see the implementation spec for the full message envelope.",
+      "language": "en",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "synthetic-chunk-ilo-5193-impl",
+      "document_id": "synthetic-doc-impl",
+      "text": "Implementation: RpaVaryToteJpaMapper.findActiveTotes queries the active totes view and, for each transition, calls EventBus.publish(ILO-5193, ...). Tests cover the happy path and the timeout window.",
+      "language": "en",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "synthetic-chunk-psb-finish-pack",
+      "document_id": "synthetic-doc-requirements",
+      "text": "PSB_FINISH_PACK is the canonical state machine for the FinishPack protocol. It governs the four-stage transition Pending -> Allocated -> Picked -> Shipped and emits a status event at each transition.",
+      "language": "en",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "synthetic-chunk-psb-finish-pack-impl",
+      "document_id": "synthetic-doc-impl",
+      "text": "The PSB_FINISH_PACK state machine is implemented by the FinishPackStateMachine class. The class is final and thread-safe; transitions are validated against the documented valid-from window.",
+      "language": "en",
+      "valid_from": "2026-01-01"
+    }
+  ]
+}

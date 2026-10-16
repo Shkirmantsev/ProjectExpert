@@ -1,0 +1,36 @@
+{
+  "schema_version": "1",
+  "corpus": "java",
+  "description": "Java source chunks the golden queries reference. Sanitised identifiers; the chunk_ids are the protected anchors.",
+  "generated_at": "2026-10-15",
+  "chunks": [
+    {
+      "chunk_id": "java-chunk-rpa-vary-tote-jpa-mapper-impl",
+      "document_id": "java-source-rpa-vary-tote",
+      "text": "@Repository public class RpaVaryToteJpaMapper { List<Tote> findActiveTotes(Instant asOf); }. The implementation delegates to a JPA @Query against the v_rpa_vary_tote_active view.",
+      "language": "java",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "java-chunk-rpa-vary-tote-jpa-mapper-signature",
+      "document_id": "java-source-rpa-vary-tote",
+      "text": "Method signature: List<Tote> findActiveTotes(Instant asOf). The mapper throws ToteNotFoundException when the asOf timestamp is outside the active window.",
+      "language": "java",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "java-chunk-class-loader-constraint-impl",
+      "document_id": "java-source-loader",
+      "text": "The class loader constraint is enforced by ConstraintValidator.isAssignableFrom() inside the classloader-isolation package; see the test suite for the negative cases.",
+      "language": "java",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "java-chunk-class-loader-constraint-doc",
+      "document_id": "java-doc-architecture",
+      "text": "The class loader constraint prevents plugin jars from being loaded by the system class loader. The constraint is checked at plugin install time and at every refresh.",
+      "language": "en",
+      "valid_from": "2026-01-01"
+    }
+  ]
+}
