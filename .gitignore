@@ -16,6 +16,12 @@ tmp/local/**
 !tmp/local/README.md
 .project-intelligence-cache/
 
+# Tier-3 retrieval evaluation reports are regenerated on
+# every test run; the JSON payloads are runtime artefacts,
+# the Markdown report documents the methodology and
+# stays in-tree.
+evals/reports/*.json
+
 # Local architecture reference
 /project-intelligence-platform-architecture-v0.8.md
 
