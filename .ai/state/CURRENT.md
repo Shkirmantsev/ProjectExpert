@@ -6,7 +6,7 @@ Structured source: [handoffs/add-oci-container-pipeline-and-standalone-runtime.j
 
 Task: `add-oci-container-pipeline-and-standalone-runtime`
 Status: `complete`
-Updated: `2026-10-17T19:44:43+00:00`
+Updated: `2026-10-17T21:36:55+00:00`
 Active OpenSpec change: none
 
 ## Objective
@@ -19,10 +19,7 @@ Add GitHub Actions OCI container pipeline triggered on merge to development/dev 
 
 ## Completed
 
-- Update OpenSpec and start session state
-- Update Containerfile, docker-compose.yml, launchers, and pi_platform runtime/CLI/UI/MCP wiring
-- Create .github/workflows/publish-oci-container.yml for dev/development merges
-- Add unit/smoke tests and run deepseek-verify and harness check
+- Fix EXIT trap root-owned bind-mount cleanup in publish-oci-container.yml
 
 ## Remaining
 
@@ -47,8 +44,7 @@ Add GitHub Actions OCI container pipeline triggered on merge to development/dev 
 
 ## Verification passed
 
-- python harness.py check: PASS (84 test modules + MCP core + OpenSpec strict + Wiki validate + artifact manifest)
-- deepseek-verify: PASS (real Docker build + docker compose smoke verification + fail-closed readiness regression)
+- tests.test_oci_pipeline_and_standalone_container + artifact_manifest.py verify: PASS
 
 ## Verification pending
 

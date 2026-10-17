@@ -152,7 +152,7 @@ jobs:
           # 3. Boot via docker compose and verify readiness + full capability surface
           export PI_TARGET_REPO="$target_repo"
           docker compose -f docker-compose.yml --profile "$PI_PROFILE" up -d
-          trap 'docker compose -f docker-compose.yml --profile "$PI_PROFILE" down -v || true; rm -rf "$target_repo"' EXIT
+          trap 'docker compose -f docker-compose.yml --profile "$PI_PROFILE" down -v || true; sudo rm -rf "$target_repo" 2>/dev/null || rm -rf "$target_repo" || true' EXIT
 
           ready=0
           for attempt in $(seq 1 30); do

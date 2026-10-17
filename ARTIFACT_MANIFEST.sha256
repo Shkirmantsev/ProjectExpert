@@ -279,7 +279,7 @@ e5fb88f2260d0c742bf00c9347b73ed39018cf6f39b4663c93f55866fe3b1979  ./.ai/wiki/pro
 80e8a91e904a6a05fb88154916ce072dc69c34569f20bd4a080a518f61409aa3  ./.env.example
 cd60e3a9811804e13d1212f1da1aa187839d155543acbcd2a8ac8bb52bb0b0c2  ./.gitattributes
 63ea4c86e47d8de249fd7a7d09fff92da8d09e3fa647b6e39ee1bccb16bf616b  ./.github/workflows/codeql.yml
-458f75f2119b26fc4a992cb510d777869637643cca12024b38cf5941a0b63499  ./.github/workflows/publish-oci-container.yml
+4eaa67ea7ebc49a54f74867f0c1bbf1e88f850e4dd32eb8132aa4b95dc174d4e  ./.github/workflows/publish-oci-container.yml
 0602019bf37d9795a9343d07dd3ddb7a936483a8c4509abb1442ff45a74e5c30  ./.github/workflows/verify.yml
 cf4b03621e05f4a7b470a908d38d2657e130da49959038c4932ad4d1434890d0  ./.gitignore
 147823b25c2caf0314fd5dea69320f4e4709e314562e1dca89ffec7d6189dead  ./.harness/runtime.json
