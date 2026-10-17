@@ -180,8 +180,11 @@ d46573fe28250443f4a3971eb2b80193421545e032d1d6f1d419aa585c422f0d  ./.ai/wiki/adr
 79bcfea4c47b1e1ec2fdd25199709be31938732ffb26981d824951c035a0d6e0  ./.ai/wiki/adr/0025-rerank-direct-before-graph-expansion.md
 8e82eceeb53991c5ee3b44be704a802d02e55ec5d045653ed98f3d9bbeea17c6  ./.ai/wiki/adr/0026-embedding-profile-identity-and-vector-namespace.md
 89ed311a5a4de1a00058c57a3cca3cdd2f8d2a2284392883fe2553ee551f46ee  ./.ai/wiki/adr/0027-inference-policy-separate-from-source-policy.md
+a8063e1f1523a395a15a20c1508e6e127f8dc2d8cff3e31748a5fe0136bbc801  ./.ai/wiki/adr/0028-usearch-as-default-ann-backend.md
+ed006694a7ef0637162b2730c2c2e21b412fa30eefdfd1757881267ce545a6ec  ./.ai/wiki/architecture/embedding-profile-identity.md
 775b1613253c53ae2d289309677a7236875c2d61b371da60bf50bc03b2870271  ./.ai/wiki/architecture/platform-overview.md
 2184f13b8c7c080caddecfaee3b82a2e81a2e1e9b65010d7f4a8bad3c9817b85  ./.ai/wiki/architecture/retrieval-candidate-selection.md
+67d4adb93b0730d7a8d934c79f18131d51f861ec446cec855cf2ae0f14bf04fc  ./.ai/wiki/architecture/rich-document-graph.md
 26b57509232112653b9a412a4d904dde50ca16b95ec8d11e663f27d490f600b1  ./.ai/wiki/architecture/system-overview.md
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./.ai/wiki/domain/.gitkeep
 2062ad38e598ae61db22bfb04f0c67421faf58d868d112cd206b8a438baefbc3  ./.ai/wiki/glossary/domain.md
@@ -196,6 +199,7 @@ a71fbc245828f9818bde7fa317a91b5ca967ac84a53beef557c9eea08826874f  ./.ai/wiki/int
 46b534087caf3d45df6fb612660b1dc1bb2e1b9a41d9c5398a379cbee15bb4fd  ./.ai/wiki/interfaces/chunker.md
 6bddbba18a2fe16443f85534e049d4bde76c834d3cf30254ab688602222e68a7  ./.ai/wiki/interfaces/control-registry.md
 220351792e9bda60200933619224ea101efadabcdceb2240e34c2310335ae36f  ./.ai/wiki/interfaces/dense-index.md
+a9e8a5e97a853450ce70e33f7d6871189d346315b5f588174b35f44e3dfd5892  ./.ai/wiki/interfaces/document-graph-store.md
 b43afef06d329e067cd6d8022da82a42c0c6bfff03da35d2bd3380e85f9e946c  ./.ai/wiki/interfaces/egress.md
 74d8d8a7915f1863a3d81f08c747d24c31a0b98b34fb7ef30a09c3265081e1c2  ./.ai/wiki/interfaces/embedding-profile.md
 3e963e3e7dcfac41b2fc863d28c5b291ece149fb6eb0c241b1ea7742cb23c19d  ./.ai/wiki/interfaces/enrichment.md
@@ -207,6 +211,7 @@ daa2109da34dc4ea4404e33fb1cf170d9c2adb5ab538d8d7a47e78c8641855fc  ./.ai/wiki/int
 aebfe8772454446d88ac9f6485e5dae4638acdedd914b21530ceb304aa91c1b5  ./.ai/wiki/interfaces/hook-runtime.md
 6045ce78d06dbf5278f8363c95370e9b0c66fd38a367ce65610be625c5577bbf  ./.ai/wiki/interfaces/hybrid-retrieval.md
 5371d01524a3096c09fe53219a77e34b33173fccd590cc846cc05554343fc52a  ./.ai/wiki/interfaces/inference-policy.md
+3d928b8fa28de2e1540c0009ea9e54638ec404cc573980a0b5dd7af9955b60d4  ./.ai/wiki/interfaces/ingestion-job-store.md
 4b3723a4a6644d5b4a9bf0e1424d0228df17e8c73af82d9daf446f169230d294  ./.ai/wiki/interfaces/licensing.md
 46904ee297f40063638124db741e481a310135890ae3d3609200bce9697fe657  ./.ai/wiki/interfaces/local-contextualizer.md
 ec5f9034b20a969c6bb6a8d5902a14691f4ffc365a0b55095334c630693afd10  ./.ai/wiki/interfaces/mcp-tools.md
@@ -232,6 +237,7 @@ b06a8623c0c7ccee1cce813491f51602bcbdcd403c4a19c160f477033e9a9951  ./.ai/wiki/int
 c3385e3aef4f4fd32026ce8b105b68c272e75ff8028d9132c2a1000ac5e991f3  ./.ai/wiki/interfaces/vector-record-store.md
 5bab644e1784fd396b8ddcba9676a694b705d6428ad9922bff846bd72de0619a  ./.ai/wiki/interfaces/version-compatibility.md
 bf300a777cb853709d9f6efafd0291f8b003cfcec16eef26daba2d1e9172741b  ./.ai/wiki/invariants/INDEX.md
+ea777095bc7276ddfb71107204bdd1a279d4b487079ace2cd1c4f9e24ac31d18  ./.ai/wiki/invariants/v0.8-ingestion-retrieval.md
 011a3cbdfd186c51645288597034ead06321866ef9aadc053dba8d34649d91c0  ./.ai/wiki/invariants/v0.8.md
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./.ai/wiki/modules/.gitkeep
 df4e4ddd773d6740bb583b271c6ab602d8cba1402999e1e50ee3faf0943c6fb7  ./.ai/wiki/modules/a2a.md
@@ -243,6 +249,7 @@ c05aa0534cb933ba33792b46fb5419485b30b90ddf54be93d4b795b16b2a64cc  ./.ai/wiki/mod
 f616c0166928d683645645044650b283cf2916fa435de8a5696f1f114587bd88  ./.ai/wiki/modules/feature-flags.md
 4f1ee8ace0695316153f3d77970540434e250407da13bcbf6d98cd76b163403e  ./.ai/wiki/modules/graph.md
 6a776f5dc6d8160cc929a25a507066a20c868785a5f6b7e81a6836e50241b181  ./.ai/wiki/modules/hooks.md
+df9f2dc4ea1d0503d5514ae85efd0769e796ebfb2307c4d308c6997e86a163a5  ./.ai/wiki/modules/host-embedding-accelerator.md
 927c4a2444539498eb31eea8e5b50d178d0c93a0f3d528e490d84534ad1ad067  ./.ai/wiki/modules/ingest.md
 32b6a56f4515e8dbf5a3a828504a616c57c577b526e7afcd7745730c7fcc5ecd  ./.ai/wiki/modules/llm-port.md
 24760049eae1d421984517af79622c494de1c166ef1267b85b96be143ba0d769  ./.ai/wiki/modules/mcp-server.md
@@ -259,12 +266,14 @@ ad362157070b22781a6a1c65b4bdc14fa9b2893fc776d2e75f1f8330aff946a6  ./.ai/wiki/mod
 57c60a34e2e4f77cdc227d654699eaee3a06a865f370eed88d72afcb718045fe  ./.ai/wiki/modules/task-context.md
 5ba00dc22fd3bf758633981ab80b835a4cc4e5222def3b559779a9d8b5321fec  ./.ai/wiki/modules/ui-extensions.md
 05576f0a840c10ad8baa6c73ad5ccf51d9ea220175c06ec9ce956366f558a5df  ./.ai/wiki/modules/ui.md
+927f3bd98ab413c9f7dde7594e3650ea28c49f83dcfc0a87c913660a2fbd3642  ./.ai/wiki/project/deployment-profiles.md
 57dcf3598cc99664442fcafe9a2ab5aae96d50c57843e563172d3fbb855e274c  ./.ai/wiki/project/distribution-vendors.md
 09a2028eea23a3be197213a5a2376f9d3f64a56887a9089fb6fb934ab6751039  ./.ai/wiki/project/harness-command-lifecycle.md
 8d25d7559ca0a79465af2e011a74c666fcfae465964b5ac24a366e0d6eb0f360  ./.ai/wiki/project/harness-framework-adoption.md
 41f003314d1913fa52a72f300f22101bc611e056d50dee52ba62105683613e80  ./.ai/wiki/project/implementation-roadmap.md
 d07a7e5eba477a27b7f3d4a373c7f55be74cd4d212fb53f750f0ebc76e041b67  ./.ai/wiki/project/phase-6-readiness.md
 e5fb88f2260d0c742bf00c9347b73ed39018cf6f39b4663c93f55866fe3b1979  ./.ai/wiki/project/project-map.md
+302f1ca472202ed26458fee9ae1097bdbe05467598384c423fd3ab99b0293bcc  ./.ai/wiki/project/retrieval-evaluation-corpus.md
 421ee84d31860c88ff79b9c9e91c4135d31712f203c92332a5c9270f9345a3f3  ./.ai/wiki/project/task-handoff.md
 80e8a91e904a6a05fb88154916ce072dc69c34569f20bd4a080a518f61409aa3  ./.env.example
 cd60e3a9811804e13d1212f1da1aa187839d155543acbcd2a8ac8bb52bb0b0c2  ./.gitattributes
