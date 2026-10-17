@@ -16,6 +16,12 @@ from .flags import (
 from .hooks import (
     DefaultHookRuntime,
 )
+from .multimodal import (
+    MULTIMODAL_FIGURES_FLAG,
+    build_default_multimodal_registry,
+    default_multimodal_context,
+    multimodal_figures_enabled,
+)
 from .policy import (
     DefaultPolicyEngine,
 )
@@ -40,4 +46,8 @@ __all__ = [
     "DefaultPolicyEngine",
     "DefaultSecretProvider",
     "DefaultUiExtensionRegistry",
+    "MULTIMODAL_FIGURES_FLAG",
+    "build_default_multimodal_registry",
+    "default_multimodal_context",
+    "multimodal_figures_enabled",
 ]

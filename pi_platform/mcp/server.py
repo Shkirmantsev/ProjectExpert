@@ -18,13 +18,16 @@ invariants that gate every call:
 The server exposes:
 
 * 17 semantic read / write tools (the §36 list);
-* one `project.describe_capabilities` tool;
-* the §38 distribution URI namespace as resources.
+* one ``project.describe_capabilities`` tool;
+* the §38 distribution URI namespace as resources;
+* in debug / admin mode, the
+  ``project.get_retrieval_trace(trace_id)`` tool introduced by
+  Change Package I of the v0.8 refinement (plan §33).
 
 The §36 tool list is exhaustive; additional tools are
 documented extensions and MUST NOT shadow the documented names.
 
-The official MCP Python SDK (`mcp==1.30.0`, Apache-2.0) is
+The official MCP Python SDK (``mcp==1.30.0``, Apache-2.0) is
 imported lazily inside :meth:`serve` so the server module
 loads even when the SDK is not installed in the active
 interpreter (the harness-side test environment does not need
@@ -58,13 +61,17 @@ from pi_platform.ports.orchestration.task_context import TaskContextBuilderPort
 from pi_platform.ports.retrieval.context_assembler import ContextAssemblerPort
 from pi_platform.ports.retrieval.hybrid_retrieval import HybridRetrievalPort
 from pi_platform.ports.retrieval.multi_stage_retrieval import MultiStageRetrievalPort
+from pi_platform.ports.retrieval.trace_store import RetrievalTraceStorePort
 
 
 __all__ = [
     "DEFAULT_SERVER_IDENTITY",
+    "DEBUG_TOOLS",
+    "DebugModeRequiredError",
     "McpServer",
     "McpServerError",
     "ToolContext",
+    "TraceNotFoundError",
 ]
 
 
@@ -75,12 +82,31 @@ class McpServerError(RuntimeError):
     """Raised by the MCP server when a tool call violates invariants."""
 
 
+class DebugModeRequiredError(McpServerError):
+    """Raised when a debug-only tool is called outside debug mode."""
+
+
+class TraceNotFoundError(McpServerError):
+    """Raised when the requested retrieval trace id is unknown."""
+
+
 @dataclass(frozen=True)
 class ToolContext:
     """Per-call context passed to every tool handler.
 
     The context carries the dependencies the tool needs so
     handlers stay pure and testable.
+
+    The v0.8 refinement (Change Package I) adds two additive,
+    optional fields:
+
+    * ``trace_store`` — backing store for the debug-only
+      ``project.get_retrieval_trace`` tool. ``None`` keeps the
+      pre-change behaviour (no trace lookup).
+    * ``debug_mode`` — boolean flag that gates the debug-only
+      tool and the trace-id field on ``retrieve_context``.
+      Operators enable it through ``PI_MCP_DEBUG=1`` or by
+      passing the flag through the CLI entry point.
     """
 
     readiness: KnowledgeReadinessPort
@@ -95,6 +121,8 @@ class ToolContext:
     server_identity: Mapping[str, str]
     repo_root: Optional[Path] = None
     cache_root: Optional[Path] = None
+    trace_store: Optional[RetrievalTraceStorePort] = None
+    debug_mode: bool = False
 
 
 # Default server identity used by both the MCP server and the
@@ -136,6 +164,18 @@ EXTENSION_TOOLS: tuple[str, ...] = (
     "project.describe_capabilities",
 )
 
+# Debug-only tools (Change Package I, plan §33). These tools
+# require :attr:`ToolContext.debug_mode` to be truthy; the server
+# rejects calls with :class:`DebugModeRequiredError` when it is
+# not. The constant enumerates the *candidate* debug tools; the
+# effective list returned by :class:`McpServer` is empty unless
+# the operator enabled debug mode through
+# :func:`pi_platform.mcp.context.build_default_tool_context` (or
+# an explicit ``debug_mode=True`` on the :class:`ToolContext`).
+DEBUG_TOOLS: tuple[str, ...] = (
+    "project.get_retrieval_trace",
+)
+
 
 ToolHandler = Callable[[ToolContext, Mapping[str, Any]], Awaitable[Mapping[str, Any]]]
 
@@ -163,10 +203,14 @@ async def _tool_search(ctx: ToolContext,
     top_k = int(_optional(arguments, "top_k", 10))
     filters = _optional(arguments, "filters")
     project_version = _optional(arguments, "project_version")
+    include_trace = bool(
+        ctx.debug_mode and _optional(arguments, "include_trace", False),
+    )
     from pi_platform.ports.retrieval.multi_stage_retrieval import RetrievalQuery
     result = ctx.multi_stage_retrieval.retrieve(RetrievalQuery(
         text=text, top_k=top_k,
         filters=filters, projectVersion=project_version,
+        include_trace=include_trace,
     ))
     return {"ok": True, "result": _serialise(result)}
 
@@ -179,16 +223,238 @@ async def _tool_retrieve_context(ctx: ToolContext,
     context_budget = int(_optional(arguments, "contextBudget", 2000))
     filters = _optional(arguments, "filters")
     project_version = _optional(arguments, "project_version")
+    # The v0.8 refinement (Change Package I, plan §33) attaches a
+    # trace id to the response when the operator has enabled
+    # debug mode. The MCP server never auto-tracks reads in
+    # production.
+    include_trace = bool(
+        ctx.debug_mode and _optional(arguments, "include_trace", False),
+    )
     from pi_platform.ports.retrieval.multi_stage_retrieval import RetrievalQuery
     result = ctx.multi_stage_retrieval.retrieve(RetrievalQuery(
         text=text, top_k=top_k, contextBudget=context_budget,
         filters=filters, projectVersion=project_version,
+        include_trace=include_trace,
     ))
     bundle = ctx.context_assembler.assemble(
         retrieval=result, budget_tokens=context_budget,
     ) if result is not None else None
-    return {"ok": True, "result": _serialise(result),
-            "contextBundle": _serialise(bundle)}
+    trace_id = _maybe_store_trace(
+        ctx, query_text=text, retrieval_result=result,
+    )
+    return {"ok": True,
+            "result": _serialise(result),
+            "contextBundle": _serialise(bundle),
+            "selection_state": _selection_state_summary(result, bundle),
+            "source": _source_summary(result, bundle),
+            "provenance": _provenance_summary(result, bundle),
+            "project_version": _project_version_summary(ctx, project_version),
+            "conflicts": _conflict_summary(result, bundle),
+            "support_relationships": _support_summary(result, bundle),
+            "retrieval_trace_id": trace_id}
+
+
+def _selection_state_summary(
+    result: object, bundle: object,
+) -> dict[str, Any]:
+    """Surface the v0.8 selection pools and protected reasons.
+
+    The summary is empty when the pipeline ran the legacy
+    seven-stage path; the v2 path populates ``primary_count``,
+    ``reserve_count``, ``protected_count`` and
+    ``support_count`` on :class:`RetrievalResult`. The
+    :class:`ContextBundle` selection summary is layered on top
+    so operators see what the assembler actually consumed.
+    """
+
+    summary: dict[str, Any] = {
+        "primary": int(getattr(result, "primary_count", 0) or 0),
+        "reserve": int(getattr(result, "reserve_count", 0) or 0),
+        "protected": int(getattr(result, "protected_count", 0) or 0),
+        "support": int(getattr(result, "support_count", 0) or 0),
+    }
+    selection = getattr(result, "selection_result", None)
+    protected_reasons: list[str] = []
+    if selection is not None:
+        for trace in getattr(selection, "traces", ()) or ():
+            reason = str(getattr(trace, "protected_reason", "") or "")
+            if reason:
+                protected_reasons.append(reason)
+    summary["protected_reasons"] = protected_reasons
+    bundle_summary = getattr(bundle, "selection_summary", None) or {}
+    summary["bundle"] = dict(bundle_summary)
+    return summary
+
+
+def _source_summary(result: object, bundle: object) -> list[str]:
+    """Return the sorted distinct source identifiers in the response.
+
+    The pre-change ``RetrievalHit.source`` field is one of
+    ``"dense" | "sparse" | "exact" | "hybrid"``; support items
+    are surfaced separately through
+    :func:`_support_summary` so the four-way source taxonomy
+    never grows a ``"graph"`` / ``"hierarchy"`` value.
+    """
+
+    sources: set[str] = set()
+    for hit in getattr(result, "hits", ()) or ():
+        src = str(getattr(hit, "source", "") or "")
+        if src:
+            sources.add(src)
+    return sorted(sources)
+
+
+def _provenance_summary(
+    result: object, bundle: object,
+) -> list[dict[str, Any]]:
+    """Return the citation provenance for the assembled hits."""
+
+    citations = getattr(bundle, "citations", ()) or ()
+    out: list[dict[str, Any]] = []
+    for citation in citations:
+        try:
+            out.append({
+                "chunkId": str(getattr(citation, "chunkId", "") or ""),
+                "contentHash": str(
+                    getattr(citation, "contentHash", "") or "",
+                ),
+                "sourceReference": str(
+                    getattr(citation, "sourceReference", "") or "",
+                ),
+                "evidenceWeight": float(
+                    getattr(citation, "evidenceWeight", 0.0) or 0.0,
+                ),
+            })
+        except Exception:
+            continue
+    return out
+
+
+def _project_version_summary(
+    ctx: ToolContext, requested: object,
+) -> dict[str, Any]:
+    """Return the runtime project version summary.
+
+    The summary merges the readiness snapshot (canonical source)
+    with the requester's ``project_version`` argument so the
+    response always carries both the active and the requested
+    versions side by side.
+    """
+
+    snapshot = ctx.readiness.snapshot()
+    try:
+        return {
+            "current_head": str(snapshot.current_head or ""),
+            "working_tree_fingerprint": str(
+                snapshot.working_tree_fingerprint or "",
+            ),
+            "consistent": bool(snapshot.consistent),
+            "last_hydrate_at": str(snapshot.last_hydrate_at or ""),
+            "last_reconcile_at": str(snapshot.last_reconcile_at or ""),
+            "requested": _serialise(requested),
+        }
+    except Exception:
+        return {"consistent": False}
+
+
+def _conflict_summary(
+    result: object, bundle: object,
+) -> list[dict[str, Any]]:
+    """Return the conflicting chunk ids and source documents.
+
+    The legacy ``RetrievalResult.conflicts`` field is opaque;
+    the v0.8 surface (plan §33) names the conflict by its
+    ``chunkId`` and source document so the operator can act
+    on it.
+    """
+
+    conflicts = []
+    seen: set[str] = set()
+    hits = list(getattr(result, "conflicts", ()) or ())
+    hits.extend(list(getattr(bundle, "conflictingHits", ()) or ()))
+    for hit in hits:
+        chunk_id = str(getattr(hit, "chunkId", "") or "")
+        if not chunk_id or chunk_id in seen:
+            continue
+        seen.add(chunk_id)
+        metadata = getattr(hit, "metadata", None)
+        document_id = str(
+            getattr(metadata, "documentId", "") or "",
+        ) if metadata is not None else ""
+        conflicts.append({
+            "chunkId": chunk_id,
+            "sourceDocumentId": document_id,
+        })
+    return conflicts
+
+
+def _support_summary(
+    result: object, bundle: object,
+) -> dict[str, Any]:
+    """Return the support-evidence relationships attached to the bundle.
+
+    Support items (graph / hierarchy / table / figure evidence)
+    never flow through ``RetrievalHit.source``; they are added
+    by the context assembler with their own ``evidence_kind``.
+    The MCP surface summarises the relationship counts and
+    source documents so the agent can decide whether to drill
+    into a particular support type.
+    """
+
+    support_hits = list(getattr(bundle, "support_hits", ()) or ())
+    counts: dict[str, int] = {}
+    documents: set[str] = set()
+    chunk_ids: list[str] = []
+    for item in support_hits:
+        kind = str(getattr(item, "evidence_kind", "graph") or "graph")
+        counts[kind] = counts.get(kind, 0) + 1
+        chunk_id = str(getattr(item, "chunk_id", "") or "")
+        if chunk_id:
+            chunk_ids.append(chunk_id)
+        document_id = str(
+            getattr(item, "source_document_id", "") or "",
+        )
+        if document_id:
+            documents.add(document_id)
+    return {
+        "counts": counts,
+        "chunkIds": chunk_ids,
+        "sourceDocumentIds": sorted(documents),
+        "total": int(getattr(result, "support_count", 0) or 0),
+    }
+
+
+def _maybe_store_trace(
+    ctx: ToolContext, *, query_text: str, retrieval_result: object,
+) -> Optional[str]:
+    """Persist the retrieval trace when debug mode is on.
+
+    Returns the trace id when the trace was stored, :data:`None`
+    when debug mode is off, the trace store is not configured, or
+    the multi-stage pipeline did not produce a trace.
+    """
+
+    if not ctx.debug_mode:
+        return None
+    trace_store = ctx.trace_store
+    if trace_store is None:
+        return None
+    trace = getattr(retrieval_result, "trace", None)
+    if trace is None:
+        return None
+    from pi_platform.adapters.retrieval.in_memory_trace_store import (
+        compute_trace_id,
+    )
+    from pi_platform.ports.retrieval.trace_store import (
+        RetrievalTraceRecord,
+    )
+    trace_id = compute_trace_id(query_text, trace)
+    trace_store.store(RetrievalTraceRecord(
+        trace_id=trace_id,
+        query_text=str(query_text or ""),
+        trace=trace,
+    ))
+    return trace_id
 
 
 async def _tool_get_entity(ctx: ToolContext,
@@ -376,6 +642,73 @@ async def _tool_describe_capabilities(ctx: ToolContext,
             "serverIdentity": dict(ctx.server_identity)}
 
 
+async def _tool_get_retrieval_trace(ctx: ToolContext,
+                                    arguments: Mapping[str, Any]
+                                    ) -> Mapping[str, Any]:
+    """Debug-only trace lookup (Change Package I, plan §33).
+
+    Requires :attr:`ToolContext.debug_mode` to be truthy; the
+    server rejects calls outside debug mode with
+    :class:`DebugModeRequiredError` so the public MCP surface
+    stays identical to the §36 inventory.
+    """
+
+    if not ctx.debug_mode:
+        raise DebugModeRequiredError(
+            "project.get_retrieval_trace is debug-only; set "
+            "PI_MCP_DEBUG=1 or pass --debug to enable it"
+        )
+    if ctx.trace_store is None:
+        raise McpServerError(
+            "retrieval trace store is not configured; configure a "
+            "RetrievalTraceStorePort on the ToolContext to enable "
+            "project.get_retrieval_trace"
+        )
+    trace_id = _require(arguments, "trace_id")
+    record = ctx.trace_store.fetch(trace_id)
+    if record is None:
+        raise TraceNotFoundError(
+            f"unknown retrieval trace id: {trace_id!r}"
+        )
+    from pi_platform.core.retrieval.retrieval_trace import (
+        RetrievalTraceBuilder,
+    )
+    builder = RetrievalTraceBuilder()
+    trace = record.trace
+    builder.set("query_features", trace.query_features)
+    builder.set("active_filters", trace.active_filters)
+    if trace.exact_candidates:
+        builder.set("exact_candidates", trace.exact_candidates)
+    if trace.dense_candidates:
+        builder.set("dense_candidates", trace.dense_candidates)
+    if trace.sparse_candidates:
+        builder.set("sparse_candidates", trace.sparse_candidates)
+    if trace.fusion is not None:
+        builder.set("fusion", trace.fusion)
+    if trace.reranker is not None:
+        builder.set("reranker", trace.reranker)
+    if trace.selection is not None:
+        builder.set("selection", trace.selection)
+    if trace.graph_expansion is not None:
+        builder.set("graph_expansion", trace.graph_expansion)
+    if trace.hierarchy_expansion is not None:
+        builder.set("hierarchy_expansion", trace.hierarchy_expansion)
+    for decision in trace.budget_decisions:
+        builder.add_budget_decision(decision)
+    for stage, ms in trace.timings:
+        # ``RetrievalTrace.timings`` is a tuple of
+        # ``(stage, milliseconds)`` pairs; replaying them through
+        # the builder keeps the stage-by-stage latency breakdown
+        # observable through the debug-only tool.
+        builder.add_timing(str(stage), int(ms))
+    payload = json.loads(builder.to_json())
+    return {"ok": True,
+            "trace_id": record.trace_id,
+            "query_text": record.query_text,
+            "trace": payload,
+            "stats": ctx.trace_store.stats()}
+
+
 TOOL_REGISTRY: dict[str, ToolHandler] = {
     "project.search": _tool_search,
     "project.retrieve_context": _tool_retrieve_context,
@@ -395,6 +728,7 @@ TOOL_REGISTRY: dict[str, ToolHandler] = {
     "project.materialize_knowledge": _tool_materialize_knowledge,
     "project.refresh_sources": _tool_refresh_sources,
     "project.describe_capabilities": _tool_describe_capabilities,
+    "project.get_retrieval_trace": _tool_get_retrieval_trace,
 }
 
 
@@ -430,7 +764,12 @@ class McpServer:
 
     @property
     def tool_names(self) -> tuple[str, ...]:
-        return tuple(TOOL_REGISTRY.keys())
+        names: list[str] = []
+        for name in TOOL_REGISTRY:
+            if name in DEBUG_TOOLS and not self._context.debug_mode:
+                continue
+            names.append(name)
+        return tuple(names)
 
     @property
     def section_36_tools(self) -> tuple[str, ...]:
@@ -440,6 +779,12 @@ class McpServer:
     def extension_tools(self) -> tuple[str, ...]:
         return EXTENSION_TOOLS
 
+    @property
+    def debug_tools(self) -> tuple[str, ...]:
+        if self._context.debug_mode:
+            return DEBUG_TOOLS
+        return ()
+
     async def call_tool(self, name: str,
                         arguments: Mapping[str, Any]) -> Mapping[str, Any]:
         handler = TOOL_REGISTRY.get(name)
@@ -447,6 +792,17 @@ class McpServer:
             return {"ok": False,
                     "error": {"type": "UnknownToolError",
                               "message": f"unknown tool: {name!r}"}}
+        # Debug tools are gated by ``debug_mode``. A public
+        # caller that asks for one outside debug mode gets a
+        # well-typed error instead of an unknown-tool error so
+        # the surface area change is observable.
+        if name in DEBUG_TOOLS and not self._context.debug_mode:
+            return {"ok": False,
+                    "error": {"type": "DebugModeRequiredError",
+                              "message": (
+                                  f"debug-only tool: {name!r}; set "
+                                  "PI_MCP_DEBUG=1 to enable"
+                              )}}
         try:
             return await handler(self._context, arguments)
         except McpServerError as exc:

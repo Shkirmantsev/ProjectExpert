@@ -1,0 +1,51 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Working tree continues Package A (uncommitted). Allow-list: ports/ingest/tokenizer.py, ports/ingest/chunker.py, ports/ingest/context_enricher.py, ports/ingest/retrieval_text_builder.py, ports/ingest/inference_policy.py, adapters/ingest/tokenizers.py, adapters/ingest/layered_context_enricher.py, core/ingest/__init__.py, core/ingest/token_budget.py, core/ingest/retrieval_text_builder.py, core/ingest/local_contextualizer.py, tests/test_tokenizer_port.py, tests/test_chunker_context_additive.py, tests/test_token_budget.py, tests/test_retrieval_text_builder.py, tests/test_local_contextualizer.py, tests/test_inference_policy.py"
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Change Package B (B1-B5) implemented and GREEN: 76 new tests, 0 regressions. Total: 856 tests OK. tests/test_platform_phase2.py (41 tests) passes byte-identical. harness.py openspec-check structural PASS. artifact_manifest verify PASS (955 files)."
+    ],
+    "todo": [
+      "B1 tokenizer port+adapters+tests; B2 ChunkerContext additive fields+tests; B3 TokenBudgetNormalizer+wrap+tests; B4 RetrievalTextBuilder+tests; B5 LocalContextualizer+InferencePolicy+enricher wiring+tests"
+    ]
+  },
+  "resume": {
+    "next_action": "Wait for user direction: continue to C, hand off to DeepSeek-verify, or update Wiki/ADR 0027.",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-14T18:49:23+00:00",
+    "id": "SESSION-20261014-184923-FA3D",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-14T20:37:59+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "All B1-B5 tests added and pass; full suite green (800+ tests); tests/test_platform_phase2.py byte-identical; openspec-check and artifact_manifest verify green; no commits; stdlib-only"
+    ],
+    "goal": "Implement OpenSpec Change Package B (B1-B5): tokenizer-aware chunking and semantic retrieval text from improve-ingestion-retrieval-local-models",
+    "openspec_change": "improve-ingestion-retrieval-local-models",
+    "status": "executing"
+  },
+  "verification": {
+    "passed": [
+      "856 tests OK (1 pre-existing skip), 76 new B1-B5 tests, 0 regressions. tests/test_platform_phase2.py 41 tests OK byte-identical. harness.py openspec-check structural PASS. artifact_manifest.py verify PASS (955 files). No accepted requirement body changes. No new dependencies (stdlib only)."
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

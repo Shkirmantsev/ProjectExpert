@@ -12,7 +12,7 @@ from __future__ import annotations
 import abc
 import enum
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
 from pi_platform.core.canonical.value_types import (
     Chunk,
@@ -21,7 +21,11 @@ from pi_platform.core.canonical.value_types import (
     Metadata,
 )
 
+from .inference_policy import DEFAULT_INFERENCE_POLICY, InferencePolicy
 from .source_adapter import SourceContentFamily
+
+if TYPE_CHECKING:  # pragma: no cover - typing only, avoids import cycles
+    from pi_platform.core.ingest.local_contextualizer import LocalContextualizer
 
 
 __all__ = [
@@ -61,7 +65,14 @@ class DomainRule:
 
 @dataclass
 class EnricherContext:
-    """Per-enrichment context."""
+    """Per-enrichment context.
+
+    Change Package B5 adds the inference-policy axis (separate from
+    the source promotion policy) and an optional opt-in
+    :class:`LocalContextualizer` binding. When no contextualizer is
+    supplied the legacy ``extra['local_llm']`` binding path is used
+    byte-identically.
+    """
 
     project_root: object = None
     knowledge_state_default: KnowledgeState = KnowledgeState.VERIFIED
@@ -72,6 +83,8 @@ class EnricherContext:
     source: object = None
     project_version: object = None
     cancellation: object = None
+    inference_policy: InferencePolicy = DEFAULT_INFERENCE_POLICY
+    local_contextualizer: Optional["LocalContextualizer"] = None
 
 
 @dataclass(frozen=True)

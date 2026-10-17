@@ -1,0 +1,59 @@
+---
+# evals/quality_gates.yaml
+#
+# Integration-quality-gate thresholds for the v0.8 refinement
+# (plan §28.3, §37; OpenSpec change improve-ingestion-retrieval-local-models
+# P0 task 2 / Change Package J).
+#
+# Consumed by pi_platform.core.eval.retrieval_evaluator.evaluate_quality_gates
+# and verified by tests/test_evaluation_quality_gates.py.
+
+schema_version: "1"
+scope: "tier-3-retrieval-quality-gates"
+recorded_at: "2026-10-16"
+
+thresholds:
+  recall_at_5:
+    min: 0.50
+    description: "Minimum mean Recall@5 across the golden query set."
+  recall_at_10:
+    min: 0.50
+    description: "Minimum mean Recall@10 across the golden query set."
+  mrr:
+    min: 0.50
+    description: "Minimum mean reciprocal rank across the golden query set."
+  ndcg_at_10:
+    min: 0.50
+    description: "Minimum binary-relevance NDCG@10 across the golden query set."
+  protected_hit_retention:
+    min: 0.20
+    description: "Minimum protected-hit retention across queries with protected ground truth."
+  context_coverage:
+    min: 0.50
+    description: "Minimum fraction of queries with at least one ground-truth hit in the assembled bundle."
+  average_context_tokens:
+    min: 1
+    max: 4096
+    description: "Bounded average context tokens per assembled bundle."
+  latency_p50_ms:
+    max: 500
+    description: "Maximum p50 per-query retrieval latency in milliseconds."
+  latency_p95_ms:
+    max: 1000
+    description: "Maximum p95 per-query retrieval latency in milliseconds."
+  peak_ram_mb:
+    max: 1024.0
+    description: "Maximum peak traced memory during the evaluation pass in MiB."
+  embedding_throughput_qps:
+    min: 1.0
+    description: "Minimum embedding query throughput (queries per second)."
+  reranker_throughput_qps:
+    min: 1.0
+    description: "Minimum reranker query throughput (queries per second)."
+  cache_reuse_rate:
+    min: 0.0
+    max: 1.0
+    description: "Content-addressed vector/chunk cache reuse rate in [0.0, 1.0]."
+  branch_switch_hydration_ms:
+    max: 2000
+    description: "Maximum branch-switch runtime hydration latency in milliseconds."

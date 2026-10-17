@@ -1,0 +1,49 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Change Package A: A1-A5 implemented and GREEN. 780 tests OK (was 763; +17 new, 0 regressions). Legacy 7-stage path byte-identical. No accepted requirement body changes. No RetrievalHit.source enum growth. harness.py openspec-check structural PASS. artifact_manifest verify PASS (955 files)."
+    ],
+    "todo": [
+      "Wiki + ADR 0025 update"
+    ]
+  },
+  "resume": {
+    "next_action": "Wait for user direction: (a) continue to Change Package B; (b) hand off Package A to a reviewer (DeepSeek-verify); (c) update the Wiki + ADR 0025 before continuing.",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-14T17:51:45+00:00",
+    "id": "improve-ingestion-retrieval-local-models-package-a",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-14T17:51:52+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "780 tests OK; legacy retrieval benchmark byte-identical; no accepted requirement body changes; v0.8 invariants preserved"
+    ],
+    "goal": "Change Package A (retrieval correctness + candidate lifecycle) implementation; A1-A5 complete and verified GREEN with 780 tests OK and 0 regressions",
+    "openspec_change": "improve-ingestion-retrieval-local-models",
+    "status": "executing"
+  },
+  "verification": {
+    "passed": [
+      "780 tests OK (1 pre-existing container opt-in skip), 17 new A1-A5 tests in 8 new test files, 0 regressions. test_retrieval_benchmark + test_platform_phase4 + test_phase_10_invariants all pass byte-identical. harness.py openspec-check structural PASS. No accepted requirement body changes."
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

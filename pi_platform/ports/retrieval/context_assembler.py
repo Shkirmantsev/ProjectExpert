@@ -96,6 +96,14 @@ class ContextBundle:
     droppedHits: Sequence[object] = field(default_factory=tuple)
     dropReasons: Sequence[str] = field(default_factory=tuple)
     explanations: Sequence[str] = field(default_factory=tuple)
+    # Additive v0.8-refinement fields (Change Package A4): which
+    # protected / support / reserve items made it into the bundle and
+    # a compact selection summary. The defaults preserve the
+    # pre-change bundle shape.
+    protected_hits: tuple = field(default_factory=tuple)
+    support_hits: tuple = field(default_factory=tuple)
+    reserve_hits: tuple = field(default_factory=tuple)
+    selection_summary: dict = field(default_factory=dict)
 
 
 class ContextAssemblerPort(abc.ABC):
@@ -104,7 +112,8 @@ class ContextAssemblerPort(abc.ABC):
     @abc.abstractmethod
     def assemble(
         self, hits: Sequence[object], *, contextBudget: ContextBudget,
-        query: object,
+        query: object, support_evidence: Sequence[object] = (),
+        selection_result: object = None,
     ) -> ContextBundle: ...
 
     @abc.abstractmethod

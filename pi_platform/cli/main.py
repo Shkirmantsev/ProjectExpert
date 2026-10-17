@@ -24,6 +24,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -140,13 +141,127 @@ def build_parser() -> argparse.ArgumentParser:
                    help="print the active §35 LocalLLMPort status")
     sub.add_parser("capabilities",
                    help="print the §47 capability discovery descriptor")
-    # Phase 10 §49 + §120 quality-gates subcommands.
-    sub.add_parser("eval",
-                   help="run the §49 integration-quality-gates suites")
+    # Phase 10 §49 + §120 quality-gates subcommands + v0.8 Tier-3 eval subcommands.
+    eval_parser = sub.add_parser(
+        "eval",
+        help="run the §49 integration-quality-gates suites or a Tier-3 retrieval subcommand",
+    )
+    eval_parser.add_argument(
+        "eval_subcommand",
+        nargs="?",
+        choices=("retrieval", "chunk-size-sweep"),
+        default=None,
+        help="optional Tier-3 subcommand ('retrieval' or 'chunk-size-sweep')",
+    )
+    eval_parser.add_argument(
+        "--golden", type=Path,
+        default=Path("evals/corpus/golden_queries.yaml"),
+        help="path to the golden query set (default: evals/corpus/golden_queries.yaml)",
+    )
+    eval_parser.add_argument(
+        "--corpus-root", type=Path, default=Path("evals/corpus"),
+        help="sub-corpus root (default: evals/corpus)",
+    )
+    eval_parser.add_argument(
+        "--out", type=Path, default=None,
+        help="output report path",
+    )
+    eval_parser.add_argument(
+        "--baseline", type=Path,
+        default=Path("evals/baselines/pre_change.json"),
+        help="optional pre-change baseline for drift comparison",
+    )
+    eval_parser.add_argument(
+        "--no-baseline", action="store_true",
+        help="skip the baseline comparison",
+    )
+    eval_parser.add_argument(
+        "--report", type=Path,
+        default=Path("evals/reports/chunk_size_sweep.md"),
+        help="Markdown report path for chunk-size-sweep",
+    )
+    eval_parser.add_argument(
+        "--budgets", type=int, nargs="+",
+        default=[512, 768, 900, 1200],
+        help="context budgets to sweep (default: 512 768 900 1200)",
+    )
     sub.add_parser("invariants",
                    help="run the §120 52-invariant §68 acceptance suite")
+    accel = sub.add_parser(
+        "accelerator", help="manage the host-side embedding accelerator",
+    )
+    accel.add_argument(
+        "accelerator_command", choices=("start", "stop", "status"),
+        help="accelerator lifecycle action",
+    )
+    accel.add_argument(
+        "--bind-host", default=None,
+        help="bind address (default: 127.0.0.1; private requires ACCELERATOR_ALLOW_WIDE_BIND=1)",
+    )
+    accel.add_argument(
+        "--bind-port", type=int, default=None,
+        help="bind port (default: 8791)",
+    )
+    accel.add_argument(
+        "--max-concurrent-requests", type=int, default=None,
+        help="concurrency limit (default: 4)",
+    )
+
     sub.add_parser("metrics-gate",
                    help="verify the last eval/last.json metrics are within the documented thresholds")
+
+    eval_retrieval = sub.add_parser(
+        "eval-retrieval",
+        help="run the v0.8 Tier-3 retrieval evaluation against the documented golden query set",
+    )
+    eval_retrieval.add_argument(
+        "--golden", type=Path,
+        default=Path("evals/corpus/golden_queries.yaml"),
+        help="path to the golden query set (default: evals/corpus/golden_queries.yaml)",
+    )
+    eval_retrieval.add_argument(
+        "--corpus-root", type=Path, default=Path("evals/corpus"),
+        help="sub-corpus root (default: evals/corpus)",
+    )
+    eval_retrieval.add_argument(
+        "--out", type=Path,
+        default=Path("evals/reports/tier3_retrieval.json"),
+        help="output report path (default: evals/reports/tier3_retrieval.json)",
+    )
+    eval_retrieval.add_argument(
+        "--baseline", type=Path,
+        default=Path("evals/baselines/pre_change.json"),
+        help="optional pre-change baseline for drift comparison",
+    )
+    eval_retrieval.add_argument(
+        "--no-baseline", action="store_true",
+        help="skip the baseline comparison",
+    )
+
+    eval_sweep = sub.add_parser(
+        "eval-chunk-size-sweep",
+        help="sweep the v0.8 Tier-3 chunk-size budgets and pick the default",
+    )
+    eval_sweep.add_argument(
+        "--golden", type=Path,
+        default=Path("evals/corpus/golden_queries.yaml"),
+    )
+    eval_sweep.add_argument(
+        "--corpus-root", type=Path, default=Path("evals/corpus"),
+    )
+    eval_sweep.add_argument(
+        "--out", type=Path,
+        default=Path("evals/reports/chunk_size_sweep.json"),
+    )
+    eval_sweep.add_argument(
+        "--report", type=Path,
+        default=Path("evals/reports/chunk_size_sweep.md"),
+    )
+    eval_sweep.add_argument(
+        "--budgets", type=int, nargs="+",
+        default=[512, 768, 900, 1200],
+        help="context budgets to sweep (default: 512 768 900 1200)",
+    )
 
     health = sub.add_parser(
         "health", help="liveness check; --ready reports readiness"
@@ -696,12 +811,17 @@ def _run_unittest_module(module_name: str) -> int:
 def _cmd_eval(args: argparse.Namespace) -> int:
     """Run the §49 integration-quality-gates suites and record their metrics.
 
-    The suite outcome (inputs and outputs) is written to
-    ``tmp/local/project-context/eval/last.json`` through the atomic
-    writer, as required by the ``integration-quality-gates`` spec:
-    the metrics file is updated even when the suite fails, and the
-    command exits non-zero exactly when the suite does.
+    When an optional ``eval_subcommand`` (``retrieval`` or
+    ``chunk-size-sweep``) is supplied, dispatch to the Tier-3
+    retrieval evaluation or chunk-size sweep handler so
+    ``project-intelligence eval retrieval`` works alongside the
+    Phase 10 ``project-intelligence eval`` command.
     """
+    subcommand = getattr(args, "eval_subcommand", None)
+    if subcommand == "retrieval":
+        return _cmd_eval_retrieval(args)
+    if subcommand == "chunk-size-sweep":
+        return _cmd_eval_chunk_size_sweep(args)
     outcome = eval_runner.run_unittest_module(eval_runner.QUALITY_GATES_SUITE)
     report = eval_runner.eval_report(outcome)
     path = eval_runner.write_report(report)
@@ -739,6 +859,96 @@ def _cmd_invariants(args: argparse.Namespace) -> int:
     if summary.failed:
         return 1
     return outcome.exit_code
+
+
+def _cmd_eval_retrieval(args: argparse.Namespace) -> int:
+    """Run the v0.8 Tier-3 retrieval evaluation.
+
+    Imports the script-level helpers from
+    ``scripts/eval_retrieval.py`` so the CLI shares the same
+    serialisation + atomic-write contract as the standalone
+    command. Operators can also invoke the script directly.
+    """
+    import importlib.util as _ilu
+    script_path = Path(__file__).resolve().parents[2] / (
+        "scripts/eval_retrieval.py"
+    )
+    spec = _ilu.spec_from_file_location("_eval_retrieval_cli", script_path)
+    if spec is None or spec.loader is None:
+        print(json.dumps({
+            "error": "could not load scripts/eval_retrieval.py",
+        }), file=sys.stderr)
+        return 2
+    module = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    baseline_path = None if args.no_baseline else args.baseline
+    out_path = args.out or Path("evals/reports/tier3_retrieval.json")
+    try:
+        payload = module.run_eval(
+            golden_path=args.golden,
+            corpus_root=args.corpus_root,
+            out_path=out_path,
+            baseline_path=baseline_path,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(json.dumps({
+            "ok": False, "error": str(exc),
+            "scope": "tier-3-retrieval",
+        }), file=sys.stderr)
+        return 1
+    print(json.dumps({
+        "ok": True,
+        "scope": payload["scope"],
+        "aggregate": payload["aggregate"],
+        "out_path": str(out_path),
+        "queries_run": len(payload["rows"]),
+    }, indent=2))
+    return 0
+
+
+def _cmd_eval_chunk_size_sweep(args: argparse.Namespace) -> int:
+    """Run the v0.8 Tier-3 chunk-size sweep.
+
+    Imports the script-level helpers from
+    ``scripts/eval_chunk_size_sweep.py`` so the CLI shares
+    the same serialisation + atomic-write contract as the
+    standalone command.
+    """
+    import importlib.util as _ilu
+    script_path = Path(__file__).resolve().parents[2] / (
+        "scripts/eval_chunk_size_sweep.py"
+    )
+    spec = _ilu.spec_from_file_location("_eval_sweep_cli", script_path)
+    if spec is None or spec.loader is None:
+        print(json.dumps({
+            "error": "could not load scripts/eval_chunk_size_sweep.py",
+        }), file=sys.stderr)
+        return 2
+    module = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    out_path = args.out or Path("evals/reports/chunk_size_sweep.json")
+    try:
+        payload = module.run_chunk_size_sweep(
+            golden_path=args.golden,
+            corpus_root=args.corpus_root,
+            out_path=out_path,
+            report_path=args.report,
+            budgets=tuple(args.budgets),
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(json.dumps({
+            "ok": False, "error": str(exc),
+            "scope": "tier-3-chunk-size-sweep",
+        }), file=sys.stderr)
+        return 1
+    print(json.dumps({
+        "ok": True,
+        "scope": payload["scope"],
+        "selected_default_budget": payload["selected_default_budget"],
+        "out_path": str(out_path),
+        "report_path": str(args.report),
+    }, indent=2))
+    return 0
 
 
 def _cmd_metrics_gate(args: argparse.Namespace) -> int:
@@ -794,6 +1004,130 @@ def _cmd_metrics_gate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_accelerator(args: argparse.Namespace) -> int:
+    """Manage the host-side embedding accelerator (G)."""
+    from ..host_accelerator.config import (
+        AcceleratorConfig,
+    )
+    from ..host_accelerator.bootstrap import bootstrap_all
+    from ..host_accelerator.security import (
+        ModelAllowList,
+        TokenStore,
+    )
+    from ..host_accelerator.server import (
+        AcceleratorService,
+        build_default_embedding_models,
+    )
+    from ..ports.retrieval.embedding_profile import (
+        EMBEDDINGGEMMA2_512,
+        HASHING_DEFAULT,
+        QWEN3_EMBEDDING_0_6B_1024,
+    )
+
+    def _build_config() -> AcceleratorConfig:
+        kwargs: dict = {}
+        if args.bind_host is not None:
+            kwargs["bind_address"] = args.bind_host
+        if args.bind_port is not None:
+            kwargs["port"] = args.bind_port
+        if args.max_concurrent_requests is not None:
+            kwargs["max_concurrent_requests"] = (
+                args.max_concurrent_requests
+            )
+        return AcceleratorConfig(**kwargs)
+
+    config = _build_config()
+    if args.accelerator_command == "status":
+        # Connect to /health on the configured port.
+        import urllib.error
+        import urllib.request
+        url = f"http://{config.bind_address}:{config.port}/health"
+        try:
+            with urllib.request.urlopen(url, timeout=2.0) as resp:
+                body = resp.read().decode("utf-8")
+                print(json.dumps({
+                    "status": "running",
+                    "url": url,
+                    "health": json.loads(body),
+                }, indent=2))
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            print(json.dumps({
+                "status": "stopped",
+                "url": url,
+                "reason": str(exc),
+            }, indent=2))
+        return 0
+    if args.accelerator_command == "stop":
+        # Send a SIGTERM to the pidfile.
+        import signal as _sig
+        pidfile = os.path.join(
+            os.path.dirname(config.audit_log_path), "pid",
+        )
+        if not os.path.isfile(pidfile):
+            print(json.dumps({
+                "status": "stopped", "reason": "no pidfile",
+            }, indent=2))
+            return 0
+        with open(pidfile, "r", encoding="utf-8") as f:
+            try:
+                pid = int(f.read().strip())
+            except ValueError:
+                print(json.dumps({
+                    "status": "error", "reason": "bad pidfile",
+                }, indent=2))
+                return 1
+        try:
+            os.kill(pid, _sig.SIGTERM)
+        except ProcessLookupError:
+            print(json.dumps({
+                "status": "stopped", "reason": "process not found",
+            }, indent=2))
+            os.unlink(pidfile)
+            return 0
+        print(json.dumps({"status": "stopping", "pid": pid}, indent=2))
+        return 0
+    # start
+    profiles = {
+        HASHING_DEFAULT.identity(): HASHING_DEFAULT,
+        EMBEDDINGGEMMA2_512.identity(): EMBEDDINGGEMMA2_512,
+        QWEN3_EMBEDDING_0_6B_1024.identity(): QWEN3_EMBEDDING_0_6B_1024,
+    }
+    token, log, al = bootstrap_all(config)
+    embedding_models = build_default_embedding_models(profiles)
+    service = AcceleratorService(
+        config=config,
+        token_store=TokenStore(config.token_path),
+        allow_list=al,
+        audit_log=log,
+        embedding_models=embedding_models,
+        profiles_by_id=profiles,
+    )
+    service.serve_forever()
+    pidfile = os.path.join(
+        os.path.dirname(config.audit_log_path), "pid",
+    )
+    os.makedirs(os.path.dirname(pidfile), exist_ok=True)
+    with open(pidfile, "w", encoding="utf-8") as f:
+        f.write(str(os.getpid()))
+    print(json.dumps({
+        "status": "started",
+        "url": f"http://{config.bind_address}:{config.port}",
+        "token_path": config.token_path,
+        "audit_log_path": config.audit_log_path,
+    }, indent=2))
+    print(f"press Ctrl-C to stop (pidfile: {pidfile})")
+    try:
+        while True:
+            time.sleep(1.0)
+    except KeyboardInterrupt:
+        service.shutdown()
+        try:
+            os.unlink(pidfile)
+        except FileNotFoundError:
+            pass
+    return 0
+
+
 _DISPATCH = {
     "init-project": _cmd_init_project,
     "hydrate": _cmd_hydrate,
@@ -810,6 +1144,9 @@ _DISPATCH = {
     "eval": _cmd_eval,
     "invariants": _cmd_invariants,
     "metrics-gate": _cmd_metrics_gate,
+    "eval-retrieval": _cmd_eval_retrieval,
+    "eval-chunk-size-sweep": _cmd_eval_chunk_size_sweep,
+    "accelerator": _cmd_accelerator,
 }
 
 
@@ -935,6 +1272,17 @@ def _cmd_retrieval_status(args: argparse.Namespace) -> int:
         dense_query=lambda text, k: (),
         sparse_query=lambda text, k: (),
     )
+    try:
+        from ..core.retrieval.selection import SelectionCore as _SelectionCore
+        from ..ports.retrieval.selection import (
+            DEFAULT_PRIMARY_TOP_K as _SELECTION_PRIMARY_TOP_K,
+        )
+
+        _selection_class_name = _SelectionCore.__name__
+        _selection_primary_top_k = _SELECTION_PRIMARY_TOP_K
+    except Exception:
+        _selection_class_name = ""
+        _selection_primary_top_k = 0
     payload = {
         "active_fusion_strategy": hybrid.fusion_strategy,
         "hybrid_level": hybrid.stats().get("level", 0),
@@ -947,6 +1295,8 @@ def _cmd_retrieval_status(args: argparse.Namespace) -> int:
             "default_edge_types": list(_PRODUCTION_GRAPH_EDGE_TYPES),
         },
         "stage_budgets": dict(_DEFAULT_STAGE_BUDGETS),
+        "selection_core_class": _selection_class_name,
+        "selection_default_primary_top_k": _selection_primary_top_k,
         "stats": {
             "hybrid": dict(hybrid.stats()),
             "metadata": dict(MetadataFilterAdapter().stats()),
@@ -994,12 +1344,19 @@ def _cmd_orchestrator_status(args: argparse.Namespace) -> int:
         dense_query=lambda text, k: (),
         sparse_query=lambda text, k: (),
     )
+    try:
+        from ..core.retrieval.selection import SelectionCore as _SelectionCore
+
+        _selection = _SelectionCore()
+    except Exception:
+        _selection = None
     pipeline = MultiStageRetrievalCore(
         hybrid=hybrid,
         metadata=MetadataFilterAdapter(),
         graph_expansion=ProductionGraphExpansion(_GraphAdapter()),
         reranker=Bm25LightRerankerAdapter(),
         context_assembler=ContextAssemblerAdapter(),
+        selection=_selection,
     )
     local_llm = StubLocalLLMAdapter()
     builder = DefaultTaskContextBuilderAdapter()

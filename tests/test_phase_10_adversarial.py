@@ -476,11 +476,11 @@ class _FileReplacer:
         self.patched = patched
 
     def __enter__(self):
-        self.path.write_text(self.patched, encoding="utf-8")
+        self.path.write_text(self.patched, encoding="utf-8", newline="\n")
         return self
 
     def __exit__(self, *exc):
-        self.path.write_text(self.original, encoding="utf-8")
+        self.path.write_text(self.original, encoding="utf-8", newline="\n")
 
 
 class _DirReplacer:

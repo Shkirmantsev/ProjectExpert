@@ -194,7 +194,15 @@ class Section:
 
 @dataclass(frozen=True)
 class Chunk:
-    """§21 chunk model."""
+    """§21 chunk model.
+
+    The ``anchors`` field is an additive sequence of
+    :class:`pi_platform.core.canonical.document_graph.SourceAnchor`
+    records that point from the chunk back to the rich document
+    graph (page / element / bbox / asset). Legacy chunks (canonical
+    knowledge schema v1) have an empty anchor list and continue to
+    round-trip byte-identically.
+    """
 
     id: str
     rawText: str
@@ -210,6 +218,7 @@ class Chunk:
             knowledgeState=KnowledgeState.UNKNOWN, parserVersion="0.1.0"
         )
     )
+    anchors: Sequence[Any] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)

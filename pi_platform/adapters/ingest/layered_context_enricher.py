@@ -74,40 +74,78 @@ class LayeredContextEnricher(ContextEnricherPort):
                     chunk.id,
                     rule.path_glob,
                 )
+            summary_line = ""
             if context.enable_optional_llm:
-                binding = context.extra.get("local_llm")
-                if binding is None:
-                    raise EnricherError("enabled LLM layer requires a local binding")
-                if meta.policy not in (
-                    "LOCAL_ONLY",
-                    "REFERENCE",
-                ) or not context.extra.get("allow_local_llm"):
-                    raise EnricherError(
-                        "source policy does not explicitly permit local LLM input"
+                if context.local_contextualizer is not None:
+                    # Change Package B5 opt-in path: the contextualizer
+                    # enforces its own InferencePolicy and never writes
+                    # authoritative metadata — only inferred hints.
+                    summary, _cache_hit = context.local_contextualizer.cached_summarize(
+                        chunk,
+                        str(context.extra.get("neighbour_text", "")),
+                        document=context.document or None,
                     )
-                suggestion = binding(
-                    chunk.rawText, max_tokens=int(context.extra.get("max_tokens", 256))
-                )
-                allowed = {
-                    k: v
-                    for k, v in suggestion.items()
-                    if k in ("contextPrefix", "entities", "relations")
-                }
-                meta = replace(
-                    meta,
-                    extensions={
-                        **meta.extensions,
-                        "pi_assumption": {**allowed, "knowledgeState": "assumption"},
-                    },
-                )
-                state = KnowledgeState.ASSUMPTION
-                layers.append(EnrichmentLayer.OPTIONAL_LLM)
+                    meta = replace(
+                        meta,
+                        extensions={
+                            **meta.extensions,
+                            "pi_assumption": {
+                                "context_summary": summary.summary,
+                                "candidateEntities": list(
+                                    summary.candidate_entities
+                                ),
+                                "candidateRelations": list(
+                                    summary.candidate_relations
+                                ),
+                                "queryAliases": list(summary.query_aliases),
+                                "knowledgeState": "assumption",
+                            },
+                        },
+                    )
+                    state = KnowledgeState.ASSUMPTION
+                    layers.append(EnrichmentLayer.OPTIONAL_LLM)
+                    summary_line = summary.summary
+                    log.info(
+                        "local contextualizer chunk=%s cache_hit=%s",
+                        chunk.id,
+                        _cache_hit,
+                    )
+                else:
+                    binding = context.extra.get("local_llm")
+                    if binding is None:
+                        raise EnricherError("enabled LLM layer requires a local binding")
+                    if meta.policy not in (
+                        "LOCAL_ONLY",
+                        "REFERENCE",
+                    ) or not context.extra.get("allow_local_llm"):
+                        raise EnricherError(
+                            "source policy does not explicitly permit local LLM input"
+                        )
+                    suggestion = binding(
+                        chunk.rawText,
+                        max_tokens=int(context.extra.get("max_tokens", 256)),
+                    )
+                    allowed = {
+                        k: v
+                        for k, v in suggestion.items()
+                        if k in ("contextPrefix", "entities", "relations")
+                    }
+                    meta = replace(
+                        meta,
+                        extensions={
+                            **meta.extensions,
+                            "pi_assumption": {**allowed, "knowledgeState": "assumption"},
+                        },
+                    )
+                    state = KnowledgeState.ASSUMPTION
+                    layers.append(EnrichmentLayer.OPTIONAL_LLM)
             prefix = "\n".join(
                 f"{k}: {v}"
                 for k, v in (
                     ("section", meta.section),
                     ("sourcePath", meta.sourcePath),
                     ("requirementId", meta.requirementId),
+                    ("contextSummary", summary_line),
                 )
                 if v
             )

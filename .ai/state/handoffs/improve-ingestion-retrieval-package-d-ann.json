@@ -1,0 +1,45 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [],
+    "todo": [
+      "Read existing dense_index port and FlatDenseIndex; implement USearchDenseIndex (stub since usearch is not stdlib); backend selection; derived index lifecycle with embedding profile hash namespace; tests"
+    ]
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-15T09:16:00+00:00",
+    "id": "improve-ingestion-retrieval-package-d-ann",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-15T09:16:00+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "921 tests OK + new D tests; legacy FlatDenseIndex passes byte-identically; USearchDenseIndex conforms to DenseIndexPort; backend auto selection works; disposable ANN index lifecycle"
+    ],
+    "goal": "Change Package D (USearch ANN backend) implementation; adds USearchDenseIndex, backend selection, and derived index lifecycle",
+    "openspec_change": "improve-ingestion-retrieval-local-models",
+    "status": "planning"
+  },
+  "verification": {
+    "passed": [],
+    "pending": []
+  },
+  "working_set": []
+}

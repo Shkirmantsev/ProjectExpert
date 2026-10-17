@@ -157,6 +157,13 @@ def build_flag_registry() -> DefaultFeatureFlagRegistry:
         state=FeatureFlagState.ENABLED,
         scope=FeatureFlagScope.DEPLOYMENT_PROFILE,
     )
+    from pi_platform.core.control.multimodal import MULTIMODAL_FIGURES_FLAG
+
+    registry.register(
+        MULTIMODAL_FIGURES_FLAG,
+        state=FeatureFlagState.EXPERIMENTAL,
+        scope=FeatureFlagScope.DEPLOYMENT_PROFILE,
+    )
     return registry
 
 
@@ -204,8 +211,21 @@ def build_ui_service(
         boundary=approval,
     )
     hybrid = CacheBackedHybridRetrieval(cache_root)
+    # v0.8 refinement: wire the selection port when available so the
+    # twelve-stage v2 path runs in production. A missing selection
+    # implementation degrades gracefully to the legacy seven-stage
+    # path via the existing ``selection is None`` short-circuit.
+    try:
+        from pi_platform.core.retrieval.selection import SelectionCore
+
+        selection = SelectionCore()
+    except Exception:
+        selection = None
     retrieval = MultiStageRetrievalCore(
-        hybrid=hybrid, metadata=MetadataFilterCore(), graph_expansion=None
+        hybrid=hybrid,
+        metadata=MetadataFilterCore(),
+        graph_expansion=None,
+        selection=selection,
     )
     orchestrator = RetrievalOnlyOrchestrator(retrieval)
     # Read projections (§57): wire sources/wiki/graph/freshness/runtime-store

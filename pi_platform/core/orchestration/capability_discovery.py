@@ -54,7 +54,7 @@ log = logging.getLogger(__name__)
 
 DEFAULT_SERVER_VERSION = "0.8.0"
 DEFAULT_MCP_API_VERSION = "1.3.0"
-DEFAULT_KNOWLEDGE_SCHEMA_VERSION = "0.7.0"
+DEFAULT_KNOWLEDGE_SCHEMA_VERSION = "0.8.0"
 DEFAULT_OKF_VERSIONS: tuple[str, ...] = ("0.2",)
 
 # Phase 6 honest defaults — these are the *offered* values, not

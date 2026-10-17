@@ -1,0 +1,36 @@
+{
+  "schema_version": "1",
+  "corpus": "multilingual",
+  "description": "Multilingual protocol description chunks. The DE/FR summaries reference the canonical FinishPack protocol; protected anchors are the language code prefixes.",
+  "generated_at": "2026-10-15",
+  "chunks": [
+    {
+      "chunk_id": "multilingual-chunk-finish-pack-de",
+      "document_id": "multilingual-doc-de",
+      "text": "FinishPack-Protokoll: dieses Dokument beschreibt das FinishPack-Protokoll fuer die Lagerautomation. Es umfasst die vier Zustaende Pending, Allocated, Picked, Shipped sowie die Uebergangsereignisse.",
+      "language": "de",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "multilingual-chunk-finish-pack-de-summary",
+      "document_id": "multilingual-doc-de",
+      "text": "Zusammenfassung: das FinishPack-Protokoll gewaehrleistet eine deterministische Zustandsmaschine und emittiert bei jedem Uebergang ein Ereignis an den kanonischen Message-Bus.",
+      "language": "de",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "multilingual-chunk-finish-pack-fr",
+      "document_id": "multilingual-doc-fr",
+      "text": "Protocole FinishPack : ce document decrit le protocole FinishPack pour l'automatisation d'entrepot. Il couvre les quatre etats Pending, Allocated, Picked, Shipped et les evenements de transition.",
+      "language": "fr",
+      "valid_from": "2026-01-01"
+    },
+    {
+      "chunk_id": "multilingual-chunk-finish-pack-fr-summary",
+      "document_id": "multilingual-doc-fr",
+      "text": "Resume : le protocole FinishPack garantit une machine a etats deterministe et emet un evenement sur le bus de messages canonique a chaque transition.",
+      "language": "fr",
+      "valid_from": "2026-01-01"
+    }
+  ]
+}

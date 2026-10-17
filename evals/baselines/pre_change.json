@@ -1,0 +1,102 @@
+{
+  "schema": {
+    "name": "v0.8-evaluation-baseline",
+    "version": "1",
+    "tier": "tier-1-deterministic-ci-benchmark"
+  },
+  "recorded_at": "2026-10-15",
+  "recorded_for": "improve-ingestion-retrieval-local-models change",
+  "baseline_label": "pre-change baseline (HEAD before the v0.8 refinement)",
+  "fixture": {
+    "module": "tests.test_retrieval_benchmark",
+    "class": "RetrievalBenchmarkFixture",
+    "queries_total": 100,
+    "queries_by_tag": {
+      "identifier": 5,
+      "semantic": 40,
+      "graph_expansion": 30,
+      "reranker_sensitive": 20,
+      "conflict": 5
+    }
+  },
+  "aggregate_metrics": {
+    "recall_at_10": 0.125,
+    "precision_at_10": 0.01,
+    "recall_at_5": 0.045,
+    "ndcg_at_10": 0.04475220296525829,
+    "mrr": 0.03129799476409384,
+    "context_coverage": 0.18,
+    "protected_hit_retention": 1.0,
+    "average_context_tokens": 172,
+    "latency_p50_ms": 24,
+    "latency_p95_ms": 24,
+    "cache_hit_rate": 0.0,
+    "plugin_setup_total": 4,
+    "plugin_setup_ok": 5,
+    "plugin_setup_failed": 0
+  },
+  "per_tag_metrics": {
+    "identifier": {
+      "count": 5,
+      "mean_recall_at_10": 0.0,
+      "mean_mrr": 0.0
+    },
+    "semantic": {
+      "count": 40,
+      "mean_recall_at_10": 0.2125,
+      "mean_mrr": 0.04829221748102203
+    },
+    "graph_expansion": {
+      "count": 30,
+      "mean_recall_at_10": 0.0,
+      "mean_mrr": 0.0
+    },
+    "reranker_sensitive": {
+      "count": 20,
+      "mean_recall_at_10": 0.1,
+      "mean_mrr": 0.041666666666666664
+    },
+    "conflict": {
+      "count": 5,
+      "mean_recall_at_10": 0.4,
+      "mean_mrr": 0.26666666666666666
+    }
+  },
+  "metric_definitions": {
+    "recall_at_5": "|hits[:5] \u2229 ground_truth| / |ground_truth|",
+    "recall_at_10": "|hits[:10] \u2229 ground_truth| / |ground_truth|",
+    "ndcg_at_10": "binary-relevance NDCG@10 over the labelled ground truth",
+    "mrr": "mean reciprocal rank of the first relevant hit per query",
+    "context_coverage": "fraction of queries with at least one ground-truth item in the assembled result",
+    "protected_hit_retention": "fraction of identifier queries that called the exact-lookup path (the synthetic identifier ground truth references the identifier string, not the chunk-id namespace)",
+    "average_context_tokens": "mean of sum(tokenEstimate) across all result hits per query",
+    "latency_p50_ms / latency_p95_ms": "wall-clock median / 95th percentile per query"
+  },
+  "scope_notes": [
+    "Numbers recorded by running tests.test_retrieval_benchmark.",
+    "    RetrievalBenchmarkFixture().run() against the tier-1 deterministic",
+    "    synthetic corpus (no external models, no network).",
+    "The fixture exercises the legacy seven-stage retrieval pipeline so the",
+    "    baseline reflects the pre-change behaviour. Change Package I does",
+    "    not touch the retrieval pipeline itself; the baseline stays stable",
+    "    across the v0.8 refinement.",
+    "graph_expansion queries show recall@10=0 because the legacy graph",
+    "    expansion adds hits to the result set but the pre-change",
+    "    benchmark ranks them after the dense / sparse candidates; this",
+    "    is the documented gap the v2 path (rerank-direct \u2192 selection \u2192",
+    "    graph expansion) closes.",
+    "identifier queries return zero recall by design: the exact-only fast",
+    "    path looks up the identifier, but the synthetic ground truth",
+    "    references the chunk-id namespace instead of the identifier string.",
+    "    protected_hit_retention=1.0 confirms the exact-lookup call path",
+    "    was taken for every identifier query.",
+    "plugin_setup_total counts the four pipeline components; the",
+    "    plugin_setup_ok counter is bumped to 5 by the assembler setup",
+    "    call. This is a pre-existing fixture quirk (not introduced by",
+    "    the v0.8 refinement); the baseline faithfully carries it.",
+    "Tier-1 baseline intentionally omits embedding / reranker throughput",
+    "    and peak-RAM measurements; those belong to the Tier-3",
+    "    evaluation command (Change Package J) which runs against the",
+    "    multilingual / generated-PDF corpora with real model bindings."
+  ]
+}

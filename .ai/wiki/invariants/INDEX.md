@@ -16,6 +16,9 @@ maintained by the v0.8 platform.
 - [`v0.8`](v0.8.md) — the 52 architectural invariants recorded
   in v0.8 §68, with one probe class per invariant in
   `tests/test_phase_10_invariants.py`.
+- [`v0.8-ingestion-retrieval`](v0.8-ingestion-retrieval.md) — the
+  13 refinement invariants preserved across Change Packages A–J
+  and H.
 
 ## Related
 

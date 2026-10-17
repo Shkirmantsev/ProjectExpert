@@ -345,16 +345,30 @@ class RetrievalBenchmarkFixture:
         exact_calls = int(self.pipeline._hybrid.stats().get(
             "exact_calls", 0,
         ))
+        hit_list = list(result.hits)
         hit_ids = {
-            getattr(hit, "chunkId", str(hit)) for hit in result.hits
+            getattr(hit, "chunkId", str(hit)) for hit in hit_list
         }
+        # Preserve the ranked ordering so NDCG / recall@k at the
+        # truncated top can be computed deterministically.
+        hit_id_ordered = [
+            getattr(hit, "chunkId", str(hit)) for hit in hit_list
+        ]
         if ground_truth:
             tp = len(hit_ids & ground_truth)
             recall = tp / len(ground_truth)
             precision = tp / max(1, len(hit_ids))
             mrr = self._mrr(hit_ids, ground_truth)
+            recall_at_5 = self._recall_at_k(hit_id_ordered, ground_truth, 5)
+            ndcg_at_10 = self._ndcg_at_k(hit_id_ordered, ground_truth, 10)
         else:
             recall = precision = mrr = 0.0
+            recall_at_5 = 0.0
+            ndcg_at_10 = 0.0
+        context_tokens = sum(
+            max(int(getattr(hit, "tokenEstimate", 0) or 0), 1)
+            for hit in hit_list
+        )
         return {
             "label": query["label"],
             "text": text,
@@ -362,6 +376,10 @@ class RetrievalBenchmarkFixture:
             "recall": recall,
             "precision": precision,
             "mrr": mrr,
+            "recall_at_5": recall_at_5,
+            "ndcg_at_10": ndcg_at_10,
+            "context_tokens": context_tokens,
+            "context_coverage": 1.0 if (ground_truth & hit_ids) else 0.0,
             "latency_ms": latency_ms,
             "dense_calls": dense_calls,
             "sparse_calls": sparse_calls,
@@ -380,6 +398,46 @@ class RetrievalBenchmarkFixture:
                 return 1.0 / rank
         return 0.0
 
+    def _recall_at_k(
+        self, hit_id_ordered: Sequence[str], ground_truth: set[str], k: int,
+    ) -> float:
+        """Recall truncated to the top-``k`` ordered candidates.
+
+        Defined as ``|hits[:k] ∩ ground_truth| / |ground_truth|``.
+        Returns ``0.0`` when ``ground_truth`` is empty so callers
+        don't have to special-case the empty-set edge.
+        """
+
+        if not ground_truth:
+            return 0.0
+        top = set(hit_id_ordered[:k])
+        return len(top & ground_truth) / len(ground_truth)
+
+    def _ndcg_at_k(
+        self, hit_id_ordered: Sequence[str], ground_truth: set[str], k: int,
+    ) -> float:
+        """NDCG@``k`` over the labelled ground truth.
+
+        Relevance is binary: ``1`` when the candidate appears in
+        ``ground_truth``, ``0`` otherwise. The ideal DCG is
+        computed against the largest achievable gain (``min(|G|, k)``
+        of them), which keeps the metric in ``[0.0, 1.0]``.
+        """
+
+        import math as _math
+        if not ground_truth:
+            return 0.0
+        top = hit_id_ordered[:k]
+        dcg = 0.0
+        for rank, hit_id in enumerate(top, start=1):
+            if hit_id in ground_truth:
+                dcg += 1.0 / _math.log2(rank + 1)
+        ideal_hits = min(len(ground_truth), k)
+        idcg = sum(
+            1.0 / _math.log2(rank + 1) for rank in range(1, ideal_hits + 1)
+        )
+        return (dcg / idcg) if idcg > 0 else 0.0
+
     def _aggregate(self, per_query: list[dict]) -> dict:
         if not per_query:
             return {}
@@ -388,13 +446,35 @@ class RetrievalBenchmarkFixture:
             sum(q["precision"] for q in per_query) / len(per_query)
         )
         aggregate_mrr = sum(q["mrr"] for q in per_query) / len(per_query)
+        aggregate_recall_at_5 = sum(
+            q["recall_at_5"] for q in per_query
+        ) / len(per_query)
+        aggregate_ndcg_at_10 = sum(
+            q["ndcg_at_10"] for q in per_query
+        ) / len(per_query)
+        average_context_tokens = sum(
+            q["context_tokens"] for q in per_query
+        ) / len(per_query)
+        context_coverage = sum(
+            q["context_coverage"] for q in per_query
+        ) / len(per_query)
         latencies = sorted(q["latency_ms"] for q in per_query)
         aggregate_latency_p50 = latencies[len(latencies) // 2]
         aggregate_latency_p95 = latencies[
             int(len(latencies) * 0.95)
         ] if latencies else 0
         identifier_queries = [q for q in per_query if q["tag"] == "identifier"]
+        # Protected-hit retention = fraction of identifier queries
+        # where the exact lookup returned at least one hit. The
+        # synthetic ground truth references the identifier string
+        # itself; the assertion is on the call path, not on
+        # chunk-id overlap, so the metric stays meaningful.
+        protected_hit_retention = 0.0
         if identifier_queries:
+            hits_with_exact = sum(
+                1 for q in identifier_queries if q["exact_calls"] >= 1
+            )
+            protected_hit_retention = hits_with_exact / len(identifier_queries)
             for q in identifier_queries:
                 assert q["exact_calls"] >= 1, (
                     f"identifier query did not call exact lookup: {q}"
@@ -409,6 +489,11 @@ class RetrievalBenchmarkFixture:
             "aggregate_recall": aggregate_recall,
             "aggregate_precision": aggregate_precision,
             "aggregate_mrr": aggregate_mrr,
+            "aggregate_recall_at_5": aggregate_recall_at_5,
+            "aggregate_ndcg_at_10": aggregate_ndcg_at_10,
+            "average_context_tokens": int(average_context_tokens),
+            "context_coverage": context_coverage,
+            "protected_hit_retention": protected_hit_retention,
             "aggregate_latency_p50": aggregate_latency_p50,
             "aggregate_latency_p95": aggregate_latency_p95,
             "aggregate_cache_hit_rate": sum(

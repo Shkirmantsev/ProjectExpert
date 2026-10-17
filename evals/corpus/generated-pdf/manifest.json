@@ -1,0 +1,54 @@
+{
+  "schema_version": "1",
+  "corpus": "generated-pdf",
+  "generated_at": "2026-10-15",
+  "tier_default": 2,
+  "title": "ProjectExpert v0.8 generated fixture",
+  "fixtures": [
+    {
+      "filename": "10-page.pdf",
+      "size_bytes": 3400,
+      "page_count": 10,
+      "tier_eligible": 2
+    },
+    {
+      "filename": "100-page.pdf",
+      "size_bytes": 31622,
+      "page_count": 100,
+      "tier_eligible": 2
+    },
+    {
+      "filename": "600-page.pdf",
+      "size_bytes": 190632,
+      "page_count": 600,
+      "tier_eligible": 2
+    }
+  ],
+  "chunk_anchors": {
+    "pdf-chunk-10-constraints-table": {
+      "page": 4,
+      "kind": "table",
+      "ground_truth_query": "generated-pdf-table-constraints"
+    },
+    "pdf-chunk-10-constraints-table-header": {
+      "page": 4,
+      "kind": "table-header",
+      "ground_truth_query": "generated-pdf-table-constraints"
+    },
+    "pdf-chunk-100-arch-figure": {
+      "page": 7,
+      "kind": "figure",
+      "ground_truth_query": "generated-pdf-figure-architecture"
+    },
+    "pdf-chunk-100-arch-figure-caption": {
+      "page": 7,
+      "kind": "figure-caption",
+      "ground_truth_query": "generated-pdf-figure-architecture"
+    },
+    "pdf-chunk-600-toc": {
+      "page": 1,
+      "kind": "toc",
+      "ground_truth_query": "generated-pdf-600-page-toc"
+    }
+  }
+}
