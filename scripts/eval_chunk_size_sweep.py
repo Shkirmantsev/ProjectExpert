@@ -156,7 +156,7 @@ def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
             json.dump(payload, handle, indent=2, sort_keys=False)
             handle.write("\n")
         os.replace(tmp, path)
@@ -230,7 +230,7 @@ def _write_markdown(path: Path, payload: dict) -> None:
         "namespace.md`) and from `evals/baselines/pre_change.json`."
     )
     lines.append("")
-    path.write_text("\n".join(lines), encoding="utf-8")
+    path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
 
 def build_parser() -> argparse.ArgumentParser:

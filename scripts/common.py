@@ -37,7 +37,7 @@ def atomic_write_text(
     try:
         if mode is not None and hasattr(os, "fchmod"):
             os.fchmod(descriptor, mode)
-        with os.fdopen(descriptor, "w", encoding=encoding) as stream:
+        with os.fdopen(descriptor, "w", encoding=encoding, newline="\n") as stream:
             descriptor = -1
             stream.write(text)
             stream.flush()
