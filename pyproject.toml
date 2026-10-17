@@ -31,6 +31,9 @@ project-intelligence = "pi_platform.cli.main:main"
 [tool.setuptools.packages.find]
 include = ["pi_platform*"]
 
+[tool.setuptools.package-data]
+"pi_platform.adapters.ui" = ["static/*"]
+
 [tool.setuptools.data-files]
 "distribution/licenses" = ["distribution/licenses/dependency-inventory.json", "distribution/licenses/tree-sitter-LICENSE.txt", "distribution/licenses/tree-sitter-java-LICENSE.txt"]
 

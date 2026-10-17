@@ -1,0 +1,195 @@
+name: publish-oci-container
+
+on:
+  push:
+    branches:
+      - dev
+      - development
+  pull_request:
+    branches:
+      - dev
+      - development
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: project-intelligence
+
+jobs:
+  verify-platform:
+    name: Verify Platform Product Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install platform package (product only)
+        run: python -m pip install --no-cache-dir .
+
+      - name: Run license gate
+        run: python -m pi_platform.cli license-gate
+
+      - name: Run quality gates and metrics gate
+        run: |
+          python -m pi_platform.cli eval
+          python -m pi_platform.cli metrics-gate
+          python -m pi_platform.cli invariants
+          python -m pi_platform.cli metrics-gate
+
+      - name: Run Tier-3 retrieval evaluation and chunk-size sweep
+        run: |
+          python -m pi_platform.cli eval-retrieval --no-baseline
+          python -m pi_platform.cli eval-chunk-size-sweep
+
+      - name: Verify deterministic agent plugin packaging
+        run: python -m pi_platform.cli package-plugins --output-root tmp/local/dist-check
+
+      - name: Validate product docker-compose profiles
+        run: |
+          for profile in core-headless desktop-lite desktop-local-ai open-webui enterprise; do
+            docker compose -f docker-compose.yml --profile "$profile" config -q
+          done
+
+  build-and-publish-oci:
+    name: Build, Smoke-Test, and Publish OCI Image
+    needs: verify-platform
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Normalize image owner to lowercase
+        id: owner
+        run: |
+          owner_lc="$(printf '%s' "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          printf 'image=%s/%s/%s\n' "$REGISTRY" "$owner_lc" "$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract OCI metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.owner.outputs.image }}
+          tags: |
+            type=raw,value=dev,enable=${{ github.event_name != 'pull_request' && (github.ref_name == 'dev' || github.ref_name == 'development') }}
+            type=raw,value=development,enable=${{ github.event_name != 'pull_request' && (github.ref_name == 'dev' || github.ref_name == 'development') }}
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=ref,event=pr
+
+      - name: Build local candidate image for end-to-end smoke verification
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          load: true
+          tags: ${{ steps.owner.outputs.image }}:smoke
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify standalone OCI container capabilities and isolation
+        env:
+          PI_IMAGE: ${{ steps.owner.outputs.image }}:smoke
+          PI_PROFILE: core-headless
+          PI_CONTROL_PORT: "8765"
+        run: |
+          set -euo pipefail
+
+          # 1. Verify no development harness artefacts exist inside the image
+          docker run --rm --entrypoint python "$PI_IMAGE" -c "
+          import pathlib, sys
+          root = pathlib.Path('/opt/project-intelligence')
+          forbidden = ['harness.py', 'infra', 'tools', '.ai', '.agents', 'openspec', 'scripts']
+          leaked = [name for name in forbidden if (root / name).exists()]
+          if leaked:
+              sys.exit(f'Harness files leaked into product container: {leaked}')
+          required = ['pi_platform', 'distribution/okf-profile', 'distribution/skills', 'distribution/codex', 'distribution/claude-code', 'distribution/opencode', 'distribution/generic-agent', 'evals/corpus/golden_queries.yaml']
+          missing = [name for name in required if not (root / name).exists()]
+          if missing:
+              sys.exit(f'Required product runtime files missing from container: {missing}')
+          "
+
+          # 2. Prepare a synthetic target repository to mount at /repo
+          target_repo="$(mktemp -d)"
+          git init -q "$target_repo"
+          git -C "$target_repo" config user.email "ci@example.com"
+          git -C "$target_repo" config user.name "CI Smoke"
+          echo "# Synthetic Target Project" > "$target_repo/README.md"
+          git -C "$target_repo" add README.md
+          git -C "$target_repo" commit -q -m "initial target commit"
+
+          # Scaffold canonical tree inside the container against /repo
+          docker run --rm -v "$target_repo:/repo:rw" "$PI_IMAGE" init-project --target /repo
+
+          # 3. Boot via docker compose and verify readiness + full capability surface
+          export PI_TARGET_REPO="$target_repo"
+          docker compose -f docker-compose.yml --profile "$PI_PROFILE" up -d
+          trap 'docker compose -f docker-compose.yml --profile "$PI_PROFILE" down -v || true; sudo rm -rf "$target_repo" 2>/dev/null || rm -rf "$target_repo" || true' EXIT
+
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:${PI_CONTROL_PORT}/health/ready" >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker compose -f docker-compose.yml --profile "$PI_PROFILE" logs
+            exit 1
+          fi
+
+          # Verify CLI readiness check inside running container
+          docker compose -f docker-compose.yml --profile "$PI_PROFILE" exec -T core \
+            python -m pi_platform.cli health --ready --target /repo
+
+          # Verify UI root, REST API, and MCP JSON-RPC surface
+          curl -fsS "http://127.0.0.1:${PI_CONTROL_PORT}/" | grep -q "Project Intelligence"
+          curl -fsS "http://127.0.0.1:${PI_CONTROL_PORT}/api/v1/project-version" | grep -q '"head"'
+          curl -fsS "http://127.0.0.1:${PI_CONTROL_PORT}/api/v1/indexing-status" | grep -q '"ready": true'
+          curl -fsS -X POST "http://127.0.0.1:${PI_CONTROL_PORT}/api/v1/query" \
+            -H "Content-Type: application/json" \
+            -d '{"text": "Project Knowledge Index"}' | grep -q '"results"'
+          curl -fsS -X POST "http://127.0.0.1:${PI_CONTROL_PORT}/mcp" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}' | grep -q '"project.search"'
+
+      - name: Push OCI container image to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

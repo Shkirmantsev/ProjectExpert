@@ -1,0 +1,33 @@
+# Exclude development harness, local state, and Git metadata from the
+# standalone product OCI container build context.
+.git
+.github
+.ai
+.agents
+.claude
+.codex
+.opencode
+.harness
+.generated
+.env
+.env.*
+harness.py
+infra
+remote
+patches
+tools
+openspec
+docs
+schemas
+tests
+scripts
+tmp
+.project-intelligence-cache
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+ARTIFACT_MANIFEST.sha256
+CLAUDE.md
+AGENTS.md
+Makefile

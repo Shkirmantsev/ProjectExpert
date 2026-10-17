@@ -150,3 +150,47 @@ compiled launcher artefact is produced and licensed.
 Given both launchers
 When their declared duties are compared
 Then the duty sets are equal.
+
+### Requirement: GHCR OCI container pipeline on development merges
+
+The repository MUST provide a GitHub Actions workflow that builds, verifies,
+and publishes the platform OCI container image to the GitHub Container Registry
+(`ghcr.io`) whenever a feature branch is merged or pushed into the development
+branch (`dev` / `development`), and verifies the container build on pull
+requests targeting the development branch. The pipeline and the resulting image
+MUST include only the product runtime (`pi_platform/`, `distribution/`,
+`evals/`, `Containerfile`, `docker-compose.yml`) and MUST NOT embed or depend
+on the development harness (`harness.py`, `infra/`, `tools/mcp/`, `.ai/`,
+`.agents/`).
+
+#### Scenario: merge to development builds and pushes OCI image
+
+Given a feature branch merge or push to `dev` or `development`
+When the OCI container workflow runs
+Then it executes the product verification gates, builds `Containerfile`, and
+pushes immutable commit-SHA and development tags to `ghcr.io/<owner>/project-intelligence`.
+
+#### Scenario: container image excludes the development harness
+
+Given the `Containerfile` and `.dockerignore`
+When the OCI image is built
+Then the image contains `pi_platform/`, `distribution/`, and `evals/`, and
+contains no development harness files (`harness.py`, `infra/`, `.ai/`,
+`.agents/`, `tools/`).
+
+### Requirement: Standalone container provides all platform capabilities
+
+Starting the published OCI container or `docker compose` against a target
+repository MUST automatically hydrate and reconcile the target repository on
+startup and expose the complete platform surface (REST UI API, static Control
+Plane UI, OpenAI-compatible shim, MCP JSON-RPC / CLI surface, optional A2A
+Agent Card and task surface, and CLI subcommands including `eval-retrieval`,
+`eval-chunk-size-sweep`, `mcp-serve`, `a2a-serve`, and `package-plugins`)
+without requiring any host checkout or development harness tooling.
+
+#### Scenario: standalone container reaches readiness and serves all capabilities
+
+Given a user starts the container or `docker compose` with a target repository mounted at `/repo`
+When the container boots
+Then it automatically hydrates and reconciles `/repo`, reports `200 OK` on `/health/ready`, and serves the UI, REST API (`/api/v1/*`), MCP endpoint (`/mcp`), and optional A2A routes (`/.well-known/agent-card.json`, `/a2a/v1/tasks:send`).
+

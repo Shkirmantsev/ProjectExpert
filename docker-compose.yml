@@ -40,7 +40,7 @@ x-common-env: &common-env
 
 services:
   core:
-    image: project-intelligence:dev
+    image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:dev}
     build:
       context: .
       dockerfile: Containerfile
@@ -93,7 +93,7 @@ services:
     restart: unless-stopped
 
   enterprise-sidecar:
-    image: project-intelligence:dev
+    image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:dev}
     profiles: ["enterprise"]
     depends_on:
       - core

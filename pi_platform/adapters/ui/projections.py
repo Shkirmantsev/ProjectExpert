@@ -149,14 +149,72 @@ def build_read_projections(
     ``runtime_store``, ``conflicts``. Missing entries mean "no projection
     available; degrade gracefully".
     """
+    repo_root = Path(repo_root).resolve()
+    cache_root = Path(cache_root).resolve()
+
+    runtime_store = None
+    freshness = None
+    graph_expansion = None
+    try:
+        from pi_platform.adapters.runtime.sqlite_runtime_store import (
+            SqliteRuntimeStore,
+        )
+        from pi_platform.adapters.runtime.last_verified_freshness_tracker import (
+            LastVerifiedFreshnessTracker,
+        )
+        from pi_platform.core.canonical.value_types import ProjectVersion
+        from pi_platform.core.git import compute_version_identity
+
+        try:
+            vi = compute_version_identity(repo_root)
+            project_version = ProjectVersion(
+                gitHead=vi.gitHead,
+                workingTreeFingerprint=vi.workingTreeFingerprint,
+                knowledgeSchemaVersion=vi.knowledgeSchemaVersion,
+                embeddingModelVersion=vi.embeddingModelVersion,
+                indexSchemaVersion=vi.indexSchemaVersion,
+            )
+        except Exception:
+            project_version = ProjectVersion(
+                gitHead="unversioned",
+                workingTreeFingerprint="",
+                knowledgeSchemaVersion="0.1.0",
+                embeddingModelVersion="unknown",
+                indexSchemaVersion="0.1.0",
+            )
+        runtime_store = SqliteRuntimeStore(
+            cache_root=cache_root, version=project_version,
+        )
+        freshness = LastVerifiedFreshnessTracker(store=runtime_store)
+    except Exception:
+        runtime_store = None
+        freshness = None
+
+    try:
+        from pi_platform.adapters.runtime.graph_expansion import (
+            ProductionGraphExpansion,
+        )
+        from pi_platform.adapters.runtime.sharded_graph import (
+            LocalShardedGraph,
+        )
+
+        canonical_graph = repo_root / "project-knowledge" / "graph"
+        graph_dir = (
+            canonical_graph
+            if (canonical_graph / "nodes").is_dir()
+            else cache_root / "graph"
+        )
+        graph_expansion = ProductionGraphExpansion(
+            LocalShardedGraph(graph_dir),
+        )
+    except Exception:
+        graph_expansion = None
+
     return {
         "sources": FilesystemSourceCatalog(repo_root),
         "wiki": FilesystemWikiRead(repo_root),
-        # graph/freshness/runtime_store require ports whose adapters live
-        # outside the UI composition; they are intentionally None until a
-        # wiring port is contributed.
-        "graph": None,
-        "freshness": None,
-        "runtime_store": None,
+        "graph": graph_expansion,
+        "freshness": freshness,
+        "runtime_store": runtime_store,
         "conflicts": EmptyConflicts(),
     }

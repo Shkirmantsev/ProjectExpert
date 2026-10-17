@@ -73,8 +73,14 @@ class GitCliAdapter(GitPort):
     def _run(self, repo_root: Path, args: list[str],
              *, capture_output: bool = True) -> subprocess.CompletedProcess:
         self.version()  # validate minimum version before each invocation
+        resolved_root = str(Path(repo_root).resolve())
         return subprocess.run(
-            [self.binary, "-C", str(repo_root), *args],
+            [
+                self.binary,
+                "-c", f"safe.directory={resolved_root}",
+                "-C", str(repo_root),
+                *args,
+            ],
             capture_output=capture_output, text=True,
             check=False,
         )
