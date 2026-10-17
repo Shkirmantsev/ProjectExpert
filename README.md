@@ -221,6 +221,28 @@ The full ordered task list lives in [`openspec/changes/plan-v0-8-platform-archit
 
 ## Quick start
 
+### Standalone container / Docker Compose (end users)
+
+Every merge into `dev` / `development` publishes a self-contained OCI image to GitHub Container Registry (`ghcr.io/shkirmantsev/project-intelligence:dev`). Any user can start the platform against their own repository with Docker or Docker Compose without installing the development harness:
+
+```bash
+# Start with Docker Compose (default single-container headless or desktop-lite profile)
+PI_TARGET_REPO="$(pwd)" docker compose --profile core-headless up -d
+# Or with bundled local LLM sidecar:
+PI_TARGET_REPO="$(pwd)" docker compose --profile desktop-lite up -d
+
+# Or run the OCI container directly:
+docker run --rm -p 8765:8765 -v "$(pwd):/repo:rw" ghcr.io/shkirmantsev/project-intelligence:dev
+```
+
+Once started, the container automatically hydrates and reconciles `/repo` and exposes:
+- Web UI & Control Plane: `http://localhost:8765/`
+- REST API: `http://localhost:8765/api/v1/`
+- MCP JSON-RPC endpoint: `http://localhost:8765/mcp` (or stdio via `docker exec -i <container> python -m pi_platform.cli mcp-serve`)
+- Health & Readiness: `http://localhost:8765/health` and `http://localhost:8765/health/ready`
+
+### Development harness (contributors)
+
 ```bash
 make init-mcp         # one-shot: .env, Wiki index, skills, MCP venv, client configs
 make wiki-init        # validate existing Wiki and (re)build its disposable index

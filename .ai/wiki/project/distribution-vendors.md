@@ -7,6 +7,8 @@ summary: Documented distribution profiles (§58), launchers, container artefacts
 sourceRefs:
   - docker-compose.yml
   - Containerfile
+  - .dockerignore
+  - .github/workflows/publish-oci-container.yml
   - scripts/project-intelligence.sh
   - scripts/Start-ProjectIntelligence.ps1
   - scripts/LAUNCHERS.md
@@ -54,12 +56,28 @@ the container.
 
 - `Containerfile` — single image; Python 3.11-slim-bookworm base pinned
   by digest; copies `pi_platform/`, `distribution/okf-profile`,
-  `distribution/licenses`, `distribution/sbom`; no Node.js; `EXPOSE 8765`;
+  `distribution/skills`, `distribution/licenses`, `distribution/sbom`,
+  and `evals/`; pre-generates the four vendor plugin bundles (`codex`,
+  `claude-code`, `opencode`, `generic-agent`) via
+  `python -m pi_platform.cli package-plugins`; no Node.js; `EXPOSE 8765`;
   `HEALTHCHECK` for liveness; `CMD ["serve", "--target", "/repo", "--host", "0.0.0.0", "--port", "8765"]`.
-- `docker-compose.yml` — five profiles, every third-party reference
+- `.dockerignore` — excludes the development harness (`harness.py`,
+  `infra/`, `tools/`, `.ai/`, `.agents/`, `openspec/`, `scripts/`) so
+  the published OCI container contains only product runtime assets.
+- `docker-compose.yml` — five profiles, defaulting `core` and
+  `enterprise-sidecar` to
+  `${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:dev}` with
+  local `Containerfile` build fallback, and every third-party reference
   reproducible (`open-webui: 0.6.5` matches the SPDX dependency-inventory
-  entry; `llama.cpp` pinned via `${PI_LLAMA_CPP_TAG:-b3855}`). No
+  entry; `llama.cpp` pinned via `${PI_LOCAL_LLM_IMAGE:-ghcr.io/ggml-org/llama.cpp:b3855}`). No
   mutable `:main` / `:latest` / `:server` tags.
+- `.github/workflows/publish-oci-container.yml` — GitHub Actions
+  pipeline triggered when a feature branch merges or pushes to `dev` /
+  `development` (and on PRs targeting `dev` / `development`). Runs
+  product-only verification gates, builds the OCI image, smoke-tests
+  readiness, UI, REST API, and MCP `/mcp` against a mounted target
+  repository, and publishes `ghcr.io/<owner>/project-intelligence` tags
+  (`:dev`, `:development`, `:sha-<commit>`).
 
 ## OKF profile distribution
 

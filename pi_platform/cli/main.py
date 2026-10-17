@@ -279,6 +279,38 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--cache-root", type=Path, default=DEFAULT_RUNTIME_CACHE)
     serve.add_argument("--host", default=DEFAULT_UI_HOST)
     serve.add_argument("--port", type=int, default=DEFAULT_UI_PORT)
+
+    mcp_serve = sub.add_parser(
+        "mcp-serve", help="serve the §36 MCP tool and §38 skill resource surface"
+    )
+    mcp_serve.add_argument("--target", type=Path, default=Path.cwd())
+    mcp_serve.add_argument("--cache-root", type=Path, default=DEFAULT_RUNTIME_CACHE)
+    mcp_serve.add_argument(
+        "--transport", choices=("stdio", "http"), default="stdio",
+    )
+    mcp_serve.add_argument("--host", default=DEFAULT_UI_HOST)
+    mcp_serve.add_argument("--port", type=int, default=DEFAULT_UI_PORT)
+    mcp_serve.add_argument("--debug", action="store_true")
+
+    a2a_serve = sub.add_parser(
+        "a2a-serve", help="serve the §50 A2A inbound HTTP surface and Agent Card"
+    )
+    a2a_serve.add_argument("--host", default=DEFAULT_UI_HOST)
+    a2a_serve.add_argument("--port", type=int, default=8766)
+
+    pkg_plugins = sub.add_parser(
+        "package-plugins",
+        help="generate the four §41-§44 vendor agent plugin bundles",
+    )
+    pkg_plugins.add_argument(
+        "--skills-root", type=Path, default=None,
+        help="path to canonical skills directory (default: distribution/skills)",
+    )
+    pkg_plugins.add_argument(
+        "--output-root", type=Path, default=Path("distribution"),
+        help="output root for codex/claude-code/opencode/generic-agent bundles",
+    )
+
     sub.add_parser("--help", help="show this help message and exit")
     return parser
 
@@ -371,11 +403,29 @@ def _ensure_default_project_context(knowledge_root: Path) -> None:
 
 
 def _cmd_hydrate(args: argparse.Namespace) -> int:
+    from ..adapters.ui import persist_readiness
+    from ..core.sync.readiness import DefaultKnowledgeReadiness
+
     target = args.target.resolve()
     cache_root = _resolve_cache_root(args)
+    fs = LocalFilesystemAdapter(target, cache_root=cache_root)
     with ProjectLock(_project_id(target)).acquire():
-        service = HydrateService(filesystem=LocalFilesystemAdapter(target, cache_root=cache_root))
+        service = HydrateService(filesystem=fs)
         report = service.restore_runtime(target, cache_root=cache_root)
+        reconcile = ReconcileService(filesystem=fs).reconcile_branch_switch(
+            target,
+            previous_head=report.project_version.gitHead,
+            current_head=report.project_version.gitHead,
+            cache_root=cache_root,
+        )
+        readiness = DefaultKnowledgeReadiness()
+        readiness.record_hydrate(report)
+        readiness.record_reconcile(
+            reconcile,
+            current_head=report.project_version.gitHead,
+            working_tree_fingerprint=report.project_version.workingTreeFingerprint,
+        )
+        persist_readiness(cache_root, readiness)
     print(json.dumps({
         "git_head": report.project_version.gitHead,
         "embedding_model_version": report.project_version.embeddingModelVersion,
@@ -415,9 +465,18 @@ def _cmd_materialise(args: argparse.Namespace) -> int:
 
 def _cmd_license_gate(args: argparse.Namespace) -> int:
     target = args.target.resolve()
-    inventory_path = (args.inventory
-                      if args.inventory else
-                      target / DEFAULT_DEPENDENCY_INVENTORY_PATH)
+    if args.inventory:
+        inventory_path = args.inventory
+    else:
+        candidate = target / DEFAULT_DEPENDENCY_INVENTORY_PATH
+        if candidate.is_file():
+            inventory_path = candidate
+        else:
+            platform_home = Path(
+                os.environ.get("PI_PLATFORM_HOME", "/opt/project-intelligence")
+            )
+            fallback = platform_home / DEFAULT_DEPENDENCY_INVENTORY_PATH
+            inventory_path = fallback if fallback.is_file() else candidate
     deps = DependencyInventory(inventory_path).load()
     discovered = target / "tmp/local/pi-platform-ingest/discovered-dependencies.json"
     if discovered.exists():
@@ -625,19 +684,120 @@ def _cmd_ingest_sources(args: argparse.Namespace) -> int:
     return 0 if all(r.ok for r in reports) else 1
 
 
+def _resolve_skills_root(target: Optional[Path] = None) -> Optional[Path]:
+    """Locate the canonical ``distribution/skills`` directory."""
+    candidates: list[Path] = []
+    if target is not None:
+        candidates.append(Path(target).resolve() / "distribution" / "skills")
+    candidates.append(Path.cwd() / "distribution" / "skills")
+    platform_home = os.environ.get("PI_PLATFORM_HOME")
+    if platform_home:
+        candidates.append(Path(platform_home) / "distribution" / "skills")
+    candidates.append(
+        Path(__file__).resolve().parents[2] / "distribution" / "skills"
+    )
+    for cand in candidates:
+        if (cand / "project-intelligence" / "SKILL.md").is_file():
+            return cand
+    return None
+
+
+def _build_embedded_mcp_and_a2a(
+    *,
+    target: Path,
+    cache_root: Path,
+    service: object,
+    readiness: object,
+    debug_mode: Optional[bool] = None,
+) -> tuple[object, object, object, object]:
+    """Construct the embedded MCP server, SkillDistributionPlane, A2A adapter, and Agent Card."""
+    from ..core.a2a import A2aAdapterCore, A2aFlags, AgentCardBuilder
+    from ..mcp.context import build_default_tool_context
+    from ..mcp.server import McpServer
+    from ..mcp.skill_plane import SkillDistributionPlane
+
+    mcp_ctx = build_default_tool_context(
+        debug_mode=debug_mode,
+        repo_root=target,
+        cache_root=cache_root,
+        readiness=readiness,
+        multi_stage_retrieval=getattr(service, "_retrieval", None),
+        hybrid_retrieval=getattr(
+            getattr(service, "_retrieval", None), "_hybrid", None
+        ),
+        orchestrator=getattr(service, "_orchestrator", None),
+        boundary=getattr(service, "_approval", None),
+    )
+    mcp_server = McpServer(context=mcp_ctx)
+
+    skill_plane = None
+    skills_root = _resolve_skills_root(target)
+    if skills_root is not None:
+        try:
+            skill_plane = SkillDistributionPlane(skills_root=skills_root)
+        except Exception:
+            skill_plane = None
+
+    a2a_inbound = str(
+        os.environ.get("PI_A2A_INBOUND", "") or ""
+    ).strip().lower() in ("1", "true", "yes", "on")
+
+    def _flags_provider(flag_name: str) -> bool:
+        if flag_name == A2aFlags.A2A_INBOUND.value:
+            return a2a_inbound
+        return False
+
+    a2a_adapter = A2aAdapterCore(
+        flags_provider=_flags_provider,
+        policy_gate=lambda **_: "ALLOW" if a2a_inbound else "DENY",
+    )
+    agent_card = AgentCardBuilder(
+        descriptor={
+            "name": "project-intelligence",
+            "description": "Project Intelligence Platform",
+            "version": "0.8.0",
+            "protocols": {
+                "a2a": {
+                    "supported_protocols": ("jsonrpc-2.0",),
+                    "version": "1.0",
+                }
+            },
+            "skills": [
+                {
+                    "id": "project-intelligence",
+                    "description": "Retrieval-first project intelligence",
+                    "tags": ["retrieval", "mcp", "okf"],
+                }
+            ],
+        },
+        flags_provider=_flags_provider,
+        published=a2a_inbound,
+    )
+    return mcp_server, skill_plane, a2a_adapter, agent_card
+
+
 def _cmd_health(args: argparse.Namespace) -> int:
     """Liveness by default; ``--ready`` reports hydration readiness (§62)."""
     if not getattr(args, "ready", False):
         print(json.dumps({"status": "ok"}))
         return 0
-    from ..adapters.ui import build_ui_service
+    from ..adapters.ui import build_ui_service, hydrate_and_reconcile_target
 
     target = Path(getattr(args, "target", Path.cwd())).resolve()
+    cache_root = _resolve_cache_root(args)
     _service, readiness = build_ui_service(
-        repo_root=target, cache_root=_resolve_cache_root(args)
+        repo_root=target, cache_root=cache_root,
     )
     snapshot = readiness.snapshot()
     ready = bool(snapshot.consistent) and not bool(snapshot.in_progress)
+    if (
+        not ready
+        and os.environ.get("PI_AUTO_HYDRATE") == "1"
+        and ((target / ".git").exists() or (target / "project-knowledge").is_dir())
+    ):
+        hydrate_and_reconcile_target(target, cache_root, readiness)
+        snapshot = readiness.snapshot()
+        ready = bool(snapshot.consistent) and not bool(snapshot.in_progress)
     print(json.dumps({
         "status": "ok",
         "ready": ready,
@@ -649,7 +809,7 @@ def _cmd_health(args: argparse.Namespace) -> int:
 
 
 def _cmd_serve(args: argparse.Namespace) -> int:
-    """Serve the human UI API and static frontend from the core container."""
+    """Serve the human UI API, static frontend, MCP endpoint, and optional A2A surface."""
     from ..adapters.ui import (
         OPEN_WEBUI_FLAG,
         OpenAiCompatShim,
@@ -662,8 +822,20 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     from ..ports.ui.rest_api import QueryRequest, UiActor
 
     target = Path(getattr(args, "target", Path.cwd())).resolve()
+    cache_root = _resolve_cache_root(args)
+    auto_hydrate = os.environ.get("PI_AUTO_HYDRATE", "1") != "0"
     service, readiness = build_ui_service(
-        repo_root=target, cache_root=_resolve_cache_root(args)
+        repo_root=target,
+        cache_root=cache_root,
+        hydrate_on_start=auto_hydrate,
+    )
+    mcp_server, skill_plane, a2a_adapter, agent_card = (
+        _build_embedded_mcp_and_a2a(
+            target=target,
+            cache_root=cache_root,
+            service=service,
+            readiness=readiness,
+        )
     )
     registry = build_flag_registry()
     # Operator override path: ``PI_OPEN_WEBUI_ADAPTER=0`` flips the flag off;
@@ -701,11 +873,17 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         port=args.port,
         readiness=lambda: readiness.is_ready(),
         openai_compat=shim,
+        mcp_server=mcp_server,
+        skill_plane=skill_plane,
+        a2a_adapter=a2a_adapter,
+        agent_card=agent_card,
     )
     print(json.dumps({
         "status": "listening",
         "url": f"http://{args.host}:{args.port}",
         "target": str(target),
+        "ready": readiness.is_ready(),
+        "mcp_endpoint": f"http://{args.host}:{args.port}/mcp",
     }), flush=True)
     try:
         server.serve_forever()
@@ -714,6 +892,154 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     finally:
         server.stop()
     return 0
+
+
+def _cmd_mcp_serve(args: argparse.Namespace) -> int:
+    """Serve the §36 MCP tool and §38 skill distribution surface over stdio or HTTP."""
+    from ..adapters.ui import build_ui_service
+
+    target = Path(getattr(args, "target", Path.cwd())).resolve()
+    cache_root = _resolve_cache_root(args)
+    auto_hydrate = os.environ.get("PI_AUTO_HYDRATE", "1") != "0"
+    service, readiness = build_ui_service(
+        repo_root=target,
+        cache_root=cache_root,
+        hydrate_on_start=auto_hydrate,
+    )
+    debug_flag = True if getattr(args, "debug", False) else None
+    mcp_server, skill_plane, a2a_adapter, agent_card = (
+        _build_embedded_mcp_and_a2a(
+            target=target,
+            cache_root=cache_root,
+            service=service,
+            readiness=readiness,
+            debug_mode=debug_flag,
+        )
+    )
+    transport = getattr(args, "transport", "stdio")
+    if transport == "http":
+        from ..adapters.ui import UiHttpServer
+
+        server = UiHttpServer(
+            service,
+            host=args.host,
+            port=args.port,
+            readiness=lambda: readiness.is_ready(),
+            mcp_server=mcp_server,
+            skill_plane=skill_plane,
+            a2a_adapter=a2a_adapter,
+            agent_card=agent_card,
+        )
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:  # pragma: no cover
+            pass
+        finally:
+            server.stop()
+        return 0
+    return mcp_server.serve_stdio_fallback(skill_plane=skill_plane)
+
+
+def _cmd_a2a_serve(args: argparse.Namespace) -> int:
+    """Serve the §50 A2A HTTP transport and Agent Card."""
+    from ..adapters.a2a.http_transport import (
+        A2aHttpServer,
+        A2aHttpServerConfig,
+    )
+    from ..core.a2a import A2aAdapterCore, AgentCardBuilder
+
+    adapter = A2aAdapterCore(
+        flags_provider=lambda _: True,
+        policy_gate=lambda **_: "ALLOW",
+    )
+    card = AgentCardBuilder(
+        descriptor={
+            "name": "project-intelligence",
+            "description": "Project Intelligence Platform",
+            "version": "0.8.0",
+            "protocols": {
+                "a2a": {
+                    "supported_protocols": ("jsonrpc-2.0",),
+                    "version": "1.0",
+                }
+            },
+            "skills": [
+                {
+                    "id": "project-intelligence",
+                    "description": "Retrieval-first project intelligence",
+                    "tags": ["retrieval", "mcp", "okf"],
+                }
+            ],
+        },
+        flags_provider=lambda _: True,
+        published=True,
+    )
+    server = A2aHttpServer(
+        adapter=adapter,
+        agent_card=card,
+        config=A2aHttpServerConfig(host=args.host, port=args.port),
+        token_provider=lambda: os.environ.get("PI_UI_TOKEN") or None,
+    )
+    host, port = server.start()
+    print(json.dumps({
+        "status": "listening",
+        "url": f"http://{host}:{port}",
+        "agent_card": f"http://{host}:{port}/.well-known/agent-card.json",
+        "tasks_send": f"http://{host}:{port}/a2a/v1/tasks:send",
+    }), flush=True)
+    try:
+        while True:
+            time.sleep(1.0)
+    except KeyboardInterrupt:  # pragma: no cover
+        pass
+    finally:
+        server.stop()
+    return 0
+
+
+def _cmd_package_plugins(args: argparse.Namespace) -> int:
+    """Generate the four deterministic vendor plugin bundles (§41–§45)."""
+    from ..adapters.agent_integration.packagers.codex import ReleaseInputSet
+    from ..adapters.agent_integration.packagers.runner import (
+        DeterministicBuildRunner,
+    )
+    from ..core.agent_integration.supply_chain_gate import (
+        PluginSupplyChainSecurityGate,
+    )
+
+    skills_root = args.skills_root or _resolve_skills_root()
+    if skills_root is None or not (skills_root / "project-intelligence" / "SKILL.md").is_file():
+        print(json.dumps({
+            "ok": False,
+            "error": f"canonical skill not found under {skills_root!r}",
+        }), file=sys.stderr)
+        return 2
+    skill_md = skills_root / "project-intelligence" / "SKILL.md"
+    skill_sha = hashlib.sha256(skill_md.read_bytes()).hexdigest()
+    release = ReleaseInputSet(
+        skill_version="1.0.0",
+        skill_sha256=skill_sha,
+        mcp_api_range=">=1.3.0 <2.0.0",
+        license="Apache-2.0",
+        server_version="0.8.0",
+        mcp_endpoint="http://127.0.0.1:8765/mcp",
+        okf_profile_versions=("0.2",),
+        source_repository="https://github.com/Shkirmantsev/ProjectExpert",
+    )
+    output_root = Path(args.output_root).resolve()
+    runner = DeterministicBuildRunner(
+        skills_root=skills_root,
+        gate=PluginSupplyChainSecurityGate(),
+    )
+    result = runner.build(release, output_root=output_root)
+    inventory = runner.combined_inventory(result)
+    print(json.dumps({
+        "ok": True,
+        "output_root": str(output_root),
+        "vendors": sorted(result.verdicts.keys()),
+        "files_generated": len(inventory),
+        "shared_release_identity": dict(result.shared_release_identity),
+    }, indent=2))
     return 0
 
 
@@ -864,27 +1190,16 @@ def _cmd_invariants(args: argparse.Namespace) -> int:
 def _cmd_eval_retrieval(args: argparse.Namespace) -> int:
     """Run the v0.8 Tier-3 retrieval evaluation.
 
-    Imports the script-level helpers from
-    ``scripts/eval_retrieval.py`` so the CLI shares the same
-    serialisation + atomic-write contract as the standalone
-    command. Operators can also invoke the script directly.
+    Uses :mod:`pi_platform.core.eval.tier3_commands` directly so the
+    command runs inside the standalone container without requiring the
+    host ``scripts/`` directory.
     """
-    import importlib.util as _ilu
-    script_path = Path(__file__).resolve().parents[2] / (
-        "scripts/eval_retrieval.py"
-    )
-    spec = _ilu.spec_from_file_location("_eval_retrieval_cli", script_path)
-    if spec is None or spec.loader is None:
-        print(json.dumps({
-            "error": "could not load scripts/eval_retrieval.py",
-        }), file=sys.stderr)
-        return 2
-    module = _ilu.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    from ..core.eval import tier3_commands as _tier3
+
     baseline_path = None if args.no_baseline else args.baseline
     out_path = args.out or Path("evals/reports/tier3_retrieval.json")
     try:
-        payload = module.run_eval(
+        payload = _tier3.run_eval(
             golden_path=args.golden,
             corpus_root=args.corpus_root,
             out_path=out_path,
@@ -909,26 +1224,15 @@ def _cmd_eval_retrieval(args: argparse.Namespace) -> int:
 def _cmd_eval_chunk_size_sweep(args: argparse.Namespace) -> int:
     """Run the v0.8 Tier-3 chunk-size sweep.
 
-    Imports the script-level helpers from
-    ``scripts/eval_chunk_size_sweep.py`` so the CLI shares
-    the same serialisation + atomic-write contract as the
-    standalone command.
+    Uses :mod:`pi_platform.core.eval.tier3_commands` directly so the
+    command runs inside the standalone container without requiring the
+    host ``scripts/`` directory.
     """
-    import importlib.util as _ilu
-    script_path = Path(__file__).resolve().parents[2] / (
-        "scripts/eval_chunk_size_sweep.py"
-    )
-    spec = _ilu.spec_from_file_location("_eval_sweep_cli", script_path)
-    if spec is None or spec.loader is None:
-        print(json.dumps({
-            "error": "could not load scripts/eval_chunk_size_sweep.py",
-        }), file=sys.stderr)
-        return 2
-    module = _ilu.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    from ..core.eval import tier3_commands as _tier3
+
     out_path = args.out or Path("evals/reports/chunk_size_sweep.json")
     try:
-        payload = module.run_chunk_size_sweep(
+        payload = _tier3.run_chunk_size_sweep(
             golden_path=args.golden,
             corpus_root=args.corpus_root,
             out_path=out_path,
@@ -1138,6 +1442,9 @@ _DISPATCH = {
     "wal-recover": _cmd_wal_recover,
     "health": _cmd_health,
     "serve": _cmd_serve,
+    "mcp-serve": _cmd_mcp_serve,
+    "a2a-serve": _cmd_a2a_serve,
+    "package-plugins": _cmd_package_plugins,
     "ingest-sources": _cmd_ingest_sources,
     "runtime-status": _cmd_runtime_status,
     "graph-rebuild": _cmd_graph_rebuild,

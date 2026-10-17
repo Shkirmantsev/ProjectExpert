@@ -112,7 +112,17 @@ function Start-Profile {
     Write-Log "port:     $env:PI_CONTROL_PORT"
     Push-Location $ProjectRoot
     try {
-        & $ComposeCmd --profile $env:PI_PROFILE up -d --build
+        $containerfile = Join-Path $ProjectRoot 'Containerfile'
+        if (($env:PI_PULL_ONLY -eq '1') -or (-not (Test-Path -LiteralPath $containerfile))) {
+            & $ComposeCmd --profile $env:PI_PROFILE up -d
+        } elseif ($env:PI_BUILD -eq '1') {
+            & $ComposeCmd --profile $env:PI_PROFILE up -d --build
+        } else {
+            & $ComposeCmd --profile $env:PI_PROFILE up -d
+            if ($LASTEXITCODE -ne 0) {
+                & $ComposeCmd --profile $env:PI_PROFILE up -d --build
+            }
+        }
     } finally {
         Pop-Location
     }

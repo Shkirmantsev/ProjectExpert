@@ -32,17 +32,26 @@ RUN apt-get update \
 
 WORKDIR /opt/project-intelligence
 
-# Phase 9 ships the full platform package plus the UI assets and the OKF
-# compatibility profile. Bundling project Wiki content is explicitly forbidden
-# (Block D2 anti-goals); the profile and template only are copied.
+# Phase 9 ships the full platform package plus the UI assets, canonical Agent
+# Skill, evaluation corpora, and the OKF compatibility profile. Bundling
+# project Wiki content or development harness files is explicitly forbidden
+# (Block D2 anti-goals); only product runtime artefacts are copied.
+LABEL org.opencontainers.image.title="Project Intelligence Platform" \
+      org.opencontainers.image.description="Portable, version-aware project intelligence platform (REST, UI, MCP, A2A, OKF v0.2)" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/Shkirmantsev/ProjectExpert"
+
 COPY pyproject.toml ./pyproject.toml
 COPY README.md ./README.md
 COPY pi_platform ./pi_platform
 COPY distribution/okf-profile ./distribution/okf-profile
+COPY distribution/skills ./distribution/skills
 COPY distribution/licenses ./distribution/licenses
 COPY distribution/sbom ./distribution/sbom
+COPY evals ./evals
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir . \
+    && python -m pi_platform.cli package-plugins --output-root /opt/project-intelligence/distribution
 
 # Phase 4 retrieval opt-in dependencies. The default image ships
 # without the heavy multilingual sentence-transformer stack so the

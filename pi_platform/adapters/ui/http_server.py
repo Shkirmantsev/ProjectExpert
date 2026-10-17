@@ -77,6 +77,10 @@ class UiHttpServer:
         readiness: Optional[Callable[[], bool]] = None,
         actor: Optional[UiActor] = None,
         openai_compat: Optional[Any] = None,
+        mcp_server: Optional[Any] = None,
+        skill_plane: Optional[Any] = None,
+        a2a_adapter: Optional[Any] = None,
+        agent_card: Optional[Any] = None,
     ) -> None:
         self.service = service
         self.host = host
@@ -85,6 +89,10 @@ class UiHttpServer:
         self.static_root = Path(static_root) if static_root else STATIC_ROOT
         self._readiness = readiness or (lambda: False)
         self.openai_compat = openai_compat
+        self.mcp_server = mcp_server
+        self.skill_plane = skill_plane
+        self.a2a_adapter = a2a_adapter
+        self.agent_card = agent_card
         self.actor = actor or UiActor(
             actor_type="human",
             actor_id=os.environ.get("PI_UI_ACTOR_ID", "operator"),
@@ -200,6 +208,32 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 status, body = server.openai_compat.handle(path)
                 self._send(HTTPStatus(status), body)
                 return
+            if path in ("/mcp", "/mcp/") and server.mcp_server is not None:
+                if not self._authorised():
+                    self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
+                    return
+                resources = (
+                    list(server.skill_plane.list_resources())
+                    if server.skill_plane is not None
+                    else []
+                )
+                self._send(
+                    HTTPStatus.OK,
+                    {
+                        "protocol": "mcp-jsonrpc-2.0",
+                        "server": dict(server.mcp_server._context.server_identity),
+                        "tools": list(server.mcp_server.tool_names),
+                        "resources": resources,
+                    },
+                )
+                return
+            if path == "/.well-known/agent-card.json" and server.agent_card is not None:
+                if not server.agent_card.is_published():
+                    self._send(HTTPStatus.NOT_FOUND, {"error": "not found", "path": path})
+                    return
+                card = server.agent_card.build_agent_card()
+                self._send(HTTPStatus.OK, card.as_dict())
+                return
             if path == "/health":
                 self._send(HTTPStatus.OK, {"status": "ok", "ready": bool(server._readiness())})
                 return
@@ -226,6 +260,23 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                     return
                 status, body = server.openai_compat.handle(path, self._body())
                 self._send(HTTPStatus(status), body)
+                return
+            if path in ("/mcp", "/mcp/") and server.mcp_server is not None:
+                if not self._authorised():
+                    self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
+                    return
+                body = self._body()
+                response = server.mcp_server.handle_jsonrpc(
+                    body, skill_plane=server.skill_plane,
+                )
+                self._send(HTTPStatus.OK, response)
+                return
+            if path == "/a2a/v1/tasks:send" and server.a2a_adapter is not None:
+                if not self._authorised():
+                    self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
+                    return
+                status, payload = _handle_a2a_post(server, self, self._body())
+                self._send(status, payload)
                 return
             if not path.startswith("/api/v1/"):
                 self._send(HTTPStatus.NOT_FOUND, {"error": "not found", "path": path})
@@ -309,3 +360,52 @@ def _post_route(
             ),
         )
     raise NotImplementedError(f"no such route: POST {path}")
+
+
+def _handle_a2a_post(
+    server: UiHttpServer, handler: BaseHTTPRequestHandler, body: dict
+) -> tuple[HTTPStatus, Any]:
+    from pi_platform.adapters.a2a.envelope import (
+        parse_task_envelope,
+        serialise_task_result,
+    )
+    from pi_platform.ports.a2a import (
+        A2aError,
+        A2aForbidden,
+        A2aLimitExceeded,
+        A2aUnauthorized,
+        A2aUnsupported,
+        A2aVersionIncompatible,
+    )
+
+    if not body:
+        return HTTPStatus.BAD_REQUEST, {"error": "invalid A2A envelope"}
+    try:
+        task = parse_task_envelope(body)
+    except A2aVersionIncompatible as exc:
+        return HTTPStatus.GONE, {"error": "version-incompatible", "detail": str(exc)}
+    except (ValueError, A2aError) as exc:
+        return HTTPStatus.BAD_REQUEST, {"error": "invalid-envelope", "detail": str(exc)}
+
+    try:
+        result = server.a2a_adapter.invoke(
+            actor={
+                "id": handler.headers.get("X-Actor-Id", server.actor.actor_id),
+                "capabilities": {
+                    "mcp.invoke": True,
+                    "a2a.invoke": True,
+                    "agent.delegate": False,
+                },
+            },
+            task=task,
+        )
+    except A2aForbidden:
+        return HTTPStatus.FORBIDDEN, {"error": "forbidden"}
+    except A2aUnauthorized:
+        return HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"}
+    except A2aLimitExceeded:
+        return HTTPStatus.TOO_MANY_REQUESTS, {"error": "limit-exceeded"}
+    except A2aUnsupported:
+        return HTTPStatus.NOT_FOUND, {"error": "unsupported"}
+
+    return HTTPStatus.OK, json.loads(serialise_task_result(result))

@@ -822,6 +822,181 @@ class McpServer:
     async def list_tools(self) -> Sequence[str]:
         return self.tool_names
 
+    async def handle_jsonrpc_async(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        skill_plane: Optional[Any] = None,
+    ) -> dict[str, Any]:
+        """Stdlib JSON-RPC 2.0 MCP dispatcher.
+
+        Allows both the embedded HTTP server (`POST /mcp`) and the
+        stdlib stdio fallback (`mcp-serve --transport stdio`) to serve
+        the full §36 tool surface and §38 skill distribution plane
+        without requiring the optional third-party ``mcp`` SDK.
+        """
+        req_id = payload.get("id")
+        method = str(payload.get("method") or "")
+        params = payload.get("params")
+        if not isinstance(params, Mapping):
+            params = {}
+
+        if method == "initialize":
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "protocolVersion": str(
+                        params.get("protocolVersion") or "2024-11-05"
+                    ),
+                    "serverInfo": dict(self._context.server_identity),
+                    "capabilities": {
+                        "tools": {"listChanged": False},
+                        "resources": {"listChanged": False},
+                    },
+                },
+            }
+        if method in ("notifications/initialized", "initialized", "ping"):
+            return {"jsonrpc": "2.0", "id": req_id, "result": {}}
+        if method == "tools/list":
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "tools": [
+                        {
+                            "name": name,
+                            "description": name.replace("_", " "),
+                            "inputSchema": {"type": "object"},
+                        }
+                        for name in self.tool_names
+                    ]
+                },
+            }
+        if method == "tools/call":
+            tool_name = str(params.get("name") or "")
+            arguments = params.get("arguments")
+            if not isinstance(arguments, Mapping):
+                arguments = {}
+            outcome = await self.call_tool(tool_name, arguments)
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(outcome, sort_keys=True),
+                        }
+                    ],
+                    "structuredContent": dict(outcome),
+                    "isError": not bool(outcome.get("ok", True)),
+                },
+            }
+        if method == "resources/list":
+            resources = (
+                [
+                    {"uri": uri, "name": uri}
+                    for uri in skill_plane.list_resources()
+                ]
+                if skill_plane is not None
+                else []
+            )
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {"resources": resources},
+            }
+        if method == "resources/read":
+            uri = str(params.get("uri") or "")
+            if skill_plane is None:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {
+                        "code": -32002,
+                        "message": f"resource plane unavailable for {uri!r}",
+                    },
+                }
+            try:
+                raw = skill_plane.read_resource(uri)
+                return {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "result": {
+                        "contents": [
+                            {
+                                "uri": uri,
+                                "text": raw.decode("utf-8", errors="replace"),
+                            }
+                        ]
+                    },
+                }
+            except Exception as exc:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32002, "message": str(exc)},
+                }
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {
+                "code": -32601,
+                "message": f"Method not found: {method!r}",
+            },
+        }
+
+    def handle_jsonrpc(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        skill_plane: Optional[Any] = None,
+    ) -> dict[str, Any]:
+        """Synchronous wrapper around :meth:`handle_jsonrpc_async`."""
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(
+                self.handle_jsonrpc_async(payload, skill_plane=skill_plane)
+            )
+        finally:
+            loop.close()
+
+    def serve_stdio_fallback(
+        self,
+        *,
+        in_stream: Any = None,
+        out_stream: Any = None,
+        skill_plane: Optional[Any] = None,
+    ) -> int:
+        """Run a line-delimited JSON-RPC 2.0 MCP loop using the Python stdlib."""
+        import sys
+
+        reader = in_stream if in_stream is not None else sys.stdin
+        writer = out_stream if out_stream is not None else sys.stdout
+        for raw_line in reader:
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                payload = json.loads(line)
+                if not isinstance(payload, Mapping):
+                    raise ValueError("JSON-RPC request must be an object")
+            except ValueError as exc:
+                err_resp = {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32700, "message": f"Parse error: {exc}"},
+                }
+                writer.write(json.dumps(err_resp, sort_keys=True) + "\n")
+                writer.flush()
+                continue
+            response = self.handle_jsonrpc(payload, skill_plane=skill_plane)
+            if payload.get("id") is not None or "error" in response:
+                writer.write(json.dumps(response, sort_keys=True) + "\n")
+                writer.flush()
+        return 0
+
     async def serve(self, transport: str = "stdio") -> None:
         """Boot the MCP server with the requested transport.
 

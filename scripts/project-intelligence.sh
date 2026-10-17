@@ -89,7 +89,14 @@ start_profile() {
   log "target:   ${TARGET_REPO}"
   log "profile:  ${PROFILE}"
   log "port:     ${PI_CONTROL_PORT}"
-  ( cd "$PROJECT_ROOT" && $COMPOSE_CMD --profile "$PROFILE" up -d --build )
+  if [ "${PI_PULL_ONLY:-0}" = "1" ] || [ ! -f "${PROJECT_ROOT}/Containerfile" ]; then
+    ( cd "$PROJECT_ROOT" && $COMPOSE_CMD --profile "$PROFILE" up -d )
+  elif [ "${PI_BUILD:-0}" = "1" ]; then
+    ( cd "$PROJECT_ROOT" && $COMPOSE_CMD --profile "$PROFILE" up -d --build )
+  else
+    ( cd "$PROJECT_ROOT" && $COMPOSE_CMD --profile "$PROFILE" up -d ) || \
+      ( cd "$PROJECT_ROOT" && $COMPOSE_CMD --profile "$PROFILE" up -d --build )
+  fi
 }
 
 # ---- duty: wait-readiness -------------------------------------------------

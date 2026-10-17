@@ -1,0 +1,56 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "The product (pi_platform, Containerfile, docker-compose.yml, distribution/, evals/) must remain strictly separated from the development harness (harness.py, infra/, tools/mcp/project-context-mcp, .ai/, .agents/)."
+  ],
+  "decisions": [
+    "Implemented .github/workflows/publish-oci-container.yml to verify product gates, build Containerfile, smoke-test the standalone container, and publish OCI images to ghcr.io on dev/development merges without coupling to the development harness",
+    "Made the standalone OCI container self-contained with auto-hydration/reconciliation (failing closed on error), persisted readiness, real SQLite/BM25/graph/freshness projections, embedded MCP HTTP/stdio JSON-RPC, A2A routes, plugin packaging, and packaged eval corpora"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Update OpenSpec and start session state",
+      "Update Containerfile, docker-compose.yml, launchers, and pi_platform runtime/CLI/UI/MCP wiring",
+      "Create .github/workflows/publish-oci-container.yml for dev/development merges",
+      "Add unit/smoke tests and run deepseek-verify and harness check"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-17T11:51:09+00:00",
+    "id": "add-oci-container-pipeline-and-standalone-runtime",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-17T19:44:43+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "GitHub Actions workflow builds, verifies, and pushes OCI container image to GHCR on push/merge to dev/development; docker-compose.yml defaults to GHCR OCI image and works with zero harness coupling; Containerfile includes all runtime assets (pi_platform, distribution, evals) and excludes harness; serve auto-hydrates/reconciles target repo and exposes MCP/A2A/UI; CLI supports mcp-serve and a2a-serve; all tests and harness checks pass"
+    ],
+    "goal": "Add GitHub Actions OCI container pipeline triggered on merge to development/dev and make the container/docker-compose self-contained with all platform capabilities without mixing in the development harness",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "python harness.py check: PASS (84 test modules + MCP core + OpenSpec strict + Wiki validate + artifact manifest)",
+      "deepseek-verify: PASS (real Docker build + docker compose smoke verification + fail-closed readiness regression)"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
