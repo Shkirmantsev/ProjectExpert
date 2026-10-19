@@ -151,7 +151,7 @@ adc49fe9b1dcf46dc1f73b793ff82d8b82e9c7254d747c237b859d134458dba9  ./.agents/skil
 35be0bd730d77e16dc136f3b79a157a6070c9ba76bd518132ca64fc23090be90  ./.agents/skills/skill-router/SKILL.md
 c300165055b21547fbed81cf36a3c90dcebd5cd7bf414c294fd398253f00f5ad  ./.agents/skills/verification/SKILL.md
 1cb3dbc9073877d81670583f73c504ba766a72c54029142f5176d9f2d499bb82  ./.ai/AGENTS.md
-aed5d51477283206870f16071646243ced4bbfdc35a004650ce80207e6aa853d  ./.ai/wiki/INDEX.md
+01e8a5465b7b7cdb4e6583eda006b5cfb5c4d6556d078087561193a676ff7c4c  ./.ai/wiki/INDEX.md
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./.ai/wiki/adr/.gitkeep
 83797baac248dd2d54c130fa811e08d67d240cff59686ffe190c0bc4e27d3d5c  ./.ai/wiki/adr/0001-separate-core-and-integration-skill-ownership.md
 4130d43da2e7c61504e7ccd2c58f0c3b1bf54ccc9e29a38a8973683a64a737b2  ./.ai/wiki/adr/0002-canonical-runtime-separation.md
@@ -215,6 +215,7 @@ aebfe8772454446d88ac9f6485e5dae4638acdedd914b21530ceb304aa91c1b5  ./.ai/wiki/int
 4b3723a4a6644d5b4a9bf0e1424d0228df17e8c73af82d9daf446f169230d294  ./.ai/wiki/interfaces/licensing.md
 46904ee297f40063638124db741e481a310135890ae3d3609200bce9697fe657  ./.ai/wiki/interfaces/local-contextualizer.md
 ec5f9034b20a969c6bb6a8d5902a14691f4ffc365a0b55095334c630693afd10  ./.ai/wiki/interfaces/mcp-tools.md
+d42412517ca72b68c46622830805d813c7b91cd68f706af9e79e59c652b89987  ./.ai/wiki/interfaces/one-command-ux.md
 6d9afec45b048fb96d0ba09b9ece5cdfbc792807709bfe3418f65d9decbd7ccc  ./.ai/wiki/interfaces/plugin-distribution.md
 e10d762b74bb05a2ba23ed0becb6126c3c3b989d2c5a6164056d1a48f536d6bb  ./.ai/wiki/interfaces/plugin-supply-chain.md
 1ca5cef3d2214896b6d5bf5228e62427c4df84e0d0656055e51712f422cb2af9  ./.ai/wiki/interfaces/policy-engine.md
@@ -230,7 +231,7 @@ f645683d86c8988ad15498d253d4130cbff42cd4c54330ec29bb663ac5db21b0  ./.ai/wiki/int
 10df4f1411c743bb011852690861e7eed73f1c784d705b668ad112f0910d97ab  ./.ai/wiki/interfaces/skill-distribution.md
 2c1b4c56fa47886f7ea0929ebbed2a6b4ac43556f5e0786c318917d5aa16613f  ./.ai/wiki/interfaces/source-adapters.md
 7d0998662e329e995f483dd0324c13218ea8accdaa7b181577ee2925840c86d9  ./.ai/wiki/interfaces/sparse-index.md
-3b4cd3cde20b8825a2f1dca3eb73f6a553090414fdd4bfce523555601788d41d  ./.ai/wiki/interfaces/sync.md
+f8edd7cdb2fb79fb43418f0a38b46a5dce0b48587f0fb354cf559e400990cf2a  ./.ai/wiki/interfaces/sync.md
 5ba9020effe570e6c51f40ddfc738907b1deb329d67dc032281c0394559d8588  ./.ai/wiki/interfaces/tokenizer.md
 543771bc94fbec5f39864ee5e930800ae6c60726c4caa22746bc92289e7e8745  ./.ai/wiki/interfaces/trusted-approval-boundary.md
 b06a8623c0c7ccee1cce813491f51602bcbdcd403c4a19c160f477033e9a9951  ./.ai/wiki/interfaces/ui-extension.md
@@ -244,13 +245,14 @@ df4e4ddd773d6740bb583b271c6ab602d8cba1402999e1e50ee3faf0943c6fb7  ./.ai/wiki/mod
 3583b08da7c2ae4b1d4d7eff01431fc20deff1041205956d3abef3c5e542bf3b  ./.ai/wiki/modules/agent-integration.md
 15d3eea73ba14505d98ee931f1cf7a231463c6fad2ccdb7c3fe3969be9f3e26e  ./.ai/wiki/modules/audit-log.md
 c05aa0534cb933ba33792b46fb5419485b30b90ddf54be93d4b795b16b2a64cc  ./.ai/wiki/modules/context-assembler.md
+ddf2b57975a3a58bb8fecece9ef45b481879eb39a687c86fb910c1be0d922d1c  ./.ai/wiki/modules/docling-binding.md
 7ddcee601d6327caa8bc7cab7389a17835617905d1ed82027f63d543fd5dc2b4  ./.ai/wiki/modules/embeddings.md
 0ad3ac5cb9415275f31f5046cc7cc84bb93d2ed35732276e612a4fb9a2ddd731  ./.ai/wiki/modules/eval.md
 f616c0166928d683645645044650b283cf2916fa435de8a5696f1f114587bd88  ./.ai/wiki/modules/feature-flags.md
 4f1ee8ace0695316153f3d77970540434e250407da13bcbf6d98cd76b163403e  ./.ai/wiki/modules/graph.md
 6a776f5dc6d8160cc929a25a507066a20c868785a5f6b7e81a6836e50241b181  ./.ai/wiki/modules/hooks.md
 df9f2dc4ea1d0503d5514ae85efd0769e796ebfb2307c4d308c6997e86a163a5  ./.ai/wiki/modules/host-embedding-accelerator.md
-927c4a2444539498eb31eea8e5b50d178d0c93a0f3d528e490d84534ad1ad067  ./.ai/wiki/modules/ingest.md
+c50e8ab3f04df5870cded4c0b3657c78fe358062c7fa47f892ccc52fc782c4ac  ./.ai/wiki/modules/ingest.md
 32b6a56f4515e8dbf5a3a828504a616c57c577b526e7afcd7745730c7fcc5ecd  ./.ai/wiki/modules/llm-port.md
 24760049eae1d421984517af79622c494de1c166ef1267b85b96be143ba0d769  ./.ai/wiki/modules/mcp-server.md
 5e42db2c98bf5cd082a28dd1210319809246b0aa49c6441fa9f809fdac318620  ./.ai/wiki/modules/orchestrator.md
@@ -258,8 +260,9 @@ df9f2dc4ea1d0503d5514ae85efd0769e796ebfb2307c4d308c6997e86a163a5  ./.ai/wiki/mod
 8dece01cfc460cc9055dbcd1e4b709dca7c0248742d5d08a23fc6c698e6a87d0  ./.ai/wiki/modules/plugin-packagers.md
 68dfdcbed7416c27e4d362990337c679a96ba5f943802fc00ed6b01d2533baec  ./.ai/wiki/modules/policy-engine.md
 029edc173e848723ee8f2f61729c06422bb157d1caf200534685ade8d4ccca2e  ./.ai/wiki/modules/registry.md
+0cf4e3754d6be69d57ea5735f60fe496590719280a54819083d200526845e897  ./.ai/wiki/modules/release-gate.md
 f432dac75ce3a69c5fc1c172ce82287a4eef2c37056cf4cfec8ba2fcb6acd22c  ./.ai/wiki/modules/retrieval-trace.md
-700b7cd4e8acb504fc0118a773c56bfa1a5a34da18373c96844aa60b5cbb7332  ./.ai/wiki/modules/retrieval.md
+d1286c747718124e87809e2aa0814bd6a54793a6a54e185f05c406e69e7d00e6  ./.ai/wiki/modules/retrieval.md
 a0916759fe4bbec1039b631d790f77bbde1f89dbad83455aa396b4b4475825f4  ./.ai/wiki/modules/runtime-store.md
 ad362157070b22781a6a1c65b4bdc14fa9b2893fc776d2e75f1f8330aff946a6  ./.ai/wiki/modules/secret-provider.md
 70164a988bf6216f5e624d1eb42e187ec5da192a49cca0fcd963565bf190939b  ./.ai/wiki/modules/security.md
