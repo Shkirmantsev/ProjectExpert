@@ -53,3 +53,9 @@ worktrees/
 .opencode/skills/session-checkpoint/
 .opencode/skills/skill-router/
 .opencode/skills/verification/
+
+# Local Python virtualenv used for protobuf-only additions
+.venv/
+# Personal analysis notes (not part of the project source)
+PROJECT_ANALYSIS*.md
+ProjectExpert-*.md
