@@ -312,6 +312,52 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     sub.add_parser("--help", help="show this help message and exit")
+
+    # One-command production UX (open spec change PR 11, plan §15–§18).
+    start = sub.add_parser(
+        "start",
+        help="one-command production bootstrap (settings → wizard → retrieval runtime)",
+    )
+    start.add_argument("--target", type=Path, default=Path("."),
+                       help="target repository root (default: current directory)")
+    start.add_argument("--model", choices=("gemma", "qwen"), default="gemma",
+                       help="embedding model alias (gemma → google/embeddinggemma-2)")
+    start.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto",
+                       help="execution device (default: auto)")
+
+    models = sub.add_parser(
+        "models",
+        help="manage the production embedding models (list/status/pull/verify/use)",
+    )
+    models_sub = models.add_subparsers(dest="models_command", required=True)
+    models_list = models_sub.add_parser(
+        "list", help="list the production-enabled models from the licence record",
+    )
+    models_list.add_argument("--target", type=Path, default=Path("."),
+                             help="target repository root used to locate distribution/")
+    models_status = models_sub.add_parser(
+        "status", help="print the active model profile",
+    )
+    models_status.add_argument("--target", type=Path, default=Path("."),
+                               help="target repository root (default: current directory)")
+    models_pull = models_sub.add_parser(
+        "pull", help="download a model into the local Hugging Face cache",
+    )
+    models_pull.add_argument("alias", type=str,
+                             help="model alias (gemma|qwen) or Hugging Face model id")
+    models_verify = models_sub.add_parser(
+        "verify", help="verify the model files exist in the local Hugging Face cache",
+    )
+    models_verify.add_argument("alias", type=str,
+                               help="model alias (gemma|qwen) or Hugging Face model id")
+    models_use = models_sub.add_parser(
+        "use", help="record the selected model alias as the active selection",
+    )
+    models_use.add_argument("alias", type=str,
+                            help="model alias (gemma|qwen) or Hugging Face model id")
+    models_use.add_argument("--target", type=Path, default=Path("."),
+                            help="target repository root (default: current directory)")
+
     return parser
 
 
@@ -1757,6 +1803,338 @@ _DISPATCH.update(
         "orchestrator-status": _cmd_orchestrator_status,
         "llm-status": _cmd_llm_status,
         "capabilities": _cmd_capabilities,
+    }
+)
+
+
+# ---------------------------------------------------------------------------
+# One-command production UX (open spec change PR 11, plan §15–§18)
+# ---------------------------------------------------------------------------
+
+
+_MODEL_VERIFY_FILES = (
+    "sentence_bert_config.json",
+    "tokenizer.json",
+    "config.json",
+)
+
+
+def _resolve_model_licenses_path(target: Optional[Path] = None) -> Optional[Path]:
+    """Locate ``distribution/licenses/model-licenses.json``."""
+
+    candidates: list[Path] = []
+    if target is not None:
+        candidates.append(Path(target).resolve() / "distribution" / "licenses"
+                          / "model-licenses.json")
+    candidates.append(Path.cwd() / "distribution" / "licenses"
+                      / "model-licenses.json")
+    platform_home = os.environ.get("PI_PLATFORM_HOME")
+    if platform_home:
+        candidates.append(Path(platform_home) / "distribution" / "licenses"
+                          / "model-licenses.json")
+    candidates.append(
+        Path(__file__).resolve().parents[2] / "distribution" / "licenses"
+        / "model-licenses.json"
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _resolve_model_alias_and_id(value: str) -> tuple[str, str]:
+    """Return ``(alias, huggingface_model_id)`` for a CLI model argument."""
+
+    from ..core.control.retrieval_settings import (
+        PRODUCTION_ALIAS_TO_MODEL_ID,
+        normalise_model_alias,
+    )
+
+    alias = normalise_model_alias(value)
+    return alias, PRODUCTION_ALIAS_TO_MODEL_ID[alias]
+
+
+def _local_hf_snapshot(model_id: str) -> Optional[Path]:
+    """Return the local Hugging Face snapshot directory for ``model_id``.
+
+    Prefers :func:`huggingface_hub.snapshot_download` in offline mode
+    and falls back to a manual scan of the documented cache layout so
+    ``models verify`` also works without the hub client installed.
+    """
+
+    try:
+        from huggingface_hub import snapshot_download
+
+        return Path(snapshot_download(model_id, local_files_only=True))
+    except Exception:  # noqa: BLE001 - fall back to the cache layout
+        pass
+    hf_home = os.environ.get("HF_HOME") or os.path.join(
+        os.path.expanduser("~"), ".cache", "huggingface",
+    )
+    hub_root = os.environ.get("HF_HUB_CACHE") or os.path.join(hf_home, "hub")
+    snapshots = Path(hub_root) / f"models--{model_id.replace('/', '--')}" / "snapshots"
+    if snapshots.is_dir():
+        directories = sorted(p for p in snapshots.iterdir() if p.is_dir())
+        if directories:
+            return directories[0]
+    return None
+
+
+def _cmd_start(args: argparse.Namespace) -> int:
+    """One-command production bootstrap (spec delta: single ``start`` command).
+
+    Sequence: load settings → first-start wizard check (skipped when
+    settings already exist) → build the single production retrieval
+    composition → print the control-plane URL.
+    """
+
+    from ..core.control.retrieval_settings import (
+        CACHE_DIR_NAME,
+        load_retrieval_settings,
+        retrieval_settings_path,
+        save_retrieval_settings,
+    )
+    from ..core.orchestration.retrieval_composition import (
+        build_production_retrieval_runtime,
+    )
+    from ..core.retrieval.first_start_wizard import FirstStartWizard
+
+    target = Path(args.target).resolve()
+    settings = load_retrieval_settings(target)
+    wizard = FirstStartWizard()
+    wizard_schema = wizard.render(target)
+    if wizard_schema.get("visible") and not retrieval_settings_path(target).exists():
+        # Fresh install: the CLI flags are the wizard form submission.
+        settings = wizard.submit({
+            "model": args.model,
+            "device": args.device,
+            "target_repo": str(target),
+        })
+        save_retrieval_settings(settings, target)
+    build_production_retrieval_runtime(
+        cache_root=target / CACHE_DIR_NAME / "indexes",
+        embedding_alias=settings.embedding_model_alias,
+        device=settings.device,
+    )
+    print("Bootstrap ready at http://127.0.0.1:8765")
+    return 0
+
+
+def _cmd_models_list(args: argparse.Namespace) -> int:
+    """Print the production-enabled models from the licence record."""
+
+    path = _resolve_model_licenses_path(getattr(args, "target", None))
+    if path is None:
+        print(json.dumps({
+            "error": "distribution/licenses/model-licenses.json not found",
+            "code": "model-licenses-not-found",
+            "details": {},
+        }), file=sys.stderr)
+        return 2
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    production = [
+        m for m in payload.get("models", []) if m.get("production_enabled")
+    ]
+    print(json.dumps({
+        "source": str(path),
+        "count": len(production),
+        "models": [
+            {
+                "model_id": m.get("model_id"),
+                "provider": m.get("provider"),
+                "revision": m.get("revision"),
+                "spdx": m.get("spdx"),
+                "profile": m.get("profile"),
+                "status": m.get("status"),
+            }
+            for m in production
+        ],
+    }, indent=2))
+    return 0
+
+
+def _cmd_models_status(args: argparse.Namespace) -> int:
+    """Print the active model profile recorded in the retrieval settings."""
+
+    from ..adapters.retrieval.embedding_model_factory import (
+        EmbeddingModelFactory,
+        StartupProfile,
+    )
+    from ..core.control.retrieval_settings import (
+        load_retrieval_settings,
+        retrieval_settings_path,
+    )
+
+    target = Path(getattr(args, "target", Path("."))).resolve()
+    settings = load_retrieval_settings(target)
+    settings_path = retrieval_settings_path(target)
+    payload = {
+        "active_alias": settings.embedding_model_alias,
+        "model_id": settings.model_id,
+        "device": settings.device,
+        "document_processing_enabled": settings.document_processing_enabled,
+        "bootstrap_state": settings.bootstrap_state,
+        "profile": StartupProfile.PRODUCTION,
+        "settings_path": str(settings_path),
+        "settings_exist": settings_path.exists(),
+    }
+    try:
+        profile = EmbeddingModelFactory(
+            startup_profile=StartupProfile.PRODUCTION,
+        ).resolve_profile(settings.embedding_model_alias)
+        payload["embedding_profile_hash"] = profile.identity()
+    except Exception as exc:  # noqa: BLE001 - status must not crash
+        payload["embedding_profile_hash"] = None
+        payload["profile_error"] = str(exc)
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_models_pull(args: argparse.Namespace) -> int:
+    """Download the selected model into the local Hugging Face cache."""
+
+    try:
+        alias, model_id = _resolve_model_alias_and_id(args.alias)
+    except ValueError as exc:
+        print(json.dumps({
+            "error": str(exc),
+            "code": "unknown-model-alias",
+            "details": {"alias": str(args.alias)},
+        }), file=sys.stderr)
+        return 2
+    try:
+        from huggingface_hub import snapshot_download
+    except ImportError as exc:
+        print(json.dumps({
+            "error": "huggingface_hub is not installed; cannot pull models",
+            "code": "model-pull-unavailable",
+            "details": {"model_id": model_id, "reason": str(exc)},
+        }), file=sys.stderr)
+        return 1
+    try:
+        path = snapshot_download(model_id)
+    except Exception as exc:  # noqa: BLE001 - surface the hub error
+        print(json.dumps({
+            "error": f"failed to pull {model_id}: {exc}",
+            "code": "model-pull-failed",
+            "details": {"alias": alias, "model_id": model_id},
+        }), file=sys.stderr)
+        return 1
+    print(json.dumps({
+        "ok": True,
+        "alias": alias,
+        "model_id": model_id,
+        "path": str(path),
+        "status": "pulled",
+    }, indent=2))
+    return 0
+
+
+def _cmd_models_verify(args: argparse.Namespace) -> int:
+    """Verify the model files exist in the local Hugging Face cache."""
+
+    try:
+        alias, model_id = _resolve_model_alias_and_id(args.alias)
+    except ValueError as exc:
+        print(json.dumps({
+            "error": str(exc),
+            "code": "unknown-model-alias",
+            "details": {"alias": str(args.alias)},
+        }), file=sys.stderr)
+        return 2
+    snapshot = _local_hf_snapshot(model_id)
+    if snapshot is None:
+        print(json.dumps({
+            "ok": False,
+            "alias": alias,
+            "model_id": model_id,
+            "cached": False,
+            "files": {name: False for name in _MODEL_VERIFY_FILES},
+            "missing": list(_MODEL_VERIFY_FILES),
+            "error": "model is not in the local Hugging Face cache; "
+                     "run `models pull` first",
+            "code": "model-not-cached",
+            "details": {"model_id": model_id},
+        }, indent=2))
+        return 1
+    presence = {
+        name: (snapshot / name).is_file() for name in _MODEL_VERIFY_FILES
+    }
+    missing = [name for name, ok in presence.items() if not ok]
+    print(json.dumps({
+        "ok": not missing,
+        "alias": alias,
+        "model_id": model_id,
+        "cached": True,
+        "path": str(snapshot),
+        "files": presence,
+        "missing": missing,
+    }, indent=2))
+    return 0 if not missing else 1
+
+
+def _cmd_models_use(args: argparse.Namespace) -> int:
+    """Record the selected model alias in the retrieval settings."""
+
+    from dataclasses import replace as _dc_replace
+
+    from ..core.control.retrieval_settings import (
+        load_retrieval_settings,
+        retrieval_settings_path,
+        save_retrieval_settings,
+    )
+
+    try:
+        alias, model_id = _resolve_model_alias_and_id(args.alias)
+    except ValueError as exc:
+        print(json.dumps({
+            "error": str(exc),
+            "code": "unknown-model-alias",
+            "details": {"alias": str(args.alias)},
+        }), file=sys.stderr)
+        return 2
+    target = Path(getattr(args, "target", Path("."))).resolve()
+    settings = load_retrieval_settings(target)
+    updated = _dc_replace(settings, embedding_model_alias=alias)
+    save_retrieval_settings(updated, target)
+    print(json.dumps({
+        "ok": True,
+        "active_alias": updated.embedding_model_alias,
+        "model_id": model_id,
+        "device": updated.device,
+        "settings_path": str(retrieval_settings_path(target)),
+        "note": "the new selection activates on the next start/reindex; "
+                "canonical Git knowledge is never rewritten",
+    }, indent=2))
+    return 0
+
+
+def _cmd_models(args: argparse.Namespace) -> int:
+    """Dispatch the ``models`` command group (list/status/pull/verify/use)."""
+
+    subcommand = getattr(args, "models_command", None)
+    handlers = {
+        "list": _cmd_models_list,
+        "status": _cmd_models_status,
+        "pull": _cmd_models_pull,
+        "verify": _cmd_models_verify,
+        "use": _cmd_models_use,
+    }
+    handler = handlers.get(subcommand)
+    if handler is None:
+        print(json.dumps({
+            "error": f"unknown models subcommand {subcommand!r}",
+            "code": "unknown-models-subcommand",
+            "details": {"allowed": sorted(handlers)},
+        }), file=sys.stderr)
+        return 2
+    return handler(args)
+
+
+_DISPATCH.update(
+    {
+        "start": _cmd_start,
+        "models": _cmd_models,
     }
 )
 
