@@ -116,7 +116,7 @@ class USearchIndexMetadataTests(unittest.TestCase):
         self.assertEqual(meta["index_schema_version"], DEFAULT_INDEX_SCHEMA_VERSION)
         self.assertEqual(meta["source_generation"], "gen-7")
         self.assertEqual(meta["vector_count"], 1)
-        self.assertEqual(meta["backend"], "usearch-stub")
+        self.assertEqual(meta["backend"], "usearch")
         self.assertEqual(meta["m"], DEFAULT_HNSW_M)
         self.assertEqual(meta["ef_construction"], DEFAULT_HNSW_EF_CONSTRUCTION)
         self.assertEqual(meta["ef_query"], DEFAULT_HNSW_EF_QUERY)
@@ -227,7 +227,7 @@ class USearchProductionStubTests(unittest.TestCase):
         idx = USearchDenseIndex(embedding_profile_hash="ph-1")
         idx.index_chunk("a", _vec([1.0, 0.0, 0.0]), {"src": "a"})
         meta = idx.read_index_meta()
-        self.assertEqual(meta["backend"], "usearch-stub")
+        self.assertEqual(meta["backend"], "usearch")
         self.assertEqual(meta["embedding_profile_hash"], "ph-1")
 
 

@@ -106,11 +106,22 @@ class EmbeddingProfileIdentityTests(unittest.TestCase):
             HASHING_DEFAULT.identity(), QWEN3_EMBEDDING_0_6B_1024.identity()
         )
 
-    def test_non_hashing_profiles_use_pinned_stub_revision(self):
-        # The operator replaces this placeholder with a real revision
-        # when the model weights are bound (follow-up C.1.5).
-        self.assertEqual(EMBEDDINGGEMMA2_512.model_revision, "pinned-stub")
-        self.assertEqual(QWEN3_EMBEDDING_0_6B_1024.model_revision, "pinned-stub")
+    def test_non_hashing_profiles_use_pinned_real_revision(self):
+        # The operator replaces the original ``pinned-stub``
+        # placeholder with the real immutable revision once the
+        # model weights are bound (open spec change PR 3 + PR 4).
+        # The revision MUST be the documented immutable SHA, NOT
+        # the placeholder, when production is enabled.
+        self.assertEqual(
+            EMBEDDINGGEMMA2_512.model_revision,
+            "914f7f89142e33e77833254d9c9b90c3cef7303b",
+        )
+        self.assertEqual(
+            QWEN3_EMBEDDING_0_6B_1024.model_revision,
+            "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+        )
+        # The hashing profile is the only profile that keeps its
+        # synthetic revision marker.
         self.assertEqual(HASHING_DEFAULT.model_revision, "v1")
 
     def test_field_change_changes_identity(self):
