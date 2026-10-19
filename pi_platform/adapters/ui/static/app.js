@@ -187,4 +187,38 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     }
   }
+
+  // ---- First-start wizard & semantic model administration ---------------
+  var wizardForm = document.getElementById("wizard-form");
+  if (wizardForm) {
+    call("GET", API + "/admin/retrieval").then(function (settings) {
+      if (settings && settings.embedding_model_alias) {
+        document.getElementById("embedding-model-select").value = settings.embedding_model_alias;
+      }
+      if (settings && settings.device) {
+        document.getElementById("embedding-device-select").value = settings.device;
+      }
+      if (settings && typeof settings.document_processing_enabled === "boolean") {
+        document.getElementById("docling-enabled-checkbox").checked = settings.document_processing_enabled;
+      }
+      show("wizard-result", settings);
+    }).catch(function () { /* keep default message */ });
+
+    wizardForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var payload = {
+        embedding_model_alias: document.getElementById("embedding-model-select").value,
+        device: document.getElementById("embedding-device-select").value,
+        document_processing_enabled: Boolean(document.getElementById("docling-enabled-checkbox").checked),
+        bootstrap_state: "ready"
+      };
+      run("wizard-result", function () {
+        return call("PUT", API + "/admin/retrieval", payload);
+      });
+    });
+
+    bindButton("admin-reindex-button", "wizard-result", function () {
+      return call("POST", API + "/admin/reindex", {});
+    });
+  }
 });

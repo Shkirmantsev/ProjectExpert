@@ -244,4 +244,55 @@ harness-manifest-check: manifest-check ## Alias of manifest-check.
 
 harness-clean: clean ## Alias of clean.
 
-.PHONY: run-mcp mcp-run stop-mcp mcp-stop mcp-status mcp-logs mcp-clean mcp-stdio wiki-init init-wiki check-delegated harness-init harness-init-mcp harness-mcp-install harness-client-config harness-check harness-check-delegated harness-test harness-wiki-index harness-wiki-validate harness-openspec-check harness-manifest-generate harness-manifest-check harness-clean
+.PHONY: run-mcp mcp-run stop-mcp mcp-stop mcp-status mcp-logs mcp-clean mcp-stdio wiki-init init-wiki check-delegated harness-init harness-init-mcp harness-mcp-install harness-client-config harness-check harness-check-delegated harness-test harness-wiki-index harness-wiki-validate harness-openspec-check harness-manifest-generate harness-manifest-check harness-clean \
+        pi-help pi-up pi-model pi-status pi-reindex pi-doctor pi-down
+
+# ---------------------------------------------------------------------------
+# One-command Production UX product targets (PR 11, plan §15–§18, §55–§60).
+# ---------------------------------------------------------------------------
+
+PI_TARGET ?= $(or $(TARGET),.)
+PI_MODEL ?= $(or $(MODEL),gemma)
+PI_DEVICE ?= $(or $(DEVICE),auto)
+PI_HOST ?= $(or $(HOST),127.0.0.1)
+PI_PORT ?= $(or $(PORT),8765)
+
+pi-help: ## Show the user-facing Project Intelligence product commands.
+	@echo "Project Intelligence — One-Command Product Surface:"
+	@echo "  make pi-up [TARGET=/path/to/repo] [MODEL=gemma|qwen] [DEVICE=auto|cpu|cuda] [SERVE=1]"
+	@echo "      Initialise, hydrate, discover sources, build semantic index, and start platform."
+	@echo "  make pi-model MODEL=gemma|qwen [TARGET=/path/to/repo]"
+	@echo "      Switch active embedding model and atomically activate its vector namespace."
+	@echo "  make pi-status [TARGET=/path/to/repo]"
+	@echo "      Show active embedding model, profile identity, dense index generation, and readiness."
+	@echo "  make pi-reindex [TARGET=/path/to/repo]"
+	@echo "      Run incremental source discovery, reconciliation, and index refresh."
+	@echo "  make pi-doctor [TARGET=/path/to/repo]"
+	@echo "      Run production capability gate and target repository health diagnostics."
+	@echo "  make pi-down"
+	@echo "      Stop running Project Intelligence product containers."
+
+pi-up: ## Start Project Intelligence against TARGET with MODEL (gemma|qwen) and DEVICE (auto|cpu|cuda).
+	@if [ "$(DOCKER)" = "1" ]; then \
+		PI_TARGET_REPO="$(PI_TARGET)" PI_EMBEDDING_MODEL="$(PI_MODEL)" PI_EMBEDDING_DEVICE="$(PI_DEVICE)" \
+		docker compose --profile production up -d; \
+	else \
+		$(PYTHON) -m pi_platform.cli start --target "$(PI_TARGET)" --model "$(PI_MODEL)" --device "$(PI_DEVICE)" --host "$(PI_HOST)" --port "$(PI_PORT)" $(if $(filter 1 true yes,$(SERVE)),--serve,); \
+	fi
+
+pi-model: ## Switch active embedding model (MODEL=gemma|qwen) without rewriting canonical Git knowledge.
+	@$(PYTHON) -m pi_platform.cli models use "$(PI_MODEL)" --target "$(PI_TARGET)"
+	@$(PYTHON) -m pi_platform.cli reindex --target "$(PI_TARGET)"
+
+pi-status: ## Show active model profile and retrieval index status for TARGET.
+	@$(PYTHON) -m pi_platform.cli models status --target "$(PI_TARGET)"
+	@$(PYTHON) -m pi_platform.cli retrieval-status --target "$(PI_TARGET)"
+
+pi-reindex: ## Incrementally discover sources, reconcile branch/tree state, and refresh indexes.
+	@$(PYTHON) -m pi_platform.cli reindex --target "$(PI_TARGET)"
+
+pi-doctor: ## Run production capability gate and target readiness diagnostics.
+	@$(PYTHON) -m pi_platform.cli doctor --target "$(PI_TARGET)"
+
+pi-down: ## Stop Project Intelligence production containers.
+	@docker compose --profile production down 2>/dev/null || true

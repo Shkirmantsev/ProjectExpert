@@ -44,14 +44,22 @@ services:
     build:
       context: .
       dockerfile: Containerfile
-    profiles: ["core-headless", "desktop-lite", "desktop-local-ai", "open-webui", "enterprise"]
+    profiles: ["production", "core-headless", "desktop-lite", "desktop-local-ai", "open-webui", "enterprise"]
     ports:
-      - "${PI_CONTROL_PORT:-8765}:8765"
+      - "${PI_BIND_HOST:-127.0.0.1}:${PI_CONTROL_PORT:-8765}:8765"
     volumes:
       - ${PI_TARGET_REPO:-/tmp/pitarget}:/repo:rw
+      - pi-model-cache:/models/huggingface:rw
     environment:
       <<: *common-env
       PI_TARGET_ROOT: /repo
+      PI_STARTUP_PROFILE: ${PI_STARTUP_PROFILE:-production}
+      PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-gemma}
+      PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-auto}
+      PI_DENSE_INDEX: ${PI_DENSE_INDEX:-usearch}
+      PI_DOCLING_ENABLED: ${PI_DOCLING_ENABLED:-1}
+      PI_MODEL_CACHE: ${PI_MODEL_CACHE:-/models/huggingface}
+      HF_HOME: ${PI_MODEL_CACHE:-/models/huggingface}
       # ``PI_OPENAI_BASE_URL`` is the URL the OpenAI-compatible shim uses
       # when the operator has not yet overridden it from the UI. The
       # default points at the bundled local-llm sidecar in
@@ -103,5 +111,6 @@ services:
     restart: unless-stopped
 
 volumes:
+  pi-model-cache:
   llm-models:
   open-webui-data:

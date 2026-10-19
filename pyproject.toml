@@ -23,6 +23,10 @@ dependencies = [
 [project.optional-dependencies]
 yaml = ["PyYAML>=6.0"]
 java = ["tree-sitter==0.25.2", "tree-sitter-java==0.23.5"]
+semantic-embeddings = ["torch>=2.2", "sentence-transformers>=3.0", "transformers>=4.40", "huggingface-hub>=0.23", "numpy>=1.26"]
+dense-ann = ["usearch>=2.12", "numpy>=1.26"]
+documents = ["docling>=2.0", "docling-core>=2.0"]
+production = ["PyYAML>=6.0", "torch>=2.2", "sentence-transformers>=3.0", "transformers>=4.40", "huggingface-hub>=0.23", "usearch>=2.12", "numpy>=1.26", "docling>=2.0", "docling-core>=2.0"]
 dev = ["pytest>=7.0"]
 
 [project.scripts]

@@ -128,10 +128,12 @@ def build_parser() -> argparse.ArgumentParser:
     graph_rebuild.add_argument("--cache-root", type=Path,
                                default=Path(".project-intelligence-cache/graph"))
 
-    sub.add_parser("embedding-status",
+    emb_status = sub.add_parser("embedding-status",
                    help="print the active §25 EmbeddingModelPort status")
-    sub.add_parser("retrieval-status",
+    emb_status.add_argument("--target", type=Path, default=Path("."))
+    ret_status = sub.add_parser("retrieval-status",
                    help="print the Phase 4 retrieval pipeline status")
+    ret_status.add_argument("--target", type=Path, default=Path("."))
     sub.add_parser("reranker-status",
                    help="print the active §30 RerankerPort status")
 
@@ -139,8 +141,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="print the Phase 5 §34 query orchestrator status")
     sub.add_parser("llm-status",
                    help="print the active §35 LocalLLMPort status")
-    sub.add_parser("capabilities",
+    cap_status = sub.add_parser("capabilities",
                    help="print the §47 capability discovery descriptor")
+    cap_status.add_argument("--target", type=Path, default=Path("."))
     # Phase 10 §49 + §120 quality-gates subcommands + v0.8 Tier-3 eval subcommands.
     eval_parser = sub.add_parser(
         "eval",
@@ -316,7 +319,7 @@ def build_parser() -> argparse.ArgumentParser:
     # One-command production UX (open spec change PR 11, plan §15–§18).
     start = sub.add_parser(
         "start",
-        help="one-command production bootstrap (settings → wizard → retrieval runtime)",
+        help="one-command production bootstrap (settings → wizard → discovery → index → retrieval runtime)",
     )
     start.add_argument("--target", type=Path, default=Path("."),
                        help="target repository root (default: current directory)")
@@ -324,6 +327,26 @@ def build_parser() -> argparse.ArgumentParser:
                        help="embedding model alias (gemma → google/embeddinggemma-2)")
     start.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto",
                        help="execution device (default: auto)")
+    start.add_argument("--host", default=DEFAULT_UI_HOST,
+                       help="control-plane bind host (default: 127.0.0.1)")
+    start.add_argument("--port", type=int, default=DEFAULT_UI_PORT,
+                       help="control-plane bind port (default: 8765)")
+    start.add_argument("--serve", action="store_true",
+                       help="keep the HTTP control plane running in the foreground after bootstrap")
+
+    reindex_parser = sub.add_parser(
+        "reindex",
+        help="incrementally discover, reconcile, and reindex a target repository",
+    )
+    reindex_parser.add_argument("--target", type=Path, default=Path("."),
+                                help="target repository root (default: current directory)")
+
+    doctor_parser = sub.add_parser(
+        "doctor",
+        help="run full production capability and target readiness diagnostics",
+    )
+    doctor_parser.add_argument("--target", type=Path, default=Path("."),
+                               help="target repository root (default: current directory)")
 
     models = sub.add_parser(
         "models",
@@ -458,9 +481,18 @@ def _cmd_hydrate(args: argparse.Namespace) -> int:
     with ProjectLock(_project_id(target)).acquire():
         service = HydrateService(filesystem=fs)
         report = service.restore_runtime(target, cache_root=cache_root)
+        previous_head = report.project_version.gitHead
+        readiness_file = cache_root / "readiness.json"
+        if readiness_file.is_file():
+            try:
+                prev_payload = json.loads(readiness_file.read_text(encoding="utf-8"))
+                if isinstance(prev_payload, dict) and prev_payload.get("current_head"):
+                    previous_head = str(prev_payload["current_head"])
+            except (OSError, ValueError):
+                pass
         reconcile = ReconcileService(filesystem=fs).reconcile_branch_switch(
             target,
-            previous_head=report.project_version.gitHead,
+            previous_head=previous_head,
             current_head=report.project_version.gitHead,
             cache_root=cache_root,
         )
@@ -1522,10 +1554,14 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
 
 def _cmd_embedding_status(args: argparse.Namespace) -> int:
-    """Report the active §25 EmbeddingModelPort status."""
+    """Report the active §25 EmbeddingModelPort status via resolved runtime configuration."""
 
-    from ..adapters.retrieval.hashing_embedding_model import (
-        HashingEmbeddingAdapter,
+    from ..adapters.config.runtime_configuration_resolver import (
+        LOCAL_SETTINGS_RELATIVE_PATH,
+        RuntimeConfigurationResolver,
+    )
+    from ..adapters.retrieval.embedding_model_factory import (
+        EmbeddingModelFactory,
     )
     from ..adapters.retrieval.multilingual_st_embedding_model import (
         ADAPTER_NAME as _MULTILINGUAL_NAME,
@@ -1534,11 +1570,17 @@ def _cmd_embedding_status(args: argparse.Namespace) -> int:
         MultilingualSentenceTransformerEmbeddingModel,
     )
 
-    hashing = HashingEmbeddingAdapter()
-    backend_name = "hashing"
-    model_version = hashing.model_version()
-    license_id = hashing.license_id()
-    dimension = hashing.dimension()
+    target = Path(getattr(args, "target", Path("."))).resolve()
+    cfg = RuntimeConfigurationResolver(
+        local_settings_path=target / LOCAL_SETTINGS_RELATIVE_PATH,
+    ).resolve()
+    factory = EmbeddingModelFactory(startup_profile=cfg.startup_profile)
+    adapter = factory.build(cfg.embedding_model, device=cfg.embedding_device)
+    profile = adapter.profile()
+    backend_name = cfg.embedding_model
+    model_version = adapter.model_version()
+    license_id = adapter.license_id()
+    dimension = adapter.dimension()
     try:
         MultilingualSentenceTransformerEmbeddingModel()
         multilingual_available = True
@@ -1546,6 +1588,11 @@ def _cmd_embedding_status(args: argparse.Namespace) -> int:
         multilingual_available = False
     payload = {
         "active_backend": backend_name,
+        "active_model_id": getattr(profile, "model_id", backend_name),
+        "active_model_revision": getattr(profile, "model_revision", ""),
+        "active_profile_identity": profile.identity() if profile else "",
+        "active_device": getattr(adapter, "_device", cfg.embedding_device),
+        "startup_profile": cfg.startup_profile,
         "active_model_version": model_version,
         "active_license_id": license_id,
         "active_dimension": dimension,
@@ -1554,7 +1601,7 @@ def _cmd_embedding_status(args: argparse.Namespace) -> int:
         "multilingual_default_model_id": "paraphrase-multilingual-MiniLM-L12-v2",
         "multilingual_default_license_id": DEFAULT_LICENSE_ID,
         "multilingual_expected_dimension": EXPECTED_DIMENSION,
-        "stats": dict(hashing.stats()),
+        "stats": dict(adapter.stats()),
     }
     print(json.dumps(payload, indent=2))
     return 0
@@ -1599,10 +1646,18 @@ def _cmd_reranker_status(args: argparse.Namespace) -> int:
 
 
 def _cmd_retrieval_status(args: argparse.Namespace) -> int:
-    """Report the Phase 4 retrieval pipeline status."""
+    """Report the Phase 4 & production retrieval pipeline status."""
 
+    from ..adapters.config.runtime_configuration_resolver import (
+        LOCAL_SETTINGS_RELATIVE_PATH,
+        RuntimeConfigurationResolver,
+    )
+    from ..adapters.retrieval.bm25_light_reranker import Bm25LightRerankerAdapter
     from ..adapters.retrieval.context_assembler_adapter import (
         ContextAssemblerAdapter,
+    )
+    from ..adapters.retrieval.embedding_model_factory import (
+        EmbeddingModelFactory,
     )
     from ..adapters.retrieval.hybrid_retrieval import HybridRetrievalAdapter
     from ..adapters.retrieval.identifier_query_detector import (
@@ -1611,15 +1666,44 @@ def _cmd_retrieval_status(args: argparse.Namespace) -> int:
     from ..adapters.retrieval.metadata_filter_adapter import (
         MetadataFilterAdapter,
     )
-    from ..adapters.retrieval.bm25_light_reranker import Bm25LightRerankerAdapter
     from ..adapters.runtime.graph_expansion import (
         DEFAULT_BUDGET as _PRODUCTION_GRAPH_BUDGET,
         DEFAULT_EDGE_TYPES as _PRODUCTION_GRAPH_EDGE_TYPES,
         ProductionGraphExpansion,
     )
+    from ..adapters.ui import load_persisted_readiness
     from ..core.retrieval.multi_stage_retrieval import (
         DEFAULT_BUDGETS as _DEFAULT_STAGE_BUDGETS,
     )
+    from ..core.sync.readiness import DefaultKnowledgeReadiness
+    from ..core.sync.version_snapshot import RuntimeSnapshotService
+
+    target = Path(getattr(args, "target", Path("."))).resolve()
+    cache_root = target / DEFAULT_RUNTIME_CACHE
+    cfg = RuntimeConfigurationResolver(
+        local_settings_path=target / LOCAL_SETTINGS_RELATIVE_PATH,
+    ).resolve()
+    factory = EmbeddingModelFactory(startup_profile=cfg.startup_profile)
+    profile = factory.resolve_profile(cfg.embedding_model)
+    readiness = DefaultKnowledgeReadiness()
+    load_persisted_readiness(cache_root, readiness)
+    snap_service = RuntimeSnapshotService(cache_root=cache_root)
+    persisted_snap = snap_service.read_snapshot()
+    current_generation = (
+        persisted_snap.active.active_index_generation
+        if persisted_snap is not None
+        else "unindexed"
+    )
+    vector_count = 0
+    index_count = 0
+    index_meta_path = cache_root / "indexes" / "index_meta.json"
+    if index_meta_path.is_file():
+        try:
+            meta = json.loads(index_meta_path.read_text(encoding="utf-8"))
+            vector_count = int(meta.get("vector_count", 0))
+            index_count = 1
+        except Exception:
+            pass
 
     hybrid = HybridRetrievalAdapter(
         dense_query=lambda text, k: (),
@@ -1637,6 +1721,15 @@ def _cmd_retrieval_status(args: argparse.Namespace) -> int:
         _selection_class_name = ""
         _selection_primary_top_k = 0
     payload = {
+        "active_model": cfg.embedding_model,
+        "active_model_id": profile.model_id,
+        "active_embedding_profile_identity": profile.identity(),
+        "dense_backend": cfg.dense_index,
+        "current_generation": current_generation,
+        "vector_count": vector_count,
+        "index_count": index_count,
+        "sparse_index": "bm25-sqlite",
+        "ready": readiness.is_ready(),
         "active_fusion_strategy": hybrid.fusion_strategy,
         "hybrid_level": hybrid.stats().get("level", 0),
         "identifier_detector": IdentifierQueryDetector.name,
@@ -1764,19 +1857,45 @@ def _cmd_llm_status(args: argparse.Namespace) -> int:
 
 
 def _cmd_capabilities(args: argparse.Namespace) -> int:
-    """Print the §47 capability discovery descriptor."""
+    """Print the §47 capability discovery descriptor and production capability report."""
 
+    from ..adapters.config.runtime_configuration_resolver import (
+        LOCAL_SETTINGS_RELATIVE_PATH,
+        RuntimeConfigurationResolver,
+    )
     from ..adapters.orchestration.capability_discovery import (
         DefaultCapabilityDiscoveryAdapter,
     )
     from ..adapters.orchestration.stub_local_llm import (
         StubLocalLLMAdapter,
     )
+    from ..adapters.retrieval.embedding_model_factory import (
+        EmbeddingModelFactory,
+    )
+    from ..core.orchestration.production_capability_discovery import (
+        build_production_capability_report,
+    )
 
+    target = Path(getattr(args, "target", Path("."))).resolve()
+    cfg = RuntimeConfigurationResolver(
+        local_settings_path=target / LOCAL_SETTINGS_RELATIVE_PATH,
+    ).resolve()
+    factory = EmbeddingModelFactory(startup_profile=cfg.startup_profile)
+    adapter = factory.build(cfg.embedding_model, device=cfg.embedding_device)
+    prod_report = build_production_capability_report(
+        embedding_adapter=adapter,
+        embedding_provider=cfg.embedding_model,
+        dense_backend_name=cfg.dense_index,
+        docling_enabled=cfg.docling_enabled,
+    )
     discovery = DefaultCapabilityDiscoveryAdapter(
+        retrieval=object(),
+        graph_expansion=object(),
+        materialisation=object(),
         local_llm=StubLocalLLMAdapter(),
     )
     payload = discovery.describe().as_dict()
+    payload["productionCapabilities"] = prod_report.as_dict()
     print(json.dumps(payload, indent=2))
     return 0
 
@@ -1880,44 +1999,222 @@ def _local_hf_snapshot(model_id: str) -> Optional[Path]:
     return None
 
 
-def _cmd_start(args: argparse.Namespace) -> int:
-    """One-command production bootstrap (spec delta: single ``start`` command).
-
-    Sequence: load settings → first-start wizard check (skipped when
-    settings already exist) → build the single production retrieval
-    composition → print the control-plane URL.
+def _bootstrap_and_index_target(
+    target: Path,
+    *,
+    model_alias: Optional[str] = None,
+    device: Optional[str] = None,
+) -> dict:
+    """Execute the full target bootstrap: settings → hydrate/reconcile →
+    incremental source discovery → retrieval runtime composition →
+    persisted runtime snapshot commit → readiness=True.
     """
+    from dataclasses import replace as _dc_replace
 
+    from ..adapters.ui.composition import hydrate_and_reconcile_target
     from ..core.control.retrieval_settings import (
         CACHE_DIR_NAME,
         load_retrieval_settings,
         retrieval_settings_path,
         save_retrieval_settings,
     )
+    from ..core.ingest.repository_source_discovery import (
+        RepositorySourceDiscovery,
+    )
     from ..core.orchestration.retrieval_composition import (
         build_production_retrieval_runtime,
     )
     from ..core.retrieval.first_start_wizard import FirstStartWizard
+    from ..core.sync.readiness import DefaultKnowledgeReadiness
+    from ..core.sync.version_snapshot import (
+        ManifestSnapshot,
+        PersistedActiveVersion,
+        RuntimeSnapshotService,
+        SourceSnapshot,
+        compute_snapshot_hash,
+    )
 
-    target = Path(args.target).resolve()
+    target = Path(target).resolve()
+    cache_root = target / CACHE_DIR_NAME
     settings = load_retrieval_settings(target)
     wizard = FirstStartWizard()
     wizard_schema = wizard.render(target)
     if wizard_schema.get("visible") and not retrieval_settings_path(target).exists():
-        # Fresh install: the CLI flags are the wizard form submission.
         settings = wizard.submit({
-            "model": args.model,
-            "device": args.device,
+            "model": model_alias or "gemma",
+            "device": device or "auto",
             "target_repo": str(target),
         })
-        save_retrieval_settings(settings, target)
-    build_production_retrieval_runtime(
-        cache_root=target / CACHE_DIR_NAME / "indexes",
+    elif model_alias or device:
+        settings = _dc_replace(
+            settings,
+            embedding_model_alias=model_alias or settings.embedding_model_alias,
+            device=device or settings.device,
+        )
+
+    settings = _dc_replace(settings, bootstrap_state="hydrating")
+    save_retrieval_settings(settings, target)
+
+    readiness = DefaultKnowledgeReadiness()
+    hydrate_report = hydrate_and_reconcile_target(target, cache_root, readiness)
+
+    settings = _dc_replace(settings, bootstrap_state="indexing")
+    save_retrieval_settings(settings, target)
+
+    discovery = RepositorySourceDiscovery()
+    inv_path = cache_root / "source-inventory.json"
+    prev_inv = discovery.load(inv_path)
+    fresh_inv = discovery.discover(target)
+    merged_inv, unchanged_entries, modified_entries = discovery.incremental_reuse(
+        previous_inventory=prev_inv,
+        new_inventory=fresh_inv,
+    )
+    discovery.persist(merged_inv, inv_path)
+
+    runtime = build_production_retrieval_runtime(
+        cache_root=cache_root / "indexes",
         embedding_alias=settings.embedding_model_alias,
         device=settings.device,
     )
-    print("Bootstrap ready at http://127.0.0.1:8765")
+
+    head = (
+        hydrate_report.project_version.gitHead
+        if hydrate_report is not None
+        else "unversioned"
+    )
+    fp = (
+        hydrate_report.project_version.workingTreeFingerprint
+        if hydrate_report is not None
+        else ""
+    )
+    source_hashes = {e.path: e.content_hash for e in merged_inv.entries}
+    source_ids = tuple(e.path for e in merged_inv.entries)
+    manifest_snap = ManifestSnapshot(
+        snapshot_hash=compute_snapshot_hash(source_ids),
+        chunk_ids=source_ids,
+        graph_node_ids=(),
+    )
+    source_snap = SourceSnapshot(
+        snapshot_hash=compute_snapshot_hash(
+            tuple(f"{k}:{v}" for k, v in sorted(source_hashes.items()))
+        ),
+        source_ids=source_ids,
+        content_hashes=source_hashes,
+    )
+    gen_id = f"gen-{runtime.embedding_profile_hash[:12]}-{source_snap.snapshot_hash[:12]}"
+    active_ver = PersistedActiveVersion(
+        project_version=head,
+        branch="HEAD",
+        head=head,
+        working_tree_fingerprint=fp,
+        manifest_snapshot_hash=manifest_snap.snapshot_hash,
+        source_snapshot_hash=source_snap.snapshot_hash,
+        embedding_profile_identity=runtime.embedding_profile_hash,
+        active_index_generation=gen_id,
+        last_refresh_id=f"refresh-{int(time.time())}",
+    )
+    RuntimeSnapshotService(cache_root=cache_root).commit(
+        active=active_ver,
+        manifest=manifest_snap,
+        source=source_snap,
+    )
+
+    settings = _dc_replace(settings, bootstrap_state="ready")
+    save_retrieval_settings(settings, target)
+
+    return {
+        "target": str(target),
+        "active_model": settings.embedding_model_alias,
+        "model_id": settings.model_id,
+        "device": settings.device,
+        "embedding_profile_hash": runtime.embedding_profile_hash,
+        "dense_backend": runtime.backend_name,
+        "active_index_generation": gen_id,
+        "discovered_sources": len(merged_inv.entries),
+        "unchanged_sources": len(unchanged_entries),
+        "modified_or_added_sources": len(modified_entries),
+        "ready": readiness.is_ready(),
+        "bootstrap_state": settings.bootstrap_state,
+    }
+
+
+def _cmd_start(args: argparse.Namespace) -> int:
+    """One-command production bootstrap (spec delta: single ``start`` command).
+
+    Sequence: load settings → first-start wizard check (skipped when
+    settings already exist) → hydrate & reconcile → source discovery →
+    build the single production retrieval composition → persist runtime
+    snapshot → print the control-plane URL (and optionally serve).
+    """
+
+    target = Path(args.target).resolve()
+    host = getattr(args, "host", DEFAULT_UI_HOST)
+    port = getattr(args, "port", DEFAULT_UI_PORT)
+    _bootstrap_and_index_target(
+        target,
+        model_alias=getattr(args, "model", None),
+        device=getattr(args, "device", None),
+    )
+    print(f"Bootstrap ready at http://{host}:{port}")
+    if getattr(args, "serve", False):
+        serve_args = argparse.Namespace(
+            target=target,
+            cache_root=DEFAULT_RUNTIME_CACHE,
+            host=host,
+            port=port,
+        )
+        return _cmd_serve(serve_args)
     return 0
+
+
+def _cmd_reindex(args: argparse.Namespace) -> int:
+    """Incrementally discover, reconcile, and reindex a target repository."""
+
+    target = Path(getattr(args, "target", Path("."))).resolve()
+    summary = _bootstrap_and_index_target(target)
+    print(json.dumps(summary, indent=2))
+    return 0
+
+
+def _cmd_doctor(args: argparse.Namespace) -> int:
+    """Run full production capability and target readiness diagnostics."""
+
+    from ..adapters.ui.composition import load_persisted_readiness
+    from ..core.control.retrieval_settings import (
+        CACHE_DIR_NAME,
+        load_retrieval_settings,
+        retrieval_settings_path,
+    )
+    from ..core.orchestration.production_capability_gate import (
+        run_production_capability_gate,
+    )
+    from ..core.sync.readiness import DefaultKnowledgeReadiness
+    from ..core.sync.version_snapshot import RuntimeSnapshotService
+
+    target = Path(getattr(args, "target", Path("."))).resolve()
+    cache_root = target / CACHE_DIR_NAME
+    gate = run_production_capability_gate()
+    settings = load_retrieval_settings(target)
+    readiness = DefaultKnowledgeReadiness()
+    load_persisted_readiness(cache_root, readiness)
+    snap = RuntimeSnapshotService(cache_root=cache_root).read_snapshot()
+    payload = {
+        "ok": gate.passed,
+        "target": str(target),
+        "settings_configured": retrieval_settings_path(target).is_file(),
+        "active_model": settings.embedding_model_alias,
+        "model_id": settings.model_id,
+        "device": settings.device,
+        "document_processing_enabled": settings.document_processing_enabled,
+        "bootstrap_state": settings.bootstrap_state,
+        "ready": readiness.is_ready(),
+        "active_index_generation": (
+            snap.active.active_index_generation if snap is not None else None
+        ),
+        "production_capability_gate": gate.as_dict(),
+    }
+    print(json.dumps(payload, indent=2))
+    return 0 if gate.passed else 1
 
 
 def _cmd_models_list(args: argparse.Namespace) -> int:
@@ -2135,6 +2432,8 @@ _DISPATCH.update(
     {
         "start": _cmd_start,
         "models": _cmd_models,
+        "reindex": _cmd_reindex,
+        "doctor": _cmd_doctor,
     }
 )
 

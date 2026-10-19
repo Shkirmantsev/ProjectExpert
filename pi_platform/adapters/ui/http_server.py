@@ -98,6 +98,18 @@ class UiHttpServer:
             actor_id=os.environ.get("PI_UI_ACTOR_ID", "operator"),
             role=os.environ.get("PI_UI_ROLE", "viewer"),
         )
+        self.target_repo = Path(
+            getattr(service, "_repo_root", None) or Path.cwd()
+        ).resolve()
+        from pi_platform.adapters.ui.retrieval_admin_routes import (
+            RetrievalAdminRoutes,
+        )
+        from pi_platform.core.retrieval.first_start_wizard import (
+            FirstStartWizard,
+        )
+
+        self.admin_routes = RetrievalAdminRoutes(target_repo=self.target_repo)
+        self.wizard = FirstStartWizard()
         self._httpd: Optional[ThreadingHTTPServer] = None
         self._thread: Optional[threading.Thread] = None
 
@@ -248,9 +260,24 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 if not self._authorised():
                     self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
                     return
+                if self._try_admin_or_wizard("GET", path, None):
+                    return
                 self._dispatch(lambda: _get_route(server, self, path))
                 return
             self._serve_static(path)
+
+        def do_PUT(self) -> None:  # noqa: N802
+            path = urlparse(self.path).path
+            if not path.startswith("/api/v1/"):
+                self._send(HTTPStatus.NOT_FOUND, {"error": "not found", "path": path})
+                return
+            if not self._authorised():
+                self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
+                return
+            body = self._body()
+            if self._try_admin_or_wizard("PUT", path, body):
+                return
+            self._send(HTTPStatus.NOT_FOUND, {"error": "not found", "path": path})
 
         def do_POST(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
@@ -285,7 +312,76 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
                 return
             body = self._body()
+            if self._try_admin_or_wizard("POST", path, body):
+                return
             self._dispatch(lambda: _post_route(server, self, path, body))
+
+        def _resolve_caller_capability(self) -> str:
+            cap_hdr = (
+                self.headers.get("X-Actor-Capability")
+                or self.headers.get("X-Actor-Role")
+                or ""
+            ).strip().lower()
+            if cap_hdr:
+                if cap_hdr in ("admin", "administrator", "operator"):
+                    return "administrator"
+                return cap_hdr
+            if (
+                server.actor.actor_type == "agent"
+                and server.actor.role not in ("administrator", "admin")
+            ):
+                return "coding-agent"
+            return "administrator"
+
+        def _try_admin_or_wizard(self, method: str, path: str, body: Any) -> bool:
+            if path == "/api/v1/wizard":
+                from pi_platform.core.control.retrieval_settings import (
+                    save_retrieval_settings,
+                )
+                from pi_platform.core.retrieval.first_start_wizard import (
+                    WizardValidationError,
+                )
+
+                if method == "GET":
+                    self._send(HTTPStatus.OK, server.wizard.render(server.target_repo))
+                    return True
+                if method == "POST":
+                    try:
+                        submitted = server.wizard.submit(body or {})
+                        ready_settings = dataclasses.replace(
+                            submitted, bootstrap_state="ready"
+                        )
+                        save_retrieval_settings(ready_settings, server.target_repo)
+                        self._send(HTTPStatus.OK, ready_settings.as_dict())
+                    except WizardValidationError as exc:
+                        self._send(
+                            HTTPStatus.BAD_REQUEST,
+                            {
+                                "error": str(exc),
+                                "code": "wizard-validation-error",
+                                "details": {},
+                            },
+                        )
+                    return True
+                self._send(
+                    HTTPStatus.METHOD_NOT_ALLOWED,
+                    {"error": f"method {method!r} not allowed", "code": "method-not-allowed", "details": {}},
+                )
+                return True
+
+            if path.startswith("/api/v1/admin/"):
+                from pi_platform.adapters.ui.retrieval_admin_routes import (
+                    create_dispatcher,
+                )
+
+                cap = self._resolve_caller_capability()
+                server.admin_routes._caller_capability_provider = lambda: cap
+                dispatch = create_dispatcher(server.admin_routes)
+                resp = dispatch(method, path, body)
+                if resp is not None:
+                    self._send(HTTPStatus(resp.status), resp.body)
+                    return True
+            return False
 
         # -- static -----------------------------------------------------
         def _serve_static(self, path: str) -> None:
