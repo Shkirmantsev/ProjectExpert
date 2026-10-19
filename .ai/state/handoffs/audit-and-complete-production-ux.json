@@ -1,0 +1,47 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Unified settings.json and retrieval-settings.json; fixed device=auto resolution and SQLite mkdir order; wired previous_head into reconcile and .git/info/exclude for runtime cache; bound real Docling converter/chunker; added Makefile pi-* targets and docker-compose production profile; wired HTTP admin/wizard routes into UiHttpServer; completed CLI start/reindex/doctor; added tests/test_one_command_production_ux.py"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-19T22:18:50+00:00",
+    "id": "audit-and-complete-production-ux",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-19T22:49:51+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Makefile pi-help/pi-up/pi-model/pi-status/pi-reindex/pi-doctor/pi-down work; docker-compose has production profile and persistent model volume; settings.json and retrieval-settings.json unified; HTTP server mounts /api/v1/admin/* and wizard; CLI start runs full bootstrap pipeline; harness.py check passes"
+    ],
+    "goal": "Audit and complete all remaining PR1-12 items, fix bugs, wire trivial one-command UX (Makefile pi-*, docker-compose production profile, CLI start/doctor/reindex/status, HTTP admin & first-start wizard routes)",
+    "openspec_change": "production-semantic-search-and-branch-reconciliation",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "tests.test_one_command_production_ux (8/8 PASS) + harness.py check PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
