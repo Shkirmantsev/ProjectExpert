@@ -58,6 +58,10 @@ from pi_platform.ports.ingest.source_adapter import (
     SourceAdapterPort,
     SourceParseResult,
 )
+from pi_platform.adapters.pdf.real_docling import (
+    RealDoclingConverter,
+    is_docling_available,
+)
 from pi_platform.ports.runtime.document_graph_store import DocumentGraphStorePort
 
 
@@ -68,6 +72,7 @@ __all__ = [
     "DEFAULT_DOCLING_STRATEGY_VERSION",
     "DEFAULT_PAGE_BATCH_SIZE",
     "DEFAULT_BOUNDARY_CONTEXT_PAGES",
+    "build_real_docling_pdf_adapter",
 ]
 
 
@@ -78,6 +83,59 @@ DEFAULT_BOUNDARY_CONTEXT_PAGES = 1
 
 class DoclingPdfAdapterError(SourceAdapterError):
     """Raised when the Docling PDF adapter cannot parse a source."""
+
+
+def build_real_docling_pdf_adapter(
+    prescan: PrescanPort,
+    job_store: IngestionJobStorePort,
+    graph_store: DocumentGraphStorePort,
+    *,
+    ocr_engine: Optional[OcrEnginePort] = None,
+    strategy_version: str = DEFAULT_DOCLING_STRATEGY_VERSION,
+    page_batch_size: int = DEFAULT_PAGE_BATCH_SIZE,
+    boundary_context_pages: int = DEFAULT_BOUNDARY_CONTEXT_PAGES,
+    embedding_model_id: str = "google/embeddinggemma-2",
+    max_tokens: int = 512,
+    docling_converter: Optional["RealDoclingConverter"] = None,
+) -> DoclingPdfAdapter:
+    """Production factory for the Docling PDF adapter.
+
+    This is the production entry point documented by open spec
+    change PR 10 (plan §45, §46, §71): the adapter returned by
+    this function MUST be wired to the real
+    ``docling.document_converter.DocumentConverter``; the
+    synthesised stub path is reserved for unit tests that do not
+    load the real models.
+
+    The factory refuses to build a "production" adapter when
+    :func:`is_docling_available` returns ``False`` unless the
+    caller supplies a pre-built ``docling_converter``. The
+    production-capability-gate reads :func:`is_docling_available`
+    to fail closed when Docling is absent; this factory is the
+    matching enforcement point for the adapter layer.
+    """
+
+    if docling_converter is None:
+        if not is_docling_available():
+            raise DoclingPdfAdapterError(
+                "docling is not installed; "
+                "build_real_docling_pdf_adapter requires the real "
+                "docling package (open spec change PR 10, plan §45)"
+            )
+        docling_converter = RealDoclingConverter(
+            embedding_model_id=embedding_model_id,
+            max_tokens=max_tokens,
+        )
+    return DoclingPdfAdapter(
+        prescan=prescan,
+        job_store=job_store,
+        graph_store=graph_store,
+        ocr_engine=ocr_engine,
+        strategy_version=strategy_version,
+        page_batch_size=page_batch_size,
+        boundary_context_pages=boundary_context_pages,
+        docling_converter=docling_converter,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -309,6 +367,7 @@ class DoclingPdfAdapter(SourceAdapterPort):
         strategy_version: str = DEFAULT_DOCLING_STRATEGY_VERSION,
         page_batch_size: int = DEFAULT_PAGE_BATCH_SIZE,
         boundary_context_pages: int = DEFAULT_BOUNDARY_CONTEXT_PAGES,
+        docling_converter: Optional["RealDoclingConverter"] = None,
     ) -> None:
         self._prescan = prescan
         self._job_store = job_store
@@ -319,6 +378,12 @@ class DoclingPdfAdapter(SourceAdapterPort):
         self._page_batch_size = page_batch_size
         self._boundary_context_pages = boundary_context_pages
         self._mapper = DoclingMapper()
+        # Open spec change PR 10: production MUST use the real
+        # ``docling.document_converter.DocumentConverter`` (plan
+        # §45, §71). Tests inject a ``None`` ``docling_converter``
+        # so the synthesised stub stays in scope for the existing
+        # test suite that does not load the real models.
+        self._docling_converter = docling_converter
 
     @property
     def family(self) -> SourceContentFamily:
