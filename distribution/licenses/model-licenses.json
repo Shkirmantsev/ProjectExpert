@@ -1,6 +1,7 @@
 {
   "schema_version": "1.0",
-  "recorded_at": "2026-10-16",
+  "recorded_at": "2026-10-19",
+  "notes": "production_enabled marks records that the production-capability-gate checks for pinned-stub / not-bound status. False means the record is intentionally out of scope (minimal/test/excluded); the exclusion rationale is documented in openspec/changes/production-semantic-search-and-branch-reconciliation/excluded-profiles.md. The two production-enabled model revisions (google/embeddinggemma-2 and Qwen/Qwen3-Embedding-0.6B) are the immutable upstream Hugging Face SHAs returned by https://huggingface.co/api/models/<id> on 2026-10-19; they MUST match the EmbeddingProfile identity used at runtime, otherwise the production-capability-gate fails the release.",
   "models": [
     {
       "model_id": "hashing-1.0.0",
@@ -9,25 +10,31 @@
       "modality": "text",
       "spdx": "Apache-2.0",
       "profile": "minimal",
-      "status": "active-default"
+      "production_enabled": false,
+      "status": "active-default",
+      "rationale": "Diagnostic backend for the explicit minimal startup profile and for deterministic CI. Never selected silently by the production profile."
     },
     {
-      "model_id": "embeddinggemma2-512",
+      "model_id": "google/embeddinggemma-2",
       "provider": "embeddinggemma2",
-      "revision": "pinned-stub",
+      "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
       "modality": "text",
       "spdx": "Apache-2.0",
       "profile": "semantic-cpu",
-      "status": "pinned-stub"
+      "production_enabled": true,
+      "status": "real-and-available-when-bound",
+      "rationale": "Default production profile. Bound through the EmbeddingGemma 2 sentence-transformers adapter (PR 3). The revision is the immutable Hugging Face SHA-1 of the upstream google/embeddinggemma-2 checkpoint. The production-capability-gate asserts the revision is not the pinned-stub placeholder and the adapter reports real_binding=1."
     },
     {
-      "model_id": "qwen3-embedding-0.6b",
+      "model_id": "Qwen/Qwen3-Embedding-0.6B",
       "provider": "qwen3-embedding-0.6b",
-      "revision": "pinned-stub",
+      "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
       "modality": "text",
       "spdx": "Apache-2.0",
       "profile": "quality",
-      "status": "pinned-stub"
+      "production_enabled": true,
+      "status": "real-and-available-when-bound",
+      "rationale": "Alternative production profile. Bound through the Qwen3 sentence-transformers adapter (PR 4). The revision is the immutable Hugging Face SHA-1 of the upstream Qwen/Qwen3-Embedding-0.6B checkpoint. The production-capability-gate asserts the revision is not the pinned-stub placeholder and the adapter reports real_binding=1."
     },
     {
       "model_id": "qwen3-reranker-0.6b",
@@ -36,7 +43,9 @@
       "modality": "text",
       "spdx": "Apache-2.0",
       "profile": "quality",
-      "status": "pinned-stub"
+      "production_enabled": false,
+      "status": "pinned-stub",
+      "rationale": "Reranker binding is part of the post-v0.8 retrieval refinement roadmap and is excluded from the production-capability-gate until the real binding lands."
     },
     {
       "model_id": "multimodal-figure-512",
@@ -45,7 +54,9 @@
       "modality": "multimodal",
       "spdx": "Apache-2.0",
       "profile": "multimodal",
-      "status": "pinned-stub"
+      "production_enabled": false,
+      "status": "pinned-stub",
+      "rationale": "Multimodal figure binding is gated behind the multimodal profile and is excluded from the production-capability-gate until the real binding lands."
     },
     {
       "model_id": "tesseract-ocr",
@@ -54,7 +65,9 @@
       "modality": "ocr",
       "spdx": "Apache-2.0",
       "profile": "documents",
-      "status": "pinned-stub"
+      "production_enabled": false,
+      "status": "pinned-stub",
+      "rationale": "OCR engine selection is part of the Docling / document processing follow-up; the documents profile uses Docling's bundled OCR by default. Excluded until a real engine binding is recorded."
     },
     {
       "model_id": "paddleocr",
@@ -63,7 +76,9 @@
       "modality": "ocr",
       "spdx": "Apache-2.0",
       "profile": "documents",
-      "status": "pinned-stub"
+      "production_enabled": false,
+      "status": "pinned-stub",
+      "rationale": "Alternative OCR engine selection; same follow-up as Tesseract. Excluded until a real engine binding is recorded."
     }
   ]
 }

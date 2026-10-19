@@ -29,6 +29,9 @@ from typing import Mapping, Sequence
 from pi_platform.ports.retrieval.embedding_model import (
     EmbeddingModelError,
     EmbeddingModelPort,
+    EmbeddingRequest,
+    EmbeddingRole,
+    EmbeddingTask,
 )
 
 
@@ -79,19 +82,47 @@ class HashingEmbeddingModel(EmbeddingModelPort):
         self._errors = 0
 
     def embed(self, text: str) -> Sequence[float]:
+        """Legacy text-only convenience wrapper.
+
+        Equivalent to ``self.embed_request(EmbeddingRequest(text,
+        role=DOCUMENT))``. Production callers MUST prefer
+        :meth:`embed_request` so the role is explicit.
+        """
+
+        return self.embed_request(
+            EmbeddingRequest(text=text, role=EmbeddingRole.DOCUMENT),
+        )
+
+    def embed_batch(
+        self, texts: Sequence[str],
+    ) -> Sequence[Sequence[float]]:
+        return self.embed_requests(
+            [EmbeddingRequest(text=t, role=EmbeddingRole.DOCUMENT)
+             for t in texts],
+        )
+
+    def embed_request(self, request: EmbeddingRequest) -> Sequence[float]:
+        # Plan §11: the deterministic test backend MUST produce
+        # role-dependent and task-dependent output so that role misuse
+        # is detectable in tests. We encode the role and task into the
+        # hashing bias so identical text with a different role or task
+        # produces a different vector.
         self._calls += 1
         try:
-            return self._embed_raw(text)
+            return self._embed_raw(
+                request.text, role=request.role, task=request.task,
+                title=request.title,
+            )
         except Exception as exc:
             self._errors += 1
             raise EmbeddingModelError(
                 f"HashingEmbeddingModel failed: {exc}"
             ) from exc
 
-    def embed_batch(
-        self, texts: Sequence[str],
+    def embed_requests(
+        self, requests: Sequence[EmbeddingRequest],
     ) -> Sequence[Sequence[float]]:
-        return [self.embed(t) for t in texts]
+        return [self.embed_request(r) for r in requests]
 
     def dimension(self) -> int:
         return self._dimension
@@ -102,6 +133,12 @@ class HashingEmbeddingModel(EmbeddingModelPort):
     def license_id(self) -> str:
         return HASHING_LICENSE_ID
 
+    def profile(self):  # noqa: D401 - simple accessor
+        from pi_platform.ports.retrieval.embedding_profile import (
+            HASHING_DEFAULT,
+        )
+        return HASHING_DEFAULT
+
     def stats(self) -> Mapping[str, int]:
         return {
             "calls": self._calls,
@@ -111,7 +148,12 @@ class HashingEmbeddingModel(EmbeddingModelPort):
 
     # -- internal helpers --------------------------------------------------
 
-    def _embed_raw(self, text: str) -> list[float]:
+    def _embed_raw(
+        self, text: str, *,
+        role: EmbeddingRole = EmbeddingRole.DOCUMENT,
+        task: EmbeddingTask = EmbeddingTask.SEARCH,
+        title: str | None = None,
+    ) -> list[float]:
         vec = [0.0] * self._dimension
         if not text:
             return vec
@@ -124,7 +166,19 @@ class HashingEmbeddingModel(EmbeddingModelPort):
             slot = int.from_bytes(digest[:4], "big", signed=False) % self._dimension
             sign = 1.0 if (digest[4] & 1) else -1.0
             vec[slot] += sign
-        bias_digest = _token_digest("\x00bias\x00")
+        # Plan §11 / PR 2: encode role, task, and (for documents)
+        # title into a bias token so role misuse is detectable in
+        # tests and so query/document vectors never share an
+        # identical representation.
+        bias_token_parts = [
+            "\x00bias\x00",
+            f"role={role.value}",
+            f"task={task.value}",
+        ]
+        if role == EmbeddingRole.DOCUMENT and title:
+            bias_token_parts.append(f"title={title}")
+        bias_token = "|".join(bias_token_parts)
+        bias_digest = _token_digest(bias_token)
         bias_slot = (
             int.from_bytes(bias_digest[:4], "big", signed=False) % self._dimension
         )
