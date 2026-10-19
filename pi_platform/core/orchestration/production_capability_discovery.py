@@ -273,11 +273,9 @@ def build_production_capability_report(
 
     dense = classify_dense_backend(dense_backend_name)
 
-    try:
-        import docling  # noqa: F401
-        docling_importable = True
-    except Exception:
-        docling_importable = False
+    from pi_platform.adapters.pdf.real_docling import is_docling_available
+
+    docling_importable = is_docling_available()
 
     documents = classify_documents_backend(
         docling_enabled, docling_importable=docling_importable,

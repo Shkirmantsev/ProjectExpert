@@ -311,9 +311,9 @@ def vector_record_store_from_db(
     """
 
     import sqlite3
+    os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
     db = sqlite3.connect(db_path)
     # ``embeddings`` table is additive; existing tables stay intact.
-    os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
     return SqliteVectorRecordStore(db=db)
 
 

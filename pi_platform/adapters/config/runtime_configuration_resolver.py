@@ -138,15 +138,30 @@ class RuntimeConfigurationResolver:
     def _read_local_settings(path: Path | None) -> dict[str, Any]:
         if path is None:
             return {}
-        if not path.exists():
-            return {}
+        candidate = Path(path)
+        if not candidate.exists():
+            alt = candidate.parent / "retrieval-settings.json"
+            if alt.exists():
+                candidate = alt
+            else:
+                return {}
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                return dict(json.load(f))
+            with open(candidate, "r", encoding="utf-8") as f:
+                data = dict(json.load(f))
         except (OSError, json.JSONDecodeError) as exc:
             raise ConfigurationError(
-                f"failed to read local settings {path}: {exc}"
+                f"failed to read local settings {candidate}: {exc}"
             ) from exc
+        if "embedding_model_alias" in data and "embedding_model" not in data:
+            data["embedding_model"] = data["embedding_model_alias"]
+        if "device" in data and "embedding_device" not in data:
+            data["embedding_device"] = data["device"]
+        if (
+            "document_processing_enabled" in data
+            and "docling_enabled" not in data
+        ):
+            data["docling_enabled"] = data["document_processing_enabled"]
+        return data
 
     def resolve(self) -> RuntimeConfiguration:
         """Apply the precedence chain and return the resolved config."""

@@ -201,7 +201,15 @@ class EmbeddingModelFactory:
     @staticmethod
     def _resolve_device(device: str) -> str:
         lowered = (device or "auto").strip().lower()
-        if lowered in {"auto", "cpu", "cuda", "mps"}:
+        if lowered == "auto":
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    return "cuda"
+            except Exception:
+                pass
+            return "cpu"
+        if lowered in {"cpu", "cuda", "mps"}:
             return lowered
         raise ValueError(
             f"unknown device {device!r}; expected one of "

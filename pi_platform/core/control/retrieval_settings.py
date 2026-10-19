@@ -62,6 +62,7 @@ __all__ = [
 
 CACHE_DIR_NAME = ".project-intelligence-cache"
 SETTINGS_FILE_NAME = "retrieval-settings.json"
+LEGACY_SETTINGS_FILE_NAME = "settings.json"
 SETTINGS_TMP_SUFFIX = ".tmp"
 
 DEFAULT_MODEL_ALIAS = "gemma"
@@ -229,13 +230,27 @@ def validate_retrieval_settings(
             f"{type(payload).__name__}"
         )
     allowed = {f.name for f in fields(RetrievalSettings)}
-    unknown = sorted(set(payload) - allowed)
+    alias_map = {
+        "embedding_model": "embedding_model_alias",
+        "embedding_device": "device",
+        "docling_enabled": "document_processing_enabled",
+    }
+    ignored_Sync_keys = {"startup_profile", "dense_index", "model_cache_dir"}
+    unknown = sorted(
+        set(payload) - allowed - set(alias_map) - ignored_Sync_keys
+    )
     if unknown:
         raise RetrievalSettingsError(
             f"unknown retrieval settings keys: {unknown}; allowed keys are "
             f"{sorted(allowed)}"
         )
-    kwargs = {name: payload[name] for name in allowed if name in payload}
+    kwargs: dict[str, Any] = {}
+    for src_key, dst_key in alias_map.items():
+        if src_key in payload and dst_key not in payload:
+            kwargs[dst_key] = payload[src_key]
+    for name in allowed:
+        if name in payload:
+            kwargs[name] = payload[name]
     try:
         return RetrievalSettings(**kwargs)
     except RetrievalSettingsError:
@@ -250,10 +265,17 @@ def retrieval_settings_path(target_repo: Path) -> Path:
     return Path(target_repo) / CACHE_DIR_NAME / SETTINGS_FILE_NAME
 
 
+def legacy_settings_path(target_repo: Path) -> Path:
+    """Return the ``.project-intelligence-cache/settings.json`` path."""
+
+    return Path(target_repo) / CACHE_DIR_NAME / LEGACY_SETTINGS_FILE_NAME
+
+
 def load_retrieval_settings(target_repo: Path) -> RetrievalSettings:
     """Load the persisted settings for ``target_repo``.
 
-    * file absent → the documented production defaults (fresh start);
+    * file absent → checks ``settings.json`` fallback, else returns
+      the documented production defaults (fresh start);
     * file present and valid → the persisted settings;
     * file present but malformed → :class:`RetrievalSettingsError`
       (never a silent reset of the operator's selection).
@@ -261,7 +283,11 @@ def load_retrieval_settings(target_repo: Path) -> RetrievalSettings:
 
     path = retrieval_settings_path(target_repo)
     if not path.exists():
-        return RetrievalSettings()
+        alt = legacy_settings_path(target_repo)
+        if alt.exists():
+            path = alt
+        else:
+            return RetrievalSettings()
     try:
         raw = path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -312,4 +338,28 @@ def save_retrieval_settings(settings: RetrievalSettings, target_repo: Path) -> P
         raise RetrievalSettingsError(
             f"failed to write retrieval settings to {path}: {exc}"
         ) from exc
+
+    # Keep ``.project-intelligence-cache/settings.json`` synchronised so
+    # ``RuntimeConfigurationResolver`` (PR 1) and ``RetrievalSettings``
+    # (PR 11) always observe the exact same operator selection.
+    sync_path = legacy_settings_path(target_repo)
+    sync_tmp = sync_path.with_name(sync_path.name + SETTINGS_TMP_SUFFIX)
+    sync_payload = dict(validated.as_dict())
+    sync_payload.update({
+        "embedding_model": validated.embedding_model_alias,
+        "embedding_device": validated.device,
+        "docling_enabled": validated.document_processing_enabled,
+    })
+    try:
+        sync_body = json.dumps(sync_payload, indent=2, sort_keys=True) + "\n"
+        with open(sync_tmp, "w", encoding="utf-8") as handle:
+            handle.write(sync_body)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(sync_tmp, sync_path)
+    except OSError:
+        try:
+            os.unlink(sync_tmp)
+        except OSError:
+            pass
     return path

@@ -144,7 +144,14 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
         # ``model_id`` / ``revision`` arguments override the
         # profile for tests only.
         self._profile = profile
-        self._device = device
+        if (device or "auto").strip().lower() == "auto":
+            try:
+                import torch
+                self._device = "cuda" if torch.cuda.is_available() else "cpu"
+            except Exception:
+                self._device = "cpu"
+        else:
+            self._device = device.strip().lower()
         self._model_id = model_id or profile.model_id
         self._revision = (
             revision
