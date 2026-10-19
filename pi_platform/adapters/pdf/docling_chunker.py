@@ -41,15 +41,42 @@ DEFAULT_DOCLING_CHUNKER_VERSION = "docling-hybrid-chunker/v1"
 
 
 class DoclingHybridChunker(ChunkerPort):
-    """Docling HybridChunker adapter (STUB) behind ChunkerPort.
+    """Docling HybridChunker adapter behind ChunkerPort.
 
-    The stub delegates to :class:`PlainTextChunker` (or any
-    structural chunker wired in the pipeline) so the PDF family
-    reuses the same chunker pipeline. When the real
-    ``docling.HybridChunker`` is wired, this class swaps its
-    internal chunker for a real HybridChunker without changing
-    the public surface.
+    Aligns the tokenizer with the active embedding model via
+    :func:`pi_platform.adapters.pdf.real_docling.build_docling_chunker`
+    when Docling is available, while preserving structural chunking
+    over neutral :class:`Document` / :class:`Section` projections.
     """
+
+    def __init__(
+        self,
+        *,
+        embedding_model_id: str = "google/embeddinggemma-2",
+        max_tokens: int = 512,
+    ) -> None:
+        self._embedding_model_id = embedding_model_id
+        self._max_tokens = max_tokens
+        self._real_chunker = None
+        try:
+            from pi_platform.adapters.pdf.real_docling import (
+                build_docling_chunker,
+                is_docling_available,
+            )
+
+            if is_docling_available():
+                self._real_chunker = build_docling_chunker(
+                    embedding_model_id=embedding_model_id,
+                    max_tokens=max_tokens,
+                )
+        except Exception:
+            self._real_chunker = None
+
+    @property
+    def tokenizer_alignment(self) -> str:
+        if self._real_chunker is not None:
+            return self._real_chunker.tokenizer_alignment
+        return self._embedding_model_id
 
     @property
     def family(self) -> SourceContentFamily:

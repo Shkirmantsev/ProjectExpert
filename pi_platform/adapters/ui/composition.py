@@ -398,6 +398,22 @@ def hydrate_and_reconcile_target(
     try:
         with ProjectLock(lock_id).acquire():
             fs.ensure_cache_root()
+            git_exclude = repo_root / ".git" / "info" / "exclude"
+            if git_exclude.parent.is_dir():
+                try:
+                    existing_excl = (
+                        git_exclude.read_text(encoding="utf-8")
+                        if git_exclude.is_file()
+                        else ""
+                    )
+                    if ".project-intelligence-cache" not in existing_excl:
+                        prefix = "" if (not existing_excl or existing_excl.endswith("\n")) else "\n"
+                        git_exclude.write_text(
+                            existing_excl + prefix + ".project-intelligence-cache/\n",
+                            encoding="utf-8",
+                        )
+                except OSError:
+                    pass
             try:
                 hydrate_report = HydrateService(filesystem=fs).restore_runtime(
                     repo_root, cache_root=cache_root,
@@ -419,9 +435,32 @@ def hydrate_and_reconcile_target(
                 )
             head = hydrate_report.project_version.gitHead
             fp = hydrate_report.project_version.workingTreeFingerprint
+            previous_head = head
+            readiness_file = cache_root / READINESS_STATE_FILENAME
+            if readiness_file.is_file():
+                try:
+                    prev_payload = json.loads(
+                        readiness_file.read_text(encoding="utf-8")
+                    )
+                    if isinstance(prev_payload, Mapping) and prev_payload.get("current_head"):
+                        previous_head = str(prev_payload["current_head"])
+                except (OSError, ValueError):
+                    pass
+            try:
+                from pi_platform.core.sync.version_snapshot import (
+                    RuntimeSnapshotService,
+                )
+
+                persisted_snap = RuntimeSnapshotService(
+                    cache_root=cache_root
+                ).read_snapshot()
+                if persisted_snap is not None and persisted_snap.active.head:
+                    previous_head = persisted_snap.active.head
+            except Exception:
+                pass
             reconcile_report = ReconcileService(filesystem=fs).reconcile_branch_switch(
                 repo_root,
-                previous_head=head,
+                previous_head=previous_head,
                 current_head=head,
                 cache_root=cache_root,
             )

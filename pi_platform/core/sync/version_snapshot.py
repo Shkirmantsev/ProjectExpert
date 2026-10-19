@@ -271,8 +271,11 @@ class RuntimeSnapshotService:
     durable hand-off between the two.
     """
 
-    def __init__(self, *, cache_root: Path | str):
-        self._cache_root = Path(cache_root)
+    def __init__(self, cache_root: Path | str | None = None, **kwargs: object):
+        resolved = cache_root if cache_root is not None else kwargs.get("cache_root")
+        if resolved is None:
+            raise TypeError("RuntimeSnapshotService requires cache_root")
+        self._cache_root = Path(str(resolved))
         self._runtime_state_dir = (
             self._cache_root / RUNTIME_STATE_DIRNAME
         )
