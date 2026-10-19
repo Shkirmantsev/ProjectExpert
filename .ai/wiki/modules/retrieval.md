@@ -9,6 +9,8 @@ sourceRefs:
   - pi_platform/core/retrieval/
   - pi_platform/adapters/retrieval/
   - pi_platform/adapters/runtime/graph_expansion.py
+  - pi_platform/core/retrieval/semantic_index_service.py
+  - pi_platform/core/orchestration/retrieval_composition.py
   - openspec/specs/2026-10-04-embedding-model/spec.md
   - openspec/specs/2026-10-04-hybrid-retrieval/spec.md
   - openspec/specs/2026-10-04-multi-stage-retrieval/spec.md
@@ -17,6 +19,12 @@ sourceRefs:
   - openspec/specs/2026-10-04-metadata-filters/spec.md
   - openspec/specs/2026-10-04-context-assembler/spec.md
   - openspec/specs/2026-10-04-retrieval-benchmark/spec.md
+  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-embedding-port-query-document-roles/spec.md
+  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-real-embeddinggemma2-binding/spec.md
+  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-real-qwen3-embedding-binding/spec.md
+  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-real-usearch-dense-backend/spec.md
+  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-semantic-index-service/spec.md
+  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-unified-production-retrieval-composition/spec.md
 maintenance:
   mode: authored
 related:
@@ -24,6 +32,7 @@ related:
   - interfaces.reranker
   - modules.embeddings
   - modules.context-assembler
+  - modules.release-gate
 ---
 
 # Phase 4 retrieval modules
@@ -89,6 +98,12 @@ adapter replaces it at runtime.
   context budget enforcement, citation preservation,
   authoritative-evidence preference, conflict detection and
   uncertainty surfacing per §32.
+- `semantic_index_service.py` — `SemanticIndexService`: the single
+  ingestion-side entry point that writes active chunks into the
+  embedding model + dense index + vector record store. Reuse key
+  is `sha256(retrieval_text_hash + profile_hash)` so unchanged
+  chunks are never recomputed under the same embedding profile.
+  `remove_chunks()` is the REMOVED branch the reconcile path uses.
 
 ## Adapter modules (`pi_platform/adapters/retrieval/`)
 
@@ -116,6 +131,23 @@ adapter replaces it at runtime.
   §24 / §56 filter adapter.
 - `context_assembler_adapter.py` — `ContextAssemblerAdapter`:
   default §32 assembler adapter.
+- `embeddinggemma2_embedding_model.py` —
+  `EmbeddingGemma2EmbeddingModel`: real production binding for the
+  `google/embeddinggemma-2` profile (Apache-2.0). Lazy-loads the
+  pinned revision from the local Hugging Face cache, applies
+  Matryoshka truncation to 512d, and formats query / document
+  roles per the model's documented task prompts. Replaces the
+  previous 'pinned-stub' placeholder.
+- `qwen3_embedding_model.py` — `Qwen3EmbeddingModel`: real
+  production binding for the `Qwen/Qwen3-Embedding-0.6B` profile
+  (Apache-2.0), 1024d, with the same role-aware prompting
+  contract as the EmbeddingGemma 2 binding.
+- `embedding_model_factory.py` — the alias resolver that maps
+  `gemma` / `qwen` / legacy aliases / `hashing` to a real
+  `EmbeddingModelPort`. Production aliases MUST resolve to a real
+  binding or the factory raises `EmbeddingModelError`; the
+  hashing backend is permitted only under the `minimal` startup
+  profile.
 
 ## Production runtime adapter (`pi_platform/adapters/runtime/`)
 
@@ -126,6 +158,31 @@ adapter replaces it at runtime.
   and applies the documented default edge-type set. The
   `expand()` surface is preserved so Phase 3 regression tests
   keep their binding.
+- `usearch_dense_index.py` — `USearchDenseIndex`: the real USearch
+  native package as the production dense backend. Persists the
+  index across processes (atomic `.tmp` + `os.replace`),
+  enforces profile-hash + source-generation compatibility on
+  reopen, and rebuilds from the vector record store on a
+  profile mismatch. Replaces the previous `usearch-stub`
+  backend; the `is_real_usearch_available()` signal is what the
+  release gate reads.
+
+## Unified production composition
+
+- `pi_platform/core/orchestration/retrieval_composition.py` —
+  `build_production_retrieval_runtime()` is the single
+  composition function the web UI, the MCP server, the CLI and
+  the evaluation harness all call. The composition wires the
+  embedding model (per profile), the dense + sparse + exact
+  lookup ports, the hybrid reciprocal-rank merger, the metadata
+  filter, the optional cross-encoder reranker, the production
+  graph expansion, the context assembler, the multi-stage
+  retrieval pipeline and the `SemanticIndexService` once. A
+  `ProductionRetrievalRuntime` dataclass exposes every
+  collaborator by name so callers can introspect the active
+  backend without re-reading the composition source.
+  Adding a new collaborator MUST happen here, not at the call
+  site.
 
 ## CLI surface
 

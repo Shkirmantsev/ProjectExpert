@@ -54,6 +54,7 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Canonical interface](interfaces/canonical.md)
 - [Git interface](interfaces/git.md)
 - [Sync interface](interfaces/sync.md)
+- [One-command production UX](interfaces/one-command-ux.md) — v0.8 production
 - [Licensing interface](interfaces/licensing.md)
 - [Phase 6 MCP server module](modules/mcp-server.md)
 - [Phase 6 agent-integration core module](modules/agent-integration.md)
@@ -110,6 +111,8 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [RerankerPort interface](interfaces/reranker.md)
 - [SelectionPort contract](interfaces/selection.md) — v0.8 refinement
 - [EmbeddingProfile contract](interfaces/embedding-profile.md) — v0.8 refinement
+- [Real Docling PDF binding](modules/docling-binding.md) — v0.8 production
+- [Production release gate](modules/release-gate.md) — v0.8 production
 - [VectorRecordStorePort contract](interfaces/vector-record-store.md) — v0.8 refinement
 - [Retrieval trace module](modules/retrieval-trace.md) — v0.8 refinement
 - [Embedding model selection](adr/0009-embedding-model-selection.md)

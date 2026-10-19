@@ -3,7 +3,7 @@ id: interfaces.sync
 title: Sync interface reference
 kind: interfaces
 status: active
-summary: Reference for the hydrate, reconcile, materialise, WAL and project lock interfaces implemented by Phase 1.
+summary: Reference for the hydrate, reconcile, materialise, WAL, project lock, persisted runtime snapshot and version monitor interfaces implemented by Phase 1 / production semantic search.
 sourceRefs:
   - pi_platform/core/sync/hydrate.py
   - pi_platform/core/sync/reconcile.py
@@ -11,7 +11,10 @@ sourceRefs:
   - pi_platform/core/sync/wal.py
   - pi_platform/core/sync/project_lock.py
   - pi_platform/core/sync/policy_stub.py
+  - pi_platform/core/sync/version_snapshot.py
+  - pi_platform/core/sync/version_monitor.py
   - openspec/specs/2026-10-04-bidirectional-canonical-runtime-sync/spec.md
+  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-persisted-runtime-snapshot-reconciliation/spec.md
 maintenance:
   mode: authored
 ---
@@ -37,6 +40,41 @@ populated in Phases 3-4.
 returns a `ReconcileReport` with `families`, `reused_shards`,
 `re_ingested_shards` and `stale_fact_ids`. Unchanged shards
 between the two heads are not re-ingested.
+
+`ReconcileService.reconcile_with_snapshot(repo_root, cache_root, snapshot)`
+is the production-semantic-search entry point: it diffs the
+persisted `RuntimeSnapshot` against the current effective
+snapshot (HEAD + working-tree fingerprint + canonical manifests
++ discovered source inventory) via `RuntimeSnapshotService.diff()`
+(classifies each item as UNCHANGED / ADDED / MODIFIED / REMOVED),
+then atomically activates the new dense index generation when
+the activation validation succeeds. REMOVED items become
+tombstones in the sparse index and `dense_index.delete_chunk`
+calls. When the activation fails, `ReconcileActivationError` is
+raised, the previous generation stays active and the persisted
+snapshot is not advanced.
+
+## Persisted runtime snapshot
+
+`pi_platform.core.sync.version_snapshot.RuntimeSnapshotService`
+persists the last successful snapshot — branch, HEAD,
+working-tree fingerprint, manifest hash, source hash, embedding
+profile identity, active index generation, last successful
+refresh identifier — under
+`.project-intelligence-cache/active-runtime.json`. Writes go
+through `.tmp` + `os.replace`; a crash mid-write leaves the
+previous snapshot untouched. `commit()` and `read_snapshot()`
+are the two halves; `diff()` classifies the candidate snapshot
+against the persisted one.
+
+## Version monitor
+
+`pi_platform.core.sync.version_monitor.ProjectVersionMonitor`
+is the abstract poll contract; the default
+`ProjectVersionMonitorStub` polls the Git HEAD and the
+working-tree fingerprint every 2-5 seconds and schedules a
+reconcile when either changes. The monitor MUST NOT depend on
+OS-specific filesystem watchers.
 
 ## Materialise
 
