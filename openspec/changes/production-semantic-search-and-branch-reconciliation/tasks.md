@@ -1,348 +1,321 @@
 # Tasks — production-semantic-search-and-branch-reconciliation
 
-Ordered by the plan §80 dependency graph:
-`PR1 → PR2 → PR3 → PR4 → PR5 → PR6 → PR7 → PR8 → PR9 → PR10 → PR11 → PR12`.
-Each block is exactly one logical PR slice from plan §79. PR10 (Docling)
-depends on PR2 only and may execute in parallel with PR3–PR9; PR11 waits
-for PR8, PR9 and PR10; PR12 waits for PR11. Every block ends with focused
-verification and `python harness.py check`.
-
----
+Ordered by plan §79–§80. This checklist distinguishes implementation from
+executed acceptance. A test module existing, or a model-free suite passing,
+does not prove real-model, PDF inference, container, or semantic-quality
+acceptance. Unchecked items remain required even when related code exists.
+The original plan's suggested filenames were not all created: the mappings
+below name the actual implementation and test modules instead.
 
 ## PR1 — Production configuration and truthfulness
 
-Plan §2, §19, §20, §61, §63. Delta:
-`specs/2026-10-18-production-runtime-configuration-resolver/`.
+- [x] Implement configuration types and precedence in
+  `pi_platform/adapters/config/runtime_configuration_resolver.py`; share local
+  model selection through `pi_platform/core/control/retrieval_settings.py`.
+- [x] Expose production/minimal/development profiles and reject implicit hashing
+  or absent real production dependencies. Route CLI status through resolved
+  configuration and report unavailable components truthfully.
+- [ ] Verify every entry point preserves CLI → environment → local settings →
+  project defaults → built-in precedence, including the running HTTP/MCP surfaces.
+- [ ] Run focused configuration/capability checks and the final harness gate.
+  Actual coverage: `tests/test_runtime_configuration_resolver.py`,
+  `tests/test_native_generation_recovery.py` (initial project defaults and live
+  operator override precedence), `tests/test_production_capability_gate.py`,
+  `tests/test_production_packaging.py`, `tests/test_one_command_production_ux.py`,
+  `tests/test_v2_production_wiring.py`. These replace the prescribed separate
+  runtime-configuration/startup-profile/capability-truthfulness test files.
 
-- [x] 1. Add `pi_platform/core/config/runtime_configuration.py` and
-      `pi_platform/adapters/config/runtime_configuration_resolver.py`
-      implementing one precedence chain: CLI argument → environment
-      variable (`PI_EMBEDDING_MODEL`, `PI_EMBEDDING_DEVICE`,
-      `PI_DENSE_INDEX`, `PI_MODEL_CACHE`, `PI_DOCLING_ENABLED`) → local
-      runtime settings (`.project-intelligence-cache/settings.json`) →
-      `project-context.yaml` default → built-in default
-      (`gemma` / `auto` / `usearch`).
-- [x] 2. Implement the three public startup profiles `production`,
-      `minimal`, `development`; `minimal` MUST be selected explicitly and
-      is the only profile where hashing is allowed; `production` MUST NOT
-      silently substitute hashing and MUST fail startup with an
-      actionable error when a selected production dependency is missing.
-- [x] 3. Implement truthful capability reporting: never report
-      available=true for a stub; report real-and-available,
-      real-and-not-installed or disabled with model id, revision,
-      dimension and device. Route `embedding-status`, `retrieval-status`
-      and `capabilities` through the resolved runtime configuration
-      (remove the hard-coded `active_backend = hashing`).
-- [x] 4. Focused tests: `tests/test_runtime_configuration_resolver.py`,
-      `tests/test_startup_profiles.py`,
-      `tests/test_capability_truthfulness.py` (precedence chain,
-      production missing-model failure, explicit minimal hashing,
-      truthful report).
-- [x] 5. Verification: `python -m pytest tests/test_runtime_configuration_resolver.py tests/test_startup_profiles.py tests/test_capability_truthfulness.py -q`
-      then `python harness.py check`.
+## PR2 — Query/document embedding roles
 
----
-
-## PR2 — Embedding port query/document roles
-
-Plan §7, §8, §11. Delta:
-`specs/2026-10-18-embedding-port-query-document-roles/`.
-
-- [x] 1. Extend `pi_platform/ports/retrieval/embedding_model.py` with a
-      role-aware request contract: role (`query` / `document`), task
-      (`search` / `code-retrieval` / `question-answering`), optional
-      title; convenience helpers delegate to exactly one underlying
-      semantic contract. Update `pi_platform/core/retrieval/embedding_model.py`
-      callers so every call site declares the role explicitly.
-- [x] 2. Add the profile instruction-version field to
-      `pi_platform/ports/retrieval/embedding_profile.py` and include it
-      in `EmbeddingProfile.identity()`.
-- [x] 3. Update `pi_platform/adapters/retrieval/hashing_embedding_model.py`
-      and existing embedding tests for role-aware requests (deterministic
-      per role in test/minimal profiles).
-- [x] 4. Focused tests: `tests/test_embedding_roles.py`,
-      `tests/test_hashing_embedding_fallback.py`,
-      `tests/test_embedding_profile_identity.py`.
-- [x] 5. Verification: `python -m pytest tests/test_embedding_roles.py tests/test_hashing_embedding_fallback.py tests/test_embedding_profile_identity.py -q`
-      then `python harness.py check`.
-
----
+- [x] Add role/task/title requests and convenience wrappers in
+  `pi_platform/ports/retrieval/embedding_model.py`; include instruction policy in
+  `pi_platform/ports/retrieval/embedding_profile.py` identity.
+- [x] Index documents with DOCUMENT role and embed each dense query once with
+  QUERY role. Keep hashing explicit to minimal/test use.
+- [ ] Verify role/task behavior across both real models and all callers.
+  Actual coverage: `tests/test_repository_indexing_runtime.py`
+  (`test_dense_query_is_embedded_once_with_query_role`),
+  `tests/test_embedding_profile_identity.py`,
+  `tests/test_hashing_embedding_fallback.py`, and real adapter tests below.
 
 ## PR3 — Real EmbeddingGemma 2
 
-Plan §6.1, §9, §12–§14, §101. Delta:
-`specs/2026-10-18-real-embeddinggemma2-binding/`.
-
-- [x] 1. Replace the stub body of
-      `pi_platform/adapters/retrieval/embeddinggemma2_embedding_model.py`
-      with the real SentenceTransformer/Transformers binding: pinned
-      immutable revision of `google/embeddinggemma-2`, 512d output with
-      post-truncation L2 normalization, task-aware query/document
-      prompting, text-only loading (unused encoders disabled),
-      float32 on CPU and bfloat16 on supported accelerators (never
-      float16 by default), batch encoding, health checks.
-- [x] 2. Add `pi_platform/adapters/retrieval/embedding_model_factory.py`
-      and `pi_platform/adapters/retrieval/model_cache.py`: alias
-      resolution (`gemma` / `embeddinggemma2` / `qwen` / `qwen3`),
-      dependency and licence validation, cache path and device
-      resolution (auto → CPU when safe accelerator memory is missing),
-      model health check. Replace `pinned-stub` in the Gemma profile and
-      in `distribution/licenses/model-licenses.json` with the real
-      immutable revision.
-- [x] 3. Focused tests: `tests/test_embeddinggemma2_embedding_model.py`
-      (real weights, marked integration),
-      `tests/test_embedding_model_factory.py`,
-      `tests/test_model_cache.py`, plus numerical assertions for 512d,
-      normalization and float policy.
-- [x] 4. Verification: `python -m pytest tests/test_embeddinggemma2_embedding_model.py tests/test_embedding_model_factory.py tests/test_model_cache.py -q`
-      then `python harness.py check`.
-
----
+- [x] Implement the real adapter, immutable revision, 512d normalization and
+  role-aware prompts in
+  `pi_platform/adapters/retrieval/embeddinggemma2_embedding_model.py`.
+  Factory/cache/device behavior resides in
+  `pi_platform/adapters/retrieval/embedding_model_factory.py`,
+  `pi_platform/adapters/config/runtime_device.py`, and CLI model commands;
+  there is no separate prescribed `model_cache.py` implementation.
+- [ ] Complete real-weight acceptance: load the pinned snapshot, validate
+  numerical policy, dimensions, normalization, role/task prompts, batching,
+  repeatability, offline restart and semantic ranking (plan §65, §93).
+- [x] Execute unskipped real-weight tests in the installed modern runtime:
+  `PI_RUN_MODEL_TESTS=1 python -m unittest tests.test_embeddinggemma2_embedding_model tests.test_qwen3_embedding_model -v`
+  passed 19 tests (parent evidence). `tests/test_production_end_to_end.py` also
+  passed the real offline Gemma → Qwen → Gemma retrieval story. Comprehensive
+  multilingual evaluation and all numerical/device policies remain separate
+  acceptance above.
 
 ## PR4 — Real Qwen3 embedding 0.6B
 
-Plan §6.2, §10, §12–§14, §101. Delta:
-`specs/2026-10-18-real-qwen3-embedding-binding/`.
+- [x] Implement the pinned real 1024d adapter, query-only instruction and
+  normalization in `pi_platform/adapters/retrieval/qwen3_embedding_model.py`.
+- [ ] Complete real-weight batching/padding, role, repeatability, offline restart
+  and semantic-ranking acceptance (plan §65, §93). A successful single 1024d,
+  norm-one probe is useful evidence but does not complete this item.
+- [x] Execute the real Qwen adapter tests as part of the 19-test installed-runtime
+  run above; the native real-model end-to-end switch test also passed (parent
+  evidence). This does not certify every multilingual/device/long-input case.
 
-- [x] 1. Replace the stub body of
-      `pi_platform/adapters/retrieval/qwen3_embedding_model.py` with the
-      real binding: pinned immutable revision of
-      `Qwen/Qwen3-Embedding-0.6B`, 1024d output with L2 normalization,
-      query instruction enabled, document encoding without instruction,
-      correct batched padding, device policy and health checks.
-- [x] 2. Wire the `qwen` / `qwen3` aliases through the PR3 factory and
-      model cache; replace `pinned-stub` for the Qwen profile in
-      `pi_platform/ports/retrieval/embedding_profile.py` and
-      `distribution/licenses/model-licenses.json`.
-- [x] 3. Focused tests: `tests/test_qwen3_embedding_model.py` (real
-      weights, marked integration), batch-vs-single equivalence,
-      instruction applied only to query role, dimension and
-      normalization assertions.
-- [x] 4. Verification: `python -m pytest tests/test_qwen3_embedding_model.py tests/test_embedding_model_factory.py -q`
-      then `python harness.py check`.
+## PR5 — Persistent semantic indexing
 
----
+- [x] Implement vector reuse, profile namespaces, count validation, removed chunk
+  handling and deterministic generations in
+  `pi_platform/core/retrieval/semantic_index_service.py`.
+- [x] Connect actual repository parsing, persisted source/chunk cache and SQLite
+  vectors through `pi_platform/core/orchestration/repository_indexing.py`.
+- [x] Verify minimal-profile restart reuse and old-source removal in
+  `tests/test_repository_indexing_runtime.py` and
+  `tests/test_runtime_version_lifecycle.py`. UX profile-switch contracts use
+  explicit injected embeddings, not real Gemma/Qwen weights.
+- [x] Complete the real Gemma → Qwen → Gemma reuse/no-Git-churn story in
+  `tests/test_production_end_to_end.py`: parent recorded PASS, 17.8 seconds,
+  offline cached weights, native USearch, live service/MCP ranked-result equality,
+  refund semantic ranking and switch-back embedded_count=0. Additional unit coverage is
+  `tests/test_semantic_index_service.py`,
+  `tests/test_embedding_profile_identity.py`, and
+  `tests/test_one_command_production_ux.py`; there are no separate prescribed
+  vector-reuse-key or model-switch-namespace test modules.
 
-## PR5 — Persistent semantic indexing service
+## PR6 — Real USearch
 
-Plan §24–§26. Delta:
-`specs/2026-10-18-semantic-index-service/`.
+- [x] Implement native USearch, persistent numeric/string key mapping,
+  generation metadata and atomic file replacement in
+  `pi_platform/adapters/runtime/usearch_dense_index.py`. `DenseKeyStore` lives
+  in this module, not a separate prescribed module.
+- [x] Run the existing 28 USearch tests with the native package installed
+  (`tests/test_usearch_dense_index.py`; parent verification evidence).
+- [x] Verify native generation loading without rewriting its file, corrupted
+  native/metadata/key-sidecar recovery from SQLite without document inference,
+  profile/dimension/count validation and sample-query rejection before rename
+  in `tests/test_native_generation_recovery.py`. These use controlled embeddings
+  with actual USearch 2.26.5 and are not model-quality evidence.
+  Additional unit coverage: `tests/test_semantic_index_service.py` and
+  `tests/test_persisted_runtime_snapshot.py`. No separate prescribed
+  dense-key-store/index-generation/atomic-activation test files exist.
+- [x] Record a bounded native ANN recall benchmark against exact cosine:
+  `test_seeded_native_ann_recall_against_exact_cosine` uses seed 20261020,
+  1,000 normalized 64d vectors and 50 held-out queries, top 10,
+  HNSW connectivity/expansion 32/200/100. USearch 2.26.5 achieved
+  Recall@10 0.998 against the explicit 0.90 floor (retain nine of ten true
+  neighbors on average); mean query latency was 0.170 ms. Evidence:
+  `/tmp/projectexpert-native-ann-recall.json`. This calibrates this bounded
+  synthetic ANN configuration, not semantic-model or production-scale quality.
 
-- [x] 1. Add `pi_platform/core/retrieval/semantic_index_service.py`:
-      find active chunks → build retrieval text → look up
-      `VectorRecordStorePort` → embed only misses → persist vectors →
-      build/load dense index → validate counts → activate generation.
-      Reuse key = retrieval-text hash + profile identity hash.
-- [x] 2. Model-switch namespace handling: switching profiles reuses
-      source/chunk knowledge, builds or reuses the selected vector
-      namespace, and never mixes profile spaces; canonical Git files are
-      read-only during the switch.
-- [x] 3. Focused tests: `tests/test_semantic_index_service.py`,
-      `tests/test_vector_reuse_key.py`, `tests/test_model_switch_namespaces.py`
-      (no re-embedding of unchanged text, namespace isolation, count
-      validation).
-- [x] 4. Verification: `python -m pytest tests/test_semantic_index_service.py tests/test_vector_reuse_key.py tests/test_model_switch_namespaces.py -q`
-      then `python harness.py check`.
+## PR7 — Unified retrieval composition
 
----
+- [x] Use `pi_platform/core/orchestration/retrieval_composition.py` for actual
+  source indexing and the published retrieval proxy shared by UI and MCP.
+  Remove live UI hash-scan composition; query embedding occurs once.
+- [x] Verify actual minimal-profile retrieval and source-removal behavior in
+  `tests/test_runtime_version_lifecycle.py`.
+- [x] Verify ranked retrieval equality through the live UI service and MCP handler
+  using both real models in `tests/test_production_end_to_end.py` (parent PASS).
+- [ ] Complete result equivalence with CLI and evaluation, including metadata, exact identifiers, selection, graph
+  support and context assembly. Actual mapped modules:
+  `tests/test_production_retrieval_composition.py`,
+  `tests/test_repository_indexing_runtime.py`,
+  `tests/test_mcp_retrieval_output.py`, `tests/test_mcp_context_factory.py`,
+  `tests/test_multi_stage_order.py`.
 
-## PR6 — Real USearch dense backend
+## PR8 — Persisted snapshots and branch reconciliation
 
-Plan §21–§23, §29, §30, §42. Delta:
-`specs/2026-10-18-real-usearch-dense-backend/`.
+- [x] Persist successful active/manifest/source state atomically in
+  `pi_platform/core/sync/version_snapshot.py`. No separate prescribed
+  port/runtime-version-state files were needed.
+- [x] Implement portable 2–5 second HEAD/branch/content polling in
+  `pi_platform/core/sync/version_monitor.py`, including actual canonical graph
+  JSONL shards. Serialize mutation with project locks; fail closed while
+  bootstrapping/refreshing; retry failed candidates and edits during indexing.
+- [x] Validate actual minimal A → B additions/removals → A retrieval, vector
+  reuse, dirty-content detection, HTTP availability during failure and
+  persisted-failure readiness in `tests/test_runtime_version_lifecycle.py`.
+- [ ] Complete all fifteen plan §68 scenarios as real refresh/retrieval tests,
+  particularly graph-edge changes, concurrent indexing/query, process crashes,
+  and corrupted active native indexes. Coverage distinctions are listed below.
+- [x] Construct candidate graph generations from active parsed/canonical/runtime
+  records, return actual graph node IDs for snapshot publication, and verify
+  changed edges/removed nodes with
+  `tests/test_repository_indexing_runtime.py::RepositoryIndexingRuntimeTests.test_graph_edge_changes_publish_new_graph_without_old_entities`.
+- [ ] Complete graph/support reconciliation proof across a real Git branch switch
+  and all consumer query paths; graph-construction and detector tests are partial.
+- [x] Prove switch-back loads the valid native generation without file rewrite or
+  document re-embedding; missing snapshot recovery also reuses the valid cache
+  (`tests/test_native_generation_recovery.py`).
+- [x] Preserve a coherent previous snapshot across a real child-process exit
+  after a manifest mirror write and across legacy-format migration failure;
+  `snapshot.json` is the authoritative atomic bundle, with backward-compatible
+  three-file projections. Regression: `SnapshotBundleCrashTests`.
+- [ ] Complete plan §70 duration/deletion metrics and remaining process-crash
+  boundaries, rather than treating a single injected failure as the full matrix.
+- [x] Execute the existing snapshot/lifecycle suites: 20 snapshot tests and the
+  lifecycle/distribution runs recorded below passed. Actual mapped command:
+  `python -m unittest tests.test_persisted_runtime_snapshot tests.test_runtime_version_lifecycle tests.test_content_address_cross_branch -v`.
+  The content-address module is an additional mapped regression; its execution
+  is not included in the lifecycle run counts below.
 
-- [x] 1. Replace the stub body of
-      `pi_platform/adapters/runtime/usearch_dense_index.py` with a real
-      `usearch.index.Index` binding (cosine, add/search, save/load/view,
-      pinned connectivity/expansion settings); production dense backend
-      becomes `usearch`; the flat backend stays for tests/small corpora.
-- [x] 2. Add `pi_platform/adapters/runtime/dense_key_store.py` mapping
-      string chunk IDs to stable numeric keys and back; persist
-      generation metadata (`embedding_profile_hash`,
-      `source_generation`, `vector_count`, `index_schema_version`).
-- [x] 3. Atomic build/activation: write
-      `<generation>.usearch.tmp`, validate profile hash, dimension,
-      expected vector count and sample queries, atomically rename, then
-      update `runtime-state/active-version.json`; support rebuild from
-      the vector store without re-embedding.
-- [x] 4. Focused tests: `tests/test_usearch_dense_index.py`,
-      `tests/test_dense_key_store.py`, `tests/test_index_generation_identity.py`,
-      `tests/test_atomic_index_activation.py`.
-- [x] 5. Verification: `python -m pytest tests/test_usearch_dense_index.py tests/test_dense_key_store.py tests/test_index_generation_identity.py tests/test_atomic_index_activation.py -q`
-      then `python harness.py check`.
+## PR9 — Incremental source discovery
 
----
+- [x] Implement includes/excludes, content fingerprints and persisted inventory
+  in `pi_platform/core/ingest/repository_source_discovery.py`; feed actual
+  sources into the indexing pipeline.
+- [x] Verify actual added/removed sources and unchanged vector reuse through
+  `tests/test_runtime_version_lifecycle.py` and
+  `tests/test_one_command_production_ux.py`.
+- [x] Persist actual aggregated model-independent retrieval-text hashes returned
+  by the indexing pipeline into discovery state; native bootstrap regression
+  checks the persisted Markdown source hash is populated.
+- [ ] Complete parser-version invalidation proof and prove unchanged sources
+  are not reparsed.
+  Actual focused coverage: `tests/test_repository_source_discovery.py`,
+  `tests/test_repository_indexing_runtime.py`; no separate prescribed
+  incremental-discovery-state test file exists.
 
-## PR7 — Unified production retrieval composition
+## PR10 — Real Docling
 
-Plan §27, §28. Delta:
-`specs/2026-10-18-unified-production-retrieval-composition/`.
+- [x] Implement real converter and neutral PDF projection, selective OCR,
+  provenance, tables/figures and real tokenizer-aware HybridChunker adapters.
+  Actual files: `pi_platform/adapters/pdf/docling_pdf_adapter.py`,
+  `pi_platform/adapters/pdf/docling_chunker.py`,
+  `pi_platform/adapters/pdf/real_docling.py`.
+- [x] Add pinned production/document dependencies and explicit model-asset
+  inventory checks. Dependency installation is separate from inference proof.
+- [ ] Complete real native/scanned/mixed PDF, tables/figures/captions,
+  multipage-table header preservation, 100/600-page bounded-memory and resume
+  acceptance (plan §71, §96), with model assets available.
+- [x] Run the unskipped real conversion suite:
+  `PI_RUN_PDF_TESTS=1 python -m unittest tests.test_docling_production_binding -v`.
+  Additional actual coverage: `tests/test_docling_pdf_adapter.py`,
+  `tests/test_real_docling_binding.py`, `tests/test_pdf_production_mapping.py`,
+  `tests/test_document_graph_roundtrip.py`, `tests/test_ingestion_job_store.py`,
+  `tests/test_pdf_batch_resume.py`. Tier2 markers and injected converters do not
+  by themselves prove real Docling inference. There is no separate prescribed
+  Docling-chunker test file.
 
-- [x] 1. Introduce the shared composition root
-      (`build_production_retrieval_runtime`) over the existing ports:
-      embedding model, vector store, dense index, sparse/exact indexes,
-      hybrid retrieval, reranker, selection, graph expansion, context
-      assembler, multi-stage retrieval. Consume it from
-      `pi_platform/adapters/ui/composition.py`, `pi_platform/mcp/context.py`,
-      `pi_platform/cli/main.py` and evaluation.
-- [x] 2. Remove the UI hash-scan dense path: query embedding runs once;
-      dense + sparse + exact channels fuse; filters, rerank, selection,
-      graph support and context assembly follow the accepted stage
-      order.
-- [x] 3. Focused tests: `tests/test_production_retrieval_composition.py`,
-      extend `tests/test_mcp_retrieval_output.py` and
-      `tests/test_mcp_context_factory.py` with same-query-same-result
-      assertions across UI and MCP.
-- [x] 4. Verification: `python -m pytest tests/test_production_retrieval_composition.py tests/test_mcp_retrieval_output.py tests/test_mcp_context_factory.py -q`
-      then `python harness.py check`.
+## PR11 — One-command UX
 
----
+- [x] Implement serving `start` (explicit `--no-serve` for one-shot bootstrap),
+  model commands, early HTTP, progress, setup and real administrative workers.
+  MCP and HTTP retrieval remain closed before successful publication.
+- [x] Keep settings in runtime cache; preserve selected model/device on restart;
+  serialize monitor and administrative reindex workers.
+- [x] Implement product Makefile/Compose/container surfaces and model-cache
+  volume. Static packaging checks are not a built-image acceptance result.
+- [x] Run actual mapped UX/lifecycle/admin/distribution tests:
+  `python -m unittest tests.test_one_command_production_ux tests.test_runtime_version_lifecycle tests.test_retrieval_admin_routes tests.test_phase_9_distribution -q`
+  passed 72 tests before the additional JSONL regression; the six monitor tests
+  including JSONL detection subsequently passed separately.
+  Additional mapped modules are `tests/test_first_start_wizard.py`,
+  `tests/test_retrieval_settings.py`, `tests/test_production_packaging.py`,
+  `tests/test_oci_pipeline_and_standalone_container.py`.
+- [ ] Complete fresh-machine Docker + real Gemma first run/restart, Qwen switch,
+  switch-back and live branch switch with no stale evidence (plan §72, §99).
 
-## PR8 — Persisted runtime snapshot reconciliation
+## PR12 — Production release gates
 
-Plan §31–§42, §68–§70. Delta:
-`specs/2026-10-18-persisted-runtime-snapshot-reconciliation/`.
+- [x] Implement inventory-only versus strict runtime capability checks in
+  `pi_platform/core/orchestration/production_capability_gate.py` and its CLI.
+  Actual tests: `tests/test_production_capability_gate.py`.
+- [x] Add `.github/workflows/verify-production-runtime.yml` with manual/release,
+  dev push and scheduled triggers, actual Docling conversion tests,
+  `tests/test_production_end_to_end.py`, and a production container build.
+- [ ] Execute the complete heavy tier in CI, including all branch scenarios,
+  actual PDF fixture breadth and offline container restart; implemented workflow
+  wiring does not certify a successful production release.
+- [ ] Build and run the real production image, verify its installed dependency
+  closure, licence/SBOM/NOTICE, model cache persistence and offline deployment.
+  Actual mapped packaging/licence coverage: `tests/test_production_packaging.py`,
+  `tests/test_oci_pipeline_and_standalone_container.py`,
+  `tests/test_supply_chain_gate.py`, `tests/test_phase_10_quality_gates.py`.
+  There are no separate prescribed first-run/offline/licence-SBOM test files.
+- [x] Run real Gemma and Qwen semantic evaluation against dated golden queries;
+  record Recall@5/@10, MRR, NDCG, protected retention, evidence coverage,
+  latency/memory/index size (plan §91). `tests/test_retrieval_benchmark.py`
+  validates benchmark machinery; it is not a two-model quality result.
+- [x] Run `python harness.py check` on the final integrated tree and record the
+  exact PASS/FAIL/NOT RUN results and remaining acceptance gaps in checkpoint.
 
-- [x] 1. Add `pi_platform/ports/git/version_snapshot.py`,
-      `pi_platform/core/sync/version_snapshot.py` and
-      `pi_platform/adapters/runtime/runtime_version_state.py` persisting
-      `runtime-state/active-version.json`, `manifest-snapshot.json`,
-      `source-snapshot.json` (last successfully served state only).
-- [x] 2. Rewrite `pi_platform/core/sync/reconcile.py` to diff the
-      persisted previous snapshot against a freshly built current
-      snapshot (HEAD + working-tree fingerprint + manifests + source
-      inventory): UNCHANGED reuse, ADDED process, MODIFIED invalidate and
-      rebuild, REMOVED tombstone/remove from active sparse, dense and
-      graph state. Fix startup wiring that passes current HEAD as both
-      previous and current.
-- [x] 3. Add `pi_platform/core/sync/version_monitor.py` (portable 2–5 s
-      polling of HEAD + working-tree fingerprint) and wire
-      `pi_platform/core/sync/readiness.py` so refreshes hold readiness
-      false, requests get "refreshing" / 503 semantics, only one
-      reconciliation runs per project (`project_lock.py`), and
-      activation is atomic per plan §42.
-- [x] 4. Focused tests: the plan §68 branch matrix in
-      `tests/test_branch_reconciliation_matrix.py`,
-      `tests/test_version_monitor.py`,
-      `tests/test_removed_data_tombstones.py`,
-      `tests/test_working_tree_fingerprint.py`, plus existing
-      `tests/test_content_address_cross_branch.py`.
-- [x] 5. Verification: `python -m pytest tests/test_branch_reconciliation_matrix.py tests/test_version_monitor.py tests/test_removed_data_tombstones.py tests/test_working_tree_fingerprint.py tests/test_content_address_cross_branch.py -q`
-      then `python harness.py check`.
+## Plan §68 coverage matrix
 
----
+“Detector” means change recognition only; “contract” means injected collaborators.
+Neither is a substitute for a native production refresh/retrieval acceptance run.
 
-## PR9 — Repository source discovery
+| Scenario | Actual current coverage | Remaining acceptance |
+|---|---|---|
+| A → B identical knowledge | `VersionMonitorTests.test_branch_and_dirty_content_matrix` detector | Reused native generation + returned corpus |
+| A → B added chunk | Actual minimal refresh in lifecycle/one-command tests | Real model/native ANN integration |
+| A → B modified chunk | Detector matrix; semantic-index changed-text contract | Actual branch refresh/query, dependency invalidation |
+| A → B removed chunk | Actual minimal refresh/query + snapshot tombstone contract | Native ANN and dependent graph/support evidence |
+| A → B changed graph edge | JSONL detector + actual candidate graph removed-edge/node regression | Git checkout and stale support removal across consumers |
+| A → B changed source code | One-command added source; monitor modified source detector | Modified-code retrieval/version integration |
+| B → A return | Actual minimal Git retrieval + native corpus generation reload without rewrite/inference | Combined real-model/native Git-switch acceptance |
+| Same HEAD + dirty working tree | Multiple dirty-content detector ticks | Refreshed retrieval/version assertion |
+| Dirty → clean | Detector matrix uses Git restore | Refreshed retrieval/version assertion |
+| Clean → dirty | Detector matrix | Refreshed retrieval/version assertion |
+| Switch while model indexing | Callback edits source; bootstrap rejects mismatched version | Actual checkout during blocked model/native generation |
+| Switch while query arrives | HTTP returns 503 when readiness false | Concurrent checkout/in-flight retrieval under active worker |
+| Crash during reconciliation | Native rename/sample validation rejection; real process exit after manifest mirror; legacy migration failure | Remaining publication/index process-kill boundaries |
+| Corrupted active index | Actual corrupt native file/metadata/keys and wrong profile/count/dimension rebuild without inference | Combined live server corruption/restart |
+| Missing previous runtime snapshot | Native bootstrap recovers existing valid generation without inference | Combined real-model server restart acceptance |
 
-Plan §43, §44. Delta:
-`specs/2026-10-18-repository-source-discovery-incremental/`.
+## Recorded verification limits
 
-- [x] 1. Add `pi_platform/core/ingest/repository_source_discovery.py`
-      with the default include set (sources, build descriptors,
-      `openspec/**`, `docs/**`, `requirements/**`, Markdown/HTML, API and
-      spec files) and exclude set (`.git/**`,
-      `.project-intelligence-cache/**`, `tmp/local/**`, build outputs,
-      vendored generated trees), feeding the ingestion pipeline driver.
-- [x] 2. Persist incremental discovery state (path, source family,
-      content hash, parser version, last effective retrieval-text hash);
-      never reparse unchanged files; report added/modified/removed to the
-      PR8 reconciliation diff.
-- [x] 3. Focused tests: `tests/test_repository_source_discovery.py`,
-      `tests/test_incremental_discovery_state.py` (new file discovered,
-      unchanged file skipped, removed file tombstoned, excludes honoured).
-- [x] 4. Verification: `python -m pytest tests/test_repository_source_discovery.py tests/test_incremental_discovery_state.py -q`
-      then `python harness.py check`.
+The lifecycle worker executed an expanded 108-test run covering lifecycle,
+snapshots, one-command UX, phase9 distribution/launch and standalone container
+contracts: PASS, one Docker smoke test skipped. A later focused run passed
+72 tests. These used explicit minimal profiles/injected contract embeddings
+where appropriate; they do not certify production model or container behavior.
+The installed native USearch 28-test run, both real adapter suites (19 tests),
+and the real offline Gemma → Qwen → Gemma end-to-end test (17.8 seconds) were
+reported PASS by the parent. The latest model-free/native regression command
+passed 111 tests in 9.5 seconds, including actual USearch recovery, subprocess
+snapshot-crash, operator override and source inventory persistence checks.
+The subsequent native/snapshot/monitor run passed 61 tests in 9.2 seconds,
+including the seeded ANN recall benchmark (0.998 against a 0.90 floor).
+Full PDF fixture breadth, a built Docker image, all fifteen combined branch
+scenarios and multilingual semantic-quality acceptance remain unchecked until
+their evidence is recorded.
 
----
 
-## PR10 — Real Docling PDF adapter and hybrid chunker
+## Integrated runtime acceptance recorded 2026-10-21
 
-Plan §45–§50 (depends on PR2 only; may run parallel to PR3–PR9). Delta:
-`specs/2026-10-18-real-docling-pdf-adapter-and-hybrid-chunker/`.
+Real CPU Gemma→Qwen→Gemma plus committed Git A→B→A (including removed
+canonical graph nodes), UI/MCP hit equality, unchanged source bytes, zero
+switch-back inference and loaded native generation: PASS. Both model suites
+passed19 tests without skipped inference. Strict production capability gate
+passed six checks. Two-model multilingual golden fixture passed; measured
+metrics and limitations are retained in
+`docs/verification/production-runtime-2026-10-21.json`.
 
-- [x] 1. Replace the synthetic body of
-      `pi_platform/adapters/pdf/docling_pdf_adapter.py` with real
-      `DocumentConverter` conversion; map `DoclingDocument` to the
-      neutral document model only at the adapter boundary (no vendor
-      types past it); enable tables, figures and selective OCR per
-      `pi_platform/adapters/pdf/ocr_policy.py`.
-- [x] 2. Replace the stub delegation in
-      `pi_platform/adapters/pdf/docling_chunker.py` with the real
-      `HybridChunker` configured with a tokenizer aligned to the active
-      embedding model; keep canonical chunking model-independent and
-      treat tokenizer splits as runtime embedding projections
-      (`pi_platform/core/retrieval/` optional segment type per plan §50);
-      resume checkpoints reuse `IngestionJobStorePort`.
-- [x] 3. Add the pinned Docling dependency group to `pyproject.toml`
-      (via the orchestrator-owned source gate) and inventory Docling /
-      OCR model asset licences separately in
-      `distribution/licenses/`.
-- [x] 4. Focused tests: `tests/test_docling_pdf_adapter.py`,
-      `tests/test_docling_chunker.py`, `tests/test_document_graph_roundtrip.py`,
-      `tests/test_ingestion_job_store.py`, per-document failure
-      isolation, and a no-Git-churn assertion on model switch.
-- [x] 5. Verification: `python -m pytest tests/test_docling_pdf_adapter.py tests/test_docling_chunker.py tests/test_document_graph_roundtrip.py tests/test_ingestion_job_store.py -q`
-      then `python harness.py check`.
+Actual native/table/figure/scanned/mixed/two-page-table conversion passed;
+PDF→realGemma→USearch integration passed. Actual600-page proof passed in734.533s,
+max16-page windows, peakRSS2.13GiB. Pending the final combinedsuite check, these
+are individual executed proofs, not a CI or production-container claim.
 
----
+Production license policy intentionally blocks12 coordinates; see
+`docs/PRODUCTION_LICENSE_REVIEW.md`. Docker production build/start and remote
+heavy CI are NOT RUN. Broad combined15-scenario/performance/airgap requirements
+remain unchecked. No current spec was silently weakened to mark these complete.
 
-## PR11 — One-command production UX
 
-Plan §15–§18, §55–§60, §83–§88, §99 (after PR8, PR9, PR10). Delta:
-`specs/2026-10-18-one-command-production-ux/`.
+Final realPDF combinedsuite:6 tests PASS211.955s, no skipped inference. Shared
+runtime CLI `eval-retrieval --target` now uses the published repository pipeline;
+28 evaluation/repository/standalone tests PASS. Generic fixture evaluation stays
+explicit and distinct. See production reconciliation report for complete limits.
 
-- [x] 1. Add `project-intelligence start` and the `models` command group
-      (`list` / `status` / `pull` / `verify` / `use`) to
-      `pi_platform/cli/main.py`; startup sequence: start HTTP early
-      (readiness false) → ensure model → hydrate → reconcile → discover →
-      ingest → embed → index → atomic activation → readiness true;
-      MCP stays fail-closed while not ready.
-- [x] 2. First-start wizard at `/` when no local embedding configuration
-      exists (target repository, EmbeddingGemma 2 vs Qwen3-Embedding-0.6B,
-      device auto/CPU/GPU, enable document processing, initialize and
-      build); bootstrap progress surface while indexing runs.
-- [x] 3. Admin retrieval settings
-      (`pi_platform/core/control/retrieval_settings.py`,
-      `pi_platform/adapters/ui/retrieval_admin_routes.py`): model and
-      device switching with the model-switch state machine (plan §87),
-      stored in `.project-intelligence-cache/settings.json`, never in
-      canonical Git.
-- [x] 4. Product Makefile targets (`pi-help`, `pi-up`, `pi-model`,
-      `pi-status`, `pi-reindex`, `pi-doctor`, `pi-down`), production
-      Docker profile and persistent model volume
-      (`docker-compose.yml`, `Containerfile` edits owned by the
-      orchestrator gate).
-- [x] 5. Focused tests: `tests/test_start_command.py`,
-      `tests/test_first_start_wizard.py`,
-      `tests/test_retrieval_settings.py`, `tests/test_model_switch_state_machine.py`,
-      `tests/test_makefile_product_targets.py`.
-- [x] 6. Verification: `python -m pytest tests/test_start_command.py tests/test_first_start_wizard.py tests/test_retrieval_settings.py tests/test_model_switch_state_machine.py tests/test_makefile_product_targets.py -q`
-      then `python harness.py check`.
 
----
-
-## PR12 — Production capability and release gates
-
-Plan §64–§74, §89–§92, §97 (after PR11). Delta:
-`specs/2026-10-18-production-capability-and-release-gates/`.
-
-- [x] 1. Add the `production-capability-gate` test/CI step that fails on
-      `pinned-stub`, `not bound`, `usearch-stub`, synthetic document
-      adapters, unconditionally failing production model adapters, or
-      `pinned-stub` entries in
-      `distribution/licenses/model-licenses.json` (plan §64, §97).
-- [x] 2. Heavy integration tier (merge to dev / nightly / release): real
-      cached EmbeddingGemma 2 and Qwen weights, real USearch, real
-      Docling fixtures, branch-switch matrix, model-switch integration,
-      offline deployment check (plan §65–§73, §90). Fast PR CI keeps the
-      deterministic hashing/test profile.
-- [x] 3. End-to-end one-command acceptance covering the plan §99 user
-      story (`make pi-up …`, model switch via `make pi-model …`, branch
-      switch) with licence/SBOM verification
-      (`distribution/licenses/dependency-inventory.json`).
-- [x] 4. Focused tests: `tests/test_production_capability_gate.py`,
-      `tests/test_license_sbom_gate.py`,
-      `tests/test_first_run_end_to_end.py`, `tests/test_offline_deployment.py`.
-- [x] 5. Verification: `python -m pytest tests/test_production_capability_gate.py tests/test_license_sbom_gate.py tests/test_first_run_end_to_end.py tests/test_offline_deployment.py -q`
-      then `python harness.py check`; record each gate result in the
-      session checkpoint before handoff.
+Final integrated `python3 harness.py check`: PASS1429 unittest invocations;
+13 optional integration skips in core lane, separate realmodel/PDF checks
+executed unskipped. Wiki/OpenSpec/manifest/MCP checks PASS. Final source and
+container release limits are recorded in docs/PRODUCTION_RECONCILIATION_STATUS.md.

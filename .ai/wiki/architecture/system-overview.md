@@ -138,3 +138,11 @@ The Phase 8 regression suite is in
 [`tests/test_phase_8_security.py`](../../../tests/test_phase_8_security.py).
 See also the [Egress Decision interface](../interfaces/egress.md) and
 [ADR 0017](../adr/0017-phase-8-enterprise-security-boundary.md).
+
+## Current production deployment
+
+See [portable deployment architecture](portable-deployment.md) and
+[ADR 0029](../adr/0029-portable-model-runtime-and-oci-kit.md) for the implemented
+CPU/GGUF model split, automatic model and Docling setup, persistence and OCI kit.
+The default is one production CPU container; GPU modes add a Linux sidecar or
+Windows native model service. Physical GPU and Windows acceptance remain pending.

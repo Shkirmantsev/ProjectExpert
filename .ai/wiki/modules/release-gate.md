@@ -9,7 +9,7 @@ sourceRefs:
   - pi_platform/core/orchestration/production_capability_discovery.py
   - pi_platform/cli/production_capability_gate.py
   - harness.py
-  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-production-capability-and-release-gates/spec.md
+  - openspec/specs/2026-10-18-production-capability-and-release-gates/spec.md
 maintenance:
   mode: authored
 related:
@@ -19,12 +19,11 @@ related:
 
 # Production release gate
 
-The production-capability gate is the difference between a
-working repository and a production-grade release. It is the
-last command `harness.py check` runs before declaring a build
-green, and the only CLI tool that gives the operator a single
-pass / fail answer about whether the running image really
-binds every production component.
+The default production-capability command verifies real runtime bindings and
+model inference. Core harness checks select `--inventory-only`, which validates
+pinned model records without requiring optional production dependencies. Core
+success is not production release approval. The production license closure has
+a separate policy gate; see `docs/PRODUCTION_LICENSE_REVIEW.md`.
 
 ## What the gate checks
 
@@ -49,18 +48,16 @@ binds every production component.
 
 4. **Embedding probe** — for every production-enabled profile
    the gate instantiates the embedding model and asks for a
-   probe vector. The probe is permitted to SKIP rather than
-   FAIL when the cached snapshot is incompatible with the
-   installed `sentence-transformers`; a SKIP is informational,
-   not a release blocker. An unconditional
-   `EmbeddingModelError` from `embed()` is a hard failure.
+   finite, normalized probe vector. Missing weights, incompatible loaders,
+   unsupported devices and inference errors are hard failures. No failed
+   production embedding probe is converted into a skip.
 
 ## API
 
 `pi_platform.core.orchestration.production_capability_gate.run_production_capability_gate()`
 returns a `GateReport` with `passed: bool`, `verdicts` (one
 per check, each carrying `name`, `passed`, `details`) and
-`skipped` (the count of SKIPPED embedding probes).
+`skipped` (zero for the strict production runtime lane).
 
 `pi_platform.cli.production_capability_gate.cmd_production_capability_gate()`
 wraps the function with a CLI: pretty-printed JSON output by
@@ -69,8 +66,9 @@ when `passed`, exit 1 otherwise.
 
 `harness.py check` runs the CLI as a subprocess step
 (`cmd_production_capability_gate()`) between
-`cmd_openspec_check()` and `cmd_test()`. The harness refuses
-to print "Harness core checks: PASS" if this step fails.
+`cmd_openspec_check()` and `cmd_test()`. The harness uses inventory-only mode and refuses to print
+"Harness core checks: PASS" if that inventory check fails. Run the default
+production command separately in the installed production environment.
 
 ## How to fix when something breaks
 
@@ -79,12 +77,23 @@ to print "Harness core checks: PASS" if this step fails.
   `distribution/licenses/model-licenses.json` to the real
   pinned SHA, or remove the profile from the production-enabled
   set in the same file.
-- **Embedding probe SKIPPED** — the cached EmbeddingGemma 2
-  snapshot is incompatible with the installed
-  `sentence-transformers`. Re-pull with
-  `python -m pi_platform.cli models pull embeddinggemma2` or
-  upgrade `sentence-transformers`; this is informational only
-  and does NOT fail the release.
+- **Embedding probe failure** — install the supported production lock and pull
+  the exact pinned snapshot with `python -m pi_platform.cli models pull gemma`
+  or `qwen`. Retry the strict gate; unsupported cached snapshots remain failures.
 - **Docling or USearch import failure** — install the optional
   dependency (`pip install docling docling-core` or
   `pip install usearch`) and re-run.
+## Development container and deployment kit
+
+`publish-oci-container.yml` separates core artifacts (`core-*`) from production
+(`sha-<full-commit>`, `production`, `dev`, `development`, `main`). The production job checks
+an exact hash-bound dependency acceptance, then real default-model startup,
+query, UI/MCP and restart through the standalone deployment Compose. It pushes
+the tested runtime image and a matching `project-intelligence-deployment` kit
+that embeds its digest. PRs do not push. A Windows job tests launcher behavior
+with a controlled Docker boundary; it is not a Windows GPU hardware test.
+
+The operator accepted the exact 12-coordinate review on 2026-10-22. Its lock,
+inventory and evidence hashes remain mandatory. Real production CPU model setup
+and search/restart passed locally; remote publication and physical GPU tests
+remain pending.

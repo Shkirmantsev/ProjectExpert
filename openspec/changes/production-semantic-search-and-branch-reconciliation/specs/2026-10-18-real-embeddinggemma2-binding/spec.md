@@ -7,7 +7,7 @@ Covers plan §6.1, §9, §12–§14, §101 (PR 3 of §79).
 Define the observable behaviour of the production EmbeddingGemma 2
 binding: real inference instead of the not-bound stub, 512-dimensional
 L2-normalized output produced with the upstream Matryoshka truncation
-policy, task-aware query/document prompting, text-only loading,
+policy, task-aware query/document prompting, text/image loading,
 the documented numeric policy (float32 on CPU, bfloat16 on supported
 accelerators, never float16 by default), an immutable pinned revision,
 a persistent model cache and startup health checks. External facts
@@ -63,19 +63,20 @@ When the platform encodes the same text once with query role and once with docum
 Then the two vectors differ
 And neither call site constructed a model-specific prompt
 
-### Requirement: text-only loading
+### Requirement: text and image loading
 
-The platform MUST load only the text encoders needed for embedding and
-MUST NOT require vision or audio encoders to be active at runtime for
-the text production profile.
+The production Gemma binding MUST retain the vision encoder needed for image
+embeddings. Text inputs and supported repository images or extracted PDF figure
+images MUST use the actual model; image bytes MUST NOT be replaced by filenames
+or silently discarded. Audio/video ingestion is outside this binding's contract.
 
-#### Scenario: text-only load skips vision and audio encoders (verifies: text-only loading)
+#### Scenario: image pixels participate in embeddings
 
-Given the production profile selects EmbeddingGemma 2 in text mode
-When the platform loads the model
-Then only the text encoder weights are materialised
-And no vision or audio encoder module is initialised
-And the model footprint matches the text-only profile budget
+Given the production profile selects Gemma with its vision components loaded
+When two different supported images are embedded
+Then their pixel content is passed to the model
+And the outputs are normalized 512-dimensional vectors
+And changing image bytes invalidates the cached image embedding.
 
 ### Requirement: numeric policy
 

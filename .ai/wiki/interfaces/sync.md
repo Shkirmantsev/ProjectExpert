@@ -14,7 +14,7 @@ sourceRefs:
   - pi_platform/core/sync/version_snapshot.py
   - pi_platform/core/sync/version_monitor.py
   - openspec/specs/2026-10-04-bidirectional-canonical-runtime-sync/spec.md
-  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-persisted-runtime-snapshot-reconciliation/spec.md
+  - openspec/specs/2026-10-18-persisted-runtime-snapshot-reconciliation/spec.md
 maintenance:
   mode: authored
 ---
@@ -61,20 +61,31 @@ persists the last successful snapshot — branch, HEAD,
 working-tree fingerprint, manifest hash, source hash, embedding
 profile identity, active index generation, last successful
 refresh identifier — under
-`.project-intelligence-cache/active-runtime.json`. Writes go
-through `.tmp` + `os.replace`; a crash mid-write leaves the
-previous snapshot untouched. `commit()` and `read_snapshot()`
+`.project-intelligence-cache/runtime-state/snapshot.json`. This authoritative
+bundle contains active, manifest and source state and is replaced atomically.
+The three original JSON files remain compatibility projections; old installs
+are migrated into a coherent bundle before a projection can be overwritten.
+A crash between projection writes cannot mix two served generations. `commit()` and `read_snapshot()`
 are the two halves; `diff()` classifies the candidate snapshot
 against the persisted one.
 
 ## Version monitor
 
 `pi_platform.core.sync.version_monitor.ProjectVersionMonitor`
-is the abstract poll contract; the default
-`ProjectVersionMonitorStub` polls the Git HEAD and the
-working-tree fingerprint every 2-5 seconds and schedules a
-reconcile when either changes. The monitor MUST NOT depend on
-OS-specific filesystem watchers.
+is the abstract poll contract. `PollingProjectVersionMonitor` is wired by
+`start` and `serve`: it polls every three seconds (configurable within 2–5),
+checks HEAD/branch and hashes discovered source contents plus canonical JSON.
+Repeated edits with unchanged Git porcelain status still trigger refresh.
+Runtime cache writes do not. Model/device/document settings changes trigger a
+refresh as well. Failed builds retry without requiring another edit; changes
+made during indexing are detected before publication and retried.
+`ProjectVersionMonitorStub` is only a no-op lifecycle test double.
+
+The complete hydrate → discover → index → snapshot → publication transaction
+holds a project file lock under the target cache `locks/` directory. A shared
+readiness lock also serializes monitor and administrative workers in-process.
+HTTP starts with readiness false; retrieval remains closed during refresh and
+after failures, while static UI, health, wizard and status stay accessible.
 
 ## Materialise
 
@@ -131,9 +142,9 @@ per materialise operation. Recovery behaviour:
 
 - `hydrate` and `materialise` are serialised per project via the
   `ProjectLock` advisory file lock.
-- `reconcile` can run in parallel with read-only retrieval
-  operations because the runtime store presents a consistent
-  snapshot through a version stamp.
+- Production refresh marks readiness false before mutation. Retrieval refuses
+  evidence until a candidate matching the current Git/content state has been
+  activated and published; failed candidates do not advance the active snapshot.
 
 ## Round trip
 
@@ -142,3 +153,23 @@ knowledge: when no runtime change is introduced, the produced
 Git diff is empty. The
 [`tests/test_platform_phase1.py`](../../../tests/test_platform_phase1.py)
 `SyncRoundtripTests` cover this contract.
+
+
+## Native generation recovery
+
+Production indexing derives generation identity from each chunk ID paired with
+its retrieval-text hash and the embedding profile. A valid cached native file
+loads without rewriting it or recomputing document embeddings. Generation-local
+metadata and key sidecars must match profile, dimension, count, corpus keys and
+schema; a sample query validates the saved native candidate before rename.
+Missing/corrupted native files or metadata rebuild from authoritative SQLite
+vectors. Invalid vector records are recomputed individually. The legacy
+`index_meta.json` is a diagnostic view, not an activation pointer.
+
+`tests/test_native_generation_recovery.py` covers cache reuse, corruption,
+missing snapshots, operator precedence, failed activation and real subprocess
+exit during snapshot publication. Its controlled embeddings are independent of
+real-model quality checks. The seeded native recall benchmark achieved 0.998
+Recall@10 on 1,000 normalized 64d vectors and 50 held-out queries against exact
+cosine, with a 0.90 acceptance floor; broader semantic and scale acceptance
+remains separate.

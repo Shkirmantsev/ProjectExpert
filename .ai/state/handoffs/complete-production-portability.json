@@ -1,0 +1,76 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "openspec/changes/ship-portable-oci-deployment; docs/PRODUCTION_INSTALL.md; distribution/licenses/production-license-review.json"
+  ],
+  "decisions": [
+    "Operator explicitly accepted the exact 12-coordinate closure on 2026-10-22; record activated and exact production license gate PASS. Both CPU and real Vulkan GPU execution are required."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Implementation committed as 793cc0a; documentation reconciled across README, ADR 0029, architecture, Wiki, current specifications and active change records"
+    ],
+    "todo": [
+      "Physical Windows/CUDA/Vulkan acceptance and remote CI/GHCR publication remain to be executed"
+    ]
+  },
+  "resume": {
+    "next_action": "Commit verified documentation, then review branch for merge and external acceptance checks",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-20T19:12:44+00:00",
+    "id": "complete-production-portability",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-22T19:11:33+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "All plan and audit gaps reconciled with code evidence; production dependencies and models load or report actionable errors; portable install and launch verified; skills accessible to Codex; focused and harness checks pass"
+    ],
+    "goal": "Complete production semantic search reconciliation and portable installation/launch; synchronize project skills for Codex",
+    "openspec_change": "ship-portable-oci-deployment",
+    "status": "verifying"
+  },
+  "verification": {
+    "passed": [
+      "Documentation final gate PASS: full harness 1446 invocations with 13 optional skips, strict OpenSpec 87 items, Wiki 125 documents, artifact manifest 1246 files, exact-license gate and staged whitespace checks"
+    ],
+    "pending": [
+      "Windows and physical GPU execution and remote GHCR publication remain unverified; initial sandbox socket failure resolved by successful socket-enabled harness"
+    ]
+  },
+  "working_set": [
+    {
+      "path": ".ai/wiki/adr/0029-portable-model-runtime-and-oci-kit.md",
+      "sha256": "19d9b47be2217203be8a2a94ec4fd64fac3ad4f457dd2dbd2c03876251144b89"
+    },
+    {
+      "path": ".ai/wiki/architecture/portable-deployment.md",
+      "sha256": "c38d02a604b7bb0107175d41f9f9f346151ab24d2df117c4e5d7e72dfd917242"
+    },
+    {
+      "path": ".github/workflows/publish-oci-container.yml",
+      "sha256": "9c932ae372b668e377e3c943870d5d98fd2828badc31c7ebdc98d71fb533933d"
+    },
+    {
+      "path": "README.md",
+      "sha256": "3e03a1d9af829c83e545ef0bc3d2c6b685fe2a99a3eff1ab5b9b2ddc7eb1a52e"
+    },
+    {
+      "path": "docs/PRODUCTION_RECONCILIATION_STATUS.md",
+      "sha256": "ceb590a4df79f7245771996093cef4799e66a54bf3783100f6f357c61f3b96df"
+    }
+  ]
+}

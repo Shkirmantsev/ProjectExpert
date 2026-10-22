@@ -123,3 +123,37 @@ When `retrieve(q1)` and `retrieve(q1)` run sequentially
 Then the returned hit lists are identical
 And `contextBundle.hits` are in the same order.
 
+### Requirement: production stage order
+
+The multi-stage retrieval pipeline MUST execute the following stages
+in order when the eleven-stage v2 selection contract is wired:
+
+1. query analysis (`QueryFeatures`);
+2. exact / dense / sparse candidate generation;
+3. metadata / version / security filter projection;
+4. RRF fusion;
+5. pre-rerank direct candidate pool (cap = `pre_rerank_pool`,
+   default 48);
+6. cross-encoder / fallback rerank of DIRECT candidates only;
+7. selection (`PRIMARY / RESERVE / PROTECTED`);
+8. graph / hierarchy / figure / table expansion from selected
+   primary / protected seeds;
+9. mark expanded nodes `SUPPORT`;
+10. context assembly with deduplication and citation preservation;
+11. reserve escalation if needed.
+
+The reranker MUST NOT be invoked on support nodes. The
+`RetrievalResult.hits` shape is unchanged; support items are added
+by the Context Assembler with their own `evidence_kind` and
+`source` discriminator.
+
+#### Scenario: rerank runs before graph / hierarchy expansion
+
+Given a query that returns 60 direct candidates and 25 support
+nodes that would be added by graph expansion
+When `retrieve(...)` runs
+Then the reranker receives 60 direct candidates
+And the support nodes are attached only after the selection stage
+And the reranker never sees the support nodes
+And `stageReports` lists the eleven stages in the documented order.
+

@@ -7,8 +7,11 @@ summary: Production replacement for the synthesised Docling PDF stub. The real `
 sourceRefs:
   - pi_platform/adapters/pdf/real_docling.py
   - pi_platform/adapters/pdf/docling_pdf_adapter.py
+  - pi_platform/adapters/pdf/runtime_projection.py
   - tests/test_real_docling_binding.py
-  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-real-docling-pdf-adapter-and-hybrid-chunker/spec.md
+  - tests/test_pdf_production_mapping.py
+  - tests/test_docling_production_binding.py
+  - openspec/specs/2026-10-18-real-docling-pdf-adapter-and-hybrid-chunker/spec.md
 maintenance:
   mode: authored
 related:
@@ -45,9 +48,11 @@ synthesised path.
     (the recent `transformers` releases trip on the
     EmbeddingGemma `tokenizer_config` `extra_special_tokens`
     list bug; we strip it in a temp dir).
-  - `max_tokens` is resolved from the embedding model's
-    `sentence_bert_config.json` when available, else defaulted
-    to 512.
+  - The caller's `max_tokens` budget is passed to the vendor
+    Hugging Face tokenizer; alignment-only chunker construction is lazy.
+  - Sanitized tokenizer copies use `TemporaryDirectory` and are removed
+    on success and failure. The cache fallback honors Hugging Face cache
+    environment settings and selects the hub's current local revision.
   - `_DEFAULT_TOKENIZER_FOR_MODEL` maps the two production
     embedding models; `PI_DOCLING_TOKENIZER` env var is the
     documented escape hatch for private mirrors.
@@ -57,10 +62,24 @@ synthesised path.
 - `pi_platform/adapters/pdf/docling_pdf_adapter.py` —
   `DoclingPdfAdapter` gains a `docling_converter=` injection
   point for tests and a `build_real_docling_pdf_adapter()`
-  factory that refuses to construct when Docling is not
-  installed. The synthesised `_DoclingDocument` path remains
-  as a fast test surface; production code paths use the
-  factory.
+  factory that refuses to construct when Docling is not installed.
+  Direct construction also selects the real converter by default; fixtures
+  must explicitly pass `allow_synthetic=True`. Conversion failures never
+  synthesize content and partial vendor conversion status is rejected.
+  Strategy `docling-pdf/v2-real` rejects legacy synthetic graph caches;
+  rebuild those runtime caches before reusing an existing graph database.
+  PDFium reads the authoritative page count and native text layers before
+  conversion, so compressed page trees cannot silently truncate ingestion.
+  Conversion owns bounded page windows, retains completed page checkpoints,
+  and resumes failed windows. Mapped content preserves actual table cells,
+  text labels, page geometry, figure PNG assets, source paths and anchors.
+  Canonical section bodies contain real structural content.
+
+- `pi_platform/adapters/pdf/docling_chunker.py` reconstructs vendor inputs
+  only inside the PDF boundary and invokes the actual `HybridChunker`.
+  Header context is included in table text through vendor contextualization;
+  the tokenizer budgets that context. Anchors survive runtime splitting.
+  A model switch leaves the neutral canonical graph unchanged.
 
 ## Vendor boundary
 
@@ -84,3 +103,34 @@ any neutral canonical module references a vendor type by name.
   `pip install docling docling-core`; the factory raises
   `DoclingPdfAdapterError` at construction time otherwise,
   which is the documented behaviour.
+
+## Verification boundary
+
+`tests/test_pdf_production_mapping.py` exercises real vendor document/table/image
+objects, actual HybridChunker with a local in-memory tokenizer, PDFium inspection
+of a generated valid PDF, persisted assets and resume after conversion failure.
+These tests do not download OCR/layout weights or claim full PDF layout inference;
+that production acceptance gate requires separately available model assets.
+
+
+## Pinned document assets
+
+The adapter selects Heron layout, TableFormer V1 accurate tables and explicit
+RapidOCR ONNX paths. Immutable upstream commits and separate weight licenses are
+recorded in `distribution/licenses/model-licenses.json`; package MIT licenses
+are recorded separately. This prevents Docling defaults from silently selecting
+new models or a different OCR engine. `PI_DOCLING_CACHE` selects the artifact
+cache; otherwise it follows the platform cache directory under
+`projectexpert/docling`. First PDF use fetches only the selected revision files;
+Hugging Face offline mode requires those files to exist already.
+
+`tests/test_docling_production_binding.py` is the opt-in full inference suite:
+100 native pages, a native table with a real chart image, and scanned PDF OCR.
+Enable it with `PI_RUN_PDF_TESTS=1`. Missing models and inference errors fail
+once enabled. `PdfStructuralChunker` preserves each canonical source unit and anchor.
+`PdfRuntimeProjection` reuses one actual model-aligned HybridChunker per indexing
+refresh to produce bounded runtime embedding segments. Canonical identifiers and
+text remain unchanged; the semantic index stores a normalized mean of the segment
+vectors under the canonical identifier. Projection policy and segment text
+participate in the vector reuse hash. Tokenizer revisions match the pinned
+embedding checkpoints; private mirrors can set `PI_DOCLING_TOKENIZER_REVISION`.

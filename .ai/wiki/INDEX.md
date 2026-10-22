@@ -16,6 +16,8 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Structure and ownership](../../docs/PROJECT_STRUCTURE.md)
 - [Engineering conventions](../../docs/conventions/README.md)
 
+- [Portable deployment architecture](architecture/portable-deployment.md)
+- [ADR: Portable model runtimes and OCI kit](adr/0029-portable-model-runtime-and-oci-kit.md)
 - [System overview](architecture/system-overview.md)
 - [Platform architecture overview](architecture/platform-overview.md)
 - [Architecture baseline v0.8](../../project-intelligence-platform-architecture-v0.8.md)

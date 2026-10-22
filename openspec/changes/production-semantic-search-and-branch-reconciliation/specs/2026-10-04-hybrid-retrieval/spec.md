@@ -35,7 +35,7 @@ Then the dense channel queries the active persistent dense
 backend
 And the port does NOT hash any corpus item at query time.
 
-#### Scenario: stub dense backend is rejected (replaces previous "flat fallback allowed" behavior)
+#### Scenario: stub dense backend is rejected
 
 Given a dense backend whose `stats()["backend"]` ends with
 `"-stub"`
@@ -52,7 +52,7 @@ harness. Two consumers MUST NOT maintain materially different
 dense / sparse / exact configurations for the same project
 version.
 
-#### Scenario: UI and MCP return identical results (replaces previous "UI uses flat composition" behavior)
+#### Scenario: UI and MCP return identical results
 
 Given the same query text and the same runtime configuration
 When the query is executed through the web UI and through the

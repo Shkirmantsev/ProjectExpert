@@ -1,47 +1,49 @@
-# Excluded production-capability-gate profile set
+# Production capability gate model boundaries
 
-This file enumerates the model profiles that are explicitly
-**excluded** from the `production-capability-gate` defined in
-`openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-production-capability-and-release-gates/spec.md`.
-
-The gate checks records whose `profile` field is in the
-**production-enabled set**; records whose `profile` is in the
-**excluded set** are out of scope for the gate until the future
-OpenSpec change that finishes their real binding.
+The embedding-model readiness probe selects inventory records with
+`production_enabled=true`; it does not select by profile name. Other
+capabilities have their own checks. License approval remains a separate gate
+for every enabled component, including document-processing assets.
 
 ## Production-enabled set
 
-These profiles MUST have a real, pinned, non-`pinned-stub` record
-in `distribution/licenses/model-licenses.json` for the gate to
-pass.
-
-| `model_id` | `profile` | Why production-enabled |
+| `model_id` | `profile` | Immutable revision |
 |---|---|---|
-| `embeddinggemma2-512` | `semantic-cpu` | Selected by the `production` startup profile when the operator chooses `gemma`; covered by PR 3. |
-| `qwen3-embedding-0.6b` | `quality` | Selected by the `production` startup profile when the operator chooses `qwen`; covered by PR 4. |
-| `hashing-1.0.0` | `minimal` | Only selected by the explicit `minimal` startup profile; the gate treats `hashing-1.0.0` as a real-and-available record because the hashing adapter is the intended diagnostic backend, not a stub. |
+| `google/embeddinggemma-2` | `semantic-cpu` | `914f7f89142e33e77833254d9c9b90c3cef7303b` |
+| `Qwen/Qwen3-Embedding-0.6B` | `quality` | `97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3` |
+
+Both records have `production_enabled=true`. The runtime must load the real
+binding for the selected model and satisfy its independent license policy.
 
 ## Excluded set
 
-These profiles are part of the development roadmap and MUST NOT
-cause the gate to fail while they remain `pinned-stub`. The
-follow-up OpenSpec change that finishes their real binding MUST
-remove the corresponding row from this list and add a PR 12
-acceptance scenario that pins the real revision.
+| `model_id` | Scope | Reason |
+|---|---|---|
+| `ggml-org/embeddinggemma-2-GGUF` | Optional pinned llama.cpp text/image runtime | Separate GGUF probe with model and projector hashes; excluded from in-process PyTorch probes, not disabled. |
+| `Qwen/Qwen3-Embedding-0.6B-GGUF` | Optional pinned llama.cpp runtime | Separately probed through authenticated model identity and real vector checks; not part of the two in-process PyTorch probes. GPU hardware checks remain pending. |
+| `hashing-1.0.0` | Explicit minimal profile | Deterministic diagnostic backend; never an implicit production semantic fallback. |
+| `qwen3-reranker-0.6b` | Optional quality reranker | Placeholder excluded pending a separately verified binding. |
+| `multimodal-figure-512` | Optional multimodal profile | Placeholder excluded pending a separately verified binding. |
+| `tesseract-ocr` | Optional alternate OCR engine | Not selected by the pinned RapidOCR document path. |
+| `paddleocr` | Optional alternate OCR engine | Not selected by the pinned RapidOCR document path. |
+| `docling-project/docling-layout-heron` | Document layout asset | Real, pinned document-processing asset; not an embedding model. |
+| `docling-project/docling-models` | Document table-structure asset | Real, pinned document-processing asset; not an embedding model. |
+| `SWHL/RapidOCR` | Document OCR assets | Real, pinned document-processing assets; not an embedding model. |
 
-| `model_id` | `profile` | Why excluded | Follow-up change |
-|---|---|---|---|
-| `qwen3-reranker-0.6b` | `quality` | Reranker adapter is still a placeholder; finishing it is part of the post-v0.8 retrieval refinement roadmap, not this change. | Future `real-qwen3-reranker-binding` change. |
-| `multimodal-figure-512` | `multimodal` | Multimodal figure binding is gated behind the `multimodal` profile; out of scope for the production semantic search hardening. | Future `real-multimodal-figure-binding` change. |
-| `tesseract-ocr` | `documents-ocr` | OCR engine selection is part of the Docling / document processing follow-up; the `documents` profile is enabled by default and uses Docling's bundled OCR by default. | Future `real-docling-ocr-engine` change. |
-| `paddleocr` | `documents-ocr` | Alternative OCR engine selection; same follow-up as Tesseract. | Future `real-docling-ocr-engine` change. |
+The three document-asset records have `production_enabled=false` because that
+field selects embedding probes, and `document_processing_enabled=true` because
+the real PDF path uses them. They are not disabled or unimplemented. The PDF
+adapter pins these revisions independently of the MIT Docling package license:
 
-## Update procedure
+| Document model | Immutable revision | Inventoried asset license |
+|---|---|---|
+| `docling-project/docling-layout-heron` | `8f39ad3c0b4c58e9c2d2c84a38465abf757272d8` | Apache-2.0 |
+| `docling-project/docling-models` | `2199320848bb9a8a519d22e4b528185a4f9a6f64` | CDLA-Permissive-2.0 AND Apache-2.0 |
+| `SWHL/RapidOCR` | `1cfba2e90fc938db55889873735088de210cc173` | Apache-2.0 |
 
-1. Edit this file when a profile transitions between the
-   production-enabled and excluded sets.
-2. Re-run `production-capability-gate` to confirm the gate now
-   fails or passes as expected.
-3. Update the acceptance scenario in
-   `…/2026-10-18-production-capability-and-release-gates/spec.md`
-   so it names the new boundary.
+## Updates
+
+Update this file together with the model inventory and the actual model selector.
+A real binding does not imply legal approval or inference readiness: execute the
+corresponding opt-in production tests and retain their actual result. The PDF
+suite uses `PI_RUN_PDF_TESTS=1`; load/inference errors fail once enabled.

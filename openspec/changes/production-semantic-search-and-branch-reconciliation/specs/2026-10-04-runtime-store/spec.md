@@ -73,7 +73,7 @@ hashes + embedding profile hash + index schema version)` and
 MUST persist it with the active index metadata. The identifier
 MUST NOT be the Git branch name.
 
-#### Scenario: source generation changes when retrieval text changes (replaces "identifier = branch name" behavior)
+#### Scenario: source generation changes when retrieval text changes
 
 Given two persisted vector records whose retrieval text hash
 differs
@@ -91,7 +91,7 @@ identity, active index generation and the last successful
 refresh identifier. The snapshot MUST be written only after
 reconciliation and atomic index activation succeed.
 
-#### Scenario: snapshot is written only after activation (replaces previous "snapshot after each commit" behavior)
+#### Scenario: snapshot is written only after activation
 
 Given a refresh that fails to validate the candidate dense
 generation

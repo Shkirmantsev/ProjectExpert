@@ -3699,3 +3699,15 @@ The architectural integration decisions above were checked against the then-curr
 
 These are treated as external evolving integration contracts. Their details belong in adapters/build tooling rather than the Project Intelligence core.
 
+## Implemented deployment update — 2026-10-22
+
+The current runtime/deployment detail is maintained in the
+[portable deployment architecture](.ai/wiki/architecture/portable-deployment.md)
+and [ADR 0029](.ai/wiki/adr/0029-portable-model-runtime-and-oci-kit.md).
+These supersede earlier deployment assumptions about one universal runtime or
+implicit GPU fallback: native CPU is the default; selected GPU execution uses a
+separate pinned GGUF runtime, with a Gemma projector for image embeddings.
+Docling remains CPU-based. The matching OCI kit provisions assets during startup
+and pins the application image digest. Earlier conceptual profiles in this
+baseline are not evidence of hardware acceptance; consult the
+[verification report](docs/PRODUCTION_RECONCILIATION_STATUS.md).

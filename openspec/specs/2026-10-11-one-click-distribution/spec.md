@@ -156,8 +156,8 @@ Then the duty sets are equal.
 The repository MUST provide a GitHub Actions workflow that builds, verifies,
 and publishes the platform OCI container image to the GitHub Container Registry
 (`ghcr.io`) whenever a feature branch is merged or pushed into the development
-branch (`dev` / `development`), and verifies the container build on pull
-requests targeting the development branch. The pipeline and the resulting image
+branches (`dev` / `development` / `main`), and verifies the container build on pull
+requests targeting those branches. The pipeline and the resulting image
 MUST include only the product runtime (`pi_platform/`, `distribution/`,
 `evals/`, `Containerfile`, `docker-compose.yml`) and MUST NOT embed or depend
 on the development harness (`harness.py`, `infra/`, `tools/mcp/`, `.ai/`,
@@ -165,7 +165,7 @@ on the development harness (`harness.py`, `infra/`, `tools/mcp/`, `.ai/`,
 
 #### Scenario: merge to development builds and pushes OCI image
 
-Given a feature branch merge or push to `dev` or `development`
+Given a feature branch merge or push to `dev`, `development` or `main`
 When the OCI container workflow runs
 Then it executes the product verification gates, builds `Containerfile`, and
 pushes immutable commit-SHA and development tags to `ghcr.io/<owner>/project-intelligence`.
@@ -194,3 +194,19 @@ Given a user starts the container or `docker compose` with a target repository m
 When the container boots
 Then it automatically hydrates and reconciles `/repo`, reports `200 OK` on `/health/ready`, and serves the UI, REST API (`/api/v1/*`), MCP endpoint (`/mcp`), and optional A2A routes (`/.well-known/agent-card.json`, `/a2a/v1/tasks:send`).
 
+
+### Requirement: CPU production startup provisions inference assets
+
+The production CPU deployment MUST obtain the selected pinned Qwen or Gemma
+model and Docling layout, table and OCR assets during startup into persistent
+storage. It MUST require no separate model-download command and MUST report
+retrieval readiness only after setup and indexing succeed. The diagnostic core
+image MUST remain distinct from production semantic inference.
+
+#### Scenario: Clean CPU startup
+
+Given a production container, network/model access and an empty model cache
+When it starts against a target repository
+Then it prepares the selected model and document assets automatically
+And real search becomes available before the launcher reports success
+And a restart reuses the persistent assets.

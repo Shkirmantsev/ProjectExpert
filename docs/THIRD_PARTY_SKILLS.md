@@ -1,12 +1,13 @@
 # Third-party project skills
 
 Canonical harness copies live in `.agents/skills/`. The four named harness core
-skills remain the only skills owned by `scripts/sync_skills.py`; Codex may also
-discover integration-owned OpenSpec workflows at the same level.
+skills remain the only mirrored skills owned by `scripts/sync_skills.py`.
+Codex discovers the entire canonical tree, including the catalog and
+integration-owned OpenSpec workflows.
 `make skills-sync-local` copies the harness core to `.claude/skills` and `.opencode/skills` while
 preserving those integration-owned files. Optional routed third-party skills
-live under `.agents/skills/catalog/` and are read by exact path only after the
-core router selects them.
+live under `.agents/skills/catalog/`; their bodies are read by exact path after
+the core router selects them.
 
 The source revisions below were audited on 2026-09-04. Installed copies may contain project-specific safety and portability changes, so update them by reviewing upstream diffs rather than overwriting them.
 

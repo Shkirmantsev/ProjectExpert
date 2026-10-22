@@ -8,7 +8,7 @@ sourceRefs:
   - pi_platform/adapters/ingest/local_pipeline_driver.py
   - pi_platform/core/ingest/repository_source_discovery.py
   - tests/test_platform_phase2.py
-  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-repository-source-discovery-incremental/spec.md
+  - openspec/specs/2026-10-18-repository-source-discovery-incremental/spec.md
 maintenance:
   mode: authored
 ---

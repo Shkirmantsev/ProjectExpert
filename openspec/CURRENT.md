@@ -90,6 +90,18 @@ project product.
 | [Embedding execution profile](specs/2026-10-16-embedding-execution-profile/spec.md) |
 | [Rich document graph](specs/2026-10-16-rich-document-graph/spec.md) |
 | [Resumable document ingestion](specs/2026-10-16-resumable-document-ingestion/spec.md) |
+| [Production runtime configuration resolver](specs/2026-10-18-production-runtime-configuration-resolver/spec.md) |
+| [Embedding port query/document roles](specs/2026-10-18-embedding-port-query-document-roles/spec.md) |
+| [Real EmbeddingGemma 2 binding](specs/2026-10-18-real-embeddinggemma2-binding/spec.md) |
+| [Real Qwen3 embedding binding](specs/2026-10-18-real-qwen3-embedding-binding/spec.md) |
+| [Semantic index service](specs/2026-10-18-semantic-index-service/spec.md) |
+| [Real USearch dense backend](specs/2026-10-18-real-usearch-dense-backend/spec.md) |
+| [Unified production retrieval composition](specs/2026-10-18-unified-production-retrieval-composition/spec.md) |
+| [Persisted runtime snapshot reconciliation](specs/2026-10-18-persisted-runtime-snapshot-reconciliation/spec.md) |
+| [Repository source discovery incremental](specs/2026-10-18-repository-source-discovery-incremental/spec.md) |
+| [Real Docling PDF adapter and hybrid chunker](specs/2026-10-18-real-docling-pdf-adapter-and-hybrid-chunker/spec.md) |
+| [One-command production UX](specs/2026-10-18-one-command-production-ux/spec.md) |
+| [Production capability and release gates](specs/2026-10-18-production-capability-and-release-gates/spec.md) |
 
 These product capabilities define the foundation, ingestion,
 storage, retrieval, orchestration, agent integration,
@@ -107,3 +119,12 @@ here when adopted.
 Maintain this inventory with every accepted addition, retirement or identity
 migration. Dates record first acceptance, not the latest edit. Run
 `python harness.py openspec-check` to verify its completeness and naming.
+## Production reconciliation adoption — 2026-10-22
+
+Existing capability identities retain their original dates. The current Gemma
+binding now requires image-aware loading, one-command startup records effective
+model settings before snapshot identity, CPU distribution provisions model/OCR
+assets automatically, and license governance accepts only the exact approved
+closure. These contracts have local implementation evidence. The broader
+`ship-portable-oci-deployment` change remains active: physical GPU/Windows
+acceptance and remote GHCR publication are not completed or certified here.

@@ -19,12 +19,12 @@ sourceRefs:
   - openspec/specs/2026-10-04-metadata-filters/spec.md
   - openspec/specs/2026-10-04-context-assembler/spec.md
   - openspec/specs/2026-10-04-retrieval-benchmark/spec.md
-  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-embedding-port-query-document-roles/spec.md
-  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-real-embeddinggemma2-binding/spec.md
-  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-real-qwen3-embedding-binding/spec.md
-  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-real-usearch-dense-backend/spec.md
-  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-semantic-index-service/spec.md
-  - openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-unified-production-retrieval-composition/spec.md
+  - openspec/specs/2026-10-18-embedding-port-query-document-roles/spec.md
+  - openspec/specs/2026-10-18-real-embeddinggemma2-binding/spec.md
+  - openspec/specs/2026-10-18-real-qwen3-embedding-binding/spec.md
+  - openspec/specs/2026-10-18-real-usearch-dense-backend/spec.md
+  - openspec/specs/2026-10-18-semantic-index-service/spec.md
+  - openspec/specs/2026-10-18-unified-production-retrieval-composition/spec.md
 maintenance:
   mode: authored
 related:
@@ -143,7 +143,7 @@ adapter replaces it at runtime.
   (Apache-2.0), 1024d, with the same role-aware prompting
   contract as the EmbeddingGemma 2 binding.
 - `embedding_model_factory.py` — the alias resolver that maps
-  `gemma` / `qwen` / legacy aliases / `hashing` to a real
+  `gemma` / `qwen` / `gemma-gguf` / `qwen-gguf` / legacy aliases / `hashing` to a real
   `EmbeddingModelPort`. Production aliases MUST resolve to a real
   binding or the factory raises `EmbeddingModelError`; the
   hashing backend is permitted only under the `minimal` startup
@@ -206,3 +206,37 @@ absolute tolerance of 0.05. Median wall-clock latency is measured in
 milliseconds and allows 50 ms of runner scheduling jitter. Latency
 remains measured and compared separately from dimensionless quality
 scores; the test does not require sub-millisecond timing stability.
+
+
+## Repository production composition
+
+`core/orchestration/repository_indexing.py` uses the real source parser registry,
+persistent ingestion cache and SQLite vector records. UI and MCP consume the
+same published retrieval runtime. Production requires real model inference and
+native USearch; minimal startup must be selected explicitly.
+
+PDF canonical chunks keep model-independent identities and anchors. At embedding
+time, `PdfRuntimeProjection` invokes Docling HybridChunker with the active model
+tokenizer. Every runtime segment is embedded with DOCUMENT role and the vectors
+are averaged and normalized into the canonical chunk vector. The projection
+version, token budget, aggregation policy and segment text participate in vector
+reuse hashes. Model switches do not rewrite canonical content. Exact and sparse
+retrieval retain the complete canonical retrieval text.
+
+Native generation files are disposable caches validated against SQLite vectors,
+profile, dimension, count, key map and sample queries. A missing or corrupt file
+rebuilds from stored vectors. Snapshot publication uses one atomic authoritative
+bundle; readiness stays false until a coherent candidate is published.
+
+## GGUF inference boundary
+
+`llama_cpp_embedding_model.py` implements the same embedding port over an
+authenticated local HTTP runtime. Qwen produces normalized 1024d text vectors;
+Gemma produces normalized 512d text/image vectors after Matryoshka truncation.
+Gemma sends image bytes as content parts to the pinned model and projector.
+`gguf_artifacts.py` pins both weights and projector checksums; `gguf_setup.py`
+prepares verified files during startup. GGUF profiles cannot share PyTorch
+vector namespaces. CPU/Vulkan/CUDA selection is owned by the deployment kit;
+the application adapter does not claim that a device is available merely from
+configuration. See [portable deployment](../architecture/portable-deployment.md)
+and [ADR 0029](../adr/0029-portable-model-runtime-and-oci-kit.md).

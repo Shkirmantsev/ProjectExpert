@@ -18,7 +18,7 @@ and the per-stage evidence attachment are redefined.
 
 ## MODIFIED Requirements
 
-### Requirement: production stage order (replaces the seven-stage order)
+### Requirement: production stage order
 
 The multi-stage retrieval pipeline MUST execute the following stages
 in order:
@@ -42,7 +42,7 @@ The reranker MUST NOT be invoked on support nodes. The
 by the Context Assembler with their own `evidence_kind` and
 `source` discriminator.
 
-#### Scenario: rerank runs before graph / hierarchy expansion (replaces `pipeline runs the seven stages`)
+#### Scenario: rerank runs before graph / hierarchy expansion
 
 Given a query that returns 60 direct candidates and 25 support
 nodes that would be added by graph expansion
@@ -52,14 +52,14 @@ And the support nodes are attached only after the selection stage
 And the reranker never sees the support nodes
 And `stageReports` lists the eleven stages in the documented order.
 
-#### Scenario: rerank is skipped when disabled (preserved from accepted spec)
+#### Scenario: rerank is skipped when disabled
 
 Given `enableReranking=False`
 When `retrieve(...)` runs
 Then `stageReports` lists ten entries (no rerank entry)
 And `budgetUsed` records the rerank budget as zero.
 
-### Requirement: per-stage budget preserved
+### Requirement: explicit budget per stage
 
 The previous per-stage budget contract from
 `openspec/specs/2026-10-04-multi-stage-retrieval/spec.md`
@@ -68,7 +68,7 @@ Graph and hierarchy expansion budgets MUST still be respected; the
 change is that those budgets are now spent on the post-selection
 candidate set, not the pre-rerank candidate set.
 
-#### Scenario: budget per stage is respected (preserved)
+#### Scenario: budget per stage is respected
 
 Given the same configured per-stage budgets as in the accepted
 spec
@@ -78,7 +78,15 @@ Then `stageReports` reports the per-stage budget consumption
 And no stage exceeds its configured budget
 And the total consumed budget does NOT exceed `contextBudget`.
 
-### Requirement: high recall + high precision principle preserved
+#### Scenario: budget exhaustion is reported
+
+Given a configuration where candidate generation would yield
+`10_000` candidates
+When `retrieve(...)` runs with `candidateGenBudget=20`
+Then the candidate stage is bounded to `20` candidates
+And `stageReports[candidate].budget_exhausted == True`.
+
+### Requirement: high recall + high precision principle
 
 The principle "retrieval = high recall, reranking = high
 precision" MUST be preserved. Reranking MUST continue to operate
@@ -86,7 +94,7 @@ on the direct candidate pool; the change is that the direct
 candidate pool is the pre-rerank pool, not the
 post-graph-expansion pool.
 
-#### Scenario: recall is preserved before precision (preserved)
+#### Scenario: recall is preserved before precision
 
 Given a query whose ground-truth hits include candidates only
 visible to the graph-expansion stage
@@ -95,14 +103,14 @@ Then the returned `hits` include those graph-expansion candidates
 And the pipeline reports `graphExpansionStage` as the source of
 those hits.
 
-### Requirement: stage-by-stage telemetry preserved
+### Requirement: stage-by-stage telemetry
 
 The per-stage telemetry contract from the accepted spec MUST be
 preserved without change. The expanded stage list MUST add
 entries for `preRerankPool` and the post-selection graph /
 hierarchy / figure / table expansion stages.
 
-#### Scenario: stage-by-stage telemetry lists every stage in order (preserved)
+#### Scenario: stage telemetry reports candidates seen vs kept
 
 Given the expanded stage list documented above
 When the retrieval pipeline finishes

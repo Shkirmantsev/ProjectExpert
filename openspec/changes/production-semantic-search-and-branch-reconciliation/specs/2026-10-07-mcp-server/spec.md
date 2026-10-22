@@ -30,7 +30,7 @@ a structured `refreshing` or `not_ready` result while a
 reconciliation is in progress. The tools MUST NOT serve the
 previous branch evidence as if it were the current branch.
 
-#### Scenario: kb_search returns refreshing during reconciliation (replaces previous "serves cached result" behavior)
+#### Scenario: kb_search returns refreshing during reconciliation
 
 Given a reconciliation for the active project is in progress
 When the MCP client calls `kb_search`

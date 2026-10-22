@@ -346,3 +346,11 @@ separately. Three ADRs (`0011-agent-integration-packaging`,
 `0013-plugin-supply-chain-security`) record the Phase 6
 decisions. The harness MCP server
 (`tools/mcp/project-context-mcp/`) remains a separate deliverable.
+
+## Current production deployment
+
+See [portable deployment architecture](portable-deployment.md) and
+[ADR 0029](../adr/0029-portable-model-runtime-and-oci-kit.md) for the implemented
+CPU/GGUF model split, automatic model and Docling setup, persistence and OCI kit.
+The default is one production CPU container; GPU modes add a Linux sidecar or
+Windows native model service. Physical GPU and Windows acceptance remain pending.

@@ -1,0 +1,69 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Report supersedes .ai/state/handoffs/audit-and-complete-production-ux.json which claimed Remaining: none"
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Audited plan coverage: 4 blocking violations, 9 non-blocking gaps, full done/not-done table",
+      "Published ProjectExpert-production-semantic-search-implementation-status-report.md (612 lines, English)",
+      "Documented available docs: plan, OpenSpec change artifacts + 12 spec deltas, .ai/wiki modules/interfaces/ADRs, docs/, root-level docs"
+    ],
+    "todo": [
+      "R1 fix Gemma binding or change default model",
+      "R2 make capability gate fail-closed on unloadable production model",
+      "R3 remove silent synthetic Docling fallback + fix table mapping",
+      "R4 build production Containerfile with [production] extras + :production/:core images",
+      "R5 implement and wire real ProjectVersionMonitor",
+      "R6 start HTTP before indexing",
+      "R7 lock dependencies",
+      "R8 write 26 missing declared tests (start with plan section 68 branch matrix)",
+      "R9 reconcile tasks.md checkboxes with reality"
+    ]
+  },
+  "resume": {
+    "next_action": "Address R1-R4 (P0 blockers) before any release claim",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "escalate",
+    "no_progress_windows": 2,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-20T19:01:30+00:00",
+    "id": "audit-production-semantic-search-status",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-20T19:01:50+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Report exists at repo root with: what was done, what is missing, prioritized remediation backlog, documentation inventory; all claims backed by executed evidence"
+    ],
+    "goal": "Audit the 102-section production semantic search plan against the tree and publish an English implementation-status report",
+    "openspec_change": "production-semantic-search-and-branch-reconciliation",
+    "status": "reviewing"
+  },
+  "verification": {
+    "passed": [
+      "python3 -m unittest discover -s tests: 1349 tests OK (3 skipped)",
+      "python3 harness.py check: exit 0",
+      "run_production_capability_gate(): passed=True",
+      "Gemma embed probe FAILS: sentence_xlnet_config.json missing; Qwen probe OK 1024d"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "ProjectExpert-production-semantic-search-implementation-status-report.md",
+      "sha256": "76a14ccae7cd45e37efad01b16c60010cda79902c824485c1d80106e61b6111f"
+    }
+  ]
+}
