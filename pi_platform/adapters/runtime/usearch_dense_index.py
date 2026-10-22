@@ -355,8 +355,7 @@ class USearchDenseIndex(DenseIndexPort):
             )
         self._vectors.pop(chunkId, None)
         self._metadata.pop(chunkId, None)
-        if not self._vectors:
-            self._dim = None
+        # An empty generation still has the configured vector dimension.
         self._write_index_meta(vector_count=len(self._vectors))
 
     def query(

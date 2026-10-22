@@ -116,7 +116,7 @@ class USearchIndexMetadataTests(unittest.TestCase):
         self.assertEqual(meta["index_schema_version"], DEFAULT_INDEX_SCHEMA_VERSION)
         self.assertEqual(meta["source_generation"], "gen-7")
         self.assertEqual(meta["vector_count"], 1)
-        self.assertEqual(meta["backend"], "usearch")
+        self.assertEqual(meta["backend"], "usearch" if idx._real_usearch else "usearch-stub")
         self.assertEqual(meta["m"], DEFAULT_HNSW_M)
         self.assertEqual(meta["ef_construction"], DEFAULT_HNSW_EF_CONSTRUCTION)
         self.assertEqual(meta["ef_query"], DEFAULT_HNSW_EF_QUERY)
@@ -223,11 +223,23 @@ class USearchProductionStubTests(unittest.TestCase):
         import pi_platform.adapters.runtime.usearch_dense_index as m
         self.assertIsNotNone(m.USearchDenseIndex)
 
+    def test_empty_stub_preserves_configured_dimension(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            idx = USearchDenseIndex(embedding_profile_hash="dimension-guard",
+                cache_root=root, output_dimension=4, prefer_real=False)
+            idx.delete_chunk("absent")
+            with self.assertRaises(ANNIndexError):
+                idx.index_chunk("bad", [1.0, 0.0], {})
+            idx.index_chunk("valid", [1.0, 0.0, 0.0, 0.0], {})
+            idx.delete_chunk("valid")
+            with self.assertRaises(ANNIndexError):
+                idx.index_chunk("bad", [1.0, 0.0], {})
+
     def test_stats_distinguishes_stub(self) -> None:
-        idx = USearchDenseIndex(embedding_profile_hash="ph-1")
+        idx = USearchDenseIndex(embedding_profile_hash="ph-1", prefer_real=False)
         idx.index_chunk("a", _vec([1.0, 0.0, 0.0]), {"src": "a"})
         meta = idx.read_index_meta()
-        self.assertEqual(meta["backend"], "usearch")
+        self.assertEqual(meta["backend"], "usearch" if idx._real_usearch else "usearch-stub")
         self.assertEqual(meta["embedding_profile_hash"], "ph-1")
 
 

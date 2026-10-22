@@ -290,16 +290,14 @@ class DoclingVendorBoundaryTests(unittest.TestCase):
 class DoclingChunkerDependencyTests(unittest.TestCase):
     """The chunker construction requires docling."""
 
-    def test_chunker_constructor_refuses_unknown_tokenizer_id(self) -> None:
-        # We deliberately pass an empty tokenizer_id; the
-        # constructor still builds (Docling resolves it later)
-        # but the adapter's count_tokens raises if the tokenizer
-        # cannot be resolved.
-        adapter = HuggingFaceTokenizerAdapter(
-            tokenizer_id="google/embeddinggemma-2",
-        )
-        # A non-empty string MUST yield a count.
-        self.assertGreaterEqual(adapter.count_tokens("test"), 0)
+    def test_missing_tokenizer_fails_instead_of_guessing_token_counts(self) -> None:
+        # Independent of installed optional packages and the user's model cache.
+        from unittest.mock import patch
+        from pi_platform.adapters.pdf.real_docling import RealDoclingConverterError
+        with patch("pi_platform.adapters.pdf.real_docling.is_docling_available", return_value=False):
+            adapter = HuggingFaceTokenizerAdapter(tokenizer_id="missing/test-tokenizer")
+        with self.assertRaises(RealDoclingConverterError):
+            adapter.count_tokens("test")
 
 
 if __name__ == "__main__":

@@ -301,8 +301,8 @@ def vector_record_store_from_db(
     *,
     factory: Callable[[str], Any] | None = None,
 ) -> VectorRecordStorePort:
-    """Build a :class:`SqliteVectorRecordStore` on a freshly opened
-    SQLite database connection at ``db_path``.
+    """Build a file-backed :class:`SqliteVectorRecordStore` whose operations
+    close their owned SQLite connections at ``db_path``.
 
     The helper is the production entry point for the SQLite-backed
     vector record store; tests use the in-memory
@@ -310,11 +310,9 @@ def vector_record_store_from_db(
     :mod:`pi_platform.core.retrieval.semantic_index_service` instead.
     """
 
-    import sqlite3
     os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
-    db = sqlite3.connect(db_path, check_same_thread=False, isolation_level=None)
-    # ``embeddings`` table is additive; existing tables stay intact.
-    return SqliteVectorRecordStore(db=db)
+    # File-backed adapter closes every owned connection deterministically.
+    return SqliteVectorRecordStore(db_path=db_path)
 
 
 def build_hybrid_retrieval(

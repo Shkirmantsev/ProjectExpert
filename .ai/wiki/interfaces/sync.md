@@ -173,3 +173,12 @@ real-model quality checks. The seeded native recall benchmark achieved 0.998
 Recall@10 on 1,000 normalized 64d vectors and 50 held-out queries against exact
 cosine, with a 0.90 acceptance floor; broader semantic and scale acceptance
 remains separate.
+
+## Owned SQLite handles on Windows
+
+File-backed vector stores use operation-scoped SQLite connections and close them
+on success or failure; retained retrieval runtime objects do not keep database
+files locked. Adapters given an existing connection preserve the caller's
+transaction and ownership. PDF figure lookup also closes its temporary handle.
+`tests/test_vector_record_store.py` exercises closure, errors and file rename;
+Windows CI additionally verifies target repository teardown.

@@ -98,6 +98,7 @@ class MakefileAndComposeProductSurfaceTests(unittest.TestCase):
     def test_make_pi_help_prints_centralized_commands(self) -> None:
         proc = subprocess.run(
             ["make", "pi-help"],
+            encoding="utf-8",
             cwd=ROOT,
             capture_output=True,
             text=True,

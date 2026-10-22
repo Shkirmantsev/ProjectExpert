@@ -28,3 +28,6 @@ this does not adopt the pending cross-platform acceptance claims.
 - [x] Reconcile Gemma image loading and effective model status in current specifications.
 - [x] Document runtime boundaries and trade-offs in ADR 0029 and deployment architecture.
 - [x] Update README, Wiki navigation and deployment profile distinctions.
+
+- [x] Correct CI-discovered owned SQLite handles, ANN empty-generation dimensions, optional dependency assumptions and Windows test exit/path handling.
+- [ ] Confirm corrected PR checks on GitHub, including previously blocked container jobs.

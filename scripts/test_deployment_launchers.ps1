@@ -53,6 +53,9 @@ try {
     $failed = $false
     try { & (Join-Path $repo 'scripts/Start-ProjectIntelligence.ps1') start -Target $temp -NoBrowser } catch { $failed = $true }
     if (-not $failed) { throw 'Source launcher ignored startup failure' }
+    # Expected failure assertions leave a nonzero native exit code behind.
+    # GitHub's PowerShell wrapper uses LASTEXITCODE even after caught errors.
+    $global:LASTEXITCODE = 0
     Write-Host 'PASS: Windows PowerShell launcher defaults, command invocation, readiness and failure propagation'
 } finally {
     Remove-Item -Recurse -Force $temp

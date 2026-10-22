@@ -30,7 +30,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn('--license-review distribution/licenses/production-license-review.json', production)
 
 
-    @unittest.skipUnless(shutil.which('docker') and shutil.which('bash'), 'Compose CLI unavailable')
+    @unittest.skipUnless(os.name != 'nt' and shutil.which('docker') and shutil.which('bash'), 'Linux Compose matrix; Windows has native launcher contract tests')
     def test_model_device_matrix_preserves_cpu_and_selects_matching_gpu_model(self):
         for model in ('qwen', 'gemma', 'qwen-gguf', 'gemma-gguf'):
             for backend in ('cpu', 'vulkan', 'cuda'):
@@ -74,7 +74,7 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual((dest / 'deployment.env').read_text(), 'PI_CONTROL_PORT=9123\n')
             self.assertEqual(outside.read_text(), 'preserved')
 
-    @unittest.skipUnless(shutil.which('bash'), 'bash unavailable')
+    @unittest.skipUnless(os.name != 'nt' and shutil.which('bash'), 'Linux launcher; Windows has native launcher contract tests')
     def test_linux_launcher_reports_failure_and_waits_for_readiness(self):
         with tempfile.TemporaryDirectory() as raw:
             temp = Path(raw)
@@ -98,7 +98,8 @@ class DeploymentTests(unittest.TestCase):
         run = subprocess.run(['make', '-n', '-C', str(BUNDLE), 'platform-start', 'platform-stop',
                               'platform-models', 'eval-retrieval'], capture_output=True, text=True)
         self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertIn('bash ./compose.sh up -d --wait', run.stdout)
+        launcher = 'powershell -NoProfile -File ./compose.ps1' if os.name == 'nt' else 'bash ./compose.sh'
+        self.assertIn(launcher + ' up -d --wait', run.stdout)
         self.assertIn('exec -T production python -m pi_platform.cli', run.stdout)
         self.assertNotIn('down -v', run.stdout)
         self.assertNotIn('harness.py', run.stdout)

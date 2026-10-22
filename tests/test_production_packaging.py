@@ -75,7 +75,7 @@ class ProductionPackagingTests(unittest.TestCase):
                 skill.mkdir(parents=True)
                 (skill / "SKILL.md").write_text("test skill")
             with patch.object(sync_skills, "SOURCE", source):
-                names = {str(path.relative_to(source)) for path in sync_skills.codex_skills()}
+                names = {path.relative_to(source).as_posix() for path in sync_skills.codex_skills()}
             self.assertEqual(len(names), 6)
             self.assertIn("catalog/optional", names)
             self.assertIn("openspec-propose", names)
@@ -155,6 +155,8 @@ class DockerProductCommandTests(unittest.TestCase):
         import os
         import shutil
         import subprocess
+        if os.name == "nt":
+            self.skipTest("POSIX source Make recipes; native Windows launcher is tested separately")
         if shutil.which("make") is None:
             self.skipTest("make unavailable")
         with tempfile.TemporaryDirectory() as raw:

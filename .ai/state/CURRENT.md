@@ -6,7 +6,7 @@ Structured source: [handoffs/complete-production-portability.json](handoffs/comp
 
 Task: `complete-production-portability`
 Status: `verifying`
-Updated: `2026-10-22T19:11:33+00:00`
+Updated: `2026-10-22T19:37:42+00:00`
 Active OpenSpec change: `ship-portable-oci-deployment`
 
 ## Objective
@@ -19,11 +19,11 @@ Complete production semantic search reconciliation and portable installation/lau
 
 ## Completed
 
-- Implementation committed as 793cc0a; documentation reconciled across README, ADR 0029, architecture, Wiki, current specifications and active change records
+- CI causes fixed: owned SQLite handles close, ANN dimensions retained, optional-dependency tests deterministic, Windows paths/encoding and PowerShell exit code corrected
 
 ## Remaining
 
-- Physical Windows/CUDA/Vulkan acceptance and remote CI/GHCR publication remain to be executed
+- Finish full local gates, commit and update PR 10; verify Windows and previously blocked container jobs remotely
 
 ## Blocked
 
@@ -31,7 +31,7 @@ Complete production semantic search reconciliation and portable installation/lau
 
 ## Decisions
 
-- Operator explicitly accepted the exact 12-coordinate closure on 2026-10-22; record activated and exact production license gate PASS. Both CPU and real Vulkan GPU execution are required.
+- CI logs establish real Windows SQLite handle leaks and stub dimension reset bug; do not weaken production failure guards or bypass publication dependencies
 
 ## Relevant context
 
@@ -47,7 +47,7 @@ Complete production semantic search reconciliation and portable installation/lau
 
 ## Verification passed
 
-- Documentation final gate PASS: full harness 1446 invocations with 13 optional skips, strict OpenSpec 87 items, Wiki 125 documents, artifact manifest 1246 files, exact-license gate and staged whitespace checks
+- 95 focused dependency-light tests PASS, 5 optional skips; full harness and CI-equivalent discovery running
 
 ## Verification pending
 
@@ -55,7 +55,7 @@ Complete production semantic search reconciliation and portable installation/lau
 
 ## Next action
 
-Commit verified documentation, then review branch for merge and external acceptance checks
+Await local full checks then publish PR fix
 
 ## Prerequisites
 

@@ -12,11 +12,13 @@ simpler contract for the disposable ANN rebuild pattern.
 Vector serialization is the caller's responsibility: convert a list
 of floats to the BLOB with :func:`encode_vector_payload` (float32
 ``"f"`` preferred, float64 ``"d"`` supported). The adapter does not
-commit; the caller that owns the connection owns the transaction.
+commit a borrowed connection; its caller owns the transaction. With db_path,
+operations own short-lived autocommit connections and always close them.
 """
 
 from __future__ import annotations
 
+from contextlib import contextmanager, closing
 import array
 import datetime as _dt
 import sqlite3
@@ -118,12 +120,27 @@ class SqliteVectorRecordStore(VectorRecordStorePort):
 
     def __init__(
         self,
-        db: sqlite3.Connection,
+        db: sqlite3.Connection | None = None,
         clock: Callable[[], str] = _default_clock,
+        *, db_path: str | None = None,
     ) -> None:
+        if (db is None) == (db_path is None):
+            raise ValueError("provide exactly one of db or db_path")
         self._db = db
+        self._db_path = db_path
         self._clock = clock
-        migration_v2_add_embeddings_table(db)
+        with self._connection() as connection:
+            migration_v2_add_embeddings_table(connection)
+
+    @contextmanager
+    def _connection(self):
+        if self._db is not None:
+            yield self._db
+        else:
+            # File-backed runtime stores own only operation-scoped handles.
+            # A live query runtime must not keep a Windows file locked forever.
+            with closing(sqlite3.connect(self._db_path, isolation_level=None)) as db:
+                yield db
 
     def put(self, record: VectorRecord) -> None:
         """Persist ``record``, stamping ``created_at`` from the clock.
@@ -132,102 +149,108 @@ class SqliteVectorRecordStore(VectorRecordStorePort):
         embedding_profile_hash)`` overwrites the row.
         """
 
-        created_at = self._clock()
-        try:
-            self._db.execute(
-                """
-                INSERT OR REPLACE INTO embeddings (
-                    chunk_id,
-                    embedding_profile_hash,
-                    content_hash,
-                    model_revision,
-                    dimension,
-                    normalization,
-                    vector_payload,
-                    created_from_retrieval_text_hash,
-                    created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    record.chunk_id,
-                    record.embedding_profile_hash,
-                    record.content_hash,
-                    record.model_revision,
-                    record.dimension,
-                    record.normalization,
-                    record.vector_payload,
-                    record.created_from_retrieval_text_hash,
-                    created_at,
-                ),
-            )
-        except sqlite3.Error as exc:
-            raise VectorRecordStoreError(f"failed to put vector record: {exc}") from exc
+        with self._connection() as db:
+            created_at = self._clock()
+            try:
+                db.execute(
+                    """
+                    INSERT OR REPLACE INTO embeddings (
+                        chunk_id,
+                        embedding_profile_hash,
+                        content_hash,
+                        model_revision,
+                        dimension,
+                        normalization,
+                        vector_payload,
+                        created_from_retrieval_text_hash,
+                        created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        record.chunk_id,
+                        record.embedding_profile_hash,
+                        record.content_hash,
+                        record.model_revision,
+                        record.dimension,
+                        record.normalization,
+                        record.vector_payload,
+                        record.created_from_retrieval_text_hash,
+                        created_at,
+                    ),
+                )
+            except sqlite3.Error as exc:
+                raise VectorRecordStoreError(f"failed to put vector record: {exc}") from exc
 
     def get(
         self, chunk_id: str, embedding_profile_hash: str,
     ) -> VectorRecord | None:
-        row = self._db.execute(
-            """
-            SELECT chunk_id, embedding_profile_hash, content_hash,
-                   model_revision, dimension, normalization,
-                   vector_payload, created_from_retrieval_text_hash,
-                   created_at
-            FROM embeddings
-            WHERE chunk_id = ? AND embedding_profile_hash = ?
-            """,
-            (chunk_id, embedding_profile_hash),
-        ).fetchone()
-        if row is None:
-            return None
-        return self._record_from_row(row)
+        with self._connection() as db:
+            row = db.execute(
+                """
+                SELECT chunk_id, embedding_profile_hash, content_hash,
+                       model_revision, dimension, normalization,
+                       vector_payload, created_from_retrieval_text_hash,
+                       created_at
+                FROM embeddings
+                WHERE chunk_id = ? AND embedding_profile_hash = ?
+                """,
+                (chunk_id, embedding_profile_hash),
+            ).fetchone()
+            if row is None:
+                return None
+            return self._record_from_row(row)
 
     def delete(self, chunk_id: str, embedding_profile_hash: str) -> None:
-        self._db.execute(
-            """
-            DELETE FROM embeddings
-            WHERE chunk_id = ? AND embedding_profile_hash = ?
-            """,
-            (chunk_id, embedding_profile_hash),
-        )
+        with self._connection() as db:
+            db.execute(
+                """
+                DELETE FROM embeddings
+                WHERE chunk_id = ? AND embedding_profile_hash = ?
+                """,
+                (chunk_id, embedding_profile_hash),
+            )
 
     def iter(self, embedding_profile_hash: str) -> Iterable[VectorRecord]:
-        rows = self._db.execute(
-            """
-            SELECT chunk_id, embedding_profile_hash, content_hash,
-                   model_revision, dimension, normalization,
-                   vector_payload, created_from_retrieval_text_hash,
-                   created_at
-            FROM embeddings
-            WHERE embedding_profile_hash = ?
-            ORDER BY chunk_id
-            """,
-            (embedding_profile_hash,),
-        ).fetchall()
-        return [self._record_from_row(row) for row in rows]
+        with self._connection() as db:
+            rows = db.execute(
+                """
+                SELECT chunk_id, embedding_profile_hash, content_hash,
+                       model_revision, dimension, normalization,
+                       vector_payload, created_from_retrieval_text_hash,
+                       created_at
+                FROM embeddings
+                WHERE embedding_profile_hash = ?
+                ORDER BY chunk_id
+                """,
+                (embedding_profile_hash,),
+            ).fetchall()
+            return [self._record_from_row(row) for row in rows]
 
     def profile_hash_for(self, chunk_id: str) -> str | None:
-        row = self._db.execute(
-            """
-            SELECT embedding_profile_hash
-            FROM embeddings
-            WHERE chunk_id = ?
-            ORDER BY embedding_profile_hash
-            LIMIT 1
-            """,
-            (chunk_id,),
-        ).fetchone()
-        if row is None:
-            return None
-        return str(row[0])
+        with self._connection() as db:
+            row = db.execute(
+                """
+                SELECT embedding_profile_hash
+                FROM embeddings
+                WHERE chunk_id = ?
+                ORDER BY embedding_profile_hash
+                LIMIT 1
+                """,
+                (chunk_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            return str(row[0])
 
     def stats(self) -> Mapping[str, int]:
-        records, profiles = self._db.execute(
-            """
-            SELECT COUNT(*), COUNT(DISTINCT embedding_profile_hash)
-            FROM embeddings
-            """
-        ).fetchone()
-        return {"records": int(records), "profile_hashes": int(profiles)}
+        with self._connection() as db:
+            records, profiles = db.execute(
+                """
+                SELECT COUNT(*), COUNT(DISTINCT embedding_profile_hash)
+                FROM embeddings
+                """
+            ).fetchone()
+            return {"records": int(records), "profile_hashes": int(profiles)}
 
     @staticmethod
     def _record_from_row(row: Sequence[object]) -> VectorRecord:

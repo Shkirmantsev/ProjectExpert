@@ -185,3 +185,18 @@ dependency-install cache, obsolete test images and downloaded test model/Docling
 copies. Free disk space recovered from about 809 MiB at peak validation usage to
 11 GiB. Existing user model caches and the final tested runtime/kit images were
 preserved; no broad Docker or user-cache prune was performed.
+
+### PR 10 CI portability corrections
+
+The initial GitHub runs exposed differences hidden by the locally installed
+optional packages and Linux file semantics. Corrections preserve configured ANN
+dimensions after deleting an absent/final vector, close owned SQLite handles,
+and make tokenizer/stub tests independent of installed models. Windows path and
+UTF-8 assertions are platform-aware. POSIX shell fixtures run on Linux; native
+Windows launcher contracts remain a separate required job. The PowerShell
+contract clears the deliberately injected failure exit code after all assertions
+succeed, so the runner does not misreport PASS as failure.
+
+The two skipped OCI jobs depended on the failed Windows launcher job; their
+prerequisite gates remain intact. A new remote run is required to confirm these
+fixes on both Windows Python versions and allow container verification to run.

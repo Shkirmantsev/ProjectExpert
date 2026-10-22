@@ -47,7 +47,7 @@ class RepositoryIndexingRuntimeTests(unittest.TestCase):
                 'pi_platform.core.orchestration.retrieval_composition.EmbeddingModelFactory.build', return_value=adapter):
             first = self.build()
             self.assertEqual(first.extra['indexing_report'].embedded_count, 1)
-            self.assertTrue(any(isinstance(call.args[0][0], dict) and call.args[0][0].get('image') == str(image)
+            self.assertTrue(any(isinstance(call.args[0][0], dict) and Path(call.args[0][0].get('image', '')).resolve() == image.resolve()
                                 for call in encoder.encode.call_args_list))
             self.assertEqual(self.build().extra['indexing_report'].reused_count, 1)
             image.write_bytes(b'pixels version two')
@@ -69,7 +69,7 @@ class RepositoryIndexingRuntimeTests(unittest.TestCase):
         self.assertFalse(old_ids.intersection(third.extra['chunk_ids']))
         self.assertFalse(old_ids.intersection(h.chunkId for h in third.multi_stage_retrieval.retrieve(RetrievalQuery(text='refund')).hits))
         self.assertTrue(third.multi_stage_retrieval.retrieve(RetrievalQuery(text='parcel dispatch')).hits)
-        with __import__('sqlite3').connect(self.cache / 'indexes/embeddings.sqlite') as db:
+        with __import__('contextlib').closing(__import__('sqlite3').connect(self.cache / 'indexes/embeddings.sqlite')) as db:
             self.assertGreater(db.execute('SELECT count(*) FROM embeddings').fetchone()[0], 0)
 
     def test_graph_edge_changes_publish_new_graph_without_old_entities(self):

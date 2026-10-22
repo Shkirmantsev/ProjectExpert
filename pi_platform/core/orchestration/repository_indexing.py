@@ -337,7 +337,8 @@ def _figure_image_path(body, cache_root):
     asset_ids = [a.get('asset_id') for a in body.get('anchors', ()) if isinstance(a, dict) and a.get('asset_id')]
     if not asset_ids:
         return None
-    with sqlite3.connect(cache_root / 'documents-v2.sqlite') as db:
+    from contextlib import closing
+    with closing(sqlite3.connect(cache_root / 'documents-v2.sqlite')) as db:
         db.row_factory = sqlite3.Row
         asset = SqliteDocumentGraphStore(db).get_asset(asset_ids[0])
     if asset is None:
