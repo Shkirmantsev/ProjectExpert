@@ -6,7 +6,7 @@ Structured source: [handoffs/complete-production-portability.json](handoffs/comp
 
 Task: `complete-production-portability`
 Status: `verifying`
-Updated: `2026-10-22T19:37:42+00:00`
+Updated: `2026-10-22T22:06:20+00:00`
 Active OpenSpec change: `ship-portable-oci-deployment`
 
 ## Objective
@@ -19,11 +19,12 @@ Complete production semantic search reconciliation and portable installation/lau
 
 ## Completed
 
-- CI causes fixed: owned SQLite handles close, ANN dimensions retained, optional-dependency tests deterministic, Windows paths/encoding and PowerShell exit code corrected
+- Windows CI root cause fixed: tests/test_repository_indexing_runtime.py seeded runtime.db with a bare 'with sqlite3.connect()' which commits but never closes, leaking the Windows handle; now uses closing()+transaction CM (c2c8516) and artifact manifest refreshed (d7c2a24)
+- Leak proven deterministically on Linux via /proc/self/fd count: 1 leaked fd on runtime.db in that one test, 0 across the other 6; 0 after fix
 
 ## Remaining
 
-- Finish full local gates, commit and update PR 10; verify Windows and previously blocked container jobs remotely
+- Report unfixed latent DenseKeyStore unclosed-connection leak (retrieval_composition.py:529, usearch_dense_index.py:148) to user; not fixed because usearch is absent from requirements-dev so it is unverifiable and untriggered in CI
 
 ## Blocked
 
@@ -31,7 +32,7 @@ Complete production semantic search reconciliation and portable installation/lau
 
 ## Decisions
 
-- CI logs establish real Windows SQLite handle leaks and stub dimension reset bug; do not weaken production failure guards or bypass publication dependencies
+- All 4 failing Windows jobs shared one root cause; independent deepseek-verify review confirmed diagnosis and fix correctness
 
 ## Relevant context
 
@@ -39,23 +40,23 @@ Complete production semantic search reconciliation and portable installation/lau
 
 ## Working set
 
-- `.ai/wiki/adr/0029-portable-model-runtime-and-oci-kit.md`
-- `.ai/wiki/architecture/portable-deployment.md`
-- `.github/workflows/publish-oci-container.yml`
-- `README.md`
-- `docs/PRODUCTION_RECONCILIATION_STATUS.md`
+- `ARTIFACT_MANIFEST.sha256`
+- `tests/test_repository_indexing_runtime.py`
 
 ## Verification passed
 
-- 95 focused dependency-light tests PASS, 5 optional skips; full harness and CI-equivalent discovery running
+- python3 -m unittest discover -s tests => Ran 1438 tests, OK (skipped=13), exit 0
+- python3 harness.py check-delegated => Harness core checks: PASS, exit 0
+- tests.test_repository_indexing_runtime under -W error::ResourceWarning => 7/7 ok
+- scripts/artifact_manifest.py verify => PASS (1246 files)
 
 ## Verification pending
 
-- Windows and physical GPU execution and remote GHCR publication remain unverified; initial sandbox socket failure resolved by successful socket-enabled harness
+- Windows and physical GPU execution and remote GHCR publication remain unverified; awaiting re-run of the 4 Windows jobs on PR 10
 
 ## Next action
 
-Await local full checks then publish PR fix
+Push c2c8516+d7c2a24 to PR 10 and confirm the 4 Windows jobs go green
 
 ## Prerequisites
 
