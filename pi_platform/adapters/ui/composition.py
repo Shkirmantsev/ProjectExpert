@@ -379,6 +379,9 @@ def hydrate_and_reconcile_target(
     repo_root: Path,
     cache_root: Path,
     readiness: DefaultKnowledgeReadiness,
+    *,
+    lock_held: bool = False,
+    persist_state: bool = True,
 ) -> Optional[HydrateReport]:
     """Hydrate and reconcile ``repo_root`` into ``cache_root`` and mark ``readiness`` ready.
 
@@ -387,6 +390,7 @@ def hydrate_and_reconcile_target(
     ``/health/ready`` returns 503.
     """
     import hashlib
+    from contextlib import nullcontext
     from pi_platform.core.sync import ProjectLock
     from pi_platform.ports import GitPortError
 
@@ -396,8 +400,24 @@ def hydrate_and_reconcile_target(
     lock_id = f"proj-{hashlib.sha256(canonical.encode('utf-8')).hexdigest()[:32]}"
     fs = LocalFilesystemAdapter(repo_root, cache_root=cache_root)
     try:
-        with ProjectLock(lock_id).acquire():
+        with (nullcontext() if lock_held else ProjectLock(lock_id, root=cache_root / "locks").acquire()):
             fs.ensure_cache_root()
+            git_exclude = repo_root / ".git" / "info" / "exclude"
+            if git_exclude.parent.is_dir():
+                try:
+                    existing_excl = (
+                        git_exclude.read_text(encoding="utf-8")
+                        if git_exclude.is_file()
+                        else ""
+                    )
+                    if ".project-intelligence-cache" not in existing_excl:
+                        prefix = "" if (not existing_excl or existing_excl.endswith("\n")) else "\n"
+                        git_exclude.write_text(
+                            existing_excl + prefix + ".project-intelligence-cache/\n",
+                            encoding="utf-8",
+                        )
+                except OSError:
+                    pass
             try:
                 hydrate_report = HydrateService(filesystem=fs).restore_runtime(
                     repo_root, cache_root=cache_root,
@@ -419,9 +439,32 @@ def hydrate_and_reconcile_target(
                 )
             head = hydrate_report.project_version.gitHead
             fp = hydrate_report.project_version.workingTreeFingerprint
+            previous_head = head
+            readiness_file = cache_root / READINESS_STATE_FILENAME
+            if readiness_file.is_file():
+                try:
+                    prev_payload = json.loads(
+                        readiness_file.read_text(encoding="utf-8")
+                    )
+                    if isinstance(prev_payload, Mapping) and prev_payload.get("current_head"):
+                        previous_head = str(prev_payload["current_head"])
+                except (OSError, ValueError):
+                    pass
+            try:
+                from pi_platform.core.sync.version_snapshot import (
+                    RuntimeSnapshotService,
+                )
+
+                persisted_snap = RuntimeSnapshotService(
+                    cache_root=cache_root
+                ).read_snapshot()
+                if persisted_snap is not None and persisted_snap.active.head:
+                    previous_head = persisted_snap.active.head
+            except Exception:
+                pass
             reconcile_report = ReconcileService(filesystem=fs).reconcile_branch_switch(
                 repo_root,
-                previous_head=head,
+                previous_head=previous_head,
                 current_head=head,
                 cache_root=cache_root,
             )
@@ -431,12 +474,14 @@ def hydrate_and_reconcile_target(
                 current_head=head,
                 working_tree_fingerprint=fp,
             )
-            persist_readiness(cache_root, readiness)
+            if persist_state:
+                persist_readiness(cache_root, readiness)
             return hydrate_report
     except Exception as exc:
         readiness.record_failure(str(exc))
         try:
-            persist_readiness(cache_root, readiness)
+            if persist_state:
+                persist_readiness(cache_root, readiness)
         except OSError:
             pass
         return None
@@ -533,12 +578,48 @@ def is_open_webui_enabled(
     return registry.resolve(OPEN_WEBUI_FLAG, context=context) is FeatureFlagState.ENABLED
 
 
+class PublishedRetrieval:
+    """One atomic runtime pointer shared by UI, orchestration and MCP."""
+    def __init__(self, readiness):
+        self.readiness = readiness
+        self.runtime = None
+
+    def retrieve(self, query):
+        from pi_platform.core.sync.readiness import assert_ready
+        assert_ready(self.readiness)
+        runtime = self.runtime
+        if runtime is None:
+            from pi_platform.ports import RuntimeNotReadyError
+            from dataclasses import replace
+            raise RuntimeNotReadyError(replace(self.readiness.snapshot(), consistent=False, reason="No retrieval generation published"))
+        result = runtime.multi_stage_retrieval.retrieve(query)
+        assert_ready(self.readiness)
+        if runtime is not self.runtime:
+            from pi_platform.ports import RuntimeNotReadyError
+            from dataclasses import replace
+            raise RuntimeNotReadyError(replace(self.readiness.snapshot(), consistent=False, reason="Retrieval generation changed during request"))
+        return result
+
+    def stats(self):
+        if self.runtime is None:
+            return {}
+        return {**self.runtime.multi_stage_retrieval.stats(), **self.runtime.stage_report(),
+                "source_failures": list(self.runtime.extra.get("source_failures", ())),
+                "resolved_configuration": self.runtime.extra.get("resolved_configuration", {})}
+
+
+def publish_runtime(service, runtime):
+    service._retrieval.runtime = runtime
+    service._graph = runtime.graph_expansion
+
+
 def build_ui_service(
     *,
     repo_root: Path,
     cache_root: Optional[Path] = None,
     context: Optional[UiContext] = None,
     hydrate_on_start: bool = False,
+    defer_runtime: bool = False,
 ) -> tuple[RestService, DefaultKnowledgeReadiness]:
     """Build the UI service for a target repository.
 
@@ -569,48 +650,9 @@ def build_ui_service(
         license_gate=LicenseGate(LicensePolicy()),
         boundary=approval,
     )
-    hybrid = CacheBackedHybridRetrieval(
-        cache_root, repo_root=repo_root, readiness=readiness,
-    )
-    # v0.8 refinement: wire the selection port when available so the
-    # twelve-stage v2 path runs in production. A missing selection
-    # implementation degrades gracefully to the legacy seven-stage
-    # path via the existing ``selection is None`` short-circuit.
-    try:
-        from pi_platform.core.retrieval.selection import SelectionCore
-
-        selection = SelectionCore()
-    except Exception:
-        selection = None
-    try:
-        from pi_platform.adapters.retrieval.bm25_light_reranker import (
-            Bm25LightRerankerAdapter,
-        )
-        from pi_platform.adapters.retrieval.context_assembler_adapter import (
-            ContextAssemblerAdapter,
-        )
-
-        reranker = Bm25LightRerankerAdapter()
-        assembler = ContextAssemblerAdapter()
-    except Exception:
-        reranker = None
-        assembler = None
-    # Read projections (§57): wire sources/wiki/graph/freshness/runtime-store
-    # when their corresponding optional dependencies are available. Each
-    # projection degrades gracefully when its port is None.
     from pi_platform.adapters.ui.projections import build_read_projections
-
-    projections = build_read_projections(
-        repo_root=repo_root, cache_root=cache_root, git=git,
-    )
-    retrieval = MultiStageRetrievalCore(
-        hybrid=hybrid,
-        metadata=MetadataFilterCore(),
-        graph_expansion=projections.get("graph"),
-        reranker=reranker,
-        context_assembler=assembler,
-        selection=selection,
-    )
+    projections = build_read_projections(repo_root=repo_root, cache_root=cache_root, git=git)
+    retrieval = PublishedRetrieval(readiness)
     orchestrator = RetrievalOnlyOrchestrator(retrieval)
     try:
         from pi_platform.adapters.orchestration.capability_discovery import (
@@ -645,4 +687,17 @@ def build_ui_service(
         conflicts=projections.get("conflicts"),
         context=context or UiContext(repo_root=repo_root),
     )
+    if defer_runtime:
+        readiness.begin_refresh()
+    elif hydrate_on_start and readiness.is_ready():
+        from pi_platform.core.ingest.repository_source_discovery import RepositorySourceDiscovery
+        from pi_platform.core.orchestration.repository_indexing import index_repository
+        from pi_platform.core.control.retrieval_settings import load_retrieval_settings
+        discovery = RepositorySourceDiscovery()
+        runtime = index_repository(
+            target=repo_root, cache_root=cache_root,
+            inventory=discovery.discover(repo_root), previous_inventory=None,
+            settings=load_retrieval_settings(repo_root),
+        )
+        publish_runtime(service, runtime)
     return service, readiness

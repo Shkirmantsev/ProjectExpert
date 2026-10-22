@@ -1,0 +1,56 @@
+# Optional Linux llama.cpp runtime. Combine with compose.vulkan.yaml or compose.cuda.yaml.
+services:
+  production:
+    environment:
+      PI_EMBEDDING_MODEL: qwen-gguf
+      PI_LLAMA_ENDPOINT: http://embeddings:8769
+      PI_LLAMA_API_KEY_FILE: /models/llama-api-key
+    depends_on:
+      model-setup:
+        condition: service_completed_successfully
+      embeddings:
+        condition: service_healthy
+  model-setup:
+    image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:production}
+    platform: linux/amd64
+    entrypoint: ["python", "-m", "pi_platform.cli.gguf_setup"]
+    command: ["--cache", "/models"]
+    volumes:
+      - model-cache:/models
+    restart: "no"
+  embeddings:
+    platform: linux/amd64
+    volumes:
+      - model-cache:/models:ro
+    depends_on:
+      model-setup:
+        condition: service_completed_successfully
+    # No published host port: only the application network can reach the service.
+    environment:
+      LLAMA_ARG_MODEL: /models/Qwen3-Embedding-0.6B-Q8_0.gguf
+      LLAMA_ARG_ALIAS: project-intelligence-qwen3-q8-06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439
+      LLAMA_ARG_POOLING: last
+      LLAMA_ARG_N_GPU_LAYERS: "99"
+    command:
+      - --embeddings
+      - --ctx-size
+      - "8192"
+      - --batch-size
+      - "8192"
+      - --ubatch-size
+      - "8192"
+      - --parallel
+      - "1"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8769"
+      - --api-key-file
+      - /models/llama-api-key
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8769/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 120
+      start_period: 30s
+    restart: unless-stopped

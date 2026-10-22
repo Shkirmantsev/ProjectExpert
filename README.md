@@ -1,6 +1,24 @@
 # ProjectExpert
 
-A portable, version-aware project intelligence platform. It turns source, specs and documents into structured knowledge that any agent or UI can search, ask and trace. Ships as a single container.
+A portable, version-aware project intelligence platform. It turns source, specs and documents into structured knowledge that any agent or UI can search, ask and trace. The default runs in one production container; optional GPU inference uses a Linux sidecar or Windows native service.
+
+## Production deployment
+
+Use the [production installation guide](docs/PRODUCTION_INSTALL.md) for the
+one-command GHCR deployment kit on Linux or Windows Docker Desktop. The kit
+contains Compose, ready-to-start defaults, a product-only Makefile and launchers.
+Startup automatically prepares the selected embedding model and Docling assets.
+
+Qwen and Gemma both support CPU selection. Optional CUDA/Vulkan modes select the
+matching GGUF runtime; Gemma includes text/image embeddings and its projector.
+Set `PI_EMBEDDING_MODEL=qwen` or `gemma` and `PI_ACCELERATOR=cpu`, `vulkan` or
+`cuda` in the kit's `deployment.env`. See [kit operations](distribution/deployment/README.md).
+
+The workflow is configured to publish runtime and digest-bound kit artifacts on
+pushes/merges to `dev`, `development` and `main`. This checkout's changes are not
+proof of a published GHCR release. Linux CPU/model/OCR checks passed; physical GPU,
+Windows and remote publication checks remain pending in the
+[verification report](docs/PRODUCTION_RECONCILIATION_STATUS.md).
 
 ## What it does
 

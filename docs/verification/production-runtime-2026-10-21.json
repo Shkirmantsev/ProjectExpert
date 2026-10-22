@@ -1,0 +1,182 @@
+{
+  "date": "2026-10-21",
+  "runtime": "CPython3.12 Linux x86_64 CPU, OMP/MKL threads2, pinned production lock",
+  "limitation": "Small synthetic fixture:11 documents/9 golden queries; no claim of production-corpus relevance. RSS is process peak, not single-model minimum.",
+  "semantic_quality": {
+    "gemma": {
+      "profile": "cda2acbca7af1c6799bbc0a5bc33c00223efb84caf57daffbd18b5e7c24ec97e",
+      "recall_at_5": 0.8888888888888888,
+      "recall_at_10": 0.8888888888888888,
+      "mrr": 0.8156565656565656,
+      "ndcg_at_10": 0.8256307286748215,
+      "context_evidence_coverage": 1.0,
+      "exact_identifier_retention": true,
+      "native_index_bytes": 13028,
+      "process_peak_rss_kib": 7519360,
+      "queries": [
+        {
+          "category": "English",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 196.17747900338145
+        },
+        {
+          "category": "German",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 193.5605369944824
+        },
+        {
+          "category": "Ukrainian",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 188.21996200131252
+        },
+        {
+          "category": "Russian",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 177.09048100368818
+        },
+        {
+          "category": "Java identifier",
+          "rank": 11,
+          "context_evidence": true,
+          "exact_evidence_retained": true,
+          "latency_ms": 169.61328600154957
+        },
+        {
+          "category": "business requirement",
+          "rank": 4,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 174.77317100565415
+        },
+        {
+          "category": "protocol identifier",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": true,
+          "latency_ms": 0.8116239987430163
+        },
+        {
+          "category": "code retrieval",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 161.57481700065546
+        },
+        {
+          "category": "cross-language",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 173.50491099932697
+        }
+      ]
+    },
+    "qwen": {
+      "profile": "fda0a05ce60bd7a3d9678097c9c93948d8d1bd9982567f6f3da3402c0e30ac1f",
+      "recall_at_5": 0.8888888888888888,
+      "recall_at_10": 1.0,
+      "mrr": 0.8166666666666667,
+      "ndcg_at_10": 0.8577490427101423,
+      "context_evidence_coverage": 1.0,
+      "exact_identifier_retention": true,
+      "native_index_bytes": 24292,
+      "process_peak_rss_kib": 7519360,
+      "queries": [
+        {
+          "category": "English",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 832.3185250046663
+        },
+        {
+          "category": "German",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 911.3410849968204
+        },
+        {
+          "category": "Ukrainian",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 1110.7141300017247
+        },
+        {
+          "category": "Russian",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 901.4730800045072
+        },
+        {
+          "category": "Java identifier",
+          "rank": 10,
+          "context_evidence": true,
+          "exact_evidence_retained": true,
+          "latency_ms": 747.4772310015396
+        },
+        {
+          "category": "business requirement",
+          "rank": 4,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 966.7585249990225
+        },
+        {
+          "category": "protocol identifier",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": true,
+          "latency_ms": 1.2867850018665195
+        },
+        {
+          "category": "code retrieval",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 1023.2854390051216
+        },
+        {
+          "category": "cross-language",
+          "rank": 1,
+          "context_evidence": true,
+          "exact_evidence_retained": false,
+          "latency_ms": 1217.4897920049261
+        }
+      ]
+    }
+  },
+  "ann": {
+    "benchmark": "seeded-native-ann-exact-cosine",
+    "connectivity": 32,
+    "corpus_size": 1000,
+    "dimension": 64,
+    "expansion_add": 200,
+    "expansion_search": 100,
+    "limitation": "Synthetic ANN recall; does not certify semantic model quality or production scale.",
+    "mean_query_ms": 0.22108529999968596,
+    "query_count": 50,
+    "recall_at_10": 0.998,
+    "required_recall_at_10": 0.9,
+    "seed": 20261020,
+    "top_k": 10,
+    "usearch_version": "2.26.5"
+  },
+  "pdf600": {
+    "pages": 600,
+    "windows": 38,
+    "max_window_pages": 16,
+    "peak_rss_kib": 2235056,
+    "elapsed_seconds": 734.533
+  }
+}

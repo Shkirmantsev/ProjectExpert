@@ -146,6 +146,33 @@
       "scope": "optional-ui-profile",
       "source": "https://github.com/open-webui/open-webui",
       "notes": "Optional Open WebUI profile (\u00a744.2). Not bundled by default; enabled only when the open-webui-adapter feature flag is on. License must be re-verified before redistribution or white-labeling."
+    },
+    {
+      "name": "docling",
+      "version": "2.140.0",
+      "spdx": "MIT",
+      "scope": "optional",
+      "extra": "documents",
+      "source": "https://pypi.org/project/docling/2.140.0/",
+      "notes": "Python package license only; document model weights have distinct entries in model-licenses.json."
+    },
+    {
+      "name": "docling-core",
+      "version": "2.103.1",
+      "spdx": "MIT",
+      "scope": "optional",
+      "extra": "documents",
+      "source": "https://pypi.org/project/docling-core/2.103.1/",
+      "notes": "Python package license only; document model weights have distinct entries in model-licenses.json."
+    },
+    {
+      "name": "rapidocr",
+      "version": "3.10.0",
+      "spdx": "Apache-2.0",
+      "scope": "optional",
+      "extra": "documents",
+      "source": "https://pypi.org/project/rapidocr/3.10.0/",
+      "notes": "Python package license only; document model weights have distinct entries in model-licenses.json."
     }
   ]
 }

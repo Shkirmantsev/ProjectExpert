@@ -1,0 +1,68 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "openspec/changes/ship-portable-oci-deployment; docs/PRODUCTION_INSTALL.md; distribution/licenses/production-license-review.json"
+  ],
+  "decisions": [
+    "All 4 failing Windows jobs shared one root cause; independent deepseek-verify review confirmed diagnosis and fix correctness"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Windows CI root cause fixed: tests/test_repository_indexing_runtime.py seeded runtime.db with a bare 'with sqlite3.connect()' which commits but never closes, leaking the Windows handle; now uses closing()+transaction CM (c2c8516) and artifact manifest refreshed (d7c2a24)",
+      "Leak proven deterministically on Linux via /proc/self/fd count: 1 leaked fd on runtime.db in that one test, 0 across the other 6; 0 after fix"
+    ],
+    "todo": [
+      "Report unfixed latent DenseKeyStore unclosed-connection leak (retrieval_composition.py:529, usearch_dense_index.py:148) to user; not fixed because usearch is absent from requirements-dev so it is unverifiable and untriggered in CI"
+    ]
+  },
+  "resume": {
+    "next_action": "Push c2c8516+d7c2a24 to PR 10 and confirm the 4 Windows jobs go green",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-20T19:12:44+00:00",
+    "id": "complete-production-portability",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-22T22:06:20+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "All plan and audit gaps reconciled with code evidence; production dependencies and models load or report actionable errors; portable install and launch verified; skills accessible to Codex; focused and harness checks pass"
+    ],
+    "goal": "Complete production semantic search reconciliation and portable installation/launch; synchronize project skills for Codex",
+    "openspec_change": "ship-portable-oci-deployment",
+    "status": "verifying"
+  },
+  "verification": {
+    "passed": [
+      "python3 -m unittest discover -s tests => Ran 1438 tests, OK (skipped=13), exit 0",
+      "python3 harness.py check-delegated => Harness core checks: PASS, exit 0",
+      "tests.test_repository_indexing_runtime under -W error::ResourceWarning => 7/7 ok",
+      "scripts/artifact_manifest.py verify => PASS (1246 files)"
+    ],
+    "pending": [
+      "Windows and physical GPU execution and remote GHCR publication remain unverified; awaiting re-run of the 4 Windows jobs on PR 10"
+    ]
+  },
+  "working_set": [
+    {
+      "path": "ARTIFACT_MANIFEST.sha256",
+      "sha256": "637f86426a4bcd21c5ee3397a47f6df54ada7a0ad3298d824c41ee73ccaa56ba"
+    },
+    {
+      "path": "tests/test_repository_indexing_runtime.py",
+      "sha256": "d3710169970f6bc2363c64f693170d820b5405f5b5d8c5abdec537a65750f0a8"
+    }
+  ]
+}

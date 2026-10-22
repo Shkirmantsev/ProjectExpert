@@ -39,19 +39,28 @@ x-common-env: &common-env
   PI_DIST_OKF: /opt/project-intelligence/distribution/okf-profile
 
 services:
-  core:
-    image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:dev}
+  core: &core
+    image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:core}
     build:
       context: .
       dockerfile: Containerfile
+      target: core
     profiles: ["core-headless", "desktop-lite", "desktop-local-ai", "open-webui", "enterprise"]
     ports:
-      - "${PI_CONTROL_PORT:-8765}:8765"
+      - "${PI_BIND_HOST:-127.0.0.1}:${PI_CONTROL_PORT:-8765}:8765"
     volumes:
-      - ${PI_TARGET_REPO:-/tmp/pitarget}:/repo:rw
+      - ${PI_TARGET_REPO:-.}:/repo:rw
+      - pi-model-cache:/models/huggingface:rw
     environment:
       <<: *common-env
       PI_TARGET_ROOT: /repo
+      PI_STARTUP_PROFILE: minimal
+      PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-hashing}
+      PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-auto}
+      PI_DENSE_INDEX: ${PI_DENSE_INDEX:-flat}
+      PI_DOCLING_ENABLED: ${PI_DOCLING_ENABLED:-0}
+      PI_MODEL_CACHE: ${PI_MODEL_CACHE:-/models/huggingface}
+      HF_HOME: ${PI_MODEL_CACHE:-/models/huggingface}
       # ``PI_OPENAI_BASE_URL`` is the URL the OpenAI-compatible shim uses
       # when the operator has not yet overridden it from the UI. The
       # default points at the bundled local-llm sidecar in
@@ -60,6 +69,30 @@ services:
       PI_OPENAI_BASE_URL: ${PI_OPENAI_BASE_URL:-http://local-llm:8767/v1}
       PI_OPENAI_MODEL: ${PI_OPENAI_MODEL:-project-intelligence}
     restart: unless-stopped
+
+  production:
+    <<: *core
+    platform: linux/amd64
+    image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:production}
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: production
+    profiles: ["production"]
+    environment:
+      <<: *common-env
+      PI_TARGET_ROOT: /repo
+      PI_STARTUP_PROFILE: production
+      PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-qwen}
+      PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-auto}
+      PI_DENSE_INDEX: ${PI_DENSE_INDEX:-usearch}
+      PI_DOCLING_ENABLED: ${PI_DOCLING_ENABLED:-1}
+      PI_MODEL_CACHE: ${PI_MODEL_CACHE:-/models/huggingface}
+      HF_HOME: ${PI_MODEL_CACHE:-/models/huggingface}
+      # Forward existing login only; never put a token in the image or YAML.
+      HF_TOKEN: ${HF_TOKEN:-}
+      PI_OPENAI_BASE_URL: ${PI_OPENAI_BASE_URL:-}
+      PI_OPENAI_MODEL: ${PI_OPENAI_MODEL:-project-intelligence}
 
   local-llm:
     # Bundled local model sidecar (default). The image and the model file
@@ -93,7 +126,7 @@ services:
     restart: unless-stopped
 
   enterprise-sidecar:
-    image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:dev}
+    image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:core}
     profiles: ["enterprise"]
     depends_on:
       - core
@@ -103,5 +136,6 @@ services:
     restart: unless-stopped
 
 volumes:
+  pi-model-cache:
   llm-models:
   open-webui-data:

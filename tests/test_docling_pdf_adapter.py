@@ -287,6 +287,7 @@ class DoclingPdfAdapterSmokeTests(unittest.TestCase):
         self._pdf_path = os.path.join(self._tmp, "doc.pdf")
         _make_pdf(self._pdf_path, pages=3)
         self._adapter = DoclingPdfAdapter(
+                allow_synthetic=True,
             prescan=PdfPrescanAdapter(),
             job_store=self._job_store,
             graph_store=self._graph_store,
@@ -422,7 +423,7 @@ class DoclingHybridChunkerTests(unittest.TestCase):
             ),
         )
         from pi_platform.ports.ingest.chunker import ChunkerContext
-        chunks = DoclingHybridChunker().chunk(
+        chunks = DoclingHybridChunker(allow_synthetic=True).chunk(
             doc, doc.sections,
             context=ChunkerContext(max_chunk_bytes=4096),
         )
@@ -435,7 +436,7 @@ class DoclingHybridChunkerTests(unittest.TestCase):
     def test_chunk_empty_sections_returns_empty(self) -> None:
         from pi_platform.core.canonical.value_types import Document
         doc = Document(id="d-1", title="T", sections=())
-        chunks = DoclingHybridChunker().chunk(doc, ())
+        chunks = DoclingHybridChunker(allow_synthetic=True).chunk(doc, ())
         self.assertEqual(chunks, ())
 
 

@@ -9,7 +9,7 @@ Canonical source: `.agents/skills/`.
    |-- session-checkpoint/    directly discoverable core
    |-- verification/          directly discoverable core
    |-- openspec-*/            OpenSpec-owned Codex workflows
-   `-- catalog/               optional skills read only after routing
+   `-- catalog/               Codex-discoverable optional skills; read after routing
 ```
 
 For every non-trivial task, run the router once from the project root:
@@ -28,8 +28,9 @@ eight-step contract for `local-small` models.
 `make skills-sync-local` copies only the four named harness core skills to
 `.claude/skills` and `.opencode/skills` and removes stale project-managed
 catalog copies from both. It preserves
-unrelated personal skills and integration-owned skills. Codex discovers the
-core and OpenSpec workflows directly from `.agents/skills`; OpenSpec owns its
+unrelated personal skills and integration-owned skills. Codex discovers all
+canonical skills recursively from `.agents/skills`, including the complete
+catalog and OpenSpec workflows; OpenSpec owns its
 client-specific copies and commands under `.agents/`, `.claude/`, and
 `.opencode/`, refreshed with `openspec init`.
 
@@ -81,4 +82,9 @@ requirements, safety and verification. It is task-scoped and catalog-only.
 
 Local sync never writes to a global Codex skill directory. Run
 `python3 scripts/sync_skills.py local` after core updates and
-`python3 scripts/sync_skills.py check` to validate both mirrors.
+`python3 scripts/sync_skills.py check` to validate both mirrors and canonical
+Codex availability. `python3 scripts/sync_skills.py codex` lists every canonical
+Codex skill path, including the catalog. Reopen the project or refresh the
+Codex skills list after adding a skill; an existing conversation may retain
+its initial catalog. No global installation or machine-specific paths are needed.
+Discovery exposes names/descriptions; routing still limits which bodies are read.

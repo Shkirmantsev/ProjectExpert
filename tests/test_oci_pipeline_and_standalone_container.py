@@ -9,7 +9,7 @@ Verifies:
 2. ``.dockerignore`` and ``Containerfile`` package all product runtime
    artefacts (``pi_platform``, ``distribution``, ``evals``, generated vendor
    plugin bundles) while excluding the development harness.
-3. ``docker-compose.yml`` defaults to ``ghcr.io/shkirmantsev/project-intelligence:dev``
+3. ``docker-compose.yml`` defaults to ``ghcr.io/shkirmantsev/project-intelligence:core``
    via ``${PI_IMAGE:-...}`` so a user can start ``docker compose`` without
    building locally or having the development harness.
 4. Standalone container startup (``build_ui_service(..., hydrate_on_start=True)``,
@@ -152,7 +152,7 @@ class ContainerIsolationAndComposeTests(unittest.TestCase):
     def test_compose_defaults_to_ghcr_oci_image(self) -> None:
         text = COMPOSE_PATH.read_text(encoding="utf-8")
         self.assertIn(
-            "image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:dev}",
+            "image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:core}",
             text,
         )
         self.assertNotIn("infra/compose.yaml", text)
@@ -162,6 +162,13 @@ class StandaloneContainerCapabilitiesTests(unittest.TestCase):
     """Verify out-of-the-box readiness, retrieval, REST projections, MCP, and A2A."""
 
     def setUp(self) -> None:
+        from unittest.mock import patch
+        minimal = patch.dict(os.environ, {
+            "PI_STARTUP_PROFILE": "minimal", "PI_EMBEDDING_MODEL": "hashing",
+            "PI_DENSE_INDEX": "flat", "PI_DOCLING_ENABLED": "0",
+        })
+        minimal.start()
+        self.addCleanup(minimal.stop)
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.repo = Path(self._tmp.name) / "target-repo"

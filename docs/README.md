@@ -5,6 +5,9 @@
 ## Setup and daily work
 
 - [Quick start](QUICKSTART.md): initialize, install MCP, and validate.
+- [Production reconciliation status](PRODUCTION_RECONCILIATION_STATUS.md): executed acceptance evidence and remaining release limits.
+- [Production install](PRODUCTION_INSTALL.md): locked semantic dependencies and production/core container targets.
+- [Production license review](PRODUCTION_LICENSE_REVIEW.md): accepted exact closure, retained obligations and wheel-license evidence.
 - [Harness commands and MCP lifecycle](HARNESS_COMMANDS.md): setup, Wiki init
   and manual MCP start/stop.
 - [Configuration](CONFIGURATION.md): supported settings and client generation.
@@ -26,6 +29,9 @@ needs, then run `make runtime` to regenerate client configs.
 - [Hermes remote instructions](HERMES_REMOTE_AGENT_INSTRUCTION.md): worker operating contract.
 
 ## Reference
+
+- [Portable deployment architecture](../.ai/wiki/architecture/portable-deployment.md).
+- [ADR 0029: Model runtimes and OCI kit](../.ai/wiki/adr/0029-portable-model-runtime-and-oci-kit.md).
 
 - [Project structure](PROJECT_STRUCTURE.md): ownership and dependencies of every file family.
 - [Third-party skills](THIRD_PARTY_SKILLS.md) and [licenses](../third_party/licenses/skills).

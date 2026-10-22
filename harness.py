@@ -122,6 +122,11 @@ def cmd_test() -> None:
     subprocess.run([python, "-m", "unittest", "discover", "-s", str(MCP_ROOT / "tests"), "-p", "test_*.py", "-v"], cwd=ROOT, check=True, env=env)
 
 
+def cmd_production_capability_gate() -> None:
+    cmd = [sys.executable, "-m", "pi_platform.cli.production_capability_gate", "--inventory-only"]
+    subprocess.run(cmd, cwd=ROOT, check=True)
+
+
 def cmd_check(*, delegated: bool = False) -> None:
     if not delegated:
         run([sys.executable, "scripts/check_config.py"])
@@ -134,6 +139,7 @@ def cmd_check(*, delegated: bool = False) -> None:
     run([sys.executable, "scripts/session_state.py", "verify"])
     cmd_wiki_validate()
     cmd_openspec_check()
+    cmd_production_capability_gate()
     cmd_test()
     run([sys.executable, "scripts/artifact_manifest.py", "verify"])
     print("Harness core checks: PASS")

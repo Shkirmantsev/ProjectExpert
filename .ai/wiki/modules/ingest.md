@@ -6,7 +6,9 @@ status: active
 summary: Phase 2 ingestion contracts and observed Phase 2 behavior.
 sourceRefs:
   - pi_platform/adapters/ingest/local_pipeline_driver.py
+  - pi_platform/core/ingest/repository_source_discovery.py
   - tests/test_platform_phase2.py
+  - openspec/specs/2026-10-18-repository-source-discovery-incremental/spec.md
 maintenance:
   mode: authored
 ---
@@ -40,6 +42,25 @@ locally so the subsequent target license gate cannot silently pass unknown coord
 
 PDF, OpenAPI and office adapters remain planned. Persistent databases, vectors and
 sharded graph storage belong to later phases.
+
+## Repository source discovery (production)
+
+`pi_platform.core.ingest.repository_source_discovery.RepositorySourceDiscovery`
+walks a target repository, classifies each source into a family
+recognised by the ingestion pipeline (source code, canonical
+knowledge, OpenSpec change, documentation, configuration) and
+produces a content-fingerprinted inventory persisted under
+`.project-intelligence-cache/source-inventory.json`. Default
+include patterns cover Java, Kotlin, Python, JavaScript,
+TypeScript, Gradle, Maven POM, OpenSpec, Markdown, HTML and the
+supported API / spec files; default exclude patterns cover
+`.git/`, the runtime cache, `target/`, `build/`,
+`node_modules/` and the generated vendor directories. A
+re-discovery reuses unchanged sources through their content
+hash + parser version + retrieval text hash; only ADDED /
+MODIFIED / REMOVED sources trigger downstream work. The
+inventory is the input the production `start` command consumes
+when no previous inventory exists.
 
 See [source adapters](../interfaces/source-adapters.md), [chunking](../interfaces/chunker.md),
 [enrichment](../interfaces/enrichment.md), [parser ADR](../adr/0006-phase-2-parser-selection.md)

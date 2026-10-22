@@ -1,0 +1,36 @@
+name: project-intelligence
+services:
+  production:
+    image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:production}
+    platform: linux/amd64
+    ports:
+      - "${PI_BIND_HOST:-127.0.0.1}:${PI_CONTROL_PORT:-8765}:8765"
+    volumes:
+      - type: bind
+        source: ${PI_TARGET_REPO:-..}
+        target: /repo
+        bind:
+          create_host_path: false
+      - model-cache:/models
+    environment:
+      PI_TARGET_ROOT: /repo
+      PI_STARTUP_PROFILE: production
+      PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-qwen}
+      PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-cpu}
+      PI_DENSE_INDEX: usearch
+      PI_DOCLING_ENABLED: ${PI_DOCLING_ENABLED:-1}
+      PI_PREPARE_DOCLING: "1"
+      PI_MODEL_CACHE: /models/huggingface
+      HF_HOME: /models/huggingface
+      HF_TOKEN: ${HF_TOKEN:-}
+      XDG_CACHE_HOME: /models/cache
+    command: ["start", "--target", "/repo", "--host", "0.0.0.0", "--port", "8765"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health/ready', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30m
+      retries: 3
+    restart: unless-stopped
+volumes:
+  model-cache:

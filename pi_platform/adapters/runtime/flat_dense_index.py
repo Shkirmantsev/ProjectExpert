@@ -25,10 +25,12 @@ __all__ = ["FlatDenseIndex"]
 class FlatDenseIndex(DenseIndexPort):
     """In-process flat-search dense index."""
 
-    def __init__(self):
+    def __init__(self, *, embedding_profile_hash="", output_dimension=None):
+        self.embedding_profile_hash = embedding_profile_hash
+        self._source_generation = "0"
         self._vectors: Dict[str, Sequence[float]] = {}
         self._metadata: Dict[str, Mapping[str, object]] = {}
-        self._dim: int | None = None
+        self._dim: int | None = output_dimension
 
     def _check_dimension(self, vector: Sequence[float]) -> None:
         if self._dim is None:

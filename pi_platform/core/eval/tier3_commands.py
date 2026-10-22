@@ -174,20 +174,22 @@ def run_eval(
     corpus_root: Path = DEFAULT_CORPUS_ROOT,
     out_path: Path = DEFAULT_OUTPUT_PATH,
     baseline_path: Optional[Path] = DEFAULT_BASELINE_PATH,
+    pipeline=None,
 ) -> dict:
     """Run the Tier-3 retrieval evaluation end-to-end."""
     resolved_golden = resolve_eval_asset_path(golden_path)
     resolved_corpus = resolve_eval_asset_path(corpus_root)
     queries = load_golden_queries(resolved_golden)
-    hits: list = []
-    for name in SUB_CORPORA:
-        chunks = load_corpus_json(resolved_corpus / name)
-        hits.extend(build_pipeline_hits(chunks))
-    if not hits:
-        raise RuntimeError(
-            f"Tier-3 eval found no corpus chunks under {resolved_corpus}"
-        )
-    pipeline = build_default_pipeline(corpus_hits=hits)
+    if pipeline is None:
+        hits: list = []
+        for name in SUB_CORPORA:
+            chunks = load_corpus_json(resolved_corpus / name)
+            hits.extend(build_pipeline_hits(chunks))
+        if not hits:
+            raise RuntimeError(
+                f"Tier-3 eval found no corpus chunks under {resolved_corpus}"
+            )
+        pipeline = build_default_pipeline(corpus_hits=hits)
     evaluator = Tier3RetrievalEvaluator(pipeline=pipeline, queries=queries)
     baseline = _load_baseline(baseline_path)
     report = evaluator.run(

@@ -5,10 +5,12 @@ on:
     branches:
       - dev
       - development
+      - main
   pull_request:
     branches:
       - dev
       - development
+      - main
   workflow_dispatch:
 
 permissions:
@@ -24,6 +26,15 @@ env:
   IMAGE_NAME: project-intelligence
 
 jobs:
+  windows-launchers:
+    name: Windows PowerShell deployment contract
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise Windows PowerShell 5 launcher behavior
+        shell: powershell
+        run: ./scripts/test_deployment_launchers.ps1
+
   verify-platform:
     name: Verify Platform Product Gates
     runs-on: ubuntu-latest
@@ -60,13 +71,13 @@ jobs:
 
       - name: Validate product docker-compose profiles
         run: |
-          for profile in core-headless desktop-lite desktop-local-ai open-webui enterprise; do
+          for profile in production core-headless desktop-lite desktop-local-ai open-webui enterprise; do
             docker compose -f docker-compose.yml --profile "$profile" config -q
           done
 
   build-and-publish-oci:
     name: Build, Smoke-Test, and Publish OCI Image
-    needs: verify-platform
+    needs: [verify-platform, windows-launchers]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -99,17 +110,17 @@ jobs:
         with:
           images: ${{ steps.owner.outputs.image }}
           tags: |
-            type=raw,value=dev,enable=${{ github.event_name != 'pull_request' && (github.ref_name == 'dev' || github.ref_name == 'development') }}
-            type=raw,value=development,enable=${{ github.event_name != 'pull_request' && (github.ref_name == 'dev' || github.ref_name == 'development') }}
-            type=sha,prefix=sha-
-            type=ref,event=branch
-            type=ref,event=pr
+            type=raw,value=core
+            type=sha,prefix=core-sha-,format=long
+            type=ref,event=branch,prefix=core-
+            type=ref,event=pr,prefix=core-
 
       - name: Build local candidate image for end-to-end smoke verification
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Containerfile
+          target: core
           load: true
           tags: ${{ steps.owner.outputs.image }}:smoke
           cache-from: type=gha
@@ -188,8 +199,103 @@ jobs:
         with:
           context: .
           file: Containerfile
+          target: core
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  production-and-deployment:
+    name: Verify and publish production with deployment kit
+    needs: [verify-platform, windows-launchers]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate the exact production redistribution review before building
+        run: |
+          python -m pi_platform.cli license-gate \
+            --inventory distribution/licenses/production-dependency-inventory.json \
+            --production-lock requirements-production-linux-x86_64.txt \
+            --license-review distribution/licenses/production-license-review.json \
+            --license-evidence distribution/licenses/production-license-evidence.json
+      - name: Set image names
+        id: names
+        shell: bash
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/project-intelligence"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "kit=$image-deployment" >> "$GITHUB_OUTPUT"
+          echo "channel=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - name: Build production candidate
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          target: production
+          platforms: linux/amd64
+          load: true
+          tags: ${{ steps.names.outputs.image }}:candidate-${{ github.sha }}
+          cache-from: type=gha,scope=production
+          cache-to: type=gha,scope=production,mode=max
+      - name: Real default model download, inference, startup and restart
+        run: python scripts/smoke_production_container.py --image '${{ steps.names.outputs.image }}:candidate-${{ github.sha }}'
+      - name: Verify optional GGUF runtime with real CPU inference
+        run: |
+          python scripts/smoke_gguf_container.py
+          python scripts/smoke_gguf_container.py --model gemma-gguf
+      - name: Build and test deployment kit export
+        run: |
+          docker build -f Containerfile --target deployment-kit -t deployment-kit:test .
+          destination="$(mktemp -d)"
+          docker run --rm -v "$destination:/deployment" deployment-kit:test
+          test -f "$destination/.project-intelligence-deploy/Makefile"
+          docker compose --env-file "$destination/.project-intelligence-deploy/deployment.env" -f "$destination/.project-intelligence-deploy/compose.yaml" config -q
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request' && (github.ref_name == 'dev' || github.ref_name == 'development' || github.ref_name == 'main')
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push the tested image and capture its immutable digest
+        id: published
+        if: github.event_name != 'pull_request' && (github.ref_name == 'dev' || github.ref_name == 'development' || github.ref_name == 'main')
+        env:
+          IMAGE: ${{ steps.names.outputs.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker tag "$IMAGE:candidate-$GITHUB_SHA" "$IMAGE:sha-$GITHUB_SHA"
+          docker push "$IMAGE:sha-$GITHUB_SHA"
+          digest="$(docker image inspect "$IMAGE:sha-$GITHUB_SHA" --format '{{index .RepoDigests 0}}')"
+          test -n "$digest"
+          echo "reference=$digest" >> "$GITHUB_OUTPUT"
+      - name: Publish matching deployment kit
+        if: steps.published.outputs.reference != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          target: deployment-kit
+          push: true
+          build-args: |
+            PI_DEPLOY_IMAGE=${{ steps.published.outputs.reference }}
+          tags: |
+            ${{ steps.names.outputs.kit }}:sha-${{ github.sha }}
+            ${{ steps.names.outputs.kit }}:${{ steps.names.outputs.channel }}
+      - name: Promote verified production aliases
+        if: steps.published.outputs.reference != ''
+        env:
+          IMAGE: ${{ steps.names.outputs.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for tag in production "$GITHUB_REF_NAME"; do
+            docker tag "$IMAGE:candidate-$GITHUB_SHA" "$IMAGE:$tag"
+            docker push "$IMAGE:$tag"
+          done

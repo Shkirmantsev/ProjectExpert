@@ -13,12 +13,23 @@ The registry resolves well-known profile names and identity hashes;
 unknown identities raise :class:`EmbeddingProfileMismatchError` so a
 vector / index mismatch fails loudly instead of silently mixing
 vector spaces.
+
+Production-hardening (open spec change
+``production-semantic-search-and-branch-reconciliation``, PR 1):
+the two production profiles now carry the immutable upstream
+Hugging Face revision SHA-1 (plan §11) rather than the
+``pinned-stub`` placeholder. The real revision was retrieved from
+``https://huggingface.co/api/models/<id>`` during the change that
+binds the production adapter; the same revision MUST be recorded
+in :file:`distribution/licenses/model-licenses.json` so the
+production-capability-gate can verify it.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import asdict, dataclass
 from typing import Mapping
 
@@ -31,10 +42,23 @@ __all__ = [
     "EMBEDDINGGEMMA2_512",
     "QWEN3_EMBEDDING_0_6B_1024",
     "MULTIMODAL_FIGURE_512",
+    "GemmaRevisionDefault",
+    "QwenRevisionDefault",
 ]
 
 
 EMBEDDING_PROFILE_STRATEGY_VERSION = "embedding-profile-v1"
+
+
+# Plan §11 / plan §101. The Hugging Face SHAs were retrieved from
+# https://huggingface.co/api/models/<id> on 2026-10-19. Operators MAY
+# override them through the documented environment variables so a
+# private mirror or a downstream revision can be pinned without
+# editing this file. The :file:`distribution/licenses/model-licenses.json`
+# inventory records the same revision; a mismatch between the two
+# sources fails the production-capability-gate.
+GemmaRevisionDefault = "914f7f89142e33e77833254d9c9b90c3cef7303b"
+QwenRevisionDefault = "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3"
 
 
 class EmbeddingProfileMismatchError(RuntimeError):
@@ -76,10 +100,14 @@ class EmbeddingProfile:
 
 # Well-known built-in profiles. HASHING_DEFAULT stays the minimal-
 # profile default so the platform boots with zero optional
-# dependencies. The two production profiles carry a
-# ``model_revision="pinned-stub"`` placeholder that the operator
-# replaces with a real pinned revision when the model weights are
-# bound in the follow-up C.1.5 adapter work.
+# dependencies. The two production profiles carry the immutable
+# Hugging Face revision SHA-1 of the upstream ``google/embeddinggemma-2``
+# and ``Qwen/Qwen3-Embedding-0.6B`` checkpoints (plan §11, §101).
+# Override the revision through the ``PI_EMBEDDINGGEMMA2_REVISION`` /
+# ``PI_QWEN3_REVISION`` environment variables only for private
+# mirrors; the override is recorded in
+# :file:`distribution/licenses/model-licenses.json` for the
+# production-capability-gate.
 HASHING_DEFAULT = EmbeddingProfile(
     provider="hashing",
     model_id="hashing-1.0.0",
@@ -92,30 +120,45 @@ HASHING_DEFAULT = EmbeddingProfile(
     strategy_version=EMBEDDING_PROFILE_STRATEGY_VERSION,
 )
 
+_EMBEDDINGGEMMA2_REVISION = os.environ.get(
+    "PI_EMBEDDINGGEMMA2_REVISION", GemmaRevisionDefault,
+)
 EMBEDDINGGEMMA2_512 = EmbeddingProfile(
     provider="embeddinggemma2",
-    model_id="embeddinggemma2-512",
-    model_revision="pinned-stub",
-    modality="text",
+    model_id="google/embeddinggemma-2",
+    model_revision=_EMBEDDINGGEMMA2_REVISION,
+    modality="text-image",
     output_dimension=512,
     normalization="l2",
-    instruction_profile="matryoshka-512",
-    tokenizer_id="embeddinggemma2/v1-stub",
-    strategy_version=EMBEDDING_PROFILE_STRATEGY_VERSION,
+    instruction_profile="project-expert-gemma-search-v2",
+    tokenizer_id=(
+        f"google/embeddinggemma-2@{_EMBEDDINGGEMMA2_REVISION}"
+    ),
+    strategy_version="embedding-profile-v2-gemma-vision",
 )
 
+_QWEN3_REVISION = os.environ.get("PI_QWEN3_REVISION", QwenRevisionDefault)
 QWEN3_EMBEDDING_0_6B_1024 = EmbeddingProfile(
     provider="qwen3-embedding-0.6b",
-    model_id="qwen3-embedding-0.6b",
-    model_revision="pinned-stub",
+    model_id="Qwen/Qwen3-Embedding-0.6B",
+    model_revision=_QWEN3_REVISION,
     modality="text",
     output_dimension=1024,
     normalization="l2",
-    instruction_profile="query-document",
-    tokenizer_id="qwen3-embedding/v1-stub",
+    instruction_profile="project-expert-qwen-query-v2",
+    tokenizer_id=(
+        f"Qwen/Qwen3-Embedding-0.6B@{_QWEN3_REVISION}"
+    ),
     strategy_version=EMBEDDING_PROFILE_STRATEGY_VERSION,
 )
 
+# The multimodal figure profile is intentionally still on the
+# ``pinned-stub`` placeholder: the real multimodal binding is
+# excluded from the production-capability-gate per
+# :file:`openspec/changes/production-semantic-search-and-branch-reconciliation/excluded-profiles.md`.
+# The placeholder is documented in
+# :file:`distribution/licenses/model-licenses.json` so operators
+# understand the gate boundary.
 MULTIMODAL_FIGURE_512 = EmbeddingProfile(
     provider="multimodal-figure",
     model_id="multimodal-figure-512",

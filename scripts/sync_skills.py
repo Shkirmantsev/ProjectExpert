@@ -91,11 +91,30 @@ def sync_to(destination: Path) -> None:
                     shutil.rmtree(target)
 
 
+def codex_skills() -> list[Path]:
+    """All canonical skills, including the recursively discovered catalog.
+
+    Codex discovers SKILL.md below .agents/skills directly, so copying these
+    into a second home directory would create stale competing definitions.
+    """
+    exposed_skills()
+    return sorted(path.parent for path in SOURCE.rglob("SKILL.md"))
+
+
+def codex() -> None:
+    skills = codex_skills()
+    print(f"Codex skills: PASS ({len(skills)} available from {SOURCE}; "
+          "catalog bodies load only when routed)")
+    for skill in skills:
+        print(skill.relative_to(SOURCE) / "SKILL.md")
+
+
 def local() -> None:
     for destination in (CLAUDE, OPENCODE):
         sync_to(destination)
     print(f"Synced {len(exposed_skills())} core skills to Claude and OpenCode; "
-          "Codex uses canonical .agents/skills; optional catalog stays on demand.")
+          f"all {len(codex_skills())} canonical skills available to Codex "
+          "from .agents/skills (including routed catalog).")
 
 
 def remote() -> None:
@@ -153,17 +172,20 @@ def check() -> None:
     for destination in (CLAUDE, OPENCODE):
         check_target(destination)
     print(f"Local skills: PASS ({len(exposed_skills())} core, "
-          f"{len(catalog_names())} on demand; Claude and OpenCode mirrors)")
+          f"{len(catalog_names())} on demand; Claude and OpenCode mirrors; "
+          f"{len(codex_skills())} Codex canonical skills)")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("scope", choices=("local", "remote", "check"))
+    parser.add_argument("scope", choices=("local", "remote", "check", "codex"))
     args = parser.parse_args()
     if args.scope == "local":
         local()
     elif args.scope == "remote":
         remote()
+    elif args.scope == "codex":
+        codex()
     else:
         check()
 

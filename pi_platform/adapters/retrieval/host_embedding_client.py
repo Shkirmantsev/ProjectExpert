@@ -26,6 +26,7 @@ from typing import Mapping, Optional
 from pi_platform.ports.retrieval.embedding_model import (
     EmbeddingModelError,
     EmbeddingModelPort,
+    EmbeddingRequest,
 )
 from pi_platform.ports.retrieval.embedding_profile import (
     EMBEDDINGGEMMA2_512,
@@ -154,6 +155,15 @@ class HostEmbeddingClient(EmbeddingModelPort):
 
     def embed_batch(self, texts):
         return [self.embed(t) for t in texts]
+
+    def embed_request(self, request: EmbeddingRequest):
+        # The legacy text-only path already produces a role-
+        # independent vector; the role is propagated by
+        # ``embed_requests`` below when the batcher supports it.
+        return self.embed(request.text)
+
+    def embed_requests(self, requests):
+        return [self.embed_request(r) for r in requests]
 
     def license_id(self) -> str:
         # The platform has three built-in profiles with

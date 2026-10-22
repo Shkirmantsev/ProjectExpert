@@ -36,10 +36,18 @@ class CompositionWiringTests(unittest.TestCase):
     wires a ``SelectionCore`` into the multi-stage core."""
 
     def test_composition_references_selection_core(self) -> None:
-        import pi_platform.adapters.ui.composition as composition
-        source = inspect.getsource(composition)
-        self.assertIn("SelectionCore", source)
-        self.assertIn("selection=", source)
+        import tempfile
+        from pathlib import Path
+        from pi_platform.core.orchestration.retrieval_composition import build_production_retrieval_runtime
+        from pi_platform.ports.retrieval.multi_stage_retrieval import RetrievalQuery
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = build_production_retrieval_runtime(
+                cache_root=Path(tmp), startup_profile="minimal", embedding_alias="hashing",
+            )
+            result = runtime.multi_stage_retrieval.retrieve(RetrievalQuery(text="example", include_trace=True))
+        stages = {report.stage for report in result.stageReports}
+        self.assertIn("selection", stages)
+        self.assertIn("query_analysis", stages)
 
 
 class PipelineDriverWiringTests(unittest.TestCase):

@@ -1,0 +1,221 @@
+{
+  "status": "proposed-unapproved",
+  "artifact": "production-linux-x86_64",
+  "lock_sha256": "d8e295cdaa9fac7dbdc417dfa7ce917584b9918443a7cadbaf8d0632f9935a79",
+  "inventory_sha256": "7d98f1ef5eec96c40f32f70c650320f973b844a52616cf0348a8896e75e7fed3",
+  "coordinates": [
+    {
+      "name": "certifi",
+      "version": "2026.10.19",
+      "license_expression": "MPL-2.0",
+      "decision": "pending",
+      "current_policy_decision": "review",
+      "metadata_sha256": "a5c0be3a42daeef0edfaf58e6ea5b7550f3e4e8eb35420f72e902df9bcf00f5c",
+      "audited_license_files": []
+    },
+    {
+      "name": "defusedxml",
+      "version": "0.7.1",
+      "license_expression": "PSF-2.0",
+      "decision": "pending",
+      "current_policy_decision": "deny",
+      "metadata_sha256": "369d3cef64870daf849fba711cb8d05a7efe3c8d9ab0f763adc34079fe378bb1",
+      "audited_license_files": [
+        {
+          "path": "defusedxml-0.7.1.dist-info/LICENSE",
+          "sha256": "b80ce9da8c42a1f91079627fbbe2bf27210ae108a0ffe5f077d5b08e076c24c8"
+        }
+      ]
+    },
+    {
+      "name": "numpy",
+      "version": "2.4.6",
+      "license_expression": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+      "decision": "pending",
+      "current_policy_decision": "deny",
+      "metadata_sha256": "b082c52ccbe3b880bae177c35171b52ed6c947f3ad71e3762f2723f60a411de0",
+      "audited_license_files": []
+    },
+    {
+      "name": "olefile",
+      "version": "0.47",
+      "license_expression": "BSD-2-Clause AND HPND",
+      "decision": "pending",
+      "current_policy_decision": "deny",
+      "metadata_sha256": "7d6d2e95f3419469854777a6524b0537688cf52c59bf9824a00f82f832fc2164",
+      "audited_license_files": [
+        {
+          "path": "olefile-0.47.dist-info/LICENSE.txt",
+          "sha256": "cf1498d5b834b3758a89d06d224a1502c54a28b3a852f46130b761deaa4890d1"
+        }
+      ]
+    },
+    {
+      "name": "pandas",
+      "version": "3.0.6",
+      "license_expression": "BSD-3-Clause AND LicenseRef-pandas-bundled-notices",
+      "decision": "pending",
+      "current_policy_decision": "deny",
+      "metadata_sha256": "c2e8c472e1f49c30b7b00dc1cde8b8ed384b1b6d85b4d5ffe163e800e71dbc61",
+      "audited_license_files": [
+        {
+          "path": "pandas-3.0.6.dist-info/LICENSE",
+          "sha256": "5c1052e921e62d36ccda50a61585e9c0444b80c62f39b57c4f3f0d5fb62f5071"
+        }
+      ]
+    },
+    {
+      "name": "pillow",
+      "version": "12.3.0",
+      "license_expression": "MIT-CMU",
+      "decision": "pending",
+      "current_policy_decision": "deny",
+      "metadata_sha256": "8fc07146cab33ef7582361dab6eac596d340b03ec648f18217da7894f73838c8",
+      "audited_license_files": []
+    },
+    {
+      "name": "pypdfium2",
+      "version": "5.14.0",
+      "license_expression": "BSD-3-Clause AND Apache-2.0 AND MIT AND BSD-2-Clause AND FTL AND Unicode-3.0 AND IJG AND Libpng-2.0 AND (Apache-2.0 WITH LLVM-exception) AND Zlib AND LicenseRef-pypdfium2-bundled-notices",
+      "decision": "pending",
+      "current_policy_decision": "deny",
+      "metadata_sha256": "3e1628ac6c4cf1dc173e9441f972d9324f8f9ff92d6930c340efceb8175e37e8",
+      "audited_license_files": [
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/LICENSES/Apache-2.0.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/LICENSES/BSD-3-Clause.txt",
+          "sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/LICENSES/CC-BY-4.0.txt",
+          "sha256": "419896aea50c15d6e40c5b4baf4bd346f78223b9a354c7357ad00262afdc08ec"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/abseil.txt",
+          "sha256": "c79a7fea0e3cac04cd43f20e7b648e5a0ff8fa5344e644b0ee09ca1162b62747"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/agg23.txt",
+          "sha256": "c110d3ea2ad77467ce0dcff7d3337e6c8be8049a5103f4b9bd5fd911a77972e5"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/fast_float.txt",
+          "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/freetype.txt",
+          "sha256": "f4b133e25df1f86ad3ffea453aa0e613f0474f34778dbbb3e437e7b2724937d8"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/icu.txt",
+          "sha256": "e55522d81edc687a341a4411e0776e54ca654e90147f354a90458aaced4116af"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/lcms.txt",
+          "sha256": "7312b68c5b25e9bf2b828706fb4e29588f22705112f411fd42e1f7d84c3d139a"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/libjpeg_turbo.ijg",
+          "sha256": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/libjpeg_turbo.md",
+          "sha256": "96f5b328adbb78eeaaec6980d73fd558cb1e4d62560ed615646bc3cf5e532430"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/libopenjpeg.txt",
+          "sha256": "c5ab0890a737c2dfa7ba675036554f6d17741d98629b0c2a145354d00617e6b2"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/libpng.txt",
+          "sha256": "bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/llvm-libc.txt",
+          "sha256": "ebcd9bbf783a73d05c53ba4d586b8d5813dcdf3bbec50265860ccc885e606f47"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/pdfium-binaries.txt",
+          "sha256": "ba26c1263131696b86c10496b5066b918a20b7161822a80c274d0080105f6c93"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/pdfium.txt",
+          "sha256": "961eacd9633fff6d051db7208b755e9210e30efac7adec3e6a6d52798f0ccf0e"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/simdutf.txt",
+          "sha256": "fc8dbc04e03ad4efc08a647ffe7f995b811a95bc04c0e85a56d5277c6593fa5f"
+        },
+        {
+          "path": "pypdfium2-5.14.0.dist-info/licenses/data/linux_x64/BUILD_LICENSES/zlib.txt",
+          "sha256": "33fd641c9f3b0e0be64bc78fea9e94807674cdd70c48477599226cb8956565fe"
+        }
+      ]
+    },
+    {
+      "name": "regex",
+      "version": "2026.9.29",
+      "license_expression": "Apache-2.0 AND CNRI-Python",
+      "decision": "pending",
+      "current_policy_decision": "deny",
+      "metadata_sha256": "33859377dbf8dd38ee3de73fd97faebf4a63d50576e3cc1a9dfe44df08b0936a",
+      "audited_license_files": []
+    },
+    {
+      "name": "scipy",
+      "version": "1.17.1",
+      "license_expression": "BSD-3-Clause AND BSD-3-Clause-Open-MPI AND (GPL-3.0-or-later WITH GCC-exception-3.1) AND LGPL-2.1-or-later",
+      "decision": "pending",
+      "current_policy_decision": "deny",
+      "metadata_sha256": "7cdd5544eb610b86e000b6f0a21e86f84423faf0aacbb99990f3d41f25e1f314",
+      "audited_license_files": [
+        {
+          "path": "scipy-1.17.1.dist-info/LICENSE.txt",
+          "sha256": "4daf14e37432e7026165979ecb7a39930707a3e89bef4876cfaf9dad36ed364a"
+        }
+      ]
+    },
+    {
+      "name": "torch",
+      "version": "2.14.1+cpu",
+      "license_expression": "Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND MIT",
+      "decision": "pending",
+      "current_policy_decision": "deny",
+      "metadata_sha256": "a3fd232f82dcc389c6dab2665dfc17649c03ffb72cb641e96a76a0690177b918",
+      "audited_license_files": []
+    },
+    {
+      "name": "tqdm",
+      "version": "4.70.1",
+      "license_expression": "MPL-2.0 AND MIT",
+      "decision": "pending",
+      "current_policy_decision": "review",
+      "metadata_sha256": "a5da70b966afea3a759716041bad7187f2ece02c22348cf9e7c0a512bbf15f57",
+      "audited_license_files": [
+        {
+          "path": "tqdm-4.70.1.dist-info/licenses/LICENCE",
+          "sha256": "fcff87c3a47ce8028a8512aa182d4fcf0ad1c90544ee75cf9b343684cac194de"
+        }
+      ]
+    },
+    {
+      "name": "typing-extensions",
+      "version": "4.16.0",
+      "license_expression": "PSF-2.0",
+      "decision": "pending",
+      "current_policy_decision": "deny",
+      "metadata_sha256": "b05084ca1d50879865178d9fff9fabeab61bdfb1f361bfbde95421ffc8f9be46",
+      "audited_license_files": []
+    }
+  ],
+  "constraints": [
+    "No global allow list change",
+    "Approval requires explicit per-coordinate review",
+    "Versions, artifacts, lock hash and license evidence are bound to this record",
+    "Retain applicable notices and redistribution obligations",
+    "This proposal is not read by the license gate and grants no acceptance"
+  ]
+}

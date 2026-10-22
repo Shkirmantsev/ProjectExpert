@@ -52,6 +52,40 @@ def _record(
     )
 
 
+class FileOwnedVectorStoreTests(unittest.TestCase):
+    def test_owned_connections_close_after_each_operation_and_failure(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        connections = []
+        connect = sqlite3.connect
+        def tracking_connect(*args, **kwargs):
+            db = connect(*args, **kwargs)
+            connections.append(db)
+            return db
+        with tempfile.TemporaryDirectory() as raw, patch(
+            "pi_platform.adapters.runtime.sqlite_vector_record_store.sqlite3.connect",
+            side_effect=tracking_connect,
+        ):
+            path = Path(raw) / "vectors.sqlite"
+            store = SqliteVectorRecordStore(db_path=str(path))
+            record = _record()
+            store.put(record)
+            self.assertIsNotNone(store.get(record.chunk_id, record.embedding_profile_hash))
+            self.assertEqual(len(list(store.iter(record.embedding_profile_hash))), 1)
+            self.assertEqual(store.profile_hash_for(record.chunk_id), record.embedding_profile_hash)
+            self.assertEqual(store.stats()["records"], 1)
+            store.delete(record.chunk_id, record.embedding_profile_hash)
+            # SQL errors must close owned handles too.
+            with self.assertRaises(sqlite3.ProgrammingError):
+                store.get(object(), record.embedding_profile_hash)
+            for db in connections:
+                with self.assertRaises(sqlite3.ProgrammingError):
+                    db.execute("SELECT 1")
+            # Windows cannot rename/delete a database with a live handle.
+            path.rename(path.with_suffix(".closed"))
+
+
 class VectorRecordStoreTests(unittest.TestCase):
     def setUp(self):
         self.db = sqlite3.connect(":memory:")

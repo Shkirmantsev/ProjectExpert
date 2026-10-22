@@ -1,0 +1,47 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "ML stack installed: torch 2.14.1+cpu, sentence-transformers 4.1.0, transformers 4.57.6, huggingface-hub 0.36.2, usearch 2.26.5, docling 2.140.0. OpenSpec change artifacts already authored at openspec/changes/production-semantic-search-and-branch-reconciliation/. 12GB free disk. New branches, new code only \u2014 no edits to accepted specs. The implementation is the second half of the change; the planning artifacts are already merged in the previous session."
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [],
+    "todo": [
+      "1. PR 2 port; 2. PR 1 profile + factory + resolver + capabilities; 3. PR 3 Gemma; 4. PR 4 Qwen; 5. update hashing; 6. PR 6 USearch + dense_keys; 7. PR 5 service; 8. PR 8 snapshot; 9. PR 7 composition; 10. PR 10 Docling; 11. PR 12 gate script; 12. verify"
+    ]
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-19T07:34:38+00:00",
+    "id": "production-implementation",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-19T07:34:38+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "All ten in-scope PRs land with unit tests; harness.py check passes; production-capability-gate returns PASS for the production-enabled set; the EmbeddingGemma 2 and Qwen3 adapter code paths exist and import sentence-transformers lazily; the USearch adapter code path exists and uses real usearch.Index; the Docling adapter uses real DocumentConverter + HybridChunker; the no-silent-stub test still passes; the new tests for the port extension, the persisted snapshot, the atomic activation, the dense_keys table, the unified composition, the real Docling and the gate pass."
+    ],
+    "goal": "Implement the production-hardening change production-semantic-search-and-branch-reconciliation in code: PR 1 (config resolver + truthful capabilities + three startup profiles), PR 2 (EmbeddingRequest/Role/Task port), PR 3 (real EmbeddingGemma 2), PR 4 (real Qwen3), PR 5 (semantic index service), PR 6 (real USearch + dense_keys + atomic activation), PR 7 (unified production composition), PR 8 (persisted runtime snapshot + reconcile), PR 10 (real Docling + HybridChunker), PR 12 (production-capability-gate script).",
+    "openspec_change": "production-semantic-search-and-branch-reconciliation",
+    "status": "planning"
+  },
+  "verification": {
+    "passed": [],
+    "pending": []
+  },
+  "working_set": []
+}

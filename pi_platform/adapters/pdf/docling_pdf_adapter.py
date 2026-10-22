@@ -1,28 +1,12 @@
-"""Docling PDF adapter (E3 production STUB).
-
-Implements :class:`pi_platform.ports.ingest.source_adapter.SourceAdapterPort`
-for the ``SourceContentFamily.PDF`` family. The adapter is
-production-shaped but ships as a STUB until the real
-``docling`` Python package is added to the ``documents``
-optional dependency group.
-
-The STUB:
-  - preserves the :class:`SourceAdapterPort` contract
-  - projects a synthesized ``DoclingDocument`` into the neutral
-    ``pi_platform.core.canonical.document_graph`` types
-    (DocumentRevision, Page, DocumentElement, AssetRef,
-    TableGrid, IngestionCheckpoint)
-  - documents that the real ``docling.DocumentConverter`` will
-    be wired in a follow-up
-  - never lets Docling types leak past this module boundary
-"""
+"""PDF conversion and neutral document mapping; production errors fail closed."""
 
 from __future__ import annotations
 
 import hashlib
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
 from typing import Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from pi_platform.core.canonical.document_graph import (
@@ -34,6 +18,7 @@ from pi_platform.core.canonical.document_graph import (
     IngestionState,
     Page,
     TableGrid,
+    SourceAnchor,
 )
 from pi_platform.core.canonical.value_types import (
     Document,
@@ -58,6 +43,10 @@ from pi_platform.ports.ingest.source_adapter import (
     SourceAdapterPort,
     SourceParseResult,
 )
+from pi_platform.adapters.pdf.real_docling import (
+    RealDoclingConverter,
+    is_docling_available,
+)
 from pi_platform.ports.runtime.document_graph_store import DocumentGraphStorePort
 
 
@@ -68,10 +57,11 @@ __all__ = [
     "DEFAULT_DOCLING_STRATEGY_VERSION",
     "DEFAULT_PAGE_BATCH_SIZE",
     "DEFAULT_BOUNDARY_CONTEXT_PAGES",
+    "build_real_docling_pdf_adapter",
 ]
 
 
-DEFAULT_DOCLING_STRATEGY_VERSION = "docling-pdf/v1"
+DEFAULT_DOCLING_STRATEGY_VERSION = "docling-pdf/v2-real"
 DEFAULT_PAGE_BATCH_SIZE = 32
 DEFAULT_BOUNDARY_CONTEXT_PAGES = 1
 
@@ -80,12 +70,65 @@ class DoclingPdfAdapterError(SourceAdapterError):
     """Raised when the Docling PDF adapter cannot parse a source."""
 
 
+def build_real_docling_pdf_adapter(
+    prescan: PrescanPort,
+    job_store: IngestionJobStorePort,
+    graph_store: DocumentGraphStorePort,
+    *,
+    ocr_engine: Optional[OcrEnginePort] = None,
+    strategy_version: str = DEFAULT_DOCLING_STRATEGY_VERSION,
+    page_batch_size: int = DEFAULT_PAGE_BATCH_SIZE,
+    boundary_context_pages: int = DEFAULT_BOUNDARY_CONTEXT_PAGES,
+    embedding_model_id: str = "google/embeddinggemma-2",
+    max_tokens: int = 512,
+    asset_root: str = "tmp/local/pdf-assets",
+    docling_converter: Optional["RealDoclingConverter"] = None,
+) -> DoclingPdfAdapter:
+    """Production factory for the Docling PDF adapter.
+
+    This is the production entry point documented by open spec
+    change PR 10 (plan §45, §46, §71): the adapter returned by
+    this function MUST be wired to the real
+    ``docling.document_converter.DocumentConverter``; the
+    synthesised stub path is reserved for unit tests that do not
+    load the real models.
+
+    The factory refuses to build a "production" adapter when
+    :func:`is_docling_available` returns ``False`` unless the
+    caller supplies a pre-built ``docling_converter``. The
+    production-capability-gate reads :func:`is_docling_available`
+    to fail closed when Docling is absent; this factory is the
+    matching enforcement point for the adapter layer.
+    """
+
+    if docling_converter is None:
+        if not is_docling_available():
+            raise DoclingPdfAdapterError(
+                "docling is not installed; "
+                "build_real_docling_pdf_adapter requires the real "
+                "docling package (open spec change PR 10, plan §45)"
+            )
+        docling_converter = RealDoclingConverter(
+            embedding_model_id=embedding_model_id,
+            max_tokens=max_tokens,
+        )
+    return DoclingPdfAdapter(
+        prescan=prescan,
+        job_store=job_store,
+        graph_store=graph_store,
+        ocr_engine=ocr_engine,
+        strategy_version=strategy_version,
+        page_batch_size=page_batch_size,
+        boundary_context_pages=boundary_context_pages,
+        docling_converter=docling_converter,
+        asset_root=asset_root,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Synthesised Docling types (kept private to this module).
-# The real ``docling`` types are imported by the production
-# adapter in a follow-up; these classes exist only so the
-# v0.8 refinement stub can exercise the full adapter contract
-# without a third-party dependency.
+# Private projection DTOs shared by vendor mapping and explicit test fixtures.
+# No vendor objects cross the source adapter boundary.
 # ---------------------------------------------------------------------------
 
 
@@ -94,6 +137,7 @@ class _DoclingTextItem:
     text: str
     page: int = 1
     bbox: Tuple[float, ...] = ()
+    kind: ElementKind = ElementKind.PARAGRAPH
 
 
 @dataclass
@@ -137,8 +181,7 @@ class _DoclingDocument:
 
 
 class DoclingMapper:
-    """Map a synthesised :class:`_DoclingDocument` into neutral
-    canonical types.
+    """Map private projection DTOs into neutral canonical types.
 
     The mapper is the only place where Docling-side structure is
     decoded; the rest of the platform sees only the neutral
@@ -180,11 +223,11 @@ class DoclingMapper:
         out: List[DocumentElement] = []
         for i, t in enumerate(doc.text_items):
             element_id = self._element_id(
-                revision_id, t.page, ElementKind.PARAGRAPH, t.bbox, t.text,
-                ordinal=i,
+                revision_id, t.page, t.kind, t.bbox, t.text,
+                ordinal=sum(x.page == t.page for x in doc.text_items[:i]),
             )
             out.append(DocumentElement(
-                element_id=element_id, kind=ElementKind.PARAGRAPH,
+                element_id=element_id, kind=t.kind,
                 page=t.page, bbox=t.bbox, text=t.text,
                 content_hash=hashlib.sha256(t.text.encode("utf-8")).hexdigest(),
                 semantic_key=f"text/{t.page}/{i}",
@@ -192,7 +235,7 @@ class DoclingMapper:
         for i, tbl in enumerate(doc.tables):
             element_id = self._element_id(
                 revision_id, tbl.page, ElementKind.TABLE, tbl.bbox,
-                "|".join(tbl.headers), ordinal=len(doc.text_items) + i,
+                "|".join(tbl.headers), ordinal=sum(x.page == tbl.page for x in doc.tables[:i]),
             )
             serialised = self._serialise_table(tbl)
             out.append(DocumentElement(
@@ -206,7 +249,7 @@ class DoclingMapper:
         for i, fig in enumerate(doc.figures):
             element_id = self._element_id(
                 revision_id, fig.page, ElementKind.FIGURE, fig.bbox,
-                fig.caption, ordinal=len(doc.text_items) + len(doc.tables) + i,
+                fig.caption, ordinal=sum(x.page == fig.page for x in doc.figures[:i]),
             )
             out.append(DocumentElement(
                 element_id=element_id, kind=ElementKind.FIGURE,
@@ -225,7 +268,7 @@ class DoclingMapper:
         for i, tbl in enumerate(doc.tables):
             element_id = self._element_id(
                 revision_id, tbl.page, ElementKind.TABLE, tbl.bbox,
-                "|".join(tbl.headers), ordinal=len(doc.text_items) + i,
+                "|".join(tbl.headers), ordinal=sum(x.page == tbl.page for x in doc.tables[:i]),
             )
             out.append((element_id, TableGrid(
                 headers=tbl.headers,
@@ -247,7 +290,7 @@ class DoclingMapper:
             element_id = self._element_id(
                 revision_id, fig.page, ElementKind.FIGURE, fig.bbox,
                 fig.caption,
-                ordinal=len(doc.text_items) + len(doc.tables) + i,
+                ordinal=sum(x.page == fig.page for x in doc.figures[:i]),
             )
             out.append(AssetRef(
                 asset_id=element_id,
@@ -309,7 +352,14 @@ class DoclingPdfAdapter(SourceAdapterPort):
         strategy_version: str = DEFAULT_DOCLING_STRATEGY_VERSION,
         page_batch_size: int = DEFAULT_PAGE_BATCH_SIZE,
         boundary_context_pages: int = DEFAULT_BOUNDARY_CONTEXT_PAGES,
+        docling_converter: Optional["RealDoclingConverter"] = None,
+        allow_synthetic: bool = False,
+        asset_root: str = "tmp/local/pdf-assets",
     ) -> None:
+        if page_batch_size < 1 or boundary_context_pages < 0:
+            raise ValueError("invalid PDF page batch configuration")
+        self._allow_synthetic = allow_synthetic
+        self._asset_root = asset_root
         self._prescan = prescan
         self._job_store = job_store
         self._graph_store = graph_store
@@ -319,6 +369,9 @@ class DoclingPdfAdapter(SourceAdapterPort):
         self._page_batch_size = page_batch_size
         self._boundary_context_pages = boundary_context_pages
         self._mapper = DoclingMapper()
+        self._docling_converter = docling_converter
+        if docling_converter is None and not allow_synthetic:
+            self._docling_converter = RealDoclingConverter()
 
     @property
     def family(self) -> SourceContentFamily:
@@ -332,10 +385,24 @@ class DoclingPdfAdapter(SourceAdapterPort):
                 "Source.uri is required for DoclingPdfAdapter"
             )
         prescan = self._prescan.scan(source.uri)
+        native_pages = None
+        if isinstance(self._docling_converter, RealDoclingConverter):
+            try:
+                native_pages = self._docling_converter.inspect_pdf(source.uri)
+                prescan = replace(prescan, page_count=len(native_pages),
+                                  has_native_text=all(native_pages))
+            except Exception as exc:
+                raise DoclingPdfAdapterError(f"PDF source {source.uri!r}: {exc}") from exc
         if prescan.file_size == 0:
             raise DoclingPdfAdapterError(
                 f"source {source.uri!r} is empty after prescan"
             )
+        cached_revision = self._graph_store.get_revision(prescan.byte_hash)
+        if cached_revision is not None and cached_revision.strategy_version != self._strategy_version:
+            raise DoclingPdfAdapterError(
+                f"PDF source {source.uri!r} has an incompatible cached graph "
+                f"({cached_revision.strategy_version}); rebuild the runtime PDF cache "
+                "before parsing with the real converter")
         # Short-circuit when a previous run already finished
         # for the same (source_id, revision_id, strategy).
         existing = self._job_store.find_completed(
@@ -349,27 +416,22 @@ class DoclingPdfAdapter(SourceAdapterPort):
             if rev is not None:
                 return self._rebuild_from_graph(source, rev)
         # Otherwise, run a fresh batched parse.
-        return self._parse_in_batches(source, prescan)
+        return self._parse_in_batches(source, prescan, native_pages=native_pages)
 
     # -- internal helpers --------------------------------------------
 
     def _parse_in_batches(
-        self, source: Source, prescan,
+        self, source: Source, prescan, *, native_pages=None,
     ) -> SourceParseResult:
         """Page-windowed parse with per-batch commits.
 
-        The real Docling parsing is in a follow-up; this stub
-        synthesises a ``_DoclingDocument`` from the prescan and
-        then projects it through the mapper, committing per
-        page window.
+        Only owned pages are persisted; neighbouring context is discarded.
+        Conversion failures preserve completed page windows for restart.
         """
-        job_id = f"job-{prescan.byte_hash[:12]}"
-        # Create the ingestion job (PENDING) and immediately
-        # mark it RUNNING.
-        from pi_platform.core.canonical.document_graph import (
-            IngestionCheckpoint,
-        )
-        if self._job_store.get(job_id) is None:
+        identity = f"{source.id}|{prescan.byte_hash}|{self._strategy_version}"
+        job_id = "job-" + hashlib.sha256(identity.encode()).hexdigest()[:24]
+        checkpoint = self._job_store.get(job_id)
+        if checkpoint is None:
             checkpoint = IngestionCheckpoint(
                 job_id=job_id, source_id=source.id,
                 revision_id=prescan.byte_hash,
@@ -378,106 +440,95 @@ class DoclingPdfAdapter(SourceAdapterPort):
             )
             self._job_store.create(checkpoint)
         self._job_store.mark_running(job_id)
-        # Synthesise the document.
-        doc = self._synthesise_doc(prescan)
-        # Project + persist the revision metadata.
-        revision = self._mapper.project_revision(
-            doc=doc, source_id=source.id, byte_hash=prescan.byte_hash,
-            strategy_version=self._strategy_version, ingested_at="now",
-        )
-        self._graph_store.put_revision(revision)
-        for page in self._mapper.project_pages(doc):
-            self._graph_store.put_page(prescan.byte_hash, page)
-        for element in self._mapper.project_elements(doc, prescan.byte_hash):
-            self._graph_store.put_element(prescan.byte_hash, element)
-        for element_id, table in self._mapper.project_tables(doc, prescan.byte_hash):
-            self._graph_store.put_table(prescan.byte_hash, element_id, table)
-        for asset in self._mapper.project_figures(doc, prescan.byte_hash):
-            self._graph_store.put_asset(asset)
-        # Mark the entire window as completed (single batch in
-        # the stub; the real binding uses per-window commits).
-        self._job_store.mark_batch_done(job_id, (1, prescan.page_count))
+        revision = None
+        for first in range(checkpoint.next_page, prescan.page_count + 1, self._page_batch_size):
+            last = min(first + self._page_batch_size - 1, prescan.page_count)
+            window = (max(1, first - self._boundary_context_pages),
+                      min(prescan.page_count, last + self._boundary_context_pages))
+            try:
+                if self._docling_converter is not None:
+                    window_native = (all(native_pages[window[0] - 1:window[1]])
+                                     if native_pages is not None else prescan.has_native_text)
+                    doc = self._convert_real_or_synthesise(
+                        source, replace(prescan, has_native_text=window_native), page_range=window)
+                else:
+                    doc = self._synthesise_doc(prescan)
+                revision = self._mapper.project_revision(
+                    doc=doc, source_id=source.id, byte_hash=prescan.byte_hash,
+                    strategy_version=self._strategy_version, ingested_at=datetime.now(timezone.utc).isoformat(),
+                )
+                self._graph_store.put_revision(revision)
+                for page_no in range(first, last + 1):
+                    native = (native_pages[page_no - 1] if native_pages is not None
+                              else prescan.has_native_text)
+                    self._graph_store.put_page(prescan.byte_hash, Page(
+                        page_no=page_no, native_text_present=native, ocr_used=not native))
+                mapped_elements = self._mapper.project_elements(doc, prescan.byte_hash)
+                elements_by_id = {element.element_id: element for element in mapped_elements}
+                for element in mapped_elements:
+                    if first <= element.page <= last:
+                        self._graph_store.put_element(prescan.byte_hash, element)
+                for element_id, table in self._mapper.project_tables(doc, prescan.byte_hash):
+                    element = elements_by_id[element_id]
+                    if first <= element.page <= last:
+                        self._graph_store.put_table(prescan.byte_hash, element_id, table)
+                from pi_platform.adapters.pdf.assets import FigureAssetAdapter
+                assets = FigureAssetAdapter(self._graph_store, cas_root=self._asset_root)
+                for fig, asset in zip(doc.figures, self._mapper.project_figures(doc, prescan.byte_hash)):
+                    if first <= fig.page <= last and fig.asset_bytes:
+                        assets.store_figure(asset_id=asset.asset_id, image_bytes=fig.asset_bytes,
+                                            mime_type=asset.mime_type, page=fig.page, bbox=fig.bbox)
+                    elif first <= fig.page <= last and self._allow_synthetic:
+                        self._graph_store.put_asset(asset)
+                self._job_store.mark_batch_done(job_id, (first, last))
+            except Exception as exc:
+                error = f"PDF source {source.uri!r}, pages {first}-{last}: {exc}"
+                self._job_store.mark_failed(job_id, (first, last), error)
+                raise DoclingPdfAdapterError(error) from exc
         self._job_store.mark_completed(job_id)
-        # Project the existing generic Document / Section / Chunk
-        # representation.
-        return self._build_source_parse_result(source, doc, revision)
+        revision = self._graph_store.get_revision(prescan.byte_hash)
+        return self._rebuild_from_graph(source, revision)
 
     def _rebuild_from_graph(
         self, source: Source, revision: DocumentRevision,
     ) -> SourceParseResult:
         """Reconstruct a SourceParseResult from the persisted
         rich document graph (cheap path after a completed run)."""
-        pages = self._graph_store.list_pages(revision.revision_id)
-        elements = self._graph_store.list_elements(revision.revision_id)
-        # Build a minimal synthesised DoclingDocument from the
-        # persisted graph so the mapper can be reused.
-        from pi_platform.core.canonical.document_graph import (
-            DocumentElement,
-        )
-        doc = _DoclingDocument(
-            page_count=max((p.page_no for p in pages), default=1),
-            text_items=tuple(
-                _DoclingTextItem(
-                    text=e.text, page=e.page, bbox=e.bbox,
-                )
-                for e in elements if e.kind == ElementKind.PARAGRAPH
-            ),
-            tables=tuple(
-                _DoclingTableItem(
-                    headers=t.headers if t else (),
-                    rows=t.rows if t else (),
-                    page=e.page, bbox=e.bbox,
-                )
-                for e, t in (
-                    (e, self._graph_store.get_table(
-                        revision.revision_id, e.element_id,
-                    ))
-                    for e in elements if e.kind == ElementKind.TABLE
-                ) if t is not None
-            ),
-            figures=tuple(
-                _DoclingFigureItem(
-                    caption=e.text, page=e.page, bbox=e.bbox,
-                    asset_bytes=b"",
-                )
-                for e in elements if e.kind == ElementKind.FIGURE
-            ),
-            author=revision.author,
-            language=revision.language or "und",
-        )
-        return self._build_source_parse_result(source, doc, revision)
+        return self._build_source_parse_result(source, revision)
 
     def _build_source_parse_result(
-        self, source: Source, doc: _DoclingDocument, revision: DocumentRevision,
+        self, source: Source, revision: DocumentRevision,
     ) -> SourceParseResult:
         # Project into the generic Document / Section / Chunk
         # representation. This is a thin projection over the
         # rich document graph.
-        sections: List[Section] = []
-        # One section per page keeps the existing chunker
-        # interface working; a real implementation may group
-        # pages by chapter.
-        for page in range(1, doc.page_count + 1):
-            page_texts = [
-                e.text for e in doc.text_items if e.page == page
-            ]
-            if not page_texts:
-                continue
-            sections.append(Section(
-                id=f"sec-{revision.revision_id}-p{page}",
-                heading=f"Page {page}",
-                level=1,
-            ))
+        from pi_platform.core.ingest.records import make_chunk
+        source_path = getattr(source.metadata, "sourcePath", None)
+        if isinstance(source.metadata, Mapping):
+            source_path = source.metadata.get("sourcePath", source_path)
         document = Document(
-            id=revision.revision_id,
-            title=getattr(source, "name", None) or revision.source_id,
-            sections=tuple(sections),
-            metadata=Metadata(
-                documentId=revision.revision_id,
-                version=revision.strategy_version,
-                language=revision.language or "und",
-            ),
+            id=revision.revision_id, title=getattr(source, "name", None) or revision.source_id,
+            metadata=Metadata(documentId=revision.revision_id, version=revision.strategy_version,
+                              language=revision.language or "und", sourcePath=source_path or source.uri),
         )
+        sections = []
+        for element in self._graph_store.list_elements(revision.revision_id):
+            section = Section(id=f"sec-{element.element_id}", heading=f"Page {element.page}", level=1)
+            attrs = {"sourceFamily": "pdf", "page": element.page, "elementKind": element.kind.value}
+            table = self._graph_store.get_table(revision.revision_id, element.element_id)
+            if table is not None:
+                attrs["table"] = {"headers": table.headers, "rows": table.rows}
+            chunk = make_chunk(document, section, element.text,
+                               parser_version=self._strategy_version, extensions=attrs)
+            asset = (self._graph_store.get_asset(element.element_id)
+                     if element.kind == ElementKind.FIGURE else None)
+            chunk = replace(chunk, metadata=replace(chunk.metadata, page=element.page),
+                            anchors=(SourceAnchor(
+                revision_id=revision.revision_id, page=element.page,
+                element_id=element.element_id, bbox=element.bbox,
+                asset_id=asset.asset_id if asset else ""),))
+            sections.append(replace(section, chunks=(chunk,)))
+        document = replace(document, sections=tuple(sections))
         return SourceParseResult(
             document=document,
             sections=tuple(sections),
@@ -489,13 +540,66 @@ class DoclingPdfAdapter(SourceAdapterPort):
             ),
         )
 
+    @staticmethod
+    def _provenance(item):
+        prov = getattr(item, "prov", ()) or ()
+        if not prov:
+            raise DoclingPdfAdapterError("Docling structural item has no page provenance")
+        bbox = getattr(prov[0], "bbox", None)
+        coords = tuple(float(getattr(bbox, k)) for k in ("l", "t", "r", "b")) if bbox else ()
+        return int(prov[0].page_no), coords
+
+    def _convert_real_or_synthesise(self, source, prescan, *, page_range=None):
+        """Map real output; conversion or mapping failures never synthesize content."""
+        raw = self._docling_converter.convert(
+            source.uri, page_range=page_range, do_ocr=not prescan.has_native_text)
+        texts = []
+        for item in getattr(raw, "texts", ()):
+            page, bbox = self._provenance(item)
+            text = str(getattr(item, "text", "") or "")
+            if text:
+                label = getattr(getattr(item, "label", None), "value", "text")
+                kind = {"title": ElementKind.HEADING, "section_header": ElementKind.HEADING,
+                        "list_item": ElementKind.LIST, "formula": ElementKind.FORMULA}.get(
+                            label, ElementKind.PARAGRAPH)
+                texts.append(_DoclingTextItem(text=text, page=page, bbox=bbox, kind=kind))
+        tables = []
+        for item in getattr(raw, "tables", ()):
+            page, bbox = self._provenance(item)
+            data = item.data
+            grid = [["" for _ in range(data.num_cols)] for _ in range(data.num_rows)]
+            header_rows = set()
+            for cell in data.table_cells:
+                for row in range(cell.start_row_offset_idx, cell.end_row_offset_idx):
+                    for col in range(cell.start_col_offset_idx, cell.end_col_offset_idx):
+                        grid[row][col] = cell.text
+                    if cell.column_header:
+                        header_rows.add(row)
+            headers = tuple(" / ".join(grid[r][c] for r in sorted(header_rows))
+                            for c in range(data.num_cols)) if header_rows else ()
+            rows = tuple(tuple(row) for i, row in enumerate(grid) if i not in header_rows)
+            tables.append(_DoclingTableItem(headers=headers, rows=rows, page=page, bbox=bbox))
+        figures = []
+        for item in getattr(raw, "pictures", ()):
+            page, bbox = self._provenance(item)
+            caption = item.caption_text(raw) or f"Figure on page {page}"
+            image = item.get_image(raw)
+            image_bytes = b""
+            if image is not None:
+                import io
+                buf = io.BytesIO()
+                image.save(buf, format="PNG")
+                image_bytes = buf.getvalue()
+            figures.append(_DoclingFigureItem(caption=caption, page=page, bbox=bbox,
+                                              asset_bytes=image_bytes))
+        return _DoclingDocument(page_count=prescan.page_count, text_items=tuple(texts),
+                                tables=tuple(tables), figures=tuple(figures),
+                                author=prescan.metadata.get("author", ""))
+
     def _synthesise_doc(self, prescan) -> _DoclingDocument:
         """Synthesise a DoclingDocument from the prescan.
 
-        The real Docling binding will replace this with a call
-        to ``docling.document_converter.DocumentConverter.convert``.
-        For the stub, we build a small text + table + figure
-        structure that exercises the mapper end-to-end.
+        Used only when the caller explicitly enables synthetic fixture mode.
         """
         page_count = prescan.page_count
         # One paragraph per page; one table on page 1; one figure
