@@ -89,7 +89,10 @@ class RepositoryIndexingRuntimeTests(unittest.TestCase):
         nodes.write_bytes(to_canonical_json(Entity('a', 'Component', 'Billing')))
         edges.write_text('')
         # A previous branch's unscoped runtime rows are historical cache only.
-        with __import__('sqlite3').connect(self.cache / 'runtime.db') as db:
+        # ``sqlite3`` context managers only end a transaction; they never close the
+        # connection. Without ``closing`` the Windows handle survives the test and
+        # TemporaryDirectory cleanup fails with PermissionError [WinError 32].
+        with __import__('contextlib').closing(__import__('sqlite3').connect(self.cache / 'runtime.db')) as db, db:
             db.execute('CREATE TABLE runtime_entries(body_json TEXT)')
             db.execute('INSERT INTO runtime_entries VALUES (?)',
                        (to_canonical_json(Entity('b', 'Component', 'Old ledger')).decode(),))
