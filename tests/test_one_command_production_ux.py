@@ -5,6 +5,7 @@ Docker Compose production profile, unified settings resolution, and HTTP admin/w
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -117,7 +118,7 @@ class MakefileAndComposeProductSurfaceTests(unittest.TestCase):
         self.assertIn('"production"', text)
         self.assertIn("${PI_BIND_HOST:-127.0.0.1}:${PI_CONTROL_PORT:-8765}:8765", text)
         self.assertIn("pi-model-cache:/models/huggingface:rw", text)
-        self.assertIn("PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-gemma}", text)
+        self.assertIn("PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-qwen}", text)
         self.assertIn("PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-auto}", text)
         self.assertIn("PI_DENSE_INDEX: ${PI_DENSE_INDEX:-usearch}", text)
         self.assertIn("HF_HOME: ${PI_MODEL_CACHE:-/models/huggingface}", text)
@@ -127,6 +128,28 @@ class OneCommandStartAndModelSwitchTests(unittest.TestCase):
     """Verify trivial target bootstrap, model switching without Git churn, and branch reconciliation."""
 
     def setUp(self) -> None:
+        # These UX tests prove orchestration and profile isolation, not model
+        # quality. Heavy integration tests exercise actual production weights.
+        from unittest.mock import patch
+        from dataclasses import replace
+        from pi_platform.core.retrieval.embedding_model import HashingEmbeddingModel
+        from pi_platform.ports.retrieval.embedding_profile import HASHING_DEFAULT
+        environment = patch.dict(os.environ, {
+            "PI_STARTUP_PROFILE": "minimal", "PI_DENSE_INDEX": "flat", "PI_DOCLING_ENABLED": "0",
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
+        os.environ.pop("PI_EMBEDDING_MODEL", None)
+        class ContractEmbedding(HashingEmbeddingModel):
+            def __init__(self, alias):
+                super().__init__()
+                self.alias = alias
+            def profile(self):
+                return replace(HASHING_DEFAULT, model_revision="ux-contract-" + self.alias)
+        factory = patch("pi_platform.adapters.retrieval.embedding_model_factory.EmbeddingModelFactory.build",
+                        side_effect=lambda alias, **kwargs: ContractEmbedding(alias))
+        factory.start()
+        self.addCleanup(factory.stop)
         self.tmp = Path(tempfile.mkdtemp(prefix="one-cmd-ux-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
         self.repo = self.tmp / "target-repo"
@@ -136,6 +159,7 @@ class OneCommandStartAndModelSwitchTests(unittest.TestCase):
     def test_start_bootstraps_target_discovers_sources_and_commits_snapshot(self) -> None:
         rc = cli_main([
             "start",
+            "--no-serve",
             "--target",
             str(self.repo),
             "--model",
@@ -166,9 +190,23 @@ class OneCommandStartAndModelSwitchTests(unittest.TestCase):
         self.assertIn("README.md", snap.source.source_ids)
         self.assertIn("src/service.py", snap.source.source_ids)
 
+    def test_restart_environment_selection_is_saved_as_active_model(self) -> None:
+        from unittest.mock import patch
+        self.assertEqual(cli_main(['start','--no-serve','--target',str(self.repo),'--model','qwen']),0)
+        for alias, device in [('gemma-gguf','vulkan'), ('qwen','cpu')]:
+            with patch.dict(os.environ, {'PI_EMBEDDING_MODEL':alias, 'PI_EMBEDDING_DEVICE':device}):
+                self.assertEqual(cli_main(['start','--no-serve','--target',str(self.repo)]),0)
+                settings=load_retrieval_settings(self.repo)
+                self.assertEqual(settings.embedding_model_alias,alias)
+                self.assertEqual(settings.device,device)
+                self.assertEqual(settings.bootstrap_state,'ready')
+                from pi_platform.core.sync.version_monitor import read_project_version
+                snapshot=RuntimeSnapshotService(cache_root=self.repo/'.project-intelligence-cache').read_snapshot()
+                self.assertEqual(snapshot.active.working_tree_fingerprint, read_project_version(self.repo).working_tree_fingerprint)
+
     def test_model_switch_updates_namespace_without_git_churn(self) -> None:
         self.assertEqual(
-            cli_main(["start", "--target", str(self.repo), "--model", "gemma"]),
+            cli_main(["start", "--no-serve", "--target", str(self.repo), "--model", "gemma"]),
             0,
         )
         cache_root = self.repo / ".project-intelligence-cache"
@@ -214,7 +252,7 @@ class OneCommandStartAndModelSwitchTests(unittest.TestCase):
 
     def test_branch_switch_reconciles_added_and_removed_sources(self) -> None:
         self.assertEqual(
-            cli_main(["start", "--target", str(self.repo), "--model", "gemma"]),
+            cli_main(["start", "--no-serve", "--target", str(self.repo), "--model", "gemma"]),
             0,
         )
         cache_root = self.repo / ".project-intelligence-cache"
@@ -260,6 +298,13 @@ class HttpServerAdminAndWizardIntegrationTests(unittest.TestCase):
     """Verify that UiHttpServer serves /api/v1/wizard and /api/v1/admin/* over HTTP."""
 
     def setUp(self) -> None:
+        from unittest.mock import patch
+        environment = patch.dict(os.environ, {
+            "PI_STARTUP_PROFILE": "minimal", "PI_EMBEDDING_MODEL": "hashing",
+            "PI_DENSE_INDEX": "flat", "PI_DOCLING_ENABLED": "0",
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
         self.tmp = Path(tempfile.mkdtemp(prefix="ui-http-admin-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
         self.repo = self.tmp / "target-repo"
@@ -283,7 +328,7 @@ class HttpServerAdminAndWizardIntegrationTests(unittest.TestCase):
         status, wizard_schema = _http_request(f"{self.base}/api/v1/wizard")
         self.assertEqual(status, 200)
         self.assertTrue(wizard_schema["visible"])
-        self.assertEqual(len(wizard_schema["model_choices"]), 2)
+        self.assertEqual(len(wizard_schema["model_choices"]), 4)
 
         status, submitted = _http_request(
             f"{self.base}/api/v1/wizard",
@@ -296,12 +341,12 @@ class HttpServerAdminAndWizardIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(status, 200)
         self.assertEqual(submitted["embedding_model_alias"], "qwen")
-        self.assertEqual(submitted["bootstrap_state"], "ready")
+        self.assertEqual(submitted["bootstrap_state"], "not-started")
 
-        # Subsequent GET /api/v1/wizard shows visible=False because bootstrap_state is ready
+        # Setup submission schedules bootstrap; it cannot claim runtime readiness.
         status, wizard_after = _http_request(f"{self.base}/api/v1/wizard")
         self.assertEqual(status, 200)
-        self.assertFalse(wizard_after["visible"])
+        self.assertTrue(wizard_after["visible"])
 
     def test_admin_retrieval_get_put_and_coding_agent_rejection_over_http(self) -> None:
         # Administrator PUT succeeds

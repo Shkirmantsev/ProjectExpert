@@ -90,6 +90,7 @@ class EmbeddingRequest:
     role: EmbeddingRole
     task: EmbeddingTask = EmbeddingTask.SEARCH
     title: str | None = None
+    image_path: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.role, EmbeddingRole):

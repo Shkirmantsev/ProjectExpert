@@ -1,0 +1,82 @@
+name: verify-production-runtime
+
+# Heavy real-model verification is deliberately separate from the model-free CI.
+on:
+  push:
+    branches: [dev, development, main]
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  real-production-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PI_RUN_MODEL_TESTS: "1"
+      PI_RUN_PDF_TESTS: "1"
+      PI_EMBEDDING_DEVICE: cpu
+      HF_HOME: ${{ github.workspace }}/tmp/local/model-cache
+      PI_MODEL_CACHE: ${{ github.workspace }}/tmp/local/model-cache
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install the hashed production dependency closure
+        run: |
+          python -m pip install --require-hashes -r requirements-production-linux-x86_64.txt
+          python -m pip install --no-deps '.[production]'
+          python -m pip check
+      - name: Review licenses against the actual production closure
+        run: python -m pi_platform.cli license-gate --inventory distribution/licenses/production-dependency-inventory.json --production-lock requirements-production-linux-x86_64.txt --license-review distribution/licenses/production-license-review.json --license-evidence distribution/licenses/production-license-evidence.json --sbom-output .
+      - name: Strict production capability gate (loads both model snapshots)
+        run: python -m pi_platform.cli.production_capability_gate
+      - name: Real embedding, ANN, and PDF regression suites
+        run: |
+          python -m unittest tests.test_embeddinggemma2_embedding_model tests.test_qwen3_embedding_model tests.test_usearch_dense_index tests.test_real_docling_binding tests.test_production_end_to_end tests.test_docling_production_binding -v
+      - name: Normalize publication image
+        id: image
+        shell: bash
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/project-intelligence"
+          echo "name=$image" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - name: Build production container and validate dependency installation
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          target: production
+          load: true
+          tags: ${{ steps.image.outputs.name }}:production-candidate
+          cache-from: type=gha,scope=production
+          cache-to: type=gha,scope=production,mode=max
+      - name: Verify container imports against the locked stack
+        run: |
+          docker run --rm --entrypoint python '${{ steps.image.outputs.name }}:production-candidate' -m pip check
+          docker run --rm --entrypoint python '${{ steps.image.outputs.name }}:production-candidate' -c 'import sentence_transformers, transformers, torch, usearch; from docling.document_converter import DocumentConverter; from transformers.models.embedding_gemma2 import EmbeddingGemma2Config'
+      - name: Log in to GHCR for release publication
+        if: github.event_name == 'release'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish verified production artifact
+        if: github.event_name == 'release'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          target: production
+          push: true
+          tags: ${{ steps.image.outputs.name }}:production
+          cache-from: type=gha,scope=production

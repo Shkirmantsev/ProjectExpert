@@ -54,19 +54,19 @@ def emit_spdx_sbom(dependencies: Iterable[Dependency],
 
 def emit_notice_file(dependencies: Iterable[Dependency],
                      *,
+                     policy: Optional[LicensePolicy] = None,
                      output_root: Path,
                      path: Optional[Path] = None) -> Path:
     target = (output_root / (path or DEFAULT_NOTICE_PATH)).resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
-    policy = LicensePolicy()
+    policy = policy or LicensePolicy()
     lines = ["Project Intelligence Platform", "Copyright contributors.",
              "", "This distribution includes the following third-party "
              "software components:", ""]
     for dep in dependencies:
         decision, reason = policy.evaluate(dep)
-        # The license-governance spec restricts the NOTICE file to
-        # ``allow``-resolved dependencies; ``review`` deps belong in a
-        # separate acceptance record; ``deny`` deps must not ship.
+        # Include all allow-resolved dependencies, including exact coordinates
+        # accepted by a validated scoped release policy. Denied deps never ship.
         if decision != "allow":
             continue
         spdx = (dep.spdx or "NOASSERTION").strip() or "NOASSERTION"

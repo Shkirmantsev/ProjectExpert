@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "recorded_at": "2026-10-19",
-  "notes": "production_enabled marks records that the production-capability-gate checks for pinned-stub / not-bound status. False means the record is intentionally out of scope (minimal/test/excluded); the exclusion rationale is documented in openspec/changes/production-semantic-search-and-branch-reconciliation/excluded-profiles.md. The two production-enabled model revisions (google/embeddinggemma-2 and Qwen/Qwen3-Embedding-0.6B) are the immutable upstream Hugging Face SHAs returned by https://huggingface.co/api/models/<id> on 2026-10-19; they MUST match the EmbeddingProfile identity used at runtime, otherwise the production-capability-gate fails the release.",
+  "notes": "production_enabled marks records that the production-capability-gate checks for pinned-stub / not-bound status. False means the record is intentionally out of scope (minimal/test/excluded); the exclusion rationale is documented in openspec/changes/production-semantic-search-and-branch-reconciliation/excluded-profiles.md. The two production-enabled model revisions (google/embeddinggemma-2 and Qwen/Qwen3-Embedding-0.6B) are the immutable upstream Hugging Face SHAs returned by https://huggingface.co/api/models/<id> on 2026-10-19; they MUST match the EmbeddingProfile identity used at runtime, otherwise the production-capability-gate fails the release. Document-processing assets are inventoried separately with document_processing_enabled=true; production_enabled remains the embedding-profile gate selector, not an assertion that document assets are disabled.",
   "models": [
     {
       "model_id": "hashing-1.0.0",
@@ -18,7 +18,7 @@
       "model_id": "google/embeddinggemma-2",
       "provider": "embeddinggemma2",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "modality": "text",
+      "modality": "text-image",
       "spdx": "Apache-2.0",
       "profile": "semantic-cpu",
       "production_enabled": true,
@@ -79,6 +79,87 @@
       "production_enabled": false,
       "status": "pinned-stub",
       "rationale": "Alternative OCR engine selection; same follow-up as Tesseract. Excluded until a real engine binding is recorded."
+    },
+    {
+      "model_id": "docling-project/docling-layout-heron",
+      "provider": "docling-layout",
+      "revision": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
+      "modality": "layout",
+      "spdx": "Apache-2.0",
+      "profile": "documents",
+      "production_enabled": false,
+      "document_processing_enabled": true,
+      "status": "real-and-available-when-cached",
+      "source": "https://huggingface.co/docling-project/docling-layout-heron/tree/8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
+      "license_source": "https://huggingface.co/docling-project/docling-layout-heron/blob/8f39ad3c0b4c58e9c2d2c84a38465abf757272d8/README.md",
+      "files": [
+        "config.json",
+        "preprocessor_config.json",
+        "model.safetensors"
+      ],
+      "rationale": "Explicit immutable checkpoint selected by the real PDF adapter. This model asset license is separate from the MIT Docling package license. Downloaded on first PDF use; local cache supports offline operation. Not an embedding profile."
+    },
+    {
+      "model_id": "docling-project/docling-models",
+      "provider": "docling-table-structure",
+      "revision": "2199320848bb9a8a519d22e4b528185a4f9a6f64",
+      "modality": "table-structure",
+      "spdx": "CDLA-Permissive-2.0 AND Apache-2.0",
+      "profile": "documents",
+      "production_enabled": false,
+      "document_processing_enabled": true,
+      "status": "real-and-available-when-cached",
+      "source": "https://huggingface.co/docling-project/docling-models/tree/2199320848bb9a8a519d22e4b528185a4f9a6f64",
+      "license_source": "https://huggingface.co/docling-project/docling-models/blob/2199320848bb9a8a519d22e4b528185a4f9a6f64/README.md",
+      "files": [
+        "model_artifacts/tableformer/accurate/tableformer_accurate.safetensors",
+        "model_artifacts/tableformer/accurate/tm_config.json"
+      ],
+      "rationale": "Explicit immutable checkpoint selected by the real PDF adapter. This model asset license is separate from the MIT Docling package license. Downloaded on first PDF use; local cache supports offline operation. Not an embedding profile."
+    },
+    {
+      "model_id": "SWHL/RapidOCR",
+      "provider": "docling-ocr",
+      "revision": "1cfba2e90fc938db55889873735088de210cc173",
+      "modality": "ocr",
+      "spdx": "Apache-2.0",
+      "profile": "documents",
+      "production_enabled": false,
+      "document_processing_enabled": true,
+      "status": "real-and-available-when-cached",
+      "source": "https://huggingface.co/SWHL/RapidOCR/tree/1cfba2e90fc938db55889873735088de210cc173",
+      "license_source": "https://huggingface.co/SWHL/RapidOCR/blob/1cfba2e90fc938db55889873735088de210cc173/README.md",
+      "files": [
+        "PP-OCRv4/ch_PP-OCRv4_det_infer.onnx",
+        "PP-OCRv3/ch_ppocr_mobile_v2.0_cls_train.onnx",
+        "PP-OCRv4/ch_PP-OCRv4_rec_infer.onnx"
+      ],
+      "rationale": "Explicit immutable checkpoint selected by the real PDF adapter. This model asset license is separate from the MIT Docling package license. Downloaded on first PDF use; local cache supports offline operation. Not an embedding profile."
+    },
+    {
+      "model_id": "Qwen/Qwen3-Embedding-0.6B-GGUF",
+      "provider": "llama.cpp-qwen3-q8_0",
+      "revision": "370f27d7550e0def9b39c1f16d3fbaa13aa67728",
+      "sha256": "06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439",
+      "modality": "text",
+      "spdx": "Apache-2.0",
+      "profile": "optional-gguf",
+      "production_enabled": false,
+      "optional_runtime_enabled": true,
+      "status": "optional-real-runtime",
+      "rationale": "Opt-in Q8_0 model with separate profile identity and pinned llama.cpp runtime; verified separately from default PyTorch release gate."
+    },
+    {
+      "model_id": "ggml-org/embeddinggemma-2-GGUF",
+      "provider": "llama.cpp-embeddinggemma2-q8_0",
+      "revision": "58faf90940886df2d62be555c8765d00dac362c5",
+      "modality": "text-image",
+      "spdx": "Apache-2.0",
+      "profile": "optional-real-runtime",
+      "production_enabled": false,
+      "optional_runtime_enabled": true,
+      "status": "real-and-available-when-bound",
+      "rationale": "Pinned official llama.cpp conversion of Google revision 914f7f89142e33e77833254d9c9b90c3cef7303b with Q8 model and multimodal projector; independent authenticated runtime proof."
     }
   ]
 }

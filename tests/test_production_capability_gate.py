@@ -47,12 +47,25 @@ from pi_platform.ports.retrieval.embedding_model import EmbeddingModelError
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LICENSE_JSON = REPO_ROOT / "distribution" / "licenses" / "model-licenses.json"
-EXCLUDED_PROFILES_MD = (
+_ACTIVE_EXCLUDED_MD = (
     REPO_ROOT
     / "openspec"
     / "changes"
     / "production-semantic-search-and-branch-reconciliation"
     / "excluded-profiles.md"
+)
+_ARCHIVED_EXCLUDED_MD = (
+    REPO_ROOT
+    / "openspec"
+    / "changes"
+    / "archive"
+    / "2026-10-20-production-semantic-search-and-branch-reconciliation"
+    / "excluded-profiles.md"
+)
+EXCLUDED_PROFILES_MD = (
+    _ACTIVE_EXCLUDED_MD
+    if _ACTIVE_EXCLUDED_MD.is_file()
+    else _ARCHIVED_EXCLUDED_MD
 )
 GATE_MODULE = "pi_platform.core.orchestration.production_capability_gate"
 
@@ -192,6 +205,46 @@ class ProductionEnabledBoundaryTests(unittest.TestCase):
 
 class ProductionCapabilityGateTests(unittest.TestCase):
     """Behavioural tests for :func:`run_production_capability_gate`."""
+
+    def setUp(self):
+        # Core CI is independent of optional models. These contract tests
+        # inject successful vendor results; the release workflow runs real
+        # pinned weights through the unchanged default strict gate.
+        import math
+        from types import SimpleNamespace
+        from pi_platform.adapters.retrieval.qwen3_embedding_model import Qwen3EmbeddingModel
+        class Row(list):
+            def tolist(self):
+                return list(self)
+        def build(provider, **kwargs):
+            adapter = EmbeddingGemma2EmbeddingModel() if provider == "embeddinggemma2" else Qwen3EmbeddingModel()
+            dim = adapter.dimension()
+            adapter._model = SimpleNamespace(encode=lambda texts, **kw: [Row([1 / math.sqrt(dim)] * dim) for _ in texts])
+            return adapter
+        for target, options in [
+            (f"{GATE_MODULE}.EmbeddingModelFactory.build", {"side_effect": build}),
+            (f"{GATE_MODULE}.is_docling_available", {"return_value": True}),
+            (f"{GATE_MODULE}.is_real_usearch_available", {"return_value": True}),
+        ]:
+            patcher = mock.patch(target, **options)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_failed_real_weight_load_is_release_failure(self):
+        adapter = mock.Mock()
+        adapter._load_failed = True
+        adapter.embed.side_effect = EmbeddingModelError("incomplete or incompatible cached weights")
+        with mock.patch(f"{GATE_MODULE}.EmbeddingModelFactory.build", return_value=adapter):
+            report = run_production_capability_gate()
+        self.assertFalse(report.passed)
+        self.assertIn("could not load pinned weights", self._failed_text(report))
+        self.assertFalse(any(v.name.startswith("embedding:") for v in report.skipped))
+
+    def test_inventory_only_lane_does_not_claim_runtime_probes(self):
+        with mock.patch(f"{GATE_MODULE}.EmbeddingModelFactory.build", side_effect=AssertionError("no runtime loads in core lane")):
+            report = run_production_capability_gate(runtime_checks=False)
+        self.assertTrue(report.passed)
+        self.assertTrue(all(v.name.startswith("inventory:") for v in report.verdicts))
 
     def _mutated_inventory(self, mutate) -> Path:
         """Write a mutated copy of the license inventory to a temp

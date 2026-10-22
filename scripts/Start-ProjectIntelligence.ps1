@@ -17,7 +17,7 @@
   Environment:
     $env:PI_CONTROL_PORT  - UI/API port on the host (default 8765)
     $env:PI_TARGET_REPO   - target repository path (default: current directory)
-    $env:PI_PROFILE       - compose profile to start (default: desktop-lite)
+    $env:PI_PROFILE       - compose profile to start (default: production)
     $env:PI_OPEN_BROWSER  - set to "0" to suppress browser opening (default: auto)
 #>
 
@@ -27,9 +27,9 @@ param(
     [ValidateSet('start', 'stop', 'status', 'version')]
     [string]$Command = 'start',
 
-    [string]$Target = ($env:PI_TARGET_REPO ?? (Get-Location).Path),
-    [string]$Profile = ($env:PI_PROFILE ?? 'desktop-lite'),
-    [string]$Port = ($env:PI_CONTROL_PORT ?? '8765'),
+    [string]$Target = $(if ($env:PI_TARGET_REPO) { $env:PI_TARGET_REPO } else { (Get-Location).Path }),
+    [string]$Profile = $(if ($env:PI_PROFILE) { $env:PI_PROFILE } else { 'production' }),
+    [string]$Port = $(if ($env:PI_CONTROL_PORT) { $env:PI_CONTROL_PORT } else { '8765' }),
     [switch]$NoBrowser
 )
 
@@ -72,6 +72,15 @@ function Get-ComposeCommand {
     Write-Fail 'neither docker compose nor podman-compose is usable; install one and ensure the daemon is running'
 }
 
+# Invoke the executable and its subcommand separately ("docker compose" is not a path).
+function Invoke-Compose {
+    param([string]$Runtime)
+    $Arguments = $args
+    if ($Runtime -eq 'docker compose') { & docker compose @Arguments }
+    else { & podman-compose @Arguments }
+    if ($LASTEXITCODE -ne 0) { throw "Container command failed with exit code $LASTEXITCODE" }
+}
+
 # ---- duty: export-env -----------------------------------------------------
 function Initialize-TargetRepo {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -91,7 +100,7 @@ function Initialize-Volumes {
     if (-not $env:PI_SKIP_VOLUME_CREATE) {
         Push-Location $ProjectRoot
         try {
-            & $ComposeCmd -Profile $env:PI_PROFILE config | Out-Null
+            Invoke-Compose $ComposeCmd --profile $env:PI_PROFILE config | Out-Null
         } finally {
             Pop-Location
         }
@@ -114,14 +123,11 @@ function Start-Profile {
     try {
         $containerfile = Join-Path $ProjectRoot 'Containerfile'
         if (($env:PI_PULL_ONLY -eq '1') -or (-not (Test-Path -LiteralPath $containerfile))) {
-            & $ComposeCmd --profile $env:PI_PROFILE up -d
+            Invoke-Compose $ComposeCmd --profile $env:PI_PROFILE up -d
         } elseif ($env:PI_BUILD -eq '1') {
-            & $ComposeCmd --profile $env:PI_PROFILE up -d --build
+            Invoke-Compose $ComposeCmd --profile $env:PI_PROFILE up -d --build
         } else {
-            & $ComposeCmd --profile $env:PI_PROFILE up -d
-            if ($LASTEXITCODE -ne 0) {
-                & $ComposeCmd --profile $env:PI_PROFILE up -d --build
-            }
+            Invoke-Compose $ComposeCmd --profile $env:PI_PROFILE up -d
         }
     } finally {
         Pop-Location
@@ -136,7 +142,9 @@ function Wait-Readiness {
     )
     $url = "http://localhost:${Port}/health/ready"
     Write-Log "waiting for $url (readiness, not liveness)"
-    for ($attempt = 1; $attempt -le 60; $attempt++) {
+    $timeout = 1800
+    if ($env:PI_WAIT_TIMEOUT) { $timeout = [int]$env:PI_WAIT_TIMEOUT }
+    for ($attempt = 1; $attempt -le [Math]::Ceiling($timeout / 2); $attempt++) {
         try {
             $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
             if ($response.StatusCode -eq 200) {
@@ -148,7 +156,7 @@ function Wait-Readiness {
         }
         Start-Sleep -Seconds 2
     }
-    Write-Fail "platform did not become ready within 120s; check '${ComposeCmd} logs'"
+    Write-Fail "platform did not become ready within ${timeout}s; check '${ComposeCmd} logs'"
 }
 
 # ---- duty: open-browser ---------------------------------------------------
@@ -181,7 +189,7 @@ function Stop-Profile {
     param([Parameter(Mandatory = $true)][string]$ComposeCmd)
     Push-Location $ProjectRoot
     try {
-        & $ComposeCmd --profile $env:PI_PROFILE down
+        Invoke-Compose $ComposeCmd --profile $env:PI_PROFILE down
     } finally {
         Pop-Location
     }
@@ -191,7 +199,7 @@ function Show-ComposeStatus {
     param([Parameter(Mandatory = $true)][string]$ComposeCmd)
     Push-Location $ProjectRoot
     try {
-        & $ComposeCmd --profile $env:PI_PROFILE ps
+        Invoke-Compose $ComposeCmd --profile $env:PI_PROFILE ps
     } finally {
         Pop-Location
     }

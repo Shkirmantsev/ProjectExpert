@@ -23,12 +23,15 @@
         <label for="embedding-model-select">Embedding model</label>
         <select id="embedding-model-select">
           <option value="gemma">EmbeddingGemma 2 (google/embeddinggemma-2 · 512d)</option>
+          <option value="gemma-gguf">Gemma2 GGUF text/image (configured GPU/CPU runtime)</option>
+          <option value="qwen-gguf">Qwen GGUF (configured Vulkan/CUDA runtime)</option>
           <option value="qwen">Qwen3 Embedding 0.6B (Qwen/Qwen3-Embedding-0.6B · 1024d)</option>
         </select>
         <label for="embedding-device-select">Execution device</label>
         <select id="embedding-device-select">
           <option value="auto">Auto (GPU if available, else CPU)</option>
           <option value="cpu">CPU (float32)</option>
+          <option value="vulkan">GPU / Vulkan (GGUF runtime)</option>
           <option value="cuda">GPU / CUDA (bfloat16)</option>
         </select>
         <label>
@@ -38,6 +41,7 @@
         <button id="wizard-submit-button" type="submit">Initialise and build search index</button>
         <button id="admin-reindex-button" type="button">Trigger reindex</button>
       </form>
+      <pre id="bootstrap-status" class="output" aria-live="polite">Loading bootstrap status…</pre>
       <pre id="wizard-result" class="output">Ready to configure or switch semantic model.</pre>
     </section>
 

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
 from urllib.parse import parse_qs, urlparse
 
+from pi_platform.ports import RuntimeNotReadyError, ReadinessSnapshot
 from pi_platform.core.ui.rest_service import UiOperationDenied
 from pi_platform.ports.ui.rest_api import (
     AgentDelegationRequest,
@@ -109,9 +110,35 @@ class UiHttpServer:
         )
 
         self.admin_routes = RetrievalAdminRoutes(target_repo=self.target_repo)
+        self.admin_routes.settings_changed = self.apply_runtime_settings
+        self.refresh_requested = None
         self.wizard = FirstStartWizard()
         self._httpd: Optional[ThreadingHTTPServer] = None
         self._thread: Optional[threading.Thread] = None
+
+    def apply_runtime_settings(self, settings, changed_fields) -> None:
+        """An explicit operator action is a command override for this process.
+
+        Environment defaults apply at startup; later operator choices persist
+        across branch refreshes without mutating the process environment.
+        """
+        from contextlib import nullcontext
+        readiness = getattr(self.service, "_readiness", None)
+        guard = readiness.configuration_lock if readiness is not None else nullcontext()
+        with guard:
+            overrides = dict(getattr(self.service, "_runtime_overrides", {}))
+            if set(changed_fields) & {"model", "model_id", "embedding_model", "embedding_model_alias"}:
+                overrides["embedding_model"] = settings.embedding_model_alias
+            if set(changed_fields) & {"device", "embedding_device"}:
+                overrides["embedding_device"] = settings.device
+            if set(changed_fields) & {"document_processing_enabled", "docling_enabled"}:
+                overrides["docling_enabled"] = settings.document_processing_enabled
+            self.service._runtime_overrides = overrides
+            if readiness is not None:
+                readiness.configuration_epoch += 1
+                readiness.begin_refresh()
+            if self.refresh_requested is not None:
+                self.refresh_requested()
 
     # -- lifecycle -----------------------------------------------------
     def start_background(self) -> "UiHttpServer":
@@ -196,6 +223,8 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
         def _dispatch(self, fn: Callable[[], Any]) -> None:
             try:
                 self._send(HTTPStatus.OK, fn())
+            except RuntimeNotReadyError as exc:
+                self._send(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "runtime-not-ready", "detail": str(exc)})
             except UiOperationDenied as denied:
                 self._send(
                     HTTPStatus.FORBIDDEN,
@@ -285,6 +314,9 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 if not self._authorised():
                     self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
                     return
+                if not server._readiness():
+                    self._send(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "runtime-not-ready"})
+                    return
                 status, body = server.openai_compat.handle(path, self._body())
                 self._send(HTTPStatus(status), body)
                 return
@@ -349,9 +381,10 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                     try:
                         submitted = server.wizard.submit(body or {})
                         ready_settings = dataclasses.replace(
-                            submitted, bootstrap_state="ready"
+                            submitted, bootstrap_state="not-started"
                         )
                         save_retrieval_settings(ready_settings, server.target_repo)
+                        server.apply_runtime_settings(ready_settings, body or {})
                         self._send(HTTPStatus.OK, ready_settings.as_dict())
                     except WizardValidationError as exc:
                         self._send(
@@ -418,6 +451,8 @@ def _post_route(
     server: UiHttpServer, handler: BaseHTTPRequestHandler, path: str, body: dict
 ) -> Any:
     actor = server.actor
+    if path in ("/api/v1/query", "/api/v1/retrieve", "/api/v1/graph", "/api/v1/wiki") and not server._readiness():
+        raise RuntimeNotReadyError(ReadinessSnapshot(consistent=False, reason="Project is refreshing or bootstrap failed"))
     if path == "/api/v1/query":
         return server.service.query(
             actor,

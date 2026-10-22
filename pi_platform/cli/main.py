@@ -93,6 +93,14 @@ def build_parser() -> argparse.ArgumentParser:
                           help="run the license gate against the dependency inventory")
     gate.add_argument("--target", type=Path, default=Path("."))
     gate.add_argument("--inventory", type=Path, default=None)
+    gate.add_argument("--production-lock", type=Path, default=None,
+                      help="require reviewed exact coordinates for every dependency in this production lock")
+    gate.add_argument("--license-review", type=Path, default=None,
+                      help="operator-approved exact production closure review")
+    gate.add_argument("--license-evidence", type=Path, default=None,
+                      help="retained license evidence bound to the review")
+    gate.add_argument("--sbom-output", type=Path, default=None,
+                      help="write SPDX SBOM and NOTICE under this root only after the gate passes")
 
     okf = sub.add_parser("okf-validate", help="validate a Wiki bundle against the OKF v0.2 profile")
     okf.add_argument("--wiki-root", type=Path,
@@ -218,6 +226,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="run the v0.8 Tier-3 retrieval evaluation against the documented golden query set",
     )
     eval_retrieval.add_argument(
+        "--target", type=Path, default=None,
+        help="evaluate the actual repository runtime shared with UI/MCP instead of the fixture pipeline",
+    )
+    eval_retrieval.add_argument(
         "--golden", type=Path,
         default=Path("evals/corpus/golden_queries.yaml"),
         help="path to the golden query set (default: evals/corpus/golden_queries.yaml)",
@@ -323,16 +335,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     start.add_argument("--target", type=Path, default=Path("."),
                        help="target repository root (default: current directory)")
-    start.add_argument("--model", choices=("gemma", "qwen"), default="gemma",
+    start.add_argument("--model", choices=("gemma", "qwen", "qwen-gguf", "gemma-gguf"), default=None,
                        help="embedding model alias (gemma → google/embeddinggemma-2)")
-    start.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto",
+    start.add_argument("--device", choices=("auto", "cpu", "cuda", "vulkan"), default=None,
                        help="execution device (default: auto)")
     start.add_argument("--host", default=DEFAULT_UI_HOST,
                        help="control-plane bind host (default: 127.0.0.1)")
     start.add_argument("--port", type=int, default=DEFAULT_UI_PORT,
                        help="control-plane bind port (default: 8765)")
     start.add_argument("--serve", action="store_true",
-                       help="keep the HTTP control plane running in the foreground after bootstrap")
+                       help="serve the HTTP control plane (the default)")
+    start.add_argument("--no-serve", action="store_true",
+                       help="bootstrap once and exit without an HTTP listener")
 
     reindex_parser = sub.add_parser(
         "reindex",
@@ -546,23 +560,62 @@ def _cmd_license_gate(args: argparse.Namespace) -> int:
     if args.inventory:
         inventory_path = args.inventory
     else:
-        candidate = target / DEFAULT_DEPENDENCY_INVENTORY_PATH
-        if candidate.is_file():
-            inventory_path = candidate
-        else:
-            platform_home = Path(
-                os.environ.get("PI_PLATFORM_HOME", "/opt/project-intelligence")
-            )
-            fallback = platform_home / DEFAULT_DEPENDENCY_INVENTORY_PATH
-            inventory_path = fallback if fallback.is_file() else candidate
-    deps = DependencyInventory(inventory_path).load()
+        candidates = [target / DEFAULT_DEPENDENCY_INVENTORY_PATH]
+        platform_home = os.environ.get("PI_PLATFORM_HOME")
+        if platform_home:
+            candidates.append(Path(platform_home) / DEFAULT_DEPENDENCY_INVENTORY_PATH)
+        candidates.extend([
+            Path(sys.prefix) / DEFAULT_DEPENDENCY_INVENTORY_PATH,
+            Path(__file__).resolve().parents[2] / DEFAULT_DEPENDENCY_INVENTORY_PATH,
+            Path("/opt/project-intelligence") / DEFAULT_DEPENDENCY_INVENTORY_PATH,
+        ])
+        inventory_path = next((path for path in candidates if path.is_file()), candidates[0])
+    try:
+        if not inventory_path.is_file():
+            raise ValueError(f"Dependency inventory not found: {inventory_path}")
+        deps = DependencyInventory(inventory_path).load()
+        if not deps:
+            raise ValueError(f"Dependency inventory is empty: {inventory_path}")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print(json.dumps({"inventory": str(inventory_path), "passed": False,
+                          "findings": [], "error": str(exc)}, indent=2))
+        return 1
     discovered = target / "tmp/local/pi-platform-ingest/discovered-dependencies.json"
     if discovered.exists():
         deps.extend(DependencyInventory(discovered).load())
-    passed, findings = LicenseGate(LicensePolicy()).run(deps)
+    policy = LicensePolicy()
+    review = getattr(args, "license_review", None)
+    if review is not None:
+        from ..core.licensing.scoped_review import load_scoped_review, ScopedReviewPolicy
+        try:
+            if args.production_lock is None or args.license_evidence is None:
+                raise ValueError("Scoped review requires --production-lock and --license-evidence")
+            policy = ScopedReviewPolicy(load_scoped_review(
+                review, inventory=inventory_path, lock=args.production_lock,
+                evidence=args.license_evidence,
+            ))
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(json.dumps({"passed": False, "error": str(exc)}))
+            return 1
+    passed, findings = LicenseGate(policy).run(deps)
+    coverage_errors: list[str] = []
+    production_lock = getattr(args, "production_lock", None)
+    if production_lock is not None:
+        from ..core.licensing.lock_coverage import check_lock_coverage
+        try:
+            coverage_errors = check_lock_coverage(production_lock, deps)
+        except (OSError, ValueError) as exc:
+            coverage_errors = [str(exc)]
+        passed = passed and not coverage_errors
+
+    sbom_output = getattr(args, "sbom_output", None)
+    if passed and sbom_output is not None:
+        emit_spdx_sbom(deps, output_root=sbom_output)
+        emit_notice_file(deps, output_root=sbom_output, policy=policy)
     payload = {
         "inventory": str(inventory_path),
         "passed": passed,
+        "coverage_errors": coverage_errors,
         "findings": [
             {"name": f.dependency.name,
              "version": f.dependency.version,
@@ -774,6 +827,7 @@ def _resolve_skills_root(target: Optional[Path] = None) -> Optional[Path]:
     candidates.append(
         Path(__file__).resolve().parents[2] / "distribution" / "skills"
     )
+    candidates.append(Path(sys.prefix) / "distribution" / "skills")
     for cand in candidates:
         if (cand / "project-intelligence" / "SKILL.md").is_file():
             return cand
@@ -859,23 +913,15 @@ def _cmd_health(args: argparse.Namespace) -> int:
     if not getattr(args, "ready", False):
         print(json.dumps({"status": "ok"}))
         return 0
-    from ..adapters.ui import build_ui_service, hydrate_and_reconcile_target
+    from ..adapters.ui.composition import load_persisted_readiness
+    from ..core.sync.readiness import DefaultKnowledgeReadiness
 
     target = Path(getattr(args, "target", Path.cwd())).resolve()
     cache_root = _resolve_cache_root(args)
-    _service, readiness = build_ui_service(
-        repo_root=target, cache_root=cache_root,
-    )
+    readiness = DefaultKnowledgeReadiness()
+    load_persisted_readiness(cache_root, readiness)
     snapshot = readiness.snapshot()
     ready = bool(snapshot.consistent) and not bool(snapshot.in_progress)
-    if (
-        not ready
-        and os.environ.get("PI_AUTO_HYDRATE") == "1"
-        and ((target / ".git").exists() or (target / "project-knowledge").is_dir())
-    ):
-        hydrate_and_reconcile_target(target, cache_root, readiness)
-        snapshot = readiness.snapshot()
-        ready = bool(snapshot.consistent) and not bool(snapshot.in_progress)
     print(json.dumps({
         "status": "ok",
         "ready": ready,
@@ -901,12 +947,13 @@ def _cmd_serve(args: argparse.Namespace) -> int:
 
     target = Path(getattr(args, "target", Path.cwd())).resolve()
     cache_root = _resolve_cache_root(args)
-    auto_hydrate = os.environ.get("PI_AUTO_HYDRATE", "1") != "0"
     service, readiness = build_ui_service(
         repo_root=target,
         cache_root=cache_root,
-        hydrate_on_start=auto_hydrate,
+        hydrate_on_start=False,
+        defer_runtime=True,
     )
+    readiness.begin_refresh()
     mcp_server, skill_plane, a2a_adapter, agent_card = (
         _build_embedded_mcp_and_a2a(
             target=target,
@@ -956,18 +1003,56 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         a2a_adapter=a2a_adapter,
         agent_card=agent_card,
     )
+    from ..core.sync.version_monitor import PollingProjectVersionMonitor
+    import threading
+
+    first_refresh = True
+
+    def refresh(_event):
+        nonlocal first_refresh
+        summary = _bootstrap_and_index_target(
+            target,
+            model_alias=getattr(args, "model", None) if first_refresh else None,
+            device=getattr(args, "device", None) if first_refresh else None,
+            service=service,
+            readiness=readiness,
+            cache_root=cache_root,
+        )
+        first_refresh = False
+        print(json.dumps({"status": "ready", **summary}), flush=True)
+
+    def failed(exc):
+        readiness.record_failure(str(exc))
+        readiness.end_refresh()
+        print(json.dumps({"status": "refresh-failed", "error": str(exc)}), flush=True)
+
+    def execute_admin_job(kind, details):
+        if kind == "reindex":
+            _bootstrap_and_index_target(
+                target, service=service, readiness=readiness, cache_root=cache_root,
+            )
+        elif kind == "models.pull":
+            result = _cmd_models_pull(argparse.Namespace(target=target, alias=details["alias"]))
+            if result:
+                raise RuntimeError("Model download failed; inspect the model cache and connection")
+        else:
+            raise ValueError(f"Unsupported administrative job: {kind}")
+
+    server.admin_routes.job_executor = execute_admin_job
+    monitor = PollingProjectVersionMonitor(target, on_change=refresh, on_error=failed)
+    server.refresh_requested = monitor.request_refresh
+    server.start_background()
     print(json.dumps({
-        "status": "listening",
-        "url": f"http://{args.host}:{args.port}",
-        "target": str(target),
-        "ready": readiness.is_ready(),
-        "mcp_endpoint": f"http://{args.host}:{args.port}/mcp",
+        "status": "listening", "url": server.address, "target": str(target),
+        "ready": False, "mcp_endpoint": f"{server.address}/mcp",
     }), flush=True)
+    monitor.start()
     try:
-        server.serve_forever()
+        threading.Event().wait()
     except KeyboardInterrupt:  # pragma: no cover - operator interrupt
         pass
     finally:
+        monitor.stop()
         server.stop()
     return 0
 
@@ -982,8 +1067,25 @@ def _cmd_mcp_serve(args: argparse.Namespace) -> int:
     service, readiness = build_ui_service(
         repo_root=target,
         cache_root=cache_root,
-        hydrate_on_start=auto_hydrate,
+        hydrate_on_start=False,
+        defer_runtime=True,
     )
+    from ..core.sync.version_monitor import PollingProjectVersionMonitor
+    def refresh(_event):
+        _bootstrap_and_index_target(target, service=service, readiness=readiness, cache_root=cache_root)
+    def failed(exc):
+        readiness.record_failure(str(exc))
+        readiness.end_refresh()
+    monitor = PollingProjectVersionMonitor(target, on_change=refresh, on_error=failed)
+    if auto_hydrate:
+        try:
+            monitor.poll_once()
+        except Exception as exc:
+            failed(exc)
+    else:
+        readiness.record_failure("Automatic hydrate disabled; no active runtime published")
+    if auto_hydrate:
+        monitor.start()
     debug_flag = True if getattr(args, "debug", False) else None
     mcp_server, skill_plane, a2a_adapter, agent_card = (
         _build_embedded_mcp_and_a2a(
@@ -1008,14 +1110,19 @@ def _cmd_mcp_serve(args: argparse.Namespace) -> int:
             a2a_adapter=a2a_adapter,
             agent_card=agent_card,
         )
+        server.refresh_requested = monitor.request_refresh
         try:
             server.serve_forever()
         except KeyboardInterrupt:  # pragma: no cover
             pass
         finally:
+            monitor.stop()
             server.stop()
         return 0
-    return mcp_server.serve_stdio_fallback(skill_plane=skill_plane)
+    try:
+        return mcp_server.serve_stdio_fallback(skill_plane=skill_plane)
+    finally:
+        monitor.stop()
 
 
 def _cmd_a2a_serve(args: argparse.Namespace) -> int:
@@ -1277,11 +1384,19 @@ def _cmd_eval_retrieval(args: argparse.Namespace) -> int:
     baseline_path = None if args.no_baseline else args.baseline
     out_path = args.out or Path("evals/reports/tier3_retrieval.json")
     try:
+        runtime_kwargs = {}
+        if getattr(args, "target", None) is not None:
+            from pi_platform.adapters.ui.composition import build_ui_service
+            target = Path(args.target).resolve()
+            service, readiness = build_ui_service(repo_root=target, defer_runtime=True)
+            _bootstrap_and_index_target(target, service=service, readiness=readiness)
+            runtime_kwargs["pipeline"] = service._retrieval
         payload = _tier3.run_eval(
             golden_path=args.golden,
             corpus_root=args.corpus_root,
             out_path=out_path,
             baseline_path=baseline_path,
+            **runtime_kwargs,
         )
     except Exception as exc:  # noqa: BLE001
         print(json.dumps({
@@ -1575,7 +1690,7 @@ def _cmd_embedding_status(args: argparse.Namespace) -> int:
         local_settings_path=target / LOCAL_SETTINGS_RELATIVE_PATH,
     ).resolve()
     factory = EmbeddingModelFactory(startup_profile=cfg.startup_profile)
-    adapter = factory.build(cfg.embedding_model, device=cfg.embedding_device)
+    adapter = factory.build(cfg.embedding_model, device=cfg.embedding_device, cache_folder=str(Path(cfg.model_cache_dir) / "hub"))
     profile = adapter.profile()
     backend_name = cfg.embedding_model
     model_version = adapter.model_version()
@@ -1881,7 +1996,7 @@ def _cmd_capabilities(args: argparse.Namespace) -> int:
         local_settings_path=target / LOCAL_SETTINGS_RELATIVE_PATH,
     ).resolve()
     factory = EmbeddingModelFactory(startup_profile=cfg.startup_profile)
-    adapter = factory.build(cfg.embedding_model, device=cfg.embedding_device)
+    adapter = factory.build(cfg.embedding_model, device=cfg.embedding_device, cache_folder=str(Path(cfg.model_cache_dir) / "hub"))
     prod_report = build_production_capability_report(
         embedding_adapter=adapter,
         embedding_provider=cfg.embedding_model,
@@ -1955,6 +2070,7 @@ def _resolve_model_licenses_path(target: Optional[Path] = None) -> Optional[Path
         Path(__file__).resolve().parents[2] / "distribution" / "licenses"
         / "model-licenses.json"
     )
+    candidates.append(Path(sys.prefix) / "distribution" / "licenses" / "model-licenses.json")
     for candidate in candidates:
         if candidate.is_file():
             return candidate
@@ -1974,29 +2090,18 @@ def _resolve_model_alias_and_id(value: str) -> tuple[str, str]:
 
 
 def _local_hf_snapshot(model_id: str) -> Optional[Path]:
-    """Return the local Hugging Face snapshot directory for ``model_id``.
-
-    Prefers :func:`huggingface_hub.snapshot_download` in offline mode
-    and falls back to a manual scan of the documented cache layout so
-    ``models verify`` also works without the hub client installed.
-    """
-
+    """Find only the selected immutable revision, without any network access."""
+    from ..adapters.retrieval.embedding_model_factory import EmbeddingModelFactory
+    from ..adapters.config.runtime_configuration_resolver import RuntimeConfigurationResolver
+    alias, _ = _resolve_model_alias_and_id(model_id)
+    profile = EmbeddingModelFactory().resolve_profile(alias)
+    cache = Path(RuntimeConfigurationResolver().resolve().model_cache_dir) / "hub"
     try:
         from huggingface_hub import snapshot_download
-
-        return Path(snapshot_download(model_id, local_files_only=True))
-    except Exception:  # noqa: BLE001 - fall back to the cache layout
-        pass
-    hf_home = os.environ.get("HF_HOME") or os.path.join(
-        os.path.expanduser("~"), ".cache", "huggingface",
-    )
-    hub_root = os.environ.get("HF_HUB_CACHE") or os.path.join(hf_home, "hub")
-    snapshots = Path(hub_root) / f"models--{model_id.replace('/', '--')}" / "snapshots"
-    if snapshots.is_dir():
-        directories = sorted(p for p in snapshots.iterdir() if p.is_dir())
-        if directories:
-            return directories[0]
-    return None
+        return Path(snapshot_download(model_id, revision=profile.model_revision, cache_dir=str(cache), local_files_only=True))
+    except Exception:
+        snapshot = cache / f"models--{model_id.replace('/', '--')}" / "snapshots" / profile.model_revision
+        return snapshot if snapshot.is_dir() else None
 
 
 def _bootstrap_and_index_target(
@@ -2004,6 +2109,63 @@ def _bootstrap_and_index_target(
     *,
     model_alias: Optional[str] = None,
     device: Optional[str] = None,
+    service=None,
+    readiness=None,
+    cache_root: Optional[Path] = None,
+) -> dict:
+    """Serialize a complete candidate build and fail closed until publication."""
+    import hashlib
+    from dataclasses import replace
+    from ..core.sync import ProjectLock
+    from ..core.sync.readiness import DefaultKnowledgeReadiness
+    from ..adapters.ui.composition import persist_readiness
+    from ..core.control.retrieval_settings import load_retrieval_settings, save_retrieval_settings
+
+    target = Path(target).resolve()
+    cache_root = Path(cache_root) if cache_root else target / DEFAULT_RUNTIME_CACHE
+    runtime_overrides = getattr(service, "_runtime_overrides", {}) if service is not None else {}
+    model_alias = runtime_overrides.get("embedding_model", model_alias)
+    device = runtime_overrides.get("embedding_device", device)
+    readiness = readiness or DefaultKnowledgeReadiness()
+    with readiness.refresh_lock:
+        with readiness.configuration_lock:
+            configuration_epoch = readiness.configuration_epoch
+            readiness.begin_refresh()
+        persist_readiness(cache_root, readiness)
+        project_id = "proj-" + hashlib.sha256(str(target).lower().encode()).hexdigest()[:32]
+        try:
+            with ProjectLock(project_id, root=cache_root / "locks").acquire():
+                return _bootstrap_and_index_target_locked(
+                    target, model_alias=model_alias, device=device,
+                    service=service, readiness=readiness, cache_root=cache_root,
+                )
+        except Exception as exc:
+            readiness.record_failure(str(exc))
+            try:
+                settings = load_retrieval_settings(target)
+                save_retrieval_settings(replace(settings, bootstrap_state="error"), target)
+            except Exception:
+                pass
+            raise
+        finally:
+            with readiness.configuration_lock:
+                configuration_changed = readiness.configuration_epoch != configuration_epoch
+                if configuration_changed:
+                    readiness.record_failure("Operator configuration changed during indexing; refresh queued")
+                readiness.end_refresh()
+                persist_readiness(cache_root, readiness)
+                if configuration_changed and sys.exc_info()[0] is None:
+                    raise RuntimeError("Operator configuration changed during indexing; refresh queued")
+
+
+def _bootstrap_and_index_target_locked(
+    target: Path,
+    *,
+    model_alias: Optional[str] = None,
+    device: Optional[str] = None,
+    service=None,
+    readiness=None,
+    cache_root: Optional[Path] = None,
 ) -> dict:
     """Execute the full target bootstrap: settings → hydrate/reconcile →
     incremental source discovery → retrieval runtime composition →
@@ -2021,9 +2183,8 @@ def _bootstrap_and_index_target(
     from ..core.ingest.repository_source_discovery import (
         RepositorySourceDiscovery,
     )
-    from ..core.orchestration.retrieval_composition import (
-        build_production_retrieval_runtime,
-    )
+    from ..core.orchestration.repository_indexing import index_repository
+    from ..core.sync.version_monitor import read_project_version
     from ..core.retrieval.first_start_wizard import FirstStartWizard
     from ..core.sync.readiness import DefaultKnowledgeReadiness
     from ..core.sync.version_snapshot import (
@@ -2035,30 +2196,50 @@ def _bootstrap_and_index_target(
     )
 
     target = Path(target).resolve()
-    cache_root = target / CACHE_DIR_NAME
+    cache_root = Path(cache_root) if cache_root else target / CACHE_DIR_NAME
     settings = load_retrieval_settings(target)
     wizard = FirstStartWizard()
     wizard_schema = wizard.render(target)
+    from ..adapters.config.runtime_configuration_resolver import RuntimeConfigurationResolver
+    from ..core.control.retrieval_settings import PRODUCTION_ALIASES
+    initial_config = RuntimeConfigurationResolver(
+        local_settings_path=target / ".project-intelligence-cache" / "settings.json",
+        cli_overrides={
+            **(getattr(service, "_runtime_overrides", {}) if service is not None else {}),
+            **({"embedding_model": model_alias} if model_alias else {}),
+            **({"embedding_device": device} if device else {}),
+        },
+    ).resolve()
     if wizard_schema.get("visible") and not retrieval_settings_path(target).exists():
         settings = wizard.submit({
-            "model": model_alias or "gemma",
-            "device": device or "auto",
+            "model": initial_config.embedding_model if initial_config.embedding_model in {"gemma", "qwen", "qwen-gguf", "gemma-gguf"} else "gemma",
+            "device": initial_config.embedding_device,
+            "document_processing_enabled": initial_config.docling_enabled,
             "target_repo": str(target),
         })
-    elif model_alias or device:
+    else:
+        # Commit effective selection before computing the source-version fingerprint.
+        # Otherwise an environment-driven model switch leaves the new snapshot stale.
         settings = _dc_replace(
             settings,
-            embedding_model_alias=model_alias or settings.embedding_model_alias,
-            device=device or settings.device,
+            embedding_model_alias=(initial_config.embedding_model if initial_config.embedding_model in PRODUCTION_ALIASES
+                                   else settings.embedding_model_alias),
+            device=initial_config.embedding_device,
+            document_processing_enabled=initial_config.docling_enabled,
         )
 
     settings = _dc_replace(settings, bootstrap_state="hydrating")
     save_retrieval_settings(settings, target)
 
-    readiness = DefaultKnowledgeReadiness()
-    hydrate_report = hydrate_and_reconcile_target(target, cache_root, readiness)
+    before = read_project_version(target)
+    transient_readiness = DefaultKnowledgeReadiness()
+    hydrate_report = hydrate_and_reconcile_target(
+        target, cache_root, transient_readiness, lock_held=True, persist_state=False,
+    )
+    if hydrate_report is None or not transient_readiness.is_ready():
+        raise RuntimeError(transient_readiness.snapshot().reason or "Hydration failed")
 
-    settings = _dc_replace(settings, bootstrap_state="indexing")
+    settings = _dc_replace(load_retrieval_settings(target), bootstrap_state="indexing")
     save_retrieval_settings(settings, target)
 
     discovery = RepositorySourceDiscovery()
@@ -2069,30 +2250,40 @@ def _bootstrap_and_index_target(
         previous_inventory=prev_inv,
         new_inventory=fresh_inv,
     )
-    discovery.persist(merged_inv, inv_path)
-
-    runtime = build_production_retrieval_runtime(
-        cache_root=cache_root / "indexes",
-        embedding_alias=settings.embedding_model_alias,
-        device=settings.device,
+    runtime = index_repository(
+        target=target, cache_root=cache_root, inventory=merged_inv,
+        previous_inventory=prev_inv, settings=settings,
+        cli_overrides={
+            **(getattr(service, "_runtime_overrides", {}) if service is not None else {}),
+            **({"embedding_model": model_alias} if model_alias else {}),
+            **({"embedding_device": device} if device else {}),
+        },
     )
+    merged_inv = runtime.extra.get("source_inventory", merged_inv)
+    after = read_project_version(target)
+    if after != before:
+        raise RuntimeError("Project version changed during indexing; refresh will retry")
 
     head = (
         hydrate_report.project_version.gitHead
         if hydrate_report is not None
         else "unversioned"
     )
-    fp = (
-        hydrate_report.project_version.workingTreeFingerprint
-        if hydrate_report is not None
-        else ""
-    )
+    fp = before.working_tree_fingerprint
     source_hashes = {e.path: e.content_hash for e in merged_inv.entries}
     source_ids = tuple(e.path for e in merged_inv.entries)
+    chunk_ids = tuple(runtime.extra.get("chunk_ids", ()))
+    canonical_hashes = []
+    graph_node_ids = tuple(runtime.extra.get("graph_node_ids", ()))
+    knowledge_root = target / "project-knowledge"
+    if knowledge_root.is_dir():
+        import hashlib
+        for path in sorted(path for path in knowledge_root.rglob("*") if path.is_file() and path.suffix in {".json", ".jsonl"}):
+            canonical_hashes.append(f"{path.relative_to(target).as_posix()}:{hashlib.sha256(path.read_bytes()).hexdigest()}")
     manifest_snap = ManifestSnapshot(
-        snapshot_hash=compute_snapshot_hash(source_ids),
-        chunk_ids=source_ids,
-        graph_node_ids=(),
+        snapshot_hash=compute_snapshot_hash(list(chunk_ids) + canonical_hashes),
+        chunk_ids=chunk_ids,
+        graph_node_ids=graph_node_ids,
     )
     source_snap = SourceSnapshot(
         snapshot_hash=compute_snapshot_hash(
@@ -2101,10 +2292,10 @@ def _bootstrap_and_index_target(
         source_ids=source_ids,
         content_hashes=source_hashes,
     )
-    gen_id = f"gen-{runtime.embedding_profile_hash[:12]}-{source_snap.snapshot_hash[:12]}"
+    gen_id = runtime.extra.get("source_generation") or f"gen-{runtime.embedding_profile_hash[:12]}-{source_snap.snapshot_hash[:12]}"
     active_ver = PersistedActiveVersion(
         project_version=head,
-        branch="HEAD",
+        branch=before.branch,
         head=head,
         working_tree_fingerprint=fp,
         manifest_snapshot_hash=manifest_snap.snapshot_hash,
@@ -2119,52 +2310,57 @@ def _bootstrap_and_index_target(
         source=source_snap,
     )
 
-    settings = _dc_replace(settings, bootstrap_state="ready")
+    discovery.persist(merged_inv, inv_path)
+    if service is not None:
+        from ..adapters.ui.composition import publish_runtime
+        publish_runtime(service, runtime)
+    readiness.record_hydrate(hydrate_report)
+    readiness.record_reconcile(
+        transient_readiness._reconcile_report,
+        current_head=head, working_tree_fingerprint=fp,
+    )
+    effective = runtime.extra.get("resolved_configuration", {})
+    from ..core.control.retrieval_settings import PRODUCTION_ALIASES
+    active_alias = effective.get("embedding_model")
+    settings = _dc_replace(
+        load_retrieval_settings(target), bootstrap_state="ready",
+        **({"embedding_model_alias": active_alias} if active_alias in PRODUCTION_ALIASES else {}),
+        **({"device": effective["embedding_device"]} if "embedding_device" in effective else {}),
+        **({"document_processing_enabled": effective["docling_enabled"]} if "docling_enabled" in effective else {}),
+    )
     save_retrieval_settings(settings, target)
-
     return {
         "target": str(target),
-        "active_model": settings.embedding_model_alias,
-        "model_id": settings.model_id,
-        "device": settings.device,
+        "active_model": effective.get("embedding_model", settings.embedding_model_alias),
+        "model_id": runtime.embedding_model.profile().model_id,
+        "device": effective.get("embedding_device", settings.device),
         "embedding_profile_hash": runtime.embedding_profile_hash,
         "dense_backend": runtime.backend_name,
         "active_index_generation": gen_id,
         "discovered_sources": len(merged_inv.entries),
         "unchanged_sources": len(unchanged_entries),
         "modified_or_added_sources": len(modified_entries),
-        "ready": readiness.is_ready(),
+        "removed_sources": len(set(e.path for e in prev_inv.entries) - set(source_ids)) if prev_inv else 0,
+        "reused_vectors": getattr(runtime.extra.get("indexing_report"), "reused_count", 0),
+        "new_vectors": getattr(runtime.extra.get("indexing_report"), "embedded_count", 0),
+        "source_failures": runtime.extra.get("source_failures", []),
+        "dense_generation_loaded": runtime.extra.get("dense_generation_loaded", False),
+        "ready": True,
         "bootstrap_state": settings.bootstrap_state,
     }
 
 
 def _cmd_start(args: argparse.Namespace) -> int:
-    """One-command production bootstrap (spec delta: single ``start`` command).
-
-    Sequence: load settings → first-start wizard check (skipped when
-    settings already exist) → hydrate & reconcile → source discovery →
-    build the single production retrieval composition → persist runtime
-    snapshot → print the control-plane URL (and optionally serve).
-    """
-
-    target = Path(args.target).resolve()
-    host = getattr(args, "host", DEFAULT_UI_HOST)
-    port = getattr(args, "port", DEFAULT_UI_PORT)
-    _bootstrap_and_index_target(
-        target,
-        model_alias=getattr(args, "model", None),
-        device=getattr(args, "device", None),
-    )
-    print(f"Bootstrap ready at http://{host}:{port}")
-    if getattr(args, "serve", False):
-        serve_args = argparse.Namespace(
-            target=target,
-            cache_root=DEFAULT_RUNTIME_CACHE,
-            host=host,
-            port=port,
+    """Start the control plane immediately and bootstrap in its worker."""
+    if getattr(args, "no_serve", False):
+        summary = _bootstrap_and_index_target(
+            Path(args.target).resolve(),
+            model_alias=getattr(args, "model", None),
+            device=getattr(args, "device", None),
         )
-        return _cmd_serve(serve_args)
-    return 0
+        print(json.dumps(summary, indent=2))
+        return 0
+    return _cmd_serve(args)
 
 
 def _cmd_reindex(args: argparse.Namespace) -> int:
@@ -2230,7 +2426,7 @@ def _cmd_models_list(args: argparse.Namespace) -> int:
         return 2
     payload = json.loads(path.read_text(encoding="utf-8"))
     production = [
-        m for m in payload.get("models", []) if m.get("production_enabled")
+        m for m in payload.get("models", []) if m.get("production_enabled") or m.get("optional_runtime_enabled")
     ]
     print(json.dumps({
         "source": str(path),
@@ -2299,6 +2495,15 @@ def _cmd_models_pull(args: argparse.Namespace) -> int:
             "details": {"alias": str(args.alias)},
         }), file=sys.stderr)
         return 2
+    if alias in {'qwen-gguf', 'gemma-gguf'}:
+        from .gguf_setup import prepare
+        try:
+            path = prepare(Path(os.environ.get('PI_GGUF_CACHE', '/models')), alias)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({'ok': False, 'error': str(exc)}))
+            return 1
+        print(json.dumps({'ok': True, 'alias': alias, 'path': str(path)}))
+        return 0
     try:
         from huggingface_hub import snapshot_download
     except ImportError as exc:
@@ -2309,7 +2514,11 @@ def _cmd_models_pull(args: argparse.Namespace) -> int:
         }), file=sys.stderr)
         return 1
     try:
-        path = snapshot_download(model_id)
+        from ..adapters.retrieval.embedding_model_factory import EmbeddingModelFactory
+        from ..adapters.config.runtime_configuration_resolver import RuntimeConfigurationResolver
+        profile = EmbeddingModelFactory().resolve_profile(alias)
+        path = snapshot_download(model_id, revision=profile.model_revision,
+                                 cache_dir=str(Path(RuntimeConfigurationResolver().resolve().model_cache_dir) / "hub"))
     except Exception as exc:  # noqa: BLE001 - surface the hub error
         print(json.dumps({
             "error": f"failed to pull {model_id}: {exc}",
@@ -2339,6 +2548,17 @@ def _cmd_models_verify(args: argparse.Namespace) -> int:
             "details": {"alias": str(args.alias)},
         }), file=sys.stderr)
         return 2
+    if alias in {'qwen-gguf', 'gemma-gguf'}:
+        from .gguf_setup import file_hash
+        from ..adapters.retrieval.gguf_artifacts import (FILENAME, SHA256, GEMMA_FILENAME,
+            GEMMA_SHA256, GEMMA_PROJECTOR_FILENAME, GEMMA_PROJECTOR_SHA256)
+        cache = Path(os.environ.get('PI_GGUF_CACHE', '/models'))
+        files = ((FILENAME, SHA256),) if alias == 'qwen-gguf' else (
+            (GEMMA_FILENAME, GEMMA_SHA256), (GEMMA_PROJECTOR_FILENAME, GEMMA_PROJECTOR_SHA256))
+        path = cache / files[0][0]
+        valid = all((cache / name).is_file() and file_hash(cache / name) == digest for name, digest in files)
+        print(json.dumps({'ok': valid, 'alias': alias, 'path': str(path)}))
+        return 0 if valid else 1
     snapshot = _local_hf_snapshot(model_id)
     if snapshot is None:
         print(json.dumps({

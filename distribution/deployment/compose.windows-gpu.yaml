@@ -1,0 +1,16 @@
+# Native Windows llama.cpp runtime; no Vulkan passthrough assumption.
+services:
+  production:
+    environment:
+      PI_EMBEDDING_MODEL: ${PI_RUNTIME_MODEL:-qwen-gguf}
+      PI_EMBEDDING_DEVICE: ${PI_ACCELERATOR:-vulkan}
+      PI_LLAMA_ENDPOINT: http://host.docker.internal:8769
+      PI_LLAMA_API_KEY_FILE: /accelerator/llama-api-key
+      PI_GGUF_CACHE: /accelerator
+    volumes:
+      - type: bind
+        source: ./accelerator
+        target: /accelerator
+        read_only: true
+        bind:
+          create_host_path: false

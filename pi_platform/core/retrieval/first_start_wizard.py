@@ -24,7 +24,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from pi_platform.adapters.pdf.real_docling import is_docling_available
+from pi_platform.adapters.pdf.real_docling import is_docling_installed as is_docling_available
 from pi_platform.core.control.retrieval_settings import (
     DEFAULT_BOOTSTRAP_STATE,
     DEFAULT_DEVICE,
@@ -52,6 +52,8 @@ INITIALISE_ACTION = "initialise_and_build_index"
 MODEL_LABELS = {
     "google/embeddinggemma-2": "EmbeddingGemma 2",
     "Qwen/Qwen3-Embedding-0.6B": "Qwen3 Embedding 0.6B",
+    "ggml-org/embeddinggemma-2-GGUF": "Gemma2 GGUF text/image (configured runtime)",
+    "Qwen/Qwen3-Embedding-0.6B-GGUF": "Qwen3 GGUF (requires accelerator setup)",
 }
 
 
@@ -116,7 +118,7 @@ class FirstStartWizard:
                 for alias, model_id in PRODUCTION_ALIAS_TO_MODEL_ID.items()
                 if model_id in PRODUCTION_MODEL_CHOICES
             ],
-            "device_choices": list(DEVICE_CHOICES),
+            "device_choices": [choice for choice in DEVICE_CHOICES if choice != "mps"],
             "document_processing_enabled": settings.document_processing_enabled,
             "document_processing_available": is_docling_available(),
             "action": INITIALISE_ACTION,

@@ -91,9 +91,10 @@ def cmd_production_capability_gate(argv: Sequence[str] | None = None) -> int:
         dest="json_output",
         help="emit single-line machine-readable JSON (default: pretty-printed)",
     )
+    parser.add_argument("--inventory-only", action="store_true", help="core CI: validate inventory only; does not prove runtime readiness")
     args = parser.parse_args(list(argv) if argv is not None else [])
 
-    report = run_production_capability_gate()
+    report = run_production_capability_gate(runtime_checks=not args.inventory_only)
     payload = report_payload(report)
     if args.json_output:
         print(json.dumps(payload))

@@ -30,6 +30,7 @@ switching; those are downstream concerns that consume the
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import Iterable, Mapping, Sequence
 
 from pi_platform.adapters.runtime.sqlite_vector_record_store import (
@@ -108,6 +109,8 @@ class ActiveChunk:
     retrieval_text: str
     retrieval_text_hash: str
     metadata: Mapping[str, object] = field(default_factory=dict)
+    embedding_segments: tuple[str, ...] = ()
+    image_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -412,13 +415,29 @@ class SemanticIndexService:
 
             # Embed the chunk through the role-aware request path.
             try:
-                vector = self._embedding_model.embed_request(
-                    EmbeddingRequest(
-                        text=chunk.retrieval_text,
-                        role=EmbeddingRole.DOCUMENT,
-                        task=EmbeddingTask.SEARCH,
-                    ),
-                )
+                if chunk.embedding_segments:
+                    vectors = self._embedding_model.embed_requests([
+                        EmbeddingRequest(text=text, role=EmbeddingRole.DOCUMENT, task=EmbeddingTask.SEARCH, image_path=chunk.image_path)
+                        for text in chunk.embedding_segments
+                    ])
+                    if len(vectors) != len(chunk.embedding_segments) or any(
+                        len(item) != self._embedding_profile.output_dimension for item in vectors
+                    ):
+                        raise SemanticIndexServiceError("PDF projection returned incompatible vectors")
+                    vector = [sum(values) / len(vectors) for values in zip(*vectors)]
+                    norm = sum(value * value for value in vector) ** 0.5
+                    if not math.isfinite(norm) or norm == 0:
+                        raise SemanticIndexServiceError("PDF projection returned a non-finite or zero vector")
+                    vector = [value / norm for value in vector]
+                else:
+                    vector = self._embedding_model.embed_request(
+                        EmbeddingRequest(
+                            text=chunk.retrieval_text,
+                            image_path=chunk.image_path,
+                            role=EmbeddingRole.DOCUMENT,
+                            task=EmbeddingTask.SEARCH,
+                        ),
+                    )
             except EmbeddingModelError as exc:
                 raise SemanticIndexServiceError(
                     f"embedding model raised for chunk "
@@ -431,6 +450,11 @@ class SemanticIndexService:
                     f"{len(vector_list)}d; the active profile expects "
                     f"{self._embedding_profile.output_dimension}d"
                 )
+            if not all(math.isfinite(value) for value in vector_list):
+                raise SemanticIndexServiceError(f"embedding for chunk {chunk.chunk_id!r} is not finite")
+            squared_norm = sum(value * value for value in vector_list)
+            if self._embedding_profile.normalization == "l2" and abs(squared_norm - 1.0) > 0.02:
+                raise SemanticIndexServiceError(f"embedding for chunk {chunk.chunk_id!r} is not normalized")
 
             # Persist the vector record under the active profile
             # namespace. The store overwrites on duplicate

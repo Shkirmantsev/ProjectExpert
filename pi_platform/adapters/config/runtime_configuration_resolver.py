@@ -50,7 +50,7 @@ DEFAULT_EMBEDDING_MODEL = "gemma"
 DEFAULT_EMBEDDING_DEVICE = "auto"
 DEFAULT_DENSE_INDEX = "usearch"
 DEFAULT_DOCLING_ENABLED = True
-DEFAULT_MODEL_CACHE_DIR = "/models/huggingface"
+DEFAULT_MODEL_CACHE_DIR = str(Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")))
 DEFAULT_STARTUP_PROFILE = "production"
 ENV_OVERRIDE_PREFIX = "PI_"
 LOCAL_SETTINGS_RELATIVE_PATH = ".project-intelligence-cache/settings.json"
@@ -132,6 +132,18 @@ class RuntimeConfigurationResolver:
             local_settings if local_settings is not None
             else self._read_local_settings(local_settings_path),
         )
+        if project_defaults is None and local_settings_path is not None:
+            from pi_platform.core.ingest.config import load_ingest_config
+            root = Path(local_settings_path).resolve().parent.parent
+            candidates = [root / "project-knowledge/project-context.yaml", root / "project-context.yaml"]
+            project_defaults = {}
+            for candidate in candidates:
+                if candidate.is_file():
+                    body = load_ingest_config(candidate)
+                    project_defaults = body.get("runtime", body.get("retrieval", {}))
+                    if not isinstance(project_defaults, Mapping):
+                        raise ConfigurationError("project context runtime defaults must be a mapping")
+                    break
         self._project_defaults = dict(project_defaults or {})
 
     @staticmethod
@@ -173,6 +185,10 @@ class RuntimeConfigurationResolver:
             resolved[field] = value
             sources[field] = source
 
+        if resolved["startup_profile"] == "minimal":
+            for field, value in {"embedding_model": "hashing", "dense_index": "flat", "docling_enabled": False}.items():
+                if sources[field] == "built-in":
+                    resolved[field] = value
         self._validate(resolved)
         return RuntimeConfiguration(sources=sources, **resolved)
 
@@ -221,14 +237,19 @@ class RuntimeConfigurationResolver:
                 )
             return value
         if field == "embedding_device":
-            if value not in {"auto", "cpu", "cuda", "mps"}:
+            if value not in {"auto", "cpu", "cuda", "mps", "vulkan"}:
                 raise ConfigurationError(
                     f"invalid embedding_device {value!r}; expected one of "
-                    f"auto, cpu, cuda, mps"
+                    f"auto, cpu, cuda, mps, vulkan"
                 )
             return value
         if field == "embedding_model":
-            return str(value).strip().lower()
+            aliases = {"embeddinggemma2": "gemma", "qwen3": "qwen", "qwen3-embedding-0.6b": "qwen",
+                       "google/embeddinggemma-2": "gemma", "qwen/qwen3-embedding-0.6b": "qwen",
+                       "ggml-org/embeddinggemma-2-gguf": "gemma-gguf",
+                       "qwen/qwen3-embedding-0.6b-gguf": "qwen-gguf"}
+            lowered = str(value).strip().lower()
+            return aliases.get(lowered, lowered)
         if field == "dense_index":
             return str(value).strip().lower()
         if field == "model_cache_dir":
@@ -238,15 +259,19 @@ class RuntimeConfigurationResolver:
     def _validate(self, resolved: dict[str, Any]) -> None:
         # The production-capability-gate covers the rest; here we
         # only ensure the well-known constraints from plan §19.
+        if resolved["dense_index"] not in {"usearch", "flat"}:
+            raise ConfigurationError("dense_index must be usearch or flat")
+        if resolved["startup_profile"] == "production" and resolved["dense_index"] != "usearch":
+            raise ConfigurationError("production requires the real usearch dense backend; select minimal for flat")
         startup = resolved["startup_profile"]
         embedding = resolved["embedding_model"]
-        if startup == "production" and embedding not in {"gemma", "qwen"}:
+        if startup == "production" and embedding not in {"gemma", "qwen", "qwen-gguf", "gemma-gguf"}:
             # The production profile refuses the hashing alias and
             # any other non-real alias; the operator must either
             # select an explicit production alias or switch to the
             # ``minimal`` profile.
             if embedding in {"hashing"} or embedding not in {
-                "gemma", "qwen",
+                "gemma", "qwen", "qwen-gguf", "gemma-gguf",
             }:
                 raise ConfigurationError(
                     f"startup_profile='production' but "

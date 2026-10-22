@@ -191,6 +191,7 @@ class Tier2LocalModelIntegrationTests(unittest.TestCase):
             job_store = SqliteIngestionJobStore(db)
             graph_store = SqliteDocumentGraphStore(db)
             adapter = DoclingPdfAdapter(
+                allow_synthetic=True,
                 prescan=PdfPrescanAdapter(),
                 job_store=job_store,
                 graph_store=graph_store,
@@ -229,6 +230,7 @@ class Tier2LocalModelIntegrationTests(unittest.TestCase):
         job_store = SqliteIngestionJobStore(db)
         graph_store = SqliteDocumentGraphStore(db)
         adapter = DoclingPdfAdapter(
+                allow_synthetic=True,
             prescan=PdfPrescanAdapter(),
             job_store=job_store,
             graph_store=graph_store,

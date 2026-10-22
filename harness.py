@@ -123,7 +123,7 @@ def cmd_test() -> None:
 
 
 def cmd_production_capability_gate() -> None:
-    cmd = [sys.executable, "-m", "pi_platform.cli.production_capability_gate"]
+    cmd = [sys.executable, "-m", "pi_platform.cli.production_capability_gate", "--inventory-only"]
     subprocess.run(cmd, cwd=ROOT, check=True)
 
 

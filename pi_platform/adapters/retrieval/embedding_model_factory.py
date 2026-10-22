@@ -52,8 +52,10 @@ __all__ = [
 HASHING_ALIAS = "hashing"
 GEMMA_ALIAS = "gemma"
 QWEN_ALIAS = "qwen"
+GGUF_ALIAS = "qwen-gguf"
+GEMMA_GGUF_ALIAS = "gemma-gguf"
 
-PRODUCTION_ALIASES = frozenset({GEMMA_ALIAS, QWEN_ALIAS})
+PRODUCTION_ALIASES = frozenset({GEMMA_ALIAS, QWEN_ALIAS, GGUF_ALIAS, GEMMA_GGUF_ALIAS})
 MINIMAL_ALIASES = frozenset({HASHING_ALIAS})
 
 _ALIAS_TO_LEGACY_NAME: Mapping[str, str] = {
@@ -61,6 +63,7 @@ _ALIAS_TO_LEGACY_NAME: Mapping[str, str] = {
     "embeddinggemma2": "embeddinggemma2",
     QWEN_ALIAS: "qwen3-embedding-0.6b",
     "qwen3-embedding-0.6b": "qwen3-embedding-0.6b",
+    "qwen3": "qwen3-embedding-0.6b",
     HASHING_ALIAS: "hashing",
 }
 
@@ -122,6 +125,12 @@ class EmbeddingModelFactory:
             return HASHING_DEFAULT
         if normalised == GEMMA_ALIAS:
             return EMBEDDINGGEMMA2_512
+        if normalised == GEMMA_GGUF_ALIAS:
+            from .llama_cpp_embedding_model import GEMMA_GGUF_PROFILE
+            return GEMMA_GGUF_PROFILE
+        if normalised == GGUF_ALIAS:
+            from .llama_cpp_embedding_model import GGUF_PROFILE
+            return GGUF_PROFILE
         if normalised == QWEN_ALIAS:
             return QWEN3_EMBEDDING_0_6B_1024
         raise UnknownEmbeddingAliasError(
@@ -130,7 +139,7 @@ class EmbeddingModelFactory:
         )
 
     def build(
-        self, alias: str, *, device: str = "auto",
+        self, alias: str, *, device: str = "auto", cache_folder: str | None = None,
     ) -> EmbeddingModelPort:
         """Build the adapter for ``alias``.
 
@@ -143,10 +152,12 @@ class EmbeddingModelFactory:
         """
 
         normalised = self._normalise_alias(alias)
-        resolved_device = self._resolve_device(device)
+        resolved_device = device
 
         if normalised == HASHING_ALIAS:
-            # Hashing is intentionally allowed in every profile; the
+            if self._startup_profile != StartupProfile.MINIMAL:
+                raise EmbeddingModelError("hashing requires the explicit minimal startup profile")
+            # The
             # ``minimal`` profile is the only one that selects it
             # by default. The factory builds a fresh adapter so
             # callers can mutate stats without aliasing.
@@ -155,12 +166,19 @@ class EmbeddingModelFactory:
             )
             return HashingEmbeddingModel()
 
+        if normalised in {GGUF_ALIAS, GEMMA_GGUF_ALIAS}:
+            from .llama_cpp_embedding_model import LlamaCppEmbeddingModel
+            return LlamaCppEmbeddingModel(device=device, model_alias=normalised)
+
+        if device == 'vulkan':
+            raise EmbeddingModelError('Vulkan requires model gemma-gguf or qwen-gguf and the accelerator setup')
+
         if normalised == GEMMA_ALIAS:
             from pi_platform.adapters.retrieval.embeddinggemma2_embedding_model import (
                 EmbeddingGemma2EmbeddingModel,
             )
             adapter = EmbeddingGemma2EmbeddingModel(
-                profile=EMBEDDINGGEMMA2_512, device=resolved_device,
+                profile=EMBEDDINGGEMMA2_512, device=resolved_device, cache_folder=cache_folder,
             )
             return adapter
 
@@ -169,7 +187,7 @@ class EmbeddingModelFactory:
                 Qwen3EmbeddingModel,
             )
             adapter = Qwen3EmbeddingModel(
-                profile=QWEN3_EMBEDDING_0_6B_1024, device=resolved_device,
+                profile=QWEN3_EMBEDDING_0_6B_1024, device=resolved_device, cache_folder=cache_folder,
             )
             return adapter
 
@@ -183,7 +201,7 @@ class EmbeddingModelFactory:
         if not alias:
             raise UnknownEmbeddingAliasError("embedding alias is empty")
         lowered = alias.strip().lower()
-        if lowered in {HASHING_ALIAS, GEMMA_ALIAS, QWEN_ALIAS}:
+        if lowered in {HASHING_ALIAS, GEMMA_ALIAS, QWEN_ALIAS, GGUF_ALIAS, GEMMA_GGUF_ALIAS}:
             return lowered
         if lowered in _ALIAS_TO_LEGACY_NAME:
             # Legacy aliases map back to the canonical one.
@@ -200,18 +218,5 @@ class EmbeddingModelFactory:
 
     @staticmethod
     def _resolve_device(device: str) -> str:
-        lowered = (device or "auto").strip().lower()
-        if lowered == "auto":
-            try:
-                import torch
-                if torch.cuda.is_available():
-                    return "cuda"
-            except Exception:
-                pass
-            return "cpu"
-        if lowered in {"cpu", "cuda", "mps"}:
-            return lowered
-        raise ValueError(
-            f"unknown device {device!r}; expected one of "
-            f"auto, cpu, cuda, mps"
-        )
+        from pi_platform.adapters.config.runtime_device import select_device
+        return select_device(device).device

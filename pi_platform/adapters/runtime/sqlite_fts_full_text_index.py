@@ -29,9 +29,9 @@ class SqliteFtsFullTextIndex(FullTextIndexPort):
 
     _TABLE = "runtime_fulltext_fts"
 
-    def __init__(self, store: RuntimeStorePort):
+    def __init__(self, store: RuntimeStorePort | None = None, *, db_path=None):
         self._store = store
-        self._db_path = getattr(store, "_db_path", None)
+        self._db_path = db_path or getattr(store, "_db_path", None)
         if self._db_path is None:
             raise FullTextIndexError(
                 "SqliteFtsFullTextIndex requires a SqliteRuntimeStore"

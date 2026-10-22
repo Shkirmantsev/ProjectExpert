@@ -90,10 +90,9 @@ def compute_source_generation(
 
     import hashlib
     h = hashlib.sha256()
-    for cid in sorted(chunk_ids):
+    for cid, rth in sorted(zip(chunk_ids, retrieval_text_hashes, strict=True)):
         h.update(cid.encode("utf-8"))
         h.update(b"\x1f")
-    for rth in sorted(retrieval_text_hashes):
         h.update(rth.encode("utf-8"))
         h.update(b"\x1f")
     h.update(embedding_profile_hash.encode("utf-8"))
@@ -268,7 +267,7 @@ class USearchDenseIndex(DenseIndexPort):
             f"{self._source_generation}.usearch",
         )
         self._index_meta_path = os.path.join(
-            self._cache_root, "index_meta.json",
+            self._cache_root, f"{self._source_generation}.meta.json",
         )
         # Lazy-loaded real USearch index (None if not bound).
         self._usearch_index = None
@@ -290,7 +289,8 @@ class USearchDenseIndex(DenseIndexPort):
             try:
                 from usearch.index import Index
                 self._usearch_index = Index(
-                    ndim=self._dim, metric="cos",
+                    ndim=self._dim, metric="cos", connectivity=self._m,
+                    expansion_add=self._ef_construction, expansion_search=self._ef_query,
                 )
             except Exception:  # pragma: no cover
                 self._usearch_index = None
@@ -310,7 +310,8 @@ class USearchDenseIndex(DenseIndexPort):
                 try:
                     from usearch.index import Index
                     self._usearch_index = Index(
-                        ndim=self._dim, metric="cos",
+                        ndim=self._dim, metric="cos", connectivity=self._m,
+                        expansion_add=self._ef_construction, expansion_search=self._ef_query,
                     )
                 except Exception:  # pragma: no cover
                     self._usearch_index = None
@@ -388,8 +389,7 @@ class USearchDenseIndex(DenseIndexPort):
                 hits.sort(key=lambda h: (-h.score, h.chunkId))
                 return tuple(hits[:top_k])
             except Exception as exc:  # pragma: no cover
-                # Fall through to flat scan if the library raised.
-                pass
+                raise ANNIndexError(f"Native USearch query failed: {exc}") from exc
         # Deterministic fallback (used in CI and when usearch is
         # not installed). Plan §22 keeps this path for tests.
         scored: list[Tuple[str, float]] = []
@@ -432,18 +432,21 @@ class USearchDenseIndex(DenseIndexPort):
         return self._index_meta_path
 
     def read_index_meta(self) -> dict:
+        # Backward-compatible diagnostic view for callers reopening a namespace
+        # without naming a generation. Activation uses generation-local metadata.
+        if self._source_generation == "0":
+            try:
+                with open(os.path.join(self._cache_root, "index_meta.json"), encoding="utf-8") as stream:
+                    return json.load(stream)
+            except (OSError, ValueError):
+                pass
         return self._read_index_meta()
 
     def write_index_meta(
         self, *, vector_count: int, source_generation: str | None = None,
     ) -> dict:
         if source_generation is not None:
-            self._source_generation = source_generation
-            # Recompute the index path on generation change.
-            self._index_path = os.path.join(
-                self._cache_root,
-                f"{self._source_generation}.usearch",
-            )
+            self.select_generation(source_generation)
         return self._write_index_meta(vector_count=vector_count)
 
     def is_compatible_with(
@@ -484,21 +487,95 @@ class USearchDenseIndex(DenseIndexPort):
         self._metadata.clear()
         self._key_by_chunk.clear()
         self._chunk_by_key.clear()
+        previous_dimension = self._dim
         self._dim = None
+        self._usearch_index = None
+        if not records and previous_dimension:
+            self.reset_candidate(output_dimension=previous_dimension)
         inserted = 0
         for chunk_id, vector in records:
             self.index_chunk(chunk_id, vector, metadata={})
             inserted += 1
         if source_generation is not None:
-            self._source_generation = source_generation
-            self._index_path = os.path.join(
-                self._cache_root,
-                f"{self._source_generation}.usearch",
-            )
+            self.select_generation(source_generation)
         # Plan §42: atomic rename.
         self._atomic_save()
         self._write_index_meta(vector_count=inserted)
         return inserted
+
+    def select_generation(self, source_generation: str) -> None:
+        """Point this unpublished candidate at one content-addressed generation."""
+        self._source_generation = source_generation
+        self._index_path = os.path.join(self._cache_root, source_generation + ".usearch")
+        self._index_meta_path = os.path.join(self._cache_root, source_generation + ".meta.json")
+
+    def reset_candidate(self, *, output_dimension: int) -> None:
+        """Discard a failed candidate without touching persisted generations."""
+        self._vectors.clear()
+        self._metadata.clear()
+        self._key_by_chunk.clear()
+        self._chunk_by_key.clear()
+        self._dim = output_dimension
+        if self._real_usearch:
+            from usearch.index import Index
+            self._usearch_index = Index(ndim=output_dimension, metric="cos",
+                connectivity=self._m, expansion_add=self._ef_construction,
+                expansion_search=self._ef_query)
+        else:
+            self._usearch_index = None
+
+    def _validate_native(self, index, *, vectors: Mapping[str, Sequence[float]]) -> None:
+        if int(index.ndim) != self._dim or len(index) != len(vectors):
+            raise ANNIndexError("Native generation dimension/vector count mismatch")
+        native_keys = {int(key) for key in index.keys}
+        expected_keys = set(self._chunk_by_key)
+        if native_keys != expected_keys or set(self._key_by_chunk) != set(vectors):
+            raise ANNIndexError("Native generation keys do not match the active corpus")
+        if vectors:
+            import numpy as np
+            sample = next(iter(vectors.values()))
+            matches = index.search(np.asarray(sample, dtype=np.float32), min(10, len(vectors)))
+            if (not len(matches.keys) or any(int(key) not in expected_keys for key in matches.keys)
+                    or not all(math.isfinite(float(value)) for value in matches.distances)
+                    or float(matches.distances[0]) > 0.05):
+                raise ANNIndexError("Native generation sample query failed validation")
+
+    def load_generation(self, source_generation: str, *,
+                        vectors: Mapping[str, Sequence[float]],
+                        metadata: Mapping[str, Mapping[str, object]]) -> bool:
+        """Load a validated native generation using authoritative SQLite vectors.
+
+        Invalid/missing metadata or ANN files return False; the caller rebuilds
+        from vectors, without running inference for valid vector records.
+        """
+        self.select_generation(source_generation)
+        meta = self._read_index_meta()
+        expected_dim = self._dim
+        try:
+            if (not self._real_usearch or not meta
+                    or meta.get("embedding_profile_hash") != self._embedding_profile_hash
+                    or meta.get("source_generation") != source_generation
+                    or meta.get("index_schema_version") != DEFAULT_INDEX_SCHEMA_VERSION
+                    or meta.get("dim") != expected_dim
+                    or meta.get("vector_count") != len(vectors)
+                    or not self._read_key_sidecar()
+                    or set(self._key_by_chunk) != set(vectors)
+                    or not self.load()):
+                return False
+            self._validate_native(self._usearch_index, vectors=vectors)
+            self._vectors = {cid: tuple(vector) for cid, vector in vectors.items()}
+            self._metadata = {cid: dict(metadata.get(cid, {})) for cid in vectors}
+            return True
+        except (ANNIndexError, ValueError, TypeError, OSError):
+            return False
+        finally:
+            self._dim = expected_dim
+
+    def save_generation(self, source_generation: str) -> None:
+        """Validate the saved candidate before publishing generation metadata."""
+        self.select_generation(source_generation)
+        self._atomic_save()
+        self._write_index_meta(vector_count=len(self._vectors))
 
     # -- atomic activation (plan §42) ---------------------------------
 
@@ -520,6 +597,9 @@ class USearchDenseIndex(DenseIndexPort):
             tmp_path = self._index_path + ".tmp"
             try:
                 self._usearch_index.save(tmp_path)
+                from usearch.index import Index
+                saved = Index.restore(tmp_path, view=False)
+                self._validate_native(saved, vectors=self._vectors)
                 os.replace(tmp_path, self._index_path)
             except Exception as exc:  # pragma: no cover
                 if os.path.exists(tmp_path):
@@ -583,7 +663,8 @@ class USearchDenseIndex(DenseIndexPort):
                 payload = json.load(f)
         except (OSError, json.JSONDecodeError):
             return False
-        if payload.get("embedding_profile_hash") != self._embedding_profile_hash:
+        if (payload.get("embedding_profile_hash") != self._embedding_profile_hash
+                or payload.get("source_generation") != self._source_generation):
             return False
         self._key_by_chunk = {
             cid: int(k) for cid, k in payload.get("chunk_to_key", {}).items()
@@ -591,6 +672,9 @@ class USearchDenseIndex(DenseIndexPort):
         self._chunk_by_key = {
             int(k): cid for k, cid in payload.get("key_to_chunk", {}).items()
         }
+        if (len(self._key_by_chunk) != len(self._chunk_by_key)
+                or any(self._chunk_by_key.get(key) != cid for cid, key in self._key_by_chunk.items())):
+            return False
         return True
 
     def load(self) -> bool:
@@ -707,6 +791,12 @@ class USearchDenseIndex(DenseIndexPort):
             "ef_query": self._ef_query,
         }
         os.makedirs(self._cache_root, exist_ok=True)
-        with open(self._index_meta_path, "w", encoding="utf-8") as f:
+        temporary = self._index_meta_path + ".tmp"
+        with open(temporary, "w", encoding="utf-8") as f:
             json.dump(meta, f, indent=2, sort_keys=True)
+        os.replace(temporary, self._index_meta_path)
+        legacy = os.path.join(self._cache_root, "index_meta.json")
+        with open(legacy + ".tmp", "w", encoding="utf-8") as stream:
+            json.dump(meta, stream, indent=2, sort_keys=True)
+        os.replace(legacy + ".tmp", legacy)
         return meta

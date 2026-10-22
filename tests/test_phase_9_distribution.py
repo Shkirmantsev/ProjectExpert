@@ -8,6 +8,7 @@ Open WebUI profile and the OKF conformance gate.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -186,6 +187,15 @@ class HttpAdapterTests(TempRepoMixin, unittest.TestCase):
         self.assertTrue(payload["reason"])
 
     def test_query_is_served_without_a_coding_harness(self) -> None:
+        from unittest.mock import patch
+        from pi_platform.cli.main import _bootstrap_and_index_target
+        status, _ = self._request("/api/v1/query", data={"text": "before bootstrap"})
+        self.assertEqual(status, 503)
+        with patch.dict(os.environ, {
+            "PI_STARTUP_PROFILE": "minimal", "PI_EMBEDDING_MODEL": "hashing",
+            "PI_DENSE_INDEX": "flat", "PI_DOCLING_ENABLED": "0",
+        }):
+            _bootstrap_and_index_target(self.repo, service=self.service, readiness=self.readiness)
         status, body = self._request("/api/v1/query", data={"text": "what is this"})
         self.assertEqual(status, 200)
         payload = json.loads(body)

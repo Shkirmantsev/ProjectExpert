@@ -62,10 +62,8 @@ ADAPTER_NAME = "qwen3-embedding-0.6b"
 DEFAULT_MODEL_ID = "Qwen/Qwen3-Embedding-0.6B"
 # Public pinned revision. Updated together with
 # ``distribution/licenses/model-licenses.json``.
-PINNED_REVISION = os.environ.get(
-    "PI_QWEN3_REVISION",
-    "unset-pin-via-model-licenses-json",
-)
+PINNED_REVISION = QWEN3_EMBEDDING_0_6B_1024.model_revision
+
 DEFAULT_LICENSE_ID = "Apache-2.0"
 DEFAULT_OUTPUT_DIMENSION = 1024  # Plan §6.2 / §10.4
 
@@ -79,7 +77,7 @@ QUERY_INSTRUCTION = (
     "source code, tests, requirements, architecture, specifications, "
     "protocols, and documentation needed to answer the query."
 )
-INSTRUCTION_PROFILE_VERSION = "project-expert-qwen-query-v1"
+INSTRUCTION_PROFILE_VERSION = "project-expert-qwen-query-v2"
 
 
 _NOT_BOUND_MESSAGE = (
@@ -123,6 +121,7 @@ class Qwen3EmbeddingModel(EmbeddingModelPort):
         device: str = "cpu",
         model_id: str | None = None,
         revision: str | None = None,
+        cache_folder: str | None = None,
     ) -> None:
         # Plan §11 / §101: the adapter's default model id and
         # revision come from the EmbeddingProfile so the runtime
@@ -130,20 +129,17 @@ class Qwen3EmbeddingModel(EmbeddingModelPort):
         # ``model_id`` / ``revision`` arguments override the
         # profile for tests only.
         self._profile = profile
-        if (device or "auto").strip().lower() == "auto":
-            try:
-                import torch
-                self._device = "cuda" if torch.cuda.is_available() else "cpu"
-            except Exception:
-                self._device = "cpu"
-        else:
-            self._device = device.strip().lower()
+        from pi_platform.adapters.config.runtime_device import select_device
+        selection = select_device(device)
+        self._device = selection.device
+        self.device_selection_reason = selection.reason
         self._model_id = model_id or profile.model_id
         self._revision = (
             revision
             or os.environ.get("PI_QWEN3_REVISION")
             or profile.model_revision
         )
+        self._cache_folder = cache_folder or os.environ.get("PI_MODEL_CACHE")
         self._calls = 0
         self._tokens = 0
         self._errors = 0
@@ -154,8 +150,10 @@ class Qwen3EmbeddingModel(EmbeddingModelPort):
     # -- lazy loading -----------------------------------------------------
 
     def _ensure_loaded(self):
-        if self._model is not None or self._load_failed:
+        if self._model is not None:
             return
+        if self._load_failed:
+            raise EmbeddingModelError(self._load_error or _NOT_BOUND_MESSAGE)
         try:
             from sentence_transformers import SentenceTransformer
             import torch
@@ -165,23 +163,14 @@ class Qwen3EmbeddingModel(EmbeddingModelPort):
             raise EmbeddingModelError(self._load_error) from exc
 
         try:
-            torch_dtype = torch.float32 if self._device == "cpu" else torch.bfloat16
-            try:
-                self._model = SentenceTransformer(
+            torch_dtype = (torch.bfloat16 if self._device == "cuda" and torch.cuda.is_bf16_supported() else torch.float32)
+            self._model = SentenceTransformer(
                     self._model_id,
                     revision=self._revision,
                     device=self._device,
+                    cache_folder=self._cache_folder,
                     tokenizer_kwargs={"padding_side": "left"},
                     model_kwargs={"torch_dtype": torch_dtype},
-                )
-            except TypeError:
-                # Older sentence-transformers (e.g. 2.7) do not
-                # accept ``model_kwargs``; fall back to the
-                # minimal constructor.
-                self._model = SentenceTransformer(
-                    self._model_id,
-                    revision=self._revision,
-                    device=self._device,
                 )
         except Exception as exc:  # pragma: no cover - network/runtime
             self._load_failed = True
@@ -207,6 +196,8 @@ class Qwen3EmbeddingModel(EmbeddingModelPort):
         )
 
     def embed_request(self, request: EmbeddingRequest) -> Sequence[float]:
+        if request.image_path:
+            raise EmbeddingModelError("Qwen text embeddings cannot encode images; select Gemma")
         self._calls += 1
         try:
             self._ensure_loaded()
@@ -222,14 +213,14 @@ class Qwen3EmbeddingModel(EmbeddingModelPort):
         # Plan §10.2 / §10.3: query side gets the instruction;
         # document side is encoded un-instructed.
         if request.role == EmbeddingRole.QUERY:
-            texts_to_encode = [QUERY_INSTRUCTION + " " + request.text]
+            texts_to_encode = [f"Instruct: {QUERY_INSTRUCTION}\nQuery:{request.text}"]
         else:
             texts_to_encode = [request.text]
 
         try:
             vectors = model.encode(
                 texts_to_encode,
-                prompt=None,
+                prompt="",
                 convert_to_numpy=True,
                 normalize_embeddings=True,
                 show_progress_bar=False,
@@ -247,6 +238,8 @@ class Qwen3EmbeddingModel(EmbeddingModelPort):
     def embed_requests(
         self, requests: Sequence[EmbeddingRequest],
     ) -> Sequence[Sequence[float]]:
+        if any(request.image_path for request in requests):
+            raise EmbeddingModelError("Qwen is text-only; select Gemma for images")
         if not requests:
             return []
         try:
@@ -261,37 +254,23 @@ class Qwen3EmbeddingModel(EmbeddingModelPort):
                 self._errors += 1
             raise EmbeddingModelError(_NOT_BOUND_MESSAGE)
 
-        # Plan §10.2 / §10.3: split the batch by role so the query
-        # side can carry the instruction while the document side
-        # stays un-instructed. The order of results is preserved
-        # by the call site; we return a per-request list.
-        results: list[Sequence[float]] = []
-        for r in requests:
-            try:
-                if r.role == EmbeddingRole.QUERY:
-                    vectors = model.encode(
-                        [QUERY_INSTRUCTION + " " + r.text],
-                        prompt=None,
-                        convert_to_numpy=True,
-                        normalize_embeddings=True,
-                        show_progress_bar=False,
-                    )
-                else:
-                    vectors = model.encode(
-                        [r.text],
-                        prompt=None,
-                        convert_to_numpy=True,
-                        normalize_embeddings=True,
-                        show_progress_bar=False,
-                    )
-            except Exception as exc:  # pragma: no cover - runtime
-                self._errors += 1
-                raise EmbeddingModelError(
-                    f"Qwen3 batch encode failed: {exc}"
-                ) from exc
-            v = vectors[0]
-            self._validate_vector(v)
-            results.append(v.tolist())
+        texts = [
+            f"Instruct: {QUERY_INSTRUCTION}\nQuery:{r.text}"
+            if r.role == EmbeddingRole.QUERY else r.text
+            for r in requests
+        ]
+        try:
+            vectors = model.encode(
+                texts, prompt="", convert_to_numpy=True,
+                normalize_embeddings=True, show_progress_bar=False,
+            )
+        except Exception as exc:
+            self._errors += 1
+            raise EmbeddingModelError(f"Qwen3 batch encode failed: {exc}") from exc
+        results = []
+        for vector in vectors:
+            self._validate_vector(vector)
+            results.append(vector.tolist())
         return results
 
     def _validate_vector(self, vec) -> None:

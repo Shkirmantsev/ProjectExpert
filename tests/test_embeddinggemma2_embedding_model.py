@@ -18,6 +18,7 @@ test suite has two layers:
 from __future__ import annotations
 
 import unittest
+import os
 
 from pi_platform.adapters.retrieval.embeddinggemma2_embedding_model import (
     ADAPTER_NAME,
@@ -35,26 +36,9 @@ from pi_platform.ports.retrieval.embedding_profile import (
 )
 
 
-def _real_load_works() -> bool:
-    """Return True iff a fresh model instance can be constructed
-    AND embed a short probe string. The probe catches environments
-    where ``sentence-transformers`` is importable but the cached
-    snapshot is incompatible with the active release.
-    """
-
-    if not is_real_binding_available():
-        return False
-    try:
-        m = EmbeddingGemma2EmbeddingModel(profile=EMBEDDINGGEMMA2_512)
-        m.embed("ping")
-        return True
-    except EmbeddingModelError:
-        return False
-    except Exception:
-        return False
-
-
-_REAL_MODEL_LOAD_WORKS = _real_load_works()
+# Heavy model tests are opt-in; an opted-in load failure is a failure,
+# never converted into a skip by attempting a probe at import time.
+_REAL_MODEL_LOAD_WORKS = os.environ.get("PI_RUN_MODEL_TESTS") == "1"
 
 
 class EmbeddingGemma2EmbeddingModelTests(unittest.TestCase):

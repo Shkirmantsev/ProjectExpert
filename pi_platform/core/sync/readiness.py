@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import time
+import threading
 from typing import Optional
 
 from ...ports import (
@@ -44,6 +45,9 @@ class DefaultKnowledgeReadiness(KnowledgeReadinessPort):
 
     def __init__(self, *, clock=None):
         # ``clock`` is a unit test seam.
+        self.refresh_lock = threading.RLock()
+        self.configuration_lock = threading.RLock()
+        self.configuration_epoch = 0
         self._clock = clock or time.time
         self._hydrate_report: Optional[HydrateReport] = None
         self._reconcile_report: Optional[ReconcileReport] = None

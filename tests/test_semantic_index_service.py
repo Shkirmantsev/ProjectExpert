@@ -70,6 +70,31 @@ def _build_dense_index(
 class SemanticIndexServiceReuseTests(unittest.TestCase):
     """Stored vectors are authoritative; unchanged text is reused."""
 
+    def test_invalid_embedding_is_rejected_before_persistence(self):
+        from unittest.mock import patch
+        for vector in ([float('nan')]*512, [0.0]*512):
+            with self.subTest(vector=vector[0]):
+                with patch.object(self.model, 'embed_request', return_value=vector):
+                    with self.assertRaises(SemanticIndexServiceError):
+                        self.service.embed_active_chunks([_make_chunk('invalid', 'test')])
+                self.assertIsNone(self.service._vector_record_store.get('invalid', self.profile_hash))
+
+    def test_pdf_segments_embed_all_text_and_reuse_canonical_identity(self):
+        from dataclasses import replace
+        from pi_platform.core.retrieval.semantic_index_service import decode_vector_payload
+        chunk = replace(_make_chunk("canonical-pdf-chunk", "full canonical PDF text"),
+                        embedding_segments=("first window", "last window"))
+        report = self.service.embed_active_chunks([chunk])
+        self.assertEqual(report.embedded_count, 1)
+        self.assertEqual([r.text for r in self.model.embed_request_calls], ["first window", "last window"])
+        self.assertTrue(all(r.role.value == "document" for r in self.model.embed_request_calls))
+        record = self.service._vector_record_store.get(chunk.chunk_id, self.profile_hash)
+        vector = decode_vector_payload(record.vector_payload)
+        self.assertAlmostEqual(sum(v*v for v in vector), 1.0, places=5)
+        self.model.embed_request_calls.clear()
+        self.assertEqual(self.service.embed_active_chunks([chunk]).reused_count, 1)
+        self.assertEqual(self.model.embed_request_calls, [])
+
     def setUp(self) -> None:
         self._tmp = tempfile.mkdtemp(prefix="semantic-index-test-")
         self.addCleanup(

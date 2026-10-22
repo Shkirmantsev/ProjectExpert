@@ -37,7 +37,7 @@ can inject fakes without paying the model-load cost.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
@@ -312,7 +312,7 @@ def vector_record_store_from_db(
 
     import sqlite3
     os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
-    db = sqlite3.connect(db_path)
+    db = sqlite3.connect(db_path, check_same_thread=False, isolation_level=None)
     # ``embeddings`` table is additive; existing tables stay intact.
     return SqliteVectorRecordStore(db=db)
 
@@ -323,6 +323,8 @@ def build_hybrid_retrieval(
     sparse_index: SparseIndexPort,
     exact_lookup: FullTextIndexPort | None,
     hybrid_retrieval: HybridRetrievalPort | None = None,
+    embedding_model: EmbeddingModelPort | None = None,
+    chunk_catalog: Mapping[str, RetrievalHit] | None = None,
 ) -> HybridRetrievalPort:
     """Return the production :class:`HybridRetrievalPort`.
 
@@ -336,37 +338,39 @@ def build_hybrid_retrieval(
         return hybrid_retrieval
 
     def _dense_query(text: str, top_k: int) -> Sequence[RetrievalHit]:
-        # The dense backend takes a pre-embedded vector. Production
-        # callers embed the query through the embedding model via
-        # the multi-stage retrieval port; this callable bridge is
-        # used only when hybrid is queried standalone (e.g. tests).
-        # We surface an empty hit list to signal that the canonical
-        # path is "embed once at the multi-stage port".
-        return ()
+        if embedding_model is None:
+            return ()
+        from pi_platform.ports.retrieval.embedding_model import EmbeddingRequest, EmbeddingRole
+        vector = embedding_model.embed_request(EmbeddingRequest(text=text, role=EmbeddingRole.QUERY))
+        hits = []
+        for hit in dense_index.query(vector, top_k=top_k):
+            base = (chunk_catalog or {}).get(hit.chunkId)
+            if base is not None:
+                hits.append(replace(base, score=min(1.0, max(0.0, float(hit.score))), source="dense"))
+        return tuple(hits)
 
     def _sparse_query(text: str, top_k: int) -> Sequence[RetrievalHit]:
         sparse_hits = sparse_index.query(text, top_k=top_k)
         return tuple(
-            RetrievalHit(
-                chunkId=h.documentId,
-                score=float(h.score),
-                source="sparse",
-                snippet=h.snippet or "",
-            )
+            replace((chunk_catalog or {}).get(h.documentId) or RetrievalHit(
+                chunkId=h.documentId, score=0.0, source="sparse", snippet=h.snippet or "",
+            ), score=min(1.0, max(0.0, float(h.score))), source="sparse")
             for h in sparse_hits
         )
 
     def _exact_lookup_fn(identifier: str) -> Sequence[RetrievalHit]:
         if exact_lookup is None:
             return ()
-        exact_hits = exact_lookup.query(identifier, top_k=10)
+        # Identifiers are literal text, never SQLite FTS query syntax. Dashes,
+        # dots and quotes in protocol/Java names must not become operators.
+        exact_hits = exact_lookup.query('"' + identifier.replace('"', '""') + '"', top_k=10)
         return tuple(
-            RetrievalHit(
+            replace((chunk_catalog or {}).get(h.documentId) or RetrievalHit(
                 chunkId=h.documentId,
-                score=float(h.score),
+                score=0.0,
                 source="exact",
                 snippet=h.snippet or "",
-            )
+            ), score=min(1.0, max(0.0, float(h.score))), source="exact")
             for h in exact_hits
         )
 
@@ -401,7 +405,9 @@ def build_multi_stage_retrieval(
 
     if multi_stage_retrieval is not None:
         return multi_stage_retrieval
+    from pi_platform.core.retrieval.selection import SelectionCore
     return MultiStageRetrievalCore(
+        selection=SelectionCore(),
         hybrid=hybrid_retrieval,
         metadata=metadata_filter,
         graph_expansion=graph_expansion,
@@ -424,22 +430,6 @@ def build_semantic_index_service(
     query path (it is an ingestion-time concern).
     """
 
-    if not isinstance(dense_index, USearchDenseIndex):
-        # The service currently assumes the production
-        # ``USearchDenseIndex`` because it is the only backend that
-        # has profile-hash namespacing and atomic activation. Other
-        # backends are acceptable in tests; callers that swap in a
-        # flat backend use the ``InMemoryVectorRecordStore`` test
-        # double and inspect the dense index manually.
-        from pi_platform.core.retrieval.semantic_index_service import (
-            SemanticIndexServiceError,
-        )
-        raise SemanticIndexServiceError(
-            "build_semantic_index_service requires the production "
-            "USearchDenseIndex; the flat backend is acceptable for "
-            "tests but the production composition always uses "
-            "USearchDenseIndex"
-        )
     return SemanticIndexService(
         embedding_model=embedding_model,
         vector_record_store=vector_record_store,
@@ -453,6 +443,7 @@ def build_production_retrieval_runtime(
     cache_root: Path | str | None = None,
     embedding_alias: str = GEMMA_ALIAS,
     device: str = "auto",
+    model_cache_dir: str | None = None,
     startup_profile: str = StartupProfile.PRODUCTION,
     embedding_model: EmbeddingModelPort | None = None,
     vector_record_store: VectorRecordStorePort | None = None,
@@ -468,6 +459,7 @@ def build_production_retrieval_runtime(
     embedding_model_factory: EmbeddingModelFactory | None = None,
     prefer_real_usearch: bool = True,
     rerank_budget: int = DEFAULT_RERANK_BUDGET,
+    chunk_catalog: Mapping[str, RetrievalHit] | None = None,
 ) -> ProductionRetrievalRuntime:
     """Build the production retrieval runtime.
 
@@ -498,10 +490,16 @@ def build_production_retrieval_runtime(
             f"one of {sorted(PRODUCTION_ALIASES | {HASHING_ALIAS})}"
         )
     embedding_model_port = embedding_model or factory.build(
-        resolved_alias, device=device,
+        resolved_alias, device=device, cache_folder=str(Path(model_cache_dir) / "hub") if model_cache_dir else None,
     )
     embedding_profile = embedding_model_port.profile()
     embedding_profile_hash = embedding_profile.identity()
+
+    if startup_profile == StartupProfile.PRODUCTION and resolved_alias == HASHING_ALIAS:
+        raise ValueError("hashing requires the explicit minimal startup profile")
+    if (startup_profile == StartupProfile.PRODUCTION and dense_index is None
+            and (not prefer_real_usearch or not is_real_usearch_available())):
+        raise RuntimeError("Production requires real USearch; install pi-platform[production] or select minimal explicitly")
 
     # --- 2. vector record store ------------------------------------
     if vector_record_store is None:
@@ -524,7 +522,7 @@ def build_production_retrieval_runtime(
         embedding_profile_hash=embedding_profile_hash,
         cache_root=profile_cache_root,
         output_dimension=embedding_profile.output_dimension,
-        prefer_real_usearch=prefer_real_usearch,
+        prefer_real_usearch=prefer_real_usearch and startup_profile != StartupProfile.MINIMAL,
     )
     # When the caller injected a flat dense index for tests we
     # still keep the production profile-hash namespace contract:
@@ -533,6 +531,7 @@ def build_production_retrieval_runtime(
         dense_key_store = DenseKeyStore(
             os.path.join(profile_cache_root, "dense_keys.sqlite"),
         )
+        dense._dense_key_store = dense_key_store
     else:
         dense_key_store = None
     backend_name = (
@@ -550,6 +549,8 @@ def build_production_retrieval_runtime(
         sparse_index=sparse,
         exact_lookup=exact_lookup,
         hybrid_retrieval=hybrid_retrieval,
+        embedding_model=embedding_model_port,
+        chunk_catalog=chunk_catalog,
     )
 
     # --- 6. metadata filter ----------------------------------------
@@ -559,7 +560,7 @@ def build_production_retrieval_runtime(
     rnk = build_reranker(reranker=reranker, budget=rerank_budget)
 
     # --- 8. graph expansion ----------------------------------------
-    graph = build_graph_expansion(graph_expansion=graph_expansion)
+    graph = build_graph_expansion(graph_expansion=graph_expansion, graph=LocalShardedGraph(cache_root_path / "graph"))
 
     # --- 9. context assembler --------------------------------------
     assembler = build_context_assembler(

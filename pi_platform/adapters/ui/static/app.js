@@ -188,6 +188,16 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function refreshBootstrapStatus() {
+    call("GET", API + "/indexing-status").then(function (status) {
+      show("bootstrap-status", status);
+    }).catch(function (error) {
+      show("bootstrap-status", String(error));
+    });
+  }
+  refreshBootstrapStatus();
+  window.setInterval(refreshBootstrapStatus, 3000);
+
   // ---- First-start wizard & semantic model administration ---------------
   var wizardForm = document.getElementById("wizard-form");
   if (wizardForm) {
@@ -210,10 +220,10 @@ document.addEventListener("DOMContentLoaded", function () {
         embedding_model_alias: document.getElementById("embedding-model-select").value,
         device: document.getElementById("embedding-device-select").value,
         document_processing_enabled: Boolean(document.getElementById("docling-enabled-checkbox").checked),
-        bootstrap_state: "ready"
+        bootstrap_state: "not-started"
       };
       run("wizard-result", function () {
-        return call("PUT", API + "/admin/retrieval", payload);
+        return call("POST", API + "/wizard", payload);
       });
     });
 

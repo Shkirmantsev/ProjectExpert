@@ -31,3 +31,5 @@ ARTIFACT_MANIFEST.sha256
 CLAUDE.md
 AGENTS.md
 Makefile
+
+!distribution/deployment/Makefile

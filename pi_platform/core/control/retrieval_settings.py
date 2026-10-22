@@ -75,17 +75,21 @@ DEFAULT_BOOTSTRAP_STATE = "not-started"
 PRODUCTION_MODEL_CHOICES = (
     "google/embeddinggemma-2",
     "Qwen/Qwen3-Embedding-0.6B",
+    "Qwen/Qwen3-Embedding-0.6B-GGUF",
+    "ggml-org/embeddinggemma-2-GGUF",
 )
 PRODUCTION_ALIAS_TO_MODEL_ID = {
     "gemma": "google/embeddinggemma-2",
     "qwen": "Qwen/Qwen3-Embedding-0.6B",
+    "qwen-gguf": "Qwen/Qwen3-Embedding-0.6B-GGUF",
+    "gemma-gguf": "ggml-org/embeddinggemma-2-GGUF",
 }
 MODEL_ID_TO_ALIAS = {
     model_id: alias for alias, model_id in PRODUCTION_ALIAS_TO_MODEL_ID.items()
 }
 PRODUCTION_ALIASES = frozenset(PRODUCTION_ALIAS_TO_MODEL_ID)
 
-DEVICE_CHOICES = ("auto", "cpu", "cuda")
+DEVICE_CHOICES = ("auto", "cpu", "cuda", "mps", "vulkan")
 
 BOOTSTRAP_STATES = (
     "not-started",

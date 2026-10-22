@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import secrets
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
@@ -144,6 +145,8 @@ class RetrievalAdminRoutes:
             lambda: ADMIN_CAPABILITY
         )
         self._jobs: dict[str, dict[str, Any]] = {}
+        self.job_executor: Callable[[str, Mapping[str, Any]], None] | None = None
+        self.settings_changed: Callable[[RetrievalSettings, Mapping[str, Any]], None] | None = None
 
     # -- introspection -----------------------------------------------
 
@@ -208,6 +211,16 @@ class RetrievalAdminRoutes:
             "message": f"{kind} queued",
             "details": dict(details),
         }
+        if self.job_executor is not None:
+            def execute():
+                self.set_job_progress(job_id, status="running", message=f"{kind} running")
+                try:
+                    self.job_executor(kind, details)
+                except Exception as exc:
+                    self.set_job_progress(job_id, status="failed", message=str(exc))
+                else:
+                    self.set_job_progress(job_id, status="completed", progress_pct=100, message=f"{kind} completed")
+            threading.Thread(target=execute, name=f"pi-admin-{job_id}", daemon=True).start()
         return job_id
 
     def set_job_progress(
@@ -301,6 +314,8 @@ class RetrievalAdminRoutes:
                 code="settings-write-failed",
                 details={"path": RETRIEVAL_PATH},
             )
+        if self.settings_changed is not None:
+            self.settings_changed(settings, patch)
         return RouteResponse.ok(settings.as_dict())
 
     def handle_models_pull(self, body: Any = None) -> RouteResponse:

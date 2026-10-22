@@ -127,14 +127,14 @@ EMBEDDINGGEMMA2_512 = EmbeddingProfile(
     provider="embeddinggemma2",
     model_id="google/embeddinggemma-2",
     model_revision=_EMBEDDINGGEMMA2_REVISION,
-    modality="text",
+    modality="text-image",
     output_dimension=512,
     normalization="l2",
-    instruction_profile="project-expert-gemma-search-v1",
+    instruction_profile="project-expert-gemma-search-v2",
     tokenizer_id=(
         f"google/embeddinggemma-2@{_EMBEDDINGGEMMA2_REVISION}"
     ),
-    strategy_version=EMBEDDING_PROFILE_STRATEGY_VERSION,
+    strategy_version="embedding-profile-v2-gemma-vision",
 )
 
 _QWEN3_REVISION = os.environ.get("PI_QWEN3_REVISION", QwenRevisionDefault)
@@ -145,7 +145,7 @@ QWEN3_EMBEDDING_0_6B_1024 = EmbeddingProfile(
     modality="text",
     output_dimension=1024,
     normalization="l2",
-    instruction_profile="project-expert-qwen-query-v1",
+    instruction_profile="project-expert-qwen-query-v2",
     tokenizer_id=(
         f"Qwen/Qwen3-Embedding-0.6B@{_QWEN3_REVISION}"
     ),

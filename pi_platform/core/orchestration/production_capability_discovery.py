@@ -119,6 +119,8 @@ def classify_embedding_adapter(
         "model_id": getattr(profile, "model_id", None),
         "model_revision": getattr(profile, "model_revision", None),
         "dimension": adapter.dimension(),
+        "device": getattr(adapter, "_device", None),
+        "extra": {"device_selection_reason": getattr(adapter, "device_selection_reason", "not applicable")},
     }
     try:
         v = adapter.embed("")

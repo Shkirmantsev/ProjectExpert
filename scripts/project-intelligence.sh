@@ -18,7 +18,7 @@
 # Environment:
 #   PI_CONTROL_PORT  - UI/API port inside the host (default 8765)
 #   PI_TARGET_REPO   - target repository path (default: current directory)
-#   PI_PROFILE       - compose profile to start (default: desktop-lite)
+#   PI_PROFILE       - compose profile to start (default: production)
 #   PI_OPEN_BROWSER  - set to 0 to suppress browser opening (default: auto)
 
 set -euo pipefail
@@ -26,7 +26,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TARGET_REPO="${PI_TARGET_REPO:-$(pwd)}"
-PROFILE="${PI_PROFILE:-desktop-lite}"
+PROFILE="${PI_PROFILE:-production}"
 CMD="start"
 COMPOSE_CMD=""
 
@@ -104,14 +104,14 @@ wait_for_readiness() {
   local url="http://localhost:${PI_CONTROL_PORT}/health/ready"
   log "waiting for ${url} (readiness, not liveness)"
   local attempt
-  for attempt in $(seq 1 60); do
+  for attempt in $(seq 1 $(( (${PI_WAIT_TIMEOUT:-1800} + 1) / 2 ))); do
     if curl --silent --fail --max-time 2 "${url}" >/dev/null 2>&1; then
       log "platform reports ready after ${attempt} attempt(s)"
       return 0
     fi
     sleep 2
   done
-  die "platform did not become ready within 120s; check '${COMPOSE_CMD} logs'"
+  die "platform did not become ready within ${PI_WAIT_TIMEOUT:-1800}s; check '${COMPOSE_CMD} logs'"
 }
 
 stop_profile() {

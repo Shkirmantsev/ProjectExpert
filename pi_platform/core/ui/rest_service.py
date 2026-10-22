@@ -313,6 +313,9 @@ class RestService(RestApiPort):
                 "bound_version": str(getattr(report, "bound_version", "") or ""),
                 "wal_tail_length": int(getattr(report, "wal_tail_length", 0) or 0),
             }
+        retrieval_stats = getattr(self._retrieval, "stats", None)
+        if retrieval_stats is not None:
+            indexes = {**indexes, "retrieval": dict(retrieval_stats())}
         ready = hydration["consistent"] and not hydration["in_progress"]
         return IndexingStatusResult(ready=ready, hydration=hydration, indexes=indexes)
 

@@ -55,7 +55,9 @@ DEFAULT_INCLUDE_PATTERNS: tuple[str, ...] = (
     "settings.gradle.kts", "package.json", "requirements*.txt",
     "pyproject.toml", "Cargo.toml", "go.mod",
     # Documentation
-    "*.md", "*.rst", "*.adoc",
+    "*.md", "*.rst", "*.adoc", "*.txt", "*.html", "*.htm", "*.pdf",
+    "*.xml", "*.yaml", "*.yml", "*.json", "*.proto", "*.graphql", "*.sql",
+    "*.png", "*.jpg", "*.jpeg", "*.webp",
     # OpenSpec and project knowledge
     "openspec/**", "docs/**", "requirements/**",
 )
@@ -64,7 +66,7 @@ DEFAULT_EXCLUDE_PATTERNS: tuple[str, ...] = (
     # Version control
     ".git/**", ".hg/**", ".svn/**",
     # Runtime caches
-    ".project-intelligence-cache/**",
+    ".project-intelligence-cache/**", ".project-intelligence-deploy/**",
     "node_modules/**", ".venv/**", "venv/**", "__pycache__/**",
     # Build outputs
     "target/**", "build/**", "dist/**", "out/**", ".next/**",
@@ -283,10 +285,12 @@ class RepositorySourceDiscovery:
                 rel = self._relative_posix(
                     repo_root, Path(dirpath) / d,
                 )
-                if self._is_excluded(rel + "/"):
+                if (Path(dirpath) / d).is_symlink() or self._is_excluded(rel + "/") or self._is_excluded(d + "/"):
                     dirnames.remove(d)
             for filename in filenames:
                 file_path = Path(dirpath) / filename
+                if file_path.is_symlink():
+                    continue
                 rel = self._relative_posix(repo_root, file_path)
                 if self._is_excluded(rel):
                     continue

@@ -24,12 +24,9 @@ runtime probes the spec delta demands (plan §64):
 * an unavailable real Docling binding (synthetic Docling
   adapter) fails the build.
 
-A real binding that merely cannot load its pinned weights on
-the current runner is *not* a stub: it is reported in
-``skipped`` with the underlying error so the release gate stays
-deterministic on machines that only provision part of the
-model cache, while the capability report keeps telling the
-truth (``real-and-not-installed``).
+Every production-enabled model must load and encode successfully in the
+release lane. The explicit inventory-only lane checks metadata without
+claiming that optional runtime capabilities have been verified.
 
 The function is callable as a library entry point and as a CLI
 through :mod:`pi_platform.cli.production_capability_gate`.
@@ -39,6 +36,9 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+import re
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
@@ -176,13 +176,13 @@ def _classify_record(record: dict) -> GateVerdict:
                 f"(revision={revision!r}, status={status!r})"
             ),
         )
-    if not revision:
+    if not re.fullmatch(r"[0-9a-fA-F]{40}", revision):
         return GateVerdict(
             state="FAIL",
             name=name,
             detail=(
                 f"production_enabled record {model_id!r} (profile "
-                f"{profile!r}) has no immutable revision"
+                f"{profile!r}) has no immutable 40-character revision"
             ),
         )
     if not status or status not in {
@@ -228,11 +228,8 @@ def _probe_embedding_record(record: Mapping) -> GateVerdict:
     without ever having attempted to load its pinned weights, or it
     raises the documented ``not bound`` message.
 
-    A real binding whose weights cannot be loaded on this runner
-    (incomplete model cache, offline machine) is a provisioning
-    problem, not a stub; it is reported as ``SKIPPED`` with the
-    underlying error instead of failing the build, and the truthful
-    capability report still surfaces it as ``real-and-not-installed``.
+    A failure to load pinned weights is a release failure, including offline,
+    incompatible-dependency and incomplete-cache errors.
     """
 
     model_id = record.get("model_id", "<unknown>")
@@ -253,7 +250,7 @@ def _probe_embedding_record(record: Mapping) -> GateVerdict:
         )
 
     try:
-        vector = adapter.embed("")
+        vector = adapter.embed("production capability verification")
     except EmbeddingModelError as exc:
         message = str(exc)
         attempted_load = bool(getattr(adapter, "_load_failed", False))
@@ -271,13 +268,8 @@ def _probe_embedding_record(record: Mapping) -> GateVerdict:
                 ),
             )
         return GateVerdict(
-            state="SKIPPED",
-            name=name,
-            detail=(
-                f"embedding probe for {model_id!r} (profile {profile!r}) "
-                f"could not load the pinned weights on this runner "
-                f"(model provisioning, not a stub): {message}"
-            ),
+            state="FAIL", name=name,
+            detail=f"production model {model_id!r} could not load pinned weights: {message}",
         )
     except Exception as exc:  # pragma: no cover - defensive
         return GateVerdict(
@@ -289,6 +281,11 @@ def _probe_embedding_record(record: Mapping) -> GateVerdict:
             ),
         )
 
+    norm = math.sqrt(sum(float(v) ** 2 for v in vector))
+    if not all(math.isfinite(float(v)) for v in vector) or not math.isfinite(norm) or abs(norm - 1.0) > 0.02:
+        return GateVerdict(state="FAIL", name=name, detail=f"production model {model_id!r} returned a non-finite or non-normalized vector")
+    if adapter.profile().model_revision != record.get("revision"):
+        return GateVerdict(state="FAIL", name=name, detail=f"production model {model_id!r} revision does not match the release inventory")
     dimension = adapter.dimension()
     if len(vector) != dimension:
         return GateVerdict(
@@ -363,6 +360,7 @@ def run_production_capability_gate(
     *,
     inventory_path: Path | None = None,
     repo_root: Path | None = None,
+    runtime_checks: bool = True,
 ) -> GateReport:
     """Run the production-capability gate and return the report.
 
@@ -374,14 +372,17 @@ def run_production_capability_gate(
     The report contains one verdict per production-enabled record
     (license-inventory scan plus embedding probe), one verdict for
     the dense backend and one verdict for the documents backend.
-    Excluded records and embedding probes that only failed to load
-    their weights land in ``skipped`` and never fail the build.
+    Only explicitly excluded records land in ``skipped``. Missing or broken
+    production components fail. ``runtime_checks=False`` is the explicit
+    inventory-only core CI lane, not a production release verdict.
     """
 
     repo = repo_root or REPO_ROOT_HINT
     inv_path = inventory_path or (
         repo / "distribution" / "licenses" / "model-licenses.json"
     )
+    if inventory_path is None and repo_root is None and not inv_path.exists():
+        inv_path = Path(sys.prefix) / "distribution/licenses/model-licenses.json"
     if not inv_path.exists():
         return GateReport(
             passed=False,
@@ -401,13 +402,16 @@ def run_production_capability_gate(
     runtime_skipped: list[GateVerdict] = []
     for record in production:
         verdicts.append(_classify_record(record))
+        if not runtime_checks:
+            continue
         probe = _probe_embedding_record(record)
         if probe.state == "SKIPPED":
             runtime_skipped.append(probe)
         else:
             verdicts.append(probe)
-    verdicts.append(_probe_dense_backend())
-    verdicts.append(_probe_documents_backend())
+    if runtime_checks:
+        verdicts.append(_probe_dense_backend())
+        verdicts.append(_probe_documents_backend())
 
     skipped = tuple(
         GateVerdict(

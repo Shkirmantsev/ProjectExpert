@@ -66,10 +66,8 @@ DEFAULT_MODEL_ID = "google/embeddinggemma-2"
 # ``distribution/licenses/model-licenses.json`` to ensure the binding
 # never silently runs against a different upstream state. Update
 # together with the license JSON.
-PINNED_REVISION = os.environ.get(
-    "PI_EMBEDDINGGEMMA2_REVISION",
-    "unset-pin-via-model-licenses-json",
-)
+PINNED_REVISION = EMBEDDINGGEMMA2_512.model_revision
+
 DEFAULT_LICENSE_ID = "Apache-2.0"
 DEFAULT_OUTPUT_DIMENSION = 512  # Matryoshka-truncated (plan §6.1)
 
@@ -77,9 +75,9 @@ DEFAULT_OUTPUT_DIMENSION = 512  # Matryoshka-truncated (plan §6.1)
 # uses the official task type; the document side uses the structured
 # ``title: ... | text: ...`` format that EmbeddingGemma 2 expects.
 TASK_PROMPTS: Mapping[EmbeddingTask, str] = {
-    EmbeddingTask.SEARCH: "SearchQuery",
-    EmbeddingTask.CODE_RETRIEVAL: "CodeRetrieval",
-    EmbeddingTask.QUESTION_ANSWERING: "QuestionAnswering",
+    EmbeddingTask.SEARCH: "task: search result | query: ",
+    EmbeddingTask.CODE_RETRIEVAL: "task: code retrieval | query: ",
+    EmbeddingTask.QUESTION_ANSWERING: "task: question answering | query: ",
 }
 
 
@@ -137,6 +135,7 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
         device: str = "cpu",
         model_id: str | None = None,
         revision: str | None = None,
+        cache_folder: str | None = None,
     ) -> None:
         # Plan §11 / §101: the adapter's default model id and
         # revision come from the EmbeddingProfile so the runtime
@@ -144,20 +143,17 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
         # ``model_id`` / ``revision`` arguments override the
         # profile for tests only.
         self._profile = profile
-        if (device or "auto").strip().lower() == "auto":
-            try:
-                import torch
-                self._device = "cuda" if torch.cuda.is_available() else "cpu"
-            except Exception:
-                self._device = "cpu"
-        else:
-            self._device = device.strip().lower()
+        from pi_platform.adapters.config.runtime_device import select_device
+        selection = select_device(device)
+        self._device = selection.device
+        self.device_selection_reason = selection.reason
         self._model_id = model_id or profile.model_id
         self._revision = (
             revision
             or os.environ.get("PI_EMBEDDINGGEMMA2_REVISION")
             or profile.model_revision
         )
+        self._cache_folder = cache_folder or os.environ.get("PI_MODEL_CACHE")
         self._calls = 0
         self._tokens = 0
         self._errors = 0
@@ -169,8 +165,10 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
     # -- lazy loading -----------------------------------------------------
 
     def _ensure_loaded(self):
-        if self._model is not None or self._load_failed:
+        if self._model is not None:
             return
+        if self._load_failed:
+            raise EmbeddingModelError(self._load_error or _NOT_BOUND_MESSAGE)
         try:
             from sentence_transformers import SentenceTransformer
             import torch
@@ -182,32 +180,20 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
             raise EmbeddingModelError(self._load_error) from exc
 
         try:
-            torch_dtype = torch.float32 if self._device == "cpu" else torch.bfloat16
+            torch_dtype = (torch.bfloat16 if self._device == "cuda" and torch.cuda.is_bf16_supported() else torch.float32)
             # Plan §9.2 / §9.5: bind the model with Matryoshka
             # truncation to 512d. The library forwards
             # ``truncate_dim`` to the transformer loader; the
             # downstream ``encode`` call also passes the same
             # value for the runtime sanity check.
-            try:
-                self._model = SentenceTransformer(
+            self._model = SentenceTransformer(
                     self._model_id,
                     revision=self._revision,
                     device=self._device,
+                    cache_folder=self._cache_folder,
+                    config_kwargs={"audio_config": None},
                     truncate_dim=DEFAULT_OUTPUT_DIMENSION,
                     model_kwargs={"torch_dtype": torch_dtype},
-                )
-            except (TypeError, ModuleNotFoundError) as exc:
-                # Fallback for older / newer sentence-transformers
-                # that do not accept ``truncate_dim`` /
-                # ``model_kwargs`` or whose modules.json references
-                # the old ``sentence_transformers.base`` path.
-                # Patch the cached modules.json in place so the
-                # model loads with the new ``models.*`` layout.
-                self._patch_modules_json()
-                self._model = SentenceTransformer(
-                    self._model_id,
-                    revision=self._revision,
-                    device=self._device,
                 )
         except Exception as exc:  # pragma: no cover - network/runtime
             self._load_failed = True
@@ -216,60 +202,6 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
                 f"@{self._revision} on device {self._device}: {exc}"
             )
             raise EmbeddingModelError(self._load_error) from exc
-
-    @staticmethod
-    def _patch_modules_json() -> None:
-        """Rewrite a cached ``modules.json`` to use the modern
-        ``sentence_transformers.models.*`` paths.
-
-        EmbeddingGemma 2 was uploaded with the legacy
-        ``sentence_transformers.base.modules.<X>`` module paths;
-        current sentence-transformers (>=3.0) only ships
-        ``sentence_transformers.models.<X>``. The patch rewrites
-        the cached ``modules.json`` to use the new layout and is
-        idempotent.
-        """
-        import json as _json
-        from pathlib import Path
-
-        cache_dir = os.environ.get("HF_HOME") or os.path.expanduser(
-            "~/.cache/huggingface",
-        )
-        candidate = Path(cache_dir) / "hub" / (
-            "models--google--embeddinggemma-2"
-        )
-        if not candidate.exists():
-            return
-        for modules_path in candidate.glob("**/modules.json"):
-            try:
-                data = _json.loads(modules_path.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                continue
-            changed = False
-            for entry in data:
-                t = entry.get("type", "")
-                # ``sentence_transformers.base.modules.transformer.Transformer``
-                # -> ``sentence_transformers.models.Transformer``
-                if t.startswith("sentence_transformers.base.modules."):
-                    leaf = t.split(".")[-1]
-                    entry["type"] = (
-                        f"sentence_transformers.models.{leaf}"
-                    )
-                    changed = True
-                # ``sentence_transformers.sentence_transformer.modules.pooling.Pooling``
-                # -> ``sentence_transformers.models.Pooling``
-                elif t.startswith(
-                    "sentence_transformers.sentence_transformer.modules.",
-                ):
-                    leaf = t.split(".")[-1]
-                    entry["type"] = (
-                        f"sentence_transformers.models.{leaf}"
-                    )
-                    changed = True
-            if changed:
-                modules_path.write_text(
-                    _json.dumps(data, indent=2), encoding="utf-8",
-                )
 
     # -- port surface -----------------------------------------------------
 
@@ -303,15 +235,22 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
             prompt = TASK_PROMPTS.get(
                 request.task, TASK_PROMPTS[EmbeddingTask.SEARCH],
             )
-            texts_to_encode = [prompt + ": " + request.text]
+            texts_to_encode = [prompt + request.text]
         else:
             texts_to_encode = [_format_document_text(
                 request.text, request.title,
             )]
 
+        if request.image_path:
+            from pathlib import Path
+            image = Path(request.image_path)
+            if not image.is_file():
+                raise EmbeddingModelError('Image embedding input does not exist')
+            texts_to_encode = [{"text": texts_to_encode[0] + " <|image|>", "image": str(image)}]
         try:
             vectors = model.encode(
                 texts_to_encode,
+                prompt="",
                 convert_to_numpy=True,
                 normalize_embeddings=True,
                 truncate_dim=DEFAULT_OUTPUT_DIMENSION,
@@ -331,6 +270,8 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
     def embed_requests(
         self, requests: Sequence[EmbeddingRequest],
     ) -> Sequence[Sequence[float]]:
+        if any(request.image_path for request in requests):
+            return [self.embed_request(request) for request in requests]
         if not requests:
             return []
         try:
@@ -353,7 +294,7 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
                 prompt = TASK_PROMPTS.get(
                     r.task, TASK_PROMPTS[EmbeddingTask.SEARCH],
                 )
-                texts_to_encode.append(prompt + ": " + r.text)
+                texts_to_encode.append(prompt + r.text)
             else:
                 texts_to_encode.append(
                     _format_document_text(r.text, r.title),
@@ -362,6 +303,7 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
         try:
             vectors = model.encode(
                 texts_to_encode,
+                prompt="",
                 convert_to_numpy=True,
                 normalize_embeddings=True,
                 truncate_dim=DEFAULT_OUTPUT_DIMENSION,

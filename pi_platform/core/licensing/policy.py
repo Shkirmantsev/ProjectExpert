@@ -80,14 +80,72 @@ class LicensePolicy:
         spdx = (dependency.spdx or "").strip()
         if not spdx:
             return ("deny", "missing SPDX identifier")
-        if self._matches_deny(spdx):
+        tokens = re.findall(r"[A-Za-z0-9][A-Za-z0-9.+:-]*|[()]", spdx)
+        if "".join(tokens) != re.sub(r"\s+", "", spdx):
+            return ("deny", f"invalid SPDX expression {spdx!r}")
+        if self._matches_deny(spdx) or any(self._matches_deny(token) for token in tokens):
             return ("deny", f"SPDX {spdx!r} matches a deny pattern")
+        # Explicit whole-expression policies remain supported. WITH exceptions
+        # are a single policy identity; permitting the base alone never permits
+        # an unreviewed exception.
         if spdx in self.config.allow:
             return ("allow", f"SPDX {spdx!r} is on the allow list")
         if spdx in self.config.review:
             return ("review", f"SPDX {spdx!r} is on the review list")
-        return ("deny",
-                f"SPDX {spdx!r} is not on the allow or review list")
+        index = 0
+
+        def atom() -> str:
+            nonlocal index
+            if index >= len(tokens):
+                raise ValueError("missing operand")
+            if tokens[index] == "(":
+                index += 1
+                result = expression()
+                if index >= len(tokens) or tokens[index] != ")":
+                    raise ValueError("unclosed parenthesis")
+                index += 1
+                return result
+            identifier = tokens[index]
+            if identifier in {"AND", "OR", "WITH", ")"}:
+                raise ValueError("invalid operand")
+            index += 1
+            if index < len(tokens) and tokens[index] == "WITH":
+                index += 1
+                if index >= len(tokens) or tokens[index] in {"AND", "OR", "WITH", "(", ")"}:
+                    raise ValueError("missing exception")
+                identifier += " WITH " + tokens[index]
+                index += 1
+            if identifier in self.config.allow:
+                return "allow"
+            if identifier in self.config.review:
+                return "review"
+            return "deny"
+
+        def conjunction() -> str:
+            nonlocal index
+            result = atom()
+            while index < len(tokens) and tokens[index] == "AND":
+                index += 1
+                other = atom()
+                result = max((result, other), key={"allow": 0, "review": 1, "deny": 2}.get)
+            return result
+
+        def expression() -> str:
+            nonlocal index
+            result = conjunction()
+            while index < len(tokens) and tokens[index] == "OR":
+                index += 1
+                other = conjunction()
+                result = min((result, other), key={"allow": 0, "review": 1, "deny": 2}.get)
+            return result
+
+        try:
+            decision = expression()
+            if index != len(tokens):
+                raise ValueError("unexpected token")
+        except ValueError:
+            return ("deny", f"invalid SPDX expression {spdx!r}")
+        return (decision, f"SPDX {spdx!r} evaluates to {decision} under the configured allow/review lists")
 
     def evaluate_all(self,
                      dependencies: Iterable[Dependency]

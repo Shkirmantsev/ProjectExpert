@@ -291,15 +291,25 @@ class RuntimeSnapshotService:
     def has_persisted_snapshot(self) -> bool:
         """Return True iff all three files exist on disk."""
 
-        return (
-            (self._runtime_state_dir / ACTIVE_VERSION_FILENAME).is_file()
-            and (self._runtime_state_dir / MANIFEST_SNAPSHOT_FILENAME).is_file()
-            and (self._runtime_state_dir / SOURCE_SNAPSHOT_FILENAME).is_file()
-        )
+        return self.read_snapshot() is not None
 
     def read_snapshot(self) -> PersistedSnapshot | None:
         """Read the persisted snapshot; return ``None`` when absent."""
 
+        bundle = self._runtime_state_dir / "snapshot.json"
+        if bundle.is_file():
+            try:
+                payload = json.loads(bundle.read_text(encoding="utf-8"))
+                if payload is None:
+                    return None
+                return PersistedSnapshot(
+                    active=PersistedActiveVersion(**payload["active"]),
+                    manifest=ManifestSnapshot.from_dict(payload["manifest"]),
+                    source=SourceSnapshot.from_dict(payload["source"]),
+                )
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                raise RuntimeSnapshotError(f"failed to read runtime snapshot bundle: {exc}") from exc
+        # Backward compatibility: an old installation only has these three files.
         active_path = self._runtime_state_dir / ACTIVE_VERSION_FILENAME
         manifest_path = (
             self._runtime_state_dir / MANIFEST_SNAPSHOT_FILENAME
@@ -338,13 +348,11 @@ class RuntimeSnapshotService:
         manifest: ManifestSnapshot,
         source: SourceSnapshot,
     ) -> PersistedSnapshot:
-        """Atomically write the three persisted files.
+        """Publish one atomic bundle; retain three files as legacy projections.
 
-        ``os.replace`` on each file guarantees the previous
-        snapshot is preserved until the new one is fully on disk;
-        the manifest and source files are written first so a crash
-        mid-write leaves the active file pointing at the previous
-        snapshot hash and the reconcile loop refuses to advance.
+        Existing legacy snapshots are bundled before modifying their projections.
+        A failed mirror write or bundle replacement leaves the last successful
+        bundle authoritative, so readers cannot combine two generations.
         """
 
         self._runtime_state_dir.mkdir(parents=True, exist_ok=True)
@@ -353,7 +361,16 @@ class RuntimeSnapshotService:
         )
         source_path = self._runtime_state_dir / SOURCE_SNAPSHOT_FILENAME
         active_path = self._runtime_state_dir / ACTIVE_VERSION_FILENAME
+        bundle_path = self._runtime_state_dir / "snapshot.json"
         try:
+            if not bundle_path.exists():
+                previous = self.read_snapshot()
+                baseline = None if previous is None else {
+                    "active": previous.active.as_dict(),
+                    "manifest": previous.manifest.as_dict(),
+                    "source": previous.source.as_dict(),
+                }
+                self._atomic_write_json(bundle_path, baseline)
             self._atomic_write_json(
                 manifest_path, manifest.as_dict(),
             )
@@ -363,6 +380,10 @@ class RuntimeSnapshotService:
             self._atomic_write_json(
                 active_path, active.as_dict(),
             )
+            self._atomic_write_json(bundle_path, {
+                "active": active.as_dict(), "manifest": manifest.as_dict(),
+                "source": source.as_dict(),
+            })
         except OSError as exc:
             raise RuntimeSnapshotError(
                 f"failed to persist runtime snapshot: {exc}"
@@ -372,7 +393,7 @@ class RuntimeSnapshotService:
         )
 
     @staticmethod
-    def _atomic_write_json(path: Path, payload: dict[str, object]) -> None:
+    def _atomic_write_json(path: Path, payload: dict[str, object] | None) -> None:
         """Write ``payload`` as JSON to ``path`` atomically.
 
         Writes to a temporary sibling file and uses ``os.replace``
