@@ -273,8 +273,11 @@ class RestService(RestApiPort):
 
     def project_version(self, actor: UiActor) -> ProjectVersionResult:
         self._authorise("project-version", actor)
-        head = self._git.head(self._repo_root)
-        branch = self._git.current_branch(self._repo_root)
+        active = getattr(self, "_published_version", None)
+        head = active.head if active else self._git.head(self._repo_root)
+        branch = active.branch if active else self._git.current_branch(self._repo_root)
+        stats_fn = getattr(self._retrieval, "stats", None)
+        stats = stats_fn() if stats_fn else {}
         descriptor = (
             self._capabilities.describe() if self._capabilities is not None else None
         )
@@ -282,12 +285,12 @@ class RestService(RestApiPort):
             repo=str(self._repo_root),
             head=head,
             branch=branch,
-            fingerprint=self._context.project_version,
+            fingerprint=self._readiness.snapshot().working_tree_fingerprint,
             knowledge_schema_version=str(
                 getattr(descriptor, "knowledgeSchemaVersion", "") or ""
             ),
             embedding_model_version=str(
-                getattr(descriptor, "embeddingModelVersion", "") or ""
+                stats.get("embedding_model_version") or getattr(descriptor, "embeddingModelVersion", "") or ""
             ),
             index_schema_version=str(
                 getattr(descriptor, "runtimeIndexSchemaVersion", "") or ""
@@ -315,7 +318,16 @@ class RestService(RestApiPort):
             }
         retrieval_stats = getattr(self._retrieval, "stats", None)
         if retrieval_stats is not None:
-            indexes = {**indexes, "retrieval": dict(retrieval_stats())}
+            stats = dict(retrieval_stats())
+            indexes = {**indexes, "retrieval": stats}
+            if "active_chunks" in stats:
+                indexes.update(
+                    canonical_cache_entries=indexes.get("cache_entries", 0),
+                    cache_entries=stats["active_chunks"],
+                    active_sources=stats["active_sources"],
+                    semantic_backend=stats["backend"],
+                    bound_version=snapshot.current_head,
+                )
         ready = hydration["consistent"] and not hydration["in_progress"]
         return IndexingStatusResult(ready=ready, hydration=hydration, indexes=indexes)
 

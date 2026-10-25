@@ -93,6 +93,8 @@ def build_parser() -> argparse.ArgumentParser:
                           help="run the license gate against the dependency inventory")
     gate.add_argument("--target", type=Path, default=Path("."))
     gate.add_argument("--inventory", type=Path, default=None)
+    gate.add_argument("--additional-inventory", type=Path, action="append", default=[],
+                      help="also gate additive dependencies and include them in the SBOM; does not extend scoped approval")
     gate.add_argument("--production-lock", type=Path, default=None,
                       help="require reviewed exact coordinates for every dependency in this production lock")
     gate.add_argument("--license-review", type=Path, default=None,
@@ -367,6 +369,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="manage the production embedding models (list/status/pull/verify/use)",
     )
     models_sub = models.add_subparsers(dest="models_command", required=True)
+    models_prune = models_sub.add_parser(
+        "prune-incomplete", help="remove interrupted downloads older than 24h, excluding active downloads",
+    )
     models_list = models_sub.add_parser(
         "list", help="list the production-enabled models from the licence record",
     )
@@ -597,6 +602,8 @@ def _cmd_license_gate(args: argparse.Namespace) -> int:
         except (OSError, ValueError, KeyError, TypeError) as exc:
             print(json.dumps({"passed": False, "error": str(exc)}))
             return 1
+    for extra_inventory in getattr(args, "additional_inventory", ()):
+        deps.extend(DependencyInventory(extra_inventory).load())
     passed, findings = LicenseGate(policy).run(deps)
     coverage_errors: list[str] = []
     production_lock = getattr(args, "production_lock", None)
@@ -2314,6 +2321,7 @@ def _bootstrap_and_index_target_locked(
     if service is not None:
         from ..adapters.ui.composition import publish_runtime
         publish_runtime(service, runtime)
+        service._published_version = active_ver
     readiness.record_hydrate(hydrate_report)
     readiness.record_reconcile(
         transient_readiness._reconcile_report,
@@ -2626,11 +2634,19 @@ def _cmd_models_use(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_models_prune(args: argparse.Namespace) -> int:
+    from ..adapters.retrieval.model_cache import prune_incomplete
+    from ..adapters.config.runtime_configuration_resolver import RuntimeConfigurationResolver
+    print(json.dumps(prune_incomplete(RuntimeConfigurationResolver().resolve().model_cache_dir), indent=2))
+    return 0
+
+
 def _cmd_models(args: argparse.Namespace) -> int:
     """Dispatch the ``models`` command group (list/status/pull/verify/use)."""
 
     subcommand = getattr(args, "models_command", None)
     handlers = {
+        "prune-incomplete": _cmd_models_prune,
         "list": _cmd_models_list,
         "status": _cmd_models_status,
         "pull": _cmd_models_pull,

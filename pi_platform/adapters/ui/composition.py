@@ -605,6 +605,9 @@ class PublishedRetrieval:
             return {}
         return {**self.runtime.multi_stage_retrieval.stats(), **self.runtime.stage_report(),
                 "source_failures": list(self.runtime.extra.get("source_failures", ())),
+                "active_chunks": len(self.runtime.extra.get("chunk_ids", ())),
+                "active_sources": len(getattr(self.runtime.extra.get("source_inventory"), "entries", ())),
+                "embedding_model_version": self.runtime.embedding_model.profile().model_revision,
                 "resolved_configuration": self.runtime.extra.get("resolved_configuration", {})}
 
 

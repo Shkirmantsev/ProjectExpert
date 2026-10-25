@@ -1,9 +1,9 @@
 """Pinned upstream assets for the optional llama.cpp embedding runtime."""
-MODEL_ID = 'Qwen/Qwen3-Embedding-0.6B-GGUF'
-REVISION = '370f27d7550e0def9b39c1f16d3fbaa13aa67728'
-FILENAME = 'Qwen3-Embedding-0.6B-Q8_0.gguf'
-SHA256 = '06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439'
-MODEL_ALIAS = 'project-intelligence-qwen3-q8-' + SHA256
+MODEL_ID = 'openmycel/Qwen3-Embedding-0.6B-GGUF'
+REVISION = '333bba6d067e5ab591bc8c21f1b15950e4435083'
+FILENAME = 'Qwen3-Embedding-0.6B-Q4_K_M.gguf'
+SHA256 = '23d234bb57a42528a22a13e7beb8b57d8844b2b9cc741b4c27a8ff132abf0dfd'
+MODEL_ALIAS = 'project-intelligence-qwen3-q4-' + SHA256
 MODEL_URL = f'https://huggingface.co/{MODEL_ID}/resolve/{REVISION}/{FILENAME}'
 RUNTIME_VERSION = 'b11515'
 

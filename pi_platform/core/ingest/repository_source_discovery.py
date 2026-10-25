@@ -70,6 +70,7 @@ DEFAULT_EXCLUDE_PATTERNS: tuple[str, ...] = (
     "node_modules/**", ".venv/**", "venv/**", "__pycache__/**",
     # Build outputs
     "target/**", "build/**", "dist/**", "out/**", ".next/**",
+    "distribution/sbom/**",
     # Generated / vendor directories
     "vendor/**", "third_party/**", "generated/**", ".generated/**",
     # Local scratch

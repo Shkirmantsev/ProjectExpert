@@ -43,6 +43,9 @@ __all__ = [
 _DEFAULT_TOKENIZER_FOR_MODEL: Mapping[str, str] = {
     "google/embeddinggemma-2": "google/embeddinggemma-2",
     "Qwen/Qwen3-Embedding-0.6B": "Qwen/Qwen3-Embedding-0.6B",
+    "Qwen/Qwen3-Embedding-0.6B-GGUF": "Qwen/Qwen3-Embedding-0.6B",
+    "openmycel/Qwen3-Embedding-0.6B-GGUF": "Qwen/Qwen3-Embedding-0.6B",
+    "ggml-org/embeddinggemma-2-GGUF": "google/embeddinggemma-2",
 }
 
 

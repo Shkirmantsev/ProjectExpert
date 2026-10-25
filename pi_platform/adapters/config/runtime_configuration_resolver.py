@@ -247,7 +247,8 @@ class RuntimeConfigurationResolver:
             aliases = {"embeddinggemma2": "gemma", "qwen3": "qwen", "qwen3-embedding-0.6b": "qwen",
                        "google/embeddinggemma-2": "gemma", "qwen/qwen3-embedding-0.6b": "qwen",
                        "ggml-org/embeddinggemma-2-gguf": "gemma-gguf",
-                       "qwen/qwen3-embedding-0.6b-gguf": "qwen-gguf"}
+                       "qwen/qwen3-embedding-0.6b-gguf": "qwen-gguf",
+                       "openmycel/qwen3-embedding-0.6b-gguf": "qwen-gguf"}
             lowered = str(value).strip().lower()
             return aliases.get(lowered, lowered)
         if field == "dense_index":

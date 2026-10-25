@@ -240,7 +240,13 @@ class PollingProjectVersionMonitor(ProjectVersionMonitor):
                 current.working_tree_fingerprint,
                 datetime.now(timezone.utc).isoformat(),
             )
-            self.on_change(event)
+            try:
+                self.on_change(event)
+            except Exception:
+                # Explicit refreshes may target the already accepted version.
+                # Preserve the retry even for deterministic/manual polling.
+                self._previous = None
+                raise
             # Keep the pre-refresh identity: a checkout/edit made during model
             # indexing must trigger another pass, never become an accepted state.
             self._previous = current

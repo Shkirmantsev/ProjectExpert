@@ -149,7 +149,8 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
     ).resolve()
     import os
     if (config.startup_profile == 'production' and config.docling_enabled
-            and os.environ.get('PI_PREPARE_DOCLING', '0') == '1'):
+            and os.environ.get('PI_PREPARE_DOCLING', '0') == '1'
+            and any(_family(e.path) == SourceContentFamily.PDF for e in inventory.entries)):
         from pi_platform.adapters.pdf.real_docling import _pinned_pdf_assets
         _pinned_pdf_assets(do_ocr=True)
     cache_path = cache_root / 'ingestion.json'

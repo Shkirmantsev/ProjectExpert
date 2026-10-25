@@ -137,17 +137,17 @@
       "rationale": "Explicit immutable checkpoint selected by the real PDF adapter. This model asset license is separate from the MIT Docling package license. Downloaded on first PDF use; local cache supports offline operation. Not an embedding profile."
     },
     {
-      "model_id": "Qwen/Qwen3-Embedding-0.6B-GGUF",
-      "provider": "llama.cpp-qwen3-q8_0",
-      "revision": "370f27d7550e0def9b39c1f16d3fbaa13aa67728",
-      "sha256": "06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439",
+      "model_id": "openmycel/Qwen3-Embedding-0.6B-GGUF",
+      "provider": "llama.cpp-qwen3-q4_k_m",
+      "revision": "333bba6d067e5ab591bc8c21f1b15950e4435083",
+      "sha256": "23d234bb57a42528a22a13e7beb8b57d8844b2b9cc741b4c27a8ff132abf0dfd",
       "modality": "text",
       "spdx": "Apache-2.0",
       "profile": "optional-gguf",
       "production_enabled": false,
       "optional_runtime_enabled": true,
       "status": "optional-real-runtime",
-      "rationale": "Opt-in Q8_0 model with separate profile identity and pinned llama.cpp runtime; verified separately from default PyTorch release gate."
+      "rationale": "Qwen Q4_K_M distribution default. Community requantization of the official Qwen Q8 artifact, immutable revision and SHA-256 verified at setup. Upstream Apache-2.0 retained. A new profile identity prevents reuse of Q8 vectors."
     },
     {
       "model_id": "ggml-org/embeddinggemma-2-GGUF",

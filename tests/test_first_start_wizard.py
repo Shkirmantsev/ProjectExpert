@@ -66,7 +66,7 @@ class WizardRenderTests(FirstStartWizardTestBase):
         model_ids = [c["model_id"] for c in schema["model_choices"]]
         self.assertEqual(
             model_ids,
-            ["google/embeddinggemma-2", "Qwen/Qwen3-Embedding-0.6B", "Qwen/Qwen3-Embedding-0.6B-GGUF", "ggml-org/embeddinggemma-2-GGUF"],
+            ["google/embeddinggemma-2", "Qwen/Qwen3-Embedding-0.6B", "openmycel/Qwen3-Embedding-0.6B-GGUF", "ggml-org/embeddinggemma-2-GGUF"],
         )
         labels = [c["label"] for c in schema["model_choices"]]
         self.assertIn("EmbeddingGemma 2", labels)

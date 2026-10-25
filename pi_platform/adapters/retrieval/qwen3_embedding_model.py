@@ -139,7 +139,8 @@ class Qwen3EmbeddingModel(EmbeddingModelPort):
             or os.environ.get("PI_QWEN3_REVISION")
             or profile.model_revision
         )
-        self._cache_folder = cache_folder or os.environ.get("PI_MODEL_CACHE")
+        from .model_cache import hub_cache
+        self._cache_folder = hub_cache(cache_folder or os.environ.get("PI_MODEL_CACHE") or os.environ.get("HF_HOME"))
         self._calls = 0
         self._tokens = 0
         self._errors = 0

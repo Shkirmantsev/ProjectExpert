@@ -19,11 +19,11 @@ from .embeddinggemma2_embedding_model import TASK_PROMPTS, _format_document_text
 from pi_platform.ports.retrieval.embedding_model import EmbeddingTask
 
 GGUF_PROFILE = EmbeddingProfile(
-    provider='llama.cpp-qwen3-q8_0', model_id=MODEL_ID, model_revision=REVISION,
+    provider='llama.cpp-qwen3-q4_k_m', model_id=MODEL_ID, model_revision=REVISION,
     modality='text', output_dimension=1024, normalization='l2',
     instruction_profile='project-expert-qwen-query-v2',
     tokenizer_id=f'{MODEL_ID}@{REVISION}',
-    strategy_version=f'llama.cpp-{RUNTIME_VERSION}-q8_0-last-{SHA256}',
+    strategy_version=f'llama.cpp-{RUNTIME_VERSION}-q4_k_m-last-{SHA256}',
 )
 
 
