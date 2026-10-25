@@ -6,7 +6,6 @@ Expose platform retrieval, knowledge, orchestration, and approval-controlled wri
 
 ## Requirements
 
-
 Covers architecture section §36 (MCP Integration) and §47
 (Capability Discovery). The MCP server exposes the platform's
 Phase 1-5 surface as 17 semantic tools plus the
@@ -47,7 +46,6 @@ project.refresh_sources
 Phase 4 / Phase 5 retrieval-first policy. Exact entity, graph, version,
 provenance and sync operations delegate to their owning ports/services;
 they do not invoke retrieval or an LLM solely to perform an exact lookup.
-
 
 ### Requirement: MCP server composes the Phase 5 / Phase 4 surface
 
@@ -331,6 +329,13 @@ capability
 When the client calls the model switch tool
 Then the tool returns a structured authorisation error
 And the active embedding profile is unchanged.
+
+### Requirement: Interoperable transport
+The server SHALL provide standard initialize serverInfo.version and complete argument schemas, accept notifications without JSON-RPC replies, and return 405 for unsupported GET streams.
+
+#### Scenario: Clean external repository
+- **WHEN** the user starts the platform in a clean external repository
+- **THEN** the runtime follows this contract without development-harness prerequisites
 
 ## Phase 6 task coverage
 

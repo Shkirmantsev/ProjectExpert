@@ -21,15 +21,15 @@ maintenance:
 # Portable production deployment
 
 The production image is Linux amd64. Windows runs it through Docker Desktop
-with WSL2/Linux containers. The default uses native Qwen CPU inference; Gemma
-CPU is selectable. The diagnostic core image remains dependency-light and uses
+with WSL2/Linux containers. The deployment kit defaults to Qwen Q4_K_M CPU inference through a managed
+llama.cpp sidecar; native Qwen and Gemma CPU are explicitly selectable. The diagnostic core image remains dependency-light and uses
 hashing rather than semantic model inference.
 
 ```mermaid
 flowchart TD
     Kit[OCI deployment kit] --> Launcher[Bash or PowerShell launcher]
     Launcher --> App[Application container: UI, REST, MCP, CLI]
-    Launcher --> Setup[Optional GGUF model setup]
+    Launcher --> Setup[GGUF model setup]
     Setup --> Cache[Persistent model and projector cache]
     App --> CPU[Native Qwen or Gemma CPU]
     App --> OCR[Docling layout, table and OCR on CPU]
@@ -44,7 +44,7 @@ flowchart TD
 
 The kit defaults the target to its parent directory, preserves existing export
 files, and provides product-only Make targets. Model setup obtains the pinned
-selected weights and Docling assets before retrieval readiness. Gemma GGUF also
+selected weights before retrieval readiness. Docling assets load only for PDF inputs. Gemma GGUF also
 requires its projector. Native CPU models and document assets persist in the
 model volume; Windows GPU assets persist in the kit's accelerator directory.
 The target owns canonical knowledge and derived `.project-intelligence-cache/`;
@@ -87,3 +87,17 @@ Vulkan/CUDA and Windows runs and remote publication remain unverified. Follow
 [kit operation](../../../distribution/deployment/README.md), and the
 [verification report](../../../docs/PRODUCTION_RECONCILIATION_STATUS.md).
 The full portability change stays active until those acceptance checks finish.
+
+## Clean-install reliability update
+
+The Qwen GGUF artifact is the checksum-pinned OpenMycel Q4_K_M requantization of
+Qwen's official artifact (396,474,560 bytes), not native PyTorch quantization.
+Its profile includes the new revision/checksum, preventing Q8 vector reuse.
+GPU launchers probe the selected backend and accept `PI_GPU_DEVICE`; Windows
+runs native Vulkan for integrated GPUs rather than assuming Docker passthrough.
+
+Production adds the MIT Java grammar using a separate hash lock and license gate;
+the previously reviewed dependency closure remains unchanged. Hugging Face native
+models and model CLI commands use one `hub/` cache layout. `models prune-incomplete`
+removes only aged, unlocked partial blobs. Physical GPU execution remains an
+explicit release limitation until tested on suitable hardware.

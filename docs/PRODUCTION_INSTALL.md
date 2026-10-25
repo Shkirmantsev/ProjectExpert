@@ -126,8 +126,8 @@ Make is available, or use its `platform-status`, `platform-logs`, `platform-stop
 Edit `deployment.env` for a different repository, model or port. The repository
 must exist; Compose does not silently create a misspelled mount path.
 
-The default is real Qwen embedding inference on CPU with automatic pinned-model
-download on first startup. Weights and document-processing caches persist in a
+The kit default is Qwen Q4_K_M embedding inference on a managed CPU sidecar,
+with a 396 MB pinned-model download on first startup. Weights and document-processing caches persist in a
 named volume. The launcher waits up to 30 minutes for retrieval readiness;
 liveness does not count as successful setup. `platform-stop` retains the cache.
 The UI binds to localhost by default. Export credentials through your shell;
@@ -142,7 +142,7 @@ GPU prerequisites, Windows lifecycle and firewall scope. Set PI_ACCELERATOR in
 
 | Selection | Linux x86_64 | Windows x86_64 / Docker Desktop |
 |---|---|---|
-| cpu (default) | Gemma or Qwen in the container | Same Linux container via WSL2 |
+| cpu (default) | Qwen Q4 CPU sidecar; native models opt-in | Same Linux services via WSL2 |
 | vulkan | Selected Gemma/Qwen GGUF sidecar using /dev/dri | Automatically installed native Gemma/Qwen GGUF service |
 | cuda | Selected Gemma/Qwen GGUF sidecar with NVIDIA Container Toolkit | Automatically installed native Gemma/Qwen GGUF service |
 
@@ -154,7 +154,7 @@ choose `PI_EMBEDDING_MODEL=qwen` and `PI_ACCELERATOR=cpu` explicitly if desired.
 and retained PDF figure images, alongside text. Audio/video ingestion is not
 exposed. Changing profile creates a distinct vector namespace.
 
-Selected model weights and pinned Docling layout/table/OCR assets are prepared
+Selected model weights are prepared automatically. Pinned Docling layout/table/OCR assets are prepared only for PDF inputs
 automatically before initial retrieval readiness. No separate model download
 command is required. Provider access terms may still require user acceptance.
 Physical Vulkan/CUDA execution and Windows Docker Desktop were not available
@@ -166,3 +166,21 @@ cleanup is configured. Deployment sources remain in Git history after merge.
 GitHub owners can delete packages or repositories; archive required releases
 independently if retention must survive that. These local changes must still be
 merged and the publishing workflow must succeed before GHCR downloads exist.
+
+## Clean external-repository installations
+
+The deployment kit now defaults to `PI_EMBEDDING_MODEL=qwen-gguf` and
+`PI_ACCELERATOR=cpu`: a pinned Q4_K_M model (396 MB) served by the managed
+llama.cpp sidecar. Native `qwen` remains available for full-precision execution.
+PDF/OCR assets are downloaded only for repositories containing PDFs. See the
+[deployment guide](../distribution/deployment/README.md) for GPU device selection,
+integrated GPU startup, cache cleanup and upgrading an existing exported kit.
+
+Production installs `requirements-production-java-linux-x86_64.txt` in addition
+to the original dependency lock. This adds only `tree-sitter-java==0.23.5` (MIT)
+against the existing tree-sitter 0.26.0 runtime. Its separate inventory and gate
+preserve the exact prior production review; the build executes a real Java parse.
+
+MCP uses stateless Streamable HTTP at `/mcp`, with standard initialize metadata,
+argument schemas, empty 202 notification acknowledgements, and 405 for GET streams.
+Use a Streamable HTTP client, not a legacy SSE-only client.

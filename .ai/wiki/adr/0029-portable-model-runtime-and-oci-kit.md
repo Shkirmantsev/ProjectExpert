@@ -69,3 +69,17 @@ Windows execution and remote GHCR publication remain pending. Acceptance of
 this architectural decision does not certify those environments. See the
 [verification report](../../../docs/PRODUCTION_RECONCILIATION_STATUS.md) and
 [deployment architecture](../architecture/portable-deployment.md).
+
+## Amendment — 2026-10-25
+
+Clean external-repository installation showed that full-precision weights and
+eager document assets impose avoidable startup cost. The deployment kit now
+selects the pinned Qwen Q4_K_M CPU sidecar by default; explicit native model
+selection retains single-container execution. This supersedes the prior native
+CPU default only for the kit. Document assets load only for PDF inputs.
+
+The Q4 artifact is a checksum-pinned community requantization of the official
+Qwen GGUF, with retained Apache-2.0 provenance and a distinct vector identity.
+Real CPU inference, Java indexing, search and vector reuse pass on a small clean
+fixture. Device preflight and explicit device selection improve GPU diagnostics;
+physical GPU and Windows execution remain uncertified.

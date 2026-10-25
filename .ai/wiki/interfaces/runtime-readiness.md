@@ -55,3 +55,15 @@ The gate's snapshot carries `current_head` and
 the caller's requested evidence against the snapshot and
 rejects attempts to serve evidence from a different
 project version.
+## Stable-tree retry and status
+
+Failed version callbacks reset the accepted monitor baseline, including explicit
+refresh requests against unchanged content. A later polling tick retries without
+requiring another edit. Before/after content comparison still rejects candidates
+built while sources change. Generated `distribution/sbom/` output is excluded
+from discovery; genuine distribution source files remain included.
+
+Status exposes the published semantic `cache_entries` (active chunks),
+`canonical_cache_entries` separately, `active_sources`, `semantic_backend`, and
+retrieval statistics. Project version reports the readiness fingerprint and
+published model revision. Failure/readiness remain visible while a refresh runs.

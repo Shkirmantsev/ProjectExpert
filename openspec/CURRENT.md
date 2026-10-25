@@ -128,3 +128,15 @@ assets automatically, and license governance accepts only the exact approved
 closure. These contracts have local implementation evidence. The broader
 `ship-portable-oci-deployment` change remains active: physical GPU/Windows
 acceptance and remote GHCR publication are not completed or certified here.
+
+## Clean-install reliability adoption — 2026-10-25
+
+MCP now provides standard handshake metadata, argument schemas and stateless
+Streamable HTTP semantics. Refresh failures retry on stable trees; generated
+SBOMs do not invalidate content identity, and status reflects published semantic
+state. The deployment kit defaults to pinned Qwen Q4_K_M on a managed CPU sidecar,
+loads document assets only for PDFs, and supports GPU device preflight/selection.
+Native CPU deployment remains selectable. Java parsing and safe incomplete-cache
+cleanup are included. Existing capability identities are retained; the verified
+change is archived as `2026-10-25-fix-clean-install-runtime`. Physical GPU/Windows
+and remote publication acceptance remain separate from these software checks.

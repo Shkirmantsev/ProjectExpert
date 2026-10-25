@@ -2,7 +2,7 @@
 
 ## Purpose
 Make the platform installable as "download → start → open browser" (§58) by
-finalising the single-container default image, documenting the optional
+finalising the single application container with a default Q4 model sidecar, documenting the optional
 two-container profile and the distribution profile matrix (§45), completing the
 launcher duty list for Linux and Windows, and verifying a real launch.
 
@@ -55,27 +55,23 @@ When the launcher reaches readiness
 Then it prints the URL and exits successfully without failing.
 
 ### Requirement: Single-container default
-
-The default deployment MUST run backend, REST, UI, runtime store and MCP in one
-container. The lightweight UI MUST be served by that same container.
+The platform application SHALL keep backend, REST, UI, runtime store and MCP in
+one container. The lightweight deployment kit SHALL additionally start its managed
+Q4 model sidecar by default. Explicit native model configurations SHALL retain
+single-container execution.
 
 #### Scenario: default profile is one container
-
-Given the default distribution profile
-When the platform is started
-Then exactly one core container runs and serves the UI.
+- **WHEN** a clean kit starts with default settings
+- **THEN** its application and Q4 CPU embedding services start automatically
 
 ### Requirement: Optional two-container profile
-
-A second container MUST remain optional and MUST be used only for isolated model
-runtime or an optional UI integration. It MUST NOT be required by any default
-profile.
+Isolated model runtimes MAY run as a second service. Native model execution and
+optional UI integrations SHALL remain explicitly selectable. A model sidecar SHALL
+be required only for the selected GGUF profile, including the lightweight default.
 
 #### Scenario: second container stays optional
-
-Given the optional UI or model runtime profile
-When it is not selected
-Then no second container is started.
+- **WHEN** the operator selects native Qwen on CPU
+- **THEN** no embedding sidecar is started
 
 ### Requirement: Documented distribution profiles
 
@@ -194,19 +190,19 @@ Given a user starts the container or `docker compose` with a target repository m
 When the container boots
 Then it automatically hydrates and reconciles `/repo`, reports `200 OK` on `/health/ready`, and serves the UI, REST API (`/api/v1/*`), MCP endpoint (`/mcp`), and optional A2A routes (`/.well-known/agent-card.json`, `/a2a/v1/tasks:send`).
 
-
 ### Requirement: CPU production startup provisions inference assets
-
-The production CPU deployment MUST obtain the selected pinned Qwen or Gemma
-model and Docling layout, table and OCR assets during startup into persistent
-storage. It MUST require no separate model-download command and MUST report
-retrieval readiness only after setup and indexing succeed. The diagnostic core
-image MUST remain distinct from production semantic inference.
+Production startup SHALL obtain the selected pinned embedding model automatically.
+It SHALL obtain Docling layout/table/OCR assets on demand for PDF inputs, and SHALL
+not download these assets for code-only repositories. Persistent caches SHALL be
+reused across restarts.
 
 #### Scenario: Clean CPU startup
+- **WHEN** the default kit starts against source code with no PDFs
+- **THEN** only its selected embedding weights are downloaded
 
-Given a production container, network/model access and an empty model cache
-When it starts against a target repository
-Then it prepares the selected model and document assets automatically
-And real search becomes available before the launcher reports success
-And a restart reuses the persistent assets.
+### Requirement: Lightweight deployment
+The deployment kit SHALL default to checksum-pinned Q4 Qwen GGUF on CPU, load PDF assets on demand, include Java parsing in production, and support explicit CUDA or Vulkan device selection with actionable startup diagnostics.
+
+#### Scenario: Clean external repository
+- **WHEN** the user starts the platform in a clean external repository
+- **THEN** the runtime follows this contract without development-harness prerequisites

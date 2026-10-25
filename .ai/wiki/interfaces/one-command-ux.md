@@ -122,7 +122,7 @@ it cannot silently manufacture a Gemma choice over a configured Qwen default.
 `distribution/deployment/` contains product-only Compose, non-secret defaults,
 Make targets and Bash/PowerShell launchers. The `deployment-kit` Containerfile
 stage exports them without overwriting existing files. Published kits bind the
-runtime to a tested image digest. The default selects Qwen/CPU and automatically
+runtime to a tested image digest. The kit default selects Qwen Q4_K_M in a managed CPU sidecar and automatically
 downloads weights into persistent model storage. Startup waits for HTTP retrieval
 readiness for up to 30 minutes. Windows uses Docker Desktop's Linux engine.
 Office GPUs require no special driver for CPU operation. Optional pinned Gemma/Qwen

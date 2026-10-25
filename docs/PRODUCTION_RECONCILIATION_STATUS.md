@@ -200,3 +200,41 @@ succeed, so the runner does not misreport PASS as failure.
 The two skipped OCI jobs depended on the failed Windows launcher job; their
 prerequisite gates remain intact. A new remote run is required to confirm these
 fixes on both Windows Python versions and allow container verification to run.
+
+
+## Clean-install fixes — 2026-10-25
+
+Implemented and adopted in `2026-10-25-fix-clean-install-runtime`:
+
+- Standard MCP handshake/schema and stateless HTTP behavior. OpenCode 1.19.4
+  reported `connected` from isolated configuration; official MCP SDK initialization,
+  tool listing and tool calls also passed.
+- Stable-tree explicit retry, generated SBOM exclusion, and fail-closed recovery
+  after a real source edit during indexing. Published status reports semantic
+  chunks separately from canonical cache records and exposes the active identity.
+- Deployment-kit default Qwen Q4_K_M (396,474,560 bytes), revision and SHA-256
+  pinned. Real llama.cpp CPU model load took approximately 1.7 seconds; first
+  indexing of a tiny Java/Markdown fixture took 1.15 seconds for three vectors.
+  Search, reuse of all vectors after restart, and edit refresh passed. These are
+  fixture measurements with downloaded weights, not a large-repository benchmark.
+- Code-only startup avoids PDF/OCR downloads. Native model commands share one
+  Hugging Face cache layout; conservative partial-download cleanup is available.
+- Production Java grammar is hash-locked and MIT-gated, with supported tree-sitter
+  0.25.2/0.26.0 bindings. Real isolated Java parsing passed. The supplemental
+  inventory is included in the production SBOM without extending prior scoped
+  license approval.
+- CPU/CUDA/Vulkan Compose selection and explicit device selection/preflight tests
+  passed. Physical GPU/integrated-GPU and Windows execution remain NOT RUN.
+
+`python3 harness.py check` passed: 1,461 tests across its isolated module runs,
+including 15 skips for unavailable/opt-in integrations. The Q4 and official SDK
+checks were executed separately with their required runtimes enabled. Strict
+OpenSpec validation and Wiki validation also pass after adoption.
+
+The rebuilt production image passed the shipped Compose smoke test against a
+clean temporary Git repository containing Java and Markdown. Model setup,
+readiness, semantic search, accurate status, UI, MCP, dependency consistency and
+restart all passed. The test reused verified Q4 weights in an isolated volume;
+the initial weight download and hash verification were tested separately. The
+exported deployment kit also passed configuration checks. Temporary smoke
+containers and volumes were removed. No new GHCR image has been published.
