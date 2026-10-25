@@ -104,6 +104,39 @@ class DeploymentTests(unittest.TestCase):
         self.assertNotIn('down -v', run.stdout)
         self.assertNotIn('harness.py', run.stdout)
 
+    @unittest.skipUnless(os.name != 'nt' and shutil.which('docker'), 'Linux Compose config required')
+    def test_default_is_q4_and_explicit_integrated_device_is_preserved(self):
+        env = {key: value for key, value in os.environ.items() if not key.startswith('PI_')}
+        result = subprocess.run(['bash', str(BUNDLE/'compose.sh'), 'config', '--format', 'json'], env=env, capture_output=True, text=True, check=True)
+        services = json.loads(result.stdout)['services']
+        self.assertEqual(services['production']['environment']['PI_EMBEDDING_MODEL'], 'qwen-gguf')
+        self.assertIn('Q4_K_M', services['embeddings']['environment']['LLAMA_ARG_MODEL'])
+        env.update(PI_ACCELERATOR='vulkan', PI_GPU_DEVICE='Vulkan1')
+        result = subprocess.run(['bash', str(BUNDLE/'compose.sh'), 'config', '--format', 'json'], env=env, capture_output=True, text=True, check=True)
+        self.assertEqual(json.loads(result.stdout)['services']['embeddings']['environment']['LLAMA_ARG_DEVICE'], 'Vulkan1')
+
+    @unittest.skipUnless(os.name != 'nt' and shutil.which('bash'), 'Bash launcher required')
+    def test_cuda_startup_probes_device_before_up(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            shutil.copytree(BUNDLE, root/'kit')
+            docker = root/'docker'
+            docker.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALLS"\ncase "$*" in *--list-devices*) echo "CUDA1: test GPU";; esac\n')
+            docker.chmod(0o755)
+            env = {**os.environ, 'PATH':str(root)+os.pathsep+os.environ['PATH'], 'CALLS':str(root/'calls'), 'PI_ACCELERATOR':'cuda', 'PI_GPU_DEVICE':'CUDA1'}
+            result = subprocess.run(['bash',str(root/'kit/compose.sh'),'up','-d'],env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('--list-devices', (root/'calls').read_text().splitlines()[0])
+            result = subprocess.run(['bash',str(root/'kit/compose.sh'),'up','-d'],env={**env,'PI_GPU_DEVICE':'CUDA0'},capture_output=True,text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn('Selected device CUDA0 is unavailable', result.stderr)
+
+    def test_windows_gpu_probes_before_download_and_tracks_device(self):
+        script = (BUNDLE/'setup-windows-accelerator.ps1').read_text()
+        self.assertLess(script.index("-ArgumentList '--list-devices'"), script.index('Get-VerifiedFile $modelSpec.model_url'))
+        self.assertIn('$env:PI_GPU_DEVICE', script)
+        self.assertIn("'device.txt'", script)
+
 
 class ScopedReviewTests(unittest.TestCase):
     def setUp(self):

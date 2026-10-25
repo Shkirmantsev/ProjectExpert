@@ -31,6 +31,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--image', required=True)
     parser.add_argument('--timeout', type=int, default=1800)
+    parser.add_argument('--model-cache', type=Path, help='optional verified Q4 cache to reuse; omit for a cold-download test')
     parser.add_argument('--minimal', action='store_true', help='test common core only; never production inference evidence')
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='pi-container-smoke-') as raw:
@@ -41,13 +42,15 @@ def main():
         run('git', '-C', str(repo), 'config', 'user.name', 'Container Smoke')
         run('git', '-C', str(repo), 'config', 'user.email', 'smoke@example.invalid')
         (repo / 'README.md').write_text('# Invoice service\nInvoices are reconciled by the billing service.\n')
+        if not args.minimal:
+            (repo / 'BillingService.java').write_text('package billing; public class BillingService { public int reconcileInvoice() { return 1; } }')
         run('git', '-C', str(repo), 'add', '.')
         run('git', '-C', str(repo), 'commit', '-qm', 'fixture')
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
         env = {**os.environ, 'PI_IMAGE': args.image, 'PI_TARGET_REPO': str(repo),
-               'PI_CONTROL_PORT': str(port), 'PI_EMBEDDING_MODEL': 'qwen',
+               'PI_CONTROL_PORT': str(port), 'PI_EMBEDDING_MODEL': 'qwen-gguf',
                'PI_EMBEDDING_DEVICE': 'cpu', 'PI_DOCLING_ENABLED': '1'}
         compose = ['docker', 'compose', '--project-name', f'pi-smoke-{os.getpid()}',
                    '--env-file', str(ROOT / 'distribution/deployment/deployment.env'),
@@ -61,14 +64,32 @@ def main():
             compose.extend(['-f', str(override)])
             run('docker', 'run', '--rm', '-v', f'{repo}:/repo', args.image,
                 'init-project', '--target', '/repo')
+        else:
+            compose.extend(['-f', str(ROOT / 'distribution/deployment/compose.accelerator.yaml'),
+                            '-f', str(ROOT / 'distribution/deployment/compose.cpu.yaml')])
         base = f'http://127.0.0.1:{port}'
         try:
+            if args.model_cache and not args.minimal:
+                # Seed only model bytes; setup still checks their hash and creates its own key.
+                volume = f'pi-smoke-{os.getpid()}_model-cache'
+                run(*compose, 'create', 'model-setup', env=env)
+                run('docker', 'run', '--rm', '--entrypoint', 'python',
+                    '-v', str(args.model_cache.resolve()) + ':/seed:ro', '-v', volume + ':/models',
+                    args.image, '-c',
+                    'from pi_platform.adapters.retrieval.gguf_artifacts import FILENAME; '
+                    'import shutil; shutil.copyfile("/seed/"+FILENAME, "/models/"+FILENAME)')
             run(*compose, 'up', '-d', '--wait', '--wait-timeout', str(args.timeout), env=env)
             assert request(base, '/health/ready')['ready']
             with urllib.request.urlopen(base + '/', timeout=10) as page:
                 assert b'Project Intelligence' in page.read()
             result = request(base, '/api/v1/query', {'text': 'invoice billing', 'top_k': 3})
             assert result.get('results'), result
+            status = request(base, '/api/v1/indexing-status')
+            assert status['indexes']['cache_entries'] > 0, status
+            if not args.minimal:
+                assert not status['indexes']['retrieval']['source_failures'], status
+            version = request(base, '/api/v1/project-version')
+            assert version['fingerprint'] and version['embedding_model_version'], version
             tools = request(base, '/mcp', {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list'})
             assert 'project.search' in json.dumps(tools), tools
             run(*compose, 'exec', '-T', 'production', 'python', '-m', 'pip', 'check', env=env)

@@ -1,4 +1,4 @@
-# Optional GGUF CPU runtime; native PyTorch CPU remains the default.
+# Default lightweight GGUF CPU runtime; native PyTorch is explicitly selectable.
 services:
   production:
     environment:

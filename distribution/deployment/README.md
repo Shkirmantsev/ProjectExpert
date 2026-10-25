@@ -7,9 +7,9 @@ for the optional CUDA profile; the CPU profile needs Compose 2.20+.
 
 The target repository defaults to the parent directory. Set PI_TARGET_REPO in
 `deployment.env` to change it; use forward slashes for Windows paths. The target
-must already exist. First startup automatically downloads the selected embedding
-model and Docling layout, table and OCR assets. Allow network access and up to
-30 minutes. The launcher reports success only after retrieval readiness.
+must already exist. First startup downloads the selected embedding model. The default Qwen Q4_K_M
+artifact is 396 MB; PDF layout/table/OCR assets download only when PDFs are present.
+Allow network access; the launcher timeout is 30 minutes, not an expected startup duration. The launcher reports success only after retrieval readiness.
 
 ## Models and hardware
 
@@ -17,7 +17,8 @@ Select the model and backend independently in `deployment.env`:
 
 | PI_EMBEDDING_MODEL | PI_ACCELERATOR | Execution |
 |---|---|---|
-| qwen | cpu | Qwen PyTorch CPU (default) |
+| qwen-gguf | cpu | Qwen Q4_K_M CPU sidecar (default) |
+| qwen | cpu | Qwen PyTorch CPU, explicit full-precision option |
 | gemma | cpu | Gemma PyTorch CPU, text and images |
 | qwen | vulkan or cuda | Qwen GGUF GPU |
 | gemma | vulkan or cuda | Gemma GGUF GPU, text and images |
@@ -25,7 +26,7 @@ Select the model and backend independently in `deployment.env`:
 Run the same start command after editing the file. GPU choices automatically
 select the corresponding GGUF model; Gemma also downloads its multimodal
 projector. CPU operation never requires a discrete GPU or special GPU driver.
-To use the identical GGUF model format on CPU, select `qwen-gguf` or
+To select a GGUF model on CPU, use `qwen-gguf` or
 `gemma-gguf` with `PI_ACCELERATOR=cpu`; this starts a CPU sidecar on both OSes.
 Changing PyTorch/GGUF profiles rebuilds vectors in a separate namespace.
 
@@ -36,7 +37,13 @@ embedding backend.
 
 Linux Vulkan needs working vendor drivers and /dev/dri access. CUDA needs an
 NVIDIA GPU and NVIDIA Container Toolkit. An unavailable selected GPU produces a
-startup error; explicitly choose CPU to run without acceleration.
+startup error before model setup; explicitly choose CPU to run without acceleration.
+Vulkan supports compatible Intel/AMD integrated GPUs as well as discrete GPUs.
+The launcher probes `llama-server --list-devices`; set `PI_GPU_DEVICE=Vulkan1`
+(or `CUDA1`) if the intended device is not index 0. The selected device must appear
+in the probe. `PI_EMBEDDING_DEVICE=cuda` alone does not provision a GPU runtime:
+use `PI_ACCELERATOR=cuda` or `vulkan` and the launcher. Bash launchers target a
+local Linux Docker Engine; Windows integrated GPUs use the native PowerShell path.
 
 Windows Vulkan/CUDA uses a pinned native llama.cpp service downloaded and started
 automatically alongside the application container; it does not require Vulkan
@@ -65,3 +72,26 @@ then update your existing kit deliberately. Export never overwrites your files.
 SHA tags are retained without an automatic expiry/cleanup job. Registry owners
 can delete packages; keep a local archive if permanent independent retention
 is required. Files also live in Git under distribution/deployment/.
+
+## Recovery and cache maintenance
+
+Refresh failures retry without another source edit. Real edits made during indexing
+keep readiness false until a coherent pass completes. Generated `distribution/sbom/`
+files are excluded; other distribution source files remain indexed.
+
+MCP clients should use Streamable HTTP at `/mcp`. GET returns 405 (no standalone
+SSE stream); initialize and tools/list use POST. The endpoint is not a legacy SSE URL.
+
+Native Hugging Face downloads and `models pull/verify` share `PI_MODEL_CACHE/hub`.
+To reclaim abandoned partial downloads from either the old or current layout:
+
+```bash
+bash compose.sh exec -T production python -m pi_platform.cli models prune-incomplete
+```
+
+This removes only `.incomplete` blobs older than 24 hours whose downloader lock
+can be acquired. Completed weights and active downloads are retained. Q4 setup
+removes its temporary file on failed downloads. Q4 has a distinct vector profile;
+upgrading from Q8 rebuilds vectors once. Existing kits preserve their configuration
+on export: copy the updated launcher/Compose files and deliberately set
+`PI_EMBEDDING_MODEL=qwen-gguf` when upgrading.

@@ -30,6 +30,7 @@ class TreeSitterJavaSubprocess(JavaParserPort):
                 Path(sys.prefix) / "distribution/licenses/dependency-inventory.json"
             )
         deps = DependencyInventory(self.inventory_path).load()
+        self._binding_versions = {d.version for d in deps if d.name == "tree-sitter"}
         selected = [d for d in deps if d.name in ("tree-sitter-java", "tree-sitter")]
         if {d.name for d in selected} != {
             "tree-sitter-java",
@@ -98,7 +99,7 @@ class TreeSitterJavaSubprocess(JavaParserPort):
             info = json.loads(probe.stdout)
             if (
                 info["parser_version"] != request.parser_version
-                or info.get("binding_version") != "0.25.2"
+                or info.get("binding_version") not in self._binding_versions
             ):
                 raise JavaParserVersionMismatch(f"unsupported parser version: {info}")
             output = self._run(

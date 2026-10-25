@@ -27,8 +27,8 @@ services:
         condition: service_completed_successfully
     # No published host port: only the application network can reach the service.
     environment:
-      LLAMA_ARG_MODEL: /models/Qwen3-Embedding-0.6B-Q8_0.gguf
-      LLAMA_ARG_ALIAS: project-intelligence-qwen3-q8-06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439
+      LLAMA_ARG_MODEL: /models/Qwen3-Embedding-0.6B-Q4_K_M.gguf
+      LLAMA_ARG_ALIAS: project-intelligence-qwen3-q4-23d234bb57a42528a22a13e7beb8b57d8844b2b9cc741b4c27a8ff132abf0dfd
       LLAMA_ARG_POOLING: last
       LLAMA_ARG_N_GPU_LAYERS: "99"
     command:

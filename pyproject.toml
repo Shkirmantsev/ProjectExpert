@@ -22,11 +22,11 @@ dependencies = [
 
 [project.optional-dependencies]
 yaml = ["PyYAML==6.0.3"]
-java = ["tree-sitter==0.25.2", "tree-sitter-java==0.23.5"]
+java = ["tree-sitter==0.26.0", "tree-sitter-java==0.23.5"]
 semantic-embeddings = ["torch==2.14.1", "sentence-transformers==6.1.0", "transformers==5.20.2", "huggingface-hub==1.33.0", "numpy==2.4.6"]
 dense-ann = ["usearch==2.26.5", "numpy==2.4.6"]
 documents = ["docling==2.140.0", "docling-core==2.103.1", "onnxruntime==1.31.0"]
-production = ["PyYAML==6.0.3", "torch==2.14.1", "sentence-transformers==6.1.0", "transformers==5.20.2", "huggingface-hub==1.33.0", "usearch==2.26.5", "numpy==2.4.6", "docling==2.140.0", "docling-core==2.103.1", "onnxruntime==1.31.0"]
+production = ["tree-sitter-java==0.23.5", "PyYAML==6.0.3", "torch==2.14.1", "sentence-transformers==6.1.0", "transformers==5.20.2", "huggingface-hub==1.33.0", "usearch==2.26.5", "numpy==2.4.6", "docling==2.140.0", "docling-core==2.103.1", "onnxruntime==1.31.0"]
 dev = ["pytest>=7.0"]
 
 [project.scripts]
@@ -39,7 +39,7 @@ include = ["pi_platform*"]
 "pi_platform.adapters.ui" = ["static/*"]
 
 [tool.setuptools.data-files]
-"distribution/licenses" = ["distribution/licenses/dependency-inventory.json", "distribution/licenses/model-licenses.json", "distribution/licenses/production-dependency-inventory.json", "distribution/licenses/production-license-evidence.json", "distribution/licenses/tree-sitter-LICENSE.txt", "distribution/licenses/tree-sitter-java-LICENSE.txt"]
+"distribution/licenses" = ["distribution/licenses/dependency-inventory.json", "distribution/licenses/model-licenses.json", "distribution/licenses/production-dependency-inventory.json", "distribution/licenses/production-java-dependency-inventory.json", "distribution/licenses/production-license-evidence.json", "distribution/licenses/tree-sitter-LICENSE.txt", "distribution/licenses/tree-sitter-java-LICENSE.txt"]
 "distribution/skills/project-intelligence" = ["distribution/skills/project-intelligence/SKILL.md"]
 "distribution/skills/project-intelligence/references" = ["distribution/skills/project-intelligence/references/*.md"]
 "distribution/okf-profile" = ["distribution/okf-profile/PROFILE.md"]

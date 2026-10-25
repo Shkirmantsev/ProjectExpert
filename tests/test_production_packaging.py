@@ -16,7 +16,7 @@ import sync_skills
 class ProductionPackagingTests(unittest.TestCase):
     def test_every_direct_production_requirement_is_exact_and_in_hash_lock(self):
         metadata = tomllib.loads((ROOT / "pyproject.toml").read_text())
-        lock = (ROOT / "requirements-production-linux-x86_64.txt").read_text()
+        lock = (ROOT / "requirements-production-linux-x86_64.txt").read_text() + (ROOT / "requirements-production-java-linux-x86_64.txt").read_text()
         self.assertEqual(metadata["project"]["dependencies"], [])
         for requirement in metadata["project"]["optional-dependencies"]["production"]:
             name, version = requirement.split("==")

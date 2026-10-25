@@ -15,12 +15,6 @@ function Get-VerifiedFile([string]$Url, [string]$Path, [string]$Hash) {
     } finally { if (Test-Path -LiteralPath $partial) { Remove-Item -LiteralPath $partial } }
 }
 $modelPath = Join-Path $cache $modelSpec.model_filename
-Get-VerifiedFile $modelSpec.model_url $modelPath $modelSpec.model_sha256
-$projector = $null
-if ($modelSpec.projector_filename) {
-    $projector = Join-Path $cache $modelSpec.projector_filename
-    Get-VerifiedFile $modelSpec.projector_url $projector $modelSpec.projector_sha256
-}
 $runtime = Join-Path $cache ("{0}-{1}" -f $lock.runtime_version, $Backend)
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null
 foreach ($asset in $lock.windows.$Backend) {
@@ -47,21 +41,34 @@ try {
 if ($models) {
     if ($models.data.id -notcontains $modelSpec.model_alias) { throw 'Stop the previous accelerator with stop.ps1 before switching models.' }
     $runningBackend = Get-Content (Join-Path $cache 'backend.txt') -ErrorAction SilentlyContinue
-    if ($runningBackend -eq $Backend) { return }
+    $runningDevice = Get-Content (Join-Path $cache 'device.txt') -ErrorAction SilentlyContinue
+    $requestedDevice = $env:PI_GPU_DEVICE
+    if (-not $requestedDevice) { if ($Backend -eq 'cuda') { $requestedDevice = 'CUDA0' } else { $requestedDevice = 'Vulkan0' } }
+    if ($runningBackend -eq $Backend -and $runningDevice -eq $requestedDevice) { return }
     throw 'Stop the previous accelerator before switching device.'
 }
 $device = 'Vulkan0'
 if ($Backend -eq 'cuda') { $device = 'CUDA0' }
+if ($env:PI_GPU_DEVICE) { $device = $env:PI_GPU_DEVICE }
+if ($device -notmatch '^(Vulkan|CUDA)[0-9]+$') { throw 'PI_GPU_DEVICE must name a listed VulkanN or CUDAN device' }
 $probe = Start-Process -FilePath $server.FullName -ArgumentList '--list-devices' -Wait -PassThru -NoNewWindow -RedirectStandardOutput (Join-Path $cache 'devices.txt') -RedirectStandardError (Join-Path $cache 'devices-error.txt')
 $devices = (Get-Content (Join-Path $cache 'devices.txt') -Raw) + (Get-Content (Join-Path $cache 'devices-error.txt') -Raw)
-if ($probe.ExitCode -ne 0 -or $devices -notmatch [regex]::Escape($device)) {
+if ($probe.ExitCode -ne 0 -or $devices -notmatch ("(?m)(?:^|\s)" + [regex]::Escape($device) + ":")) {
     throw "No $device device found. Install its vendor driver, or select PI_ACCELERATOR=cpu. See accelerator/devices-error.txt."
+}
+# Download weights only after the selected device has passed its probe.
+Get-VerifiedFile $modelSpec.model_url $modelPath $modelSpec.model_sha256
+$projector = $null
+if ($modelSpec.projector_filename) {
+    $projector = Join-Path $cache $modelSpec.projector_filename
+    Get-VerifiedFile $modelSpec.projector_url $projector $modelSpec.projector_sha256
 }
 $arguments = @('--model', ('"'+$modelPath+'"'), '--alias', $modelSpec.model_alias, '--embeddings', '--pooling', $modelSpec.pooling, '--ctx-size', '8192', '--batch-size', '8192', '--ubatch-size', '8192', '--parallel', '1', '--n-gpu-layers', '99', '--device', $device, '--host', '0.0.0.0', '--port', '8769', '--api-key-file', ('"'+$keyPath+'"'))
 if ($projector) { $arguments += @('--mmproj', ('"'+$projector+'"')) }
 $process = Start-Process -FilePath $server.FullName -ArgumentList $arguments -PassThru -NoNewWindow -RedirectStandardOutput (Join-Path $cache 'runtime.log') -RedirectStandardError (Join-Path $cache 'runtime-error.log')
 [IO.File]::WriteAllText((Join-Path $cache 'runtime.pid'), [string]$process.Id)
 [IO.File]::WriteAllText((Join-Path $cache 'backend.txt'), $Backend)
+[IO.File]::WriteAllText((Join-Path $cache 'device.txt'), $device)
 for ($attempt = 0; $attempt -lt 120; $attempt++) {
     if ($process.HasExited) { throw 'GPU runtime exited; inspect accelerator/runtime-error.log, or select CPU.' }
     try {

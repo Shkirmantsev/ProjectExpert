@@ -11,7 +11,11 @@ try {
     $model = $env:PI_EMBEDDING_MODEL
     if (-not $model) {
         $line = Get-Content deployment.env | Where-Object { $_ -match '^PI_EMBEDDING_MODEL=' } | Select-Object -Last 1
-        if ($line) { $model = $line.Split('=', 2)[1] } else { $model = 'qwen' }
+        if ($line) { $model = $line.Split('=', 2)[1] } else { $model = 'qwen-gguf' }
+    }
+    if (-not $env:PI_GPU_DEVICE) {
+        $line = Get-Content deployment.env | Where-Object { $_ -match '^PI_GPU_DEVICE=' } | Select-Object -Last 1
+        if ($line) { $env:PI_GPU_DEVICE = $line.Split('=', 2)[1] }
     }
     if ($model -notin @('gemma','qwen','gemma-gguf','qwen-gguf')) { throw 'Unknown embedding model' }
     if ($composeArgs -contains 'down') {
