@@ -41,6 +41,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from .tool_schemas import tool_definition
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -846,10 +847,16 @@ class McpServer:
                 "jsonrpc": "2.0",
                 "id": req_id,
                 "result": {
-                    "protocolVersion": str(
-                        params.get("protocolVersion") or "2024-11-05"
+                    "protocolVersion": (
+                        params.get("protocolVersion")
+                        if params.get("protocolVersion") in {"2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25"}
+                        else "2025-11-25"
                     ),
-                    "serverInfo": dict(self._context.server_identity),
+                    "serverInfo": {
+                        "name": self._context.server_identity["name"],
+                        "version": self._context.server_identity.get("version")
+                                   or self._context.server_identity["serverVersion"],
+                    },
                     "capabilities": {
                         "tools": {"listChanged": False},
                         "resources": {"listChanged": False},
@@ -864,12 +871,7 @@ class McpServer:
                 "id": req_id,
                 "result": {
                     "tools": [
-                        {
-                            "name": name,
-                            "description": name.replace("_", " "),
-                            "inputSchema": {"type": "object"},
-                        }
-                        for name in self.tool_names
+                        tool_definition(name) for name in self.tool_names
                     ]
                 },
             }
@@ -1023,10 +1025,8 @@ class McpServer:
 
         @server.list_tools()
         async def _list():
-            return [
-                {"name": name, "description": name.replace("_", " ")}
-                for name in self.tool_names
-            ]
+            from mcp.types import Tool
+            return [Tool(**tool_definition(name)) for name in self.tool_names]
 
         @server.call_tool()
         async def _call(name: str, arguments):

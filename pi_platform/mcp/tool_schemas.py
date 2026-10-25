@@ -1,0 +1,40 @@
+"""Argument contracts shared by stdlib and SDK MCP transports."""
+from copy import deepcopy
+
+_TEXT = {'type': 'string'}
+_VERSION = {'type': ['object', 'string', 'null'], 'description': 'Optional requested project version.'}
+_SEARCH = {
+    'text': {**_TEXT, 'description': 'Natural-language query or exact symbol to retrieve.'},
+    'top_k': {'type': 'integer', 'minimum': 1, 'default': 10},
+    'filters': {'type': ['object', 'null']},
+    'project_version': _VERSION,
+    'include_trace': {'type': 'boolean', 'default': False},
+}
+_CONTRACTS = {
+    'search': (_SEARCH, ['text']),
+    'retrieve_context': ({**_SEARCH, 'contextBudget': {'type': 'integer', 'minimum': 1, 'default': 2000}}, ['text']),
+    'get_entity': ({'entity_id': _TEXT, 'project_version': _VERSION}, ['entity_id']),
+    'get_component': ({'component_uri': _TEXT, 'project_version': _VERSION}, ['component_uri']),
+    'get_requirement': ({'requirement_id': _TEXT, 'project_version': _VERSION}, ['requirement_id']),
+    'get_spec': ({'spec_id': _TEXT, 'project_version': _VERSION}, ['spec_id']),
+    'get_architecture': ({}, []),
+    'get_dependency': ({k: _TEXT for k in ('group', 'artifact', 'version')}, ['group', 'artifact', 'version']),
+    'find_implementation': ({'requirement_id': _TEXT}, []),
+    'trace_requirement': ({'requirement_id': _TEXT}, []),
+    'find_references': ({'symbol': _TEXT}, []),
+    'get_project_version': ({}, []),
+    'get_conflicts': ({}, []),
+    'get_stale_knowledge': ({}, []),
+    'build_task_context': ({'goal': _TEXT, 'budget_tokens': {'type': 'integer', 'minimum': 1, 'default': 4000}, 'requirement_id': _TEXT}, ['goal']),
+    'materialize_knowledge': ({'approval_id': _TEXT, 'repo_root': _TEXT, 'cache_root': _TEXT, 'change_ids': {'type':'array', 'items':_TEXT}}, ['approval_id']),
+    'refresh_sources': ({'approval_id': _TEXT, 'repo_root': _TEXT}, ['approval_id']),
+    'describe_capabilities': ({}, []),
+    'get_retrieval_trace': ({'trace_id': _TEXT}, ['trace_id']),
+}
+
+
+def tool_definition(name):
+    properties, required = _CONTRACTS[name.removeprefix('project.')]
+    return {'name': name, 'description': name.replace('_', ' '),
+            'inputSchema': {'type': 'object', 'properties': deepcopy(properties),
+                            'required': list(required), 'additionalProperties': False}}
