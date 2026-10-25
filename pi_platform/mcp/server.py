@@ -219,6 +219,8 @@ async def _tool_search(ctx: ToolContext,
     include_trace = bool(
         ctx.debug_mode and _optional(arguments, "include_trace", False),
     )
+    # Reranking is controlled by the operator policy; the caller may
+    # override it for a single query.
     enable_reranking = _optional(arguments, "enable_reranking", None)
     from pi_platform.ports.retrieval.multi_stage_retrieval import RetrievalQuery
     result = ctx.multi_stage_retrieval.retrieve(RetrievalQuery(
