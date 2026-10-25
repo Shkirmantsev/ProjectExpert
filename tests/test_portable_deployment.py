@@ -26,7 +26,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn('git config --system --add safe.directory /repo', core)
         self.assertNotIn('safe.directory *', core)
         self.assertIn('PI_EMBEDDING_MODEL=hashing', core)
-        self.assertIn('PI_EMBEDDING_MODEL=qwen', production)
+        self.assertIn('PI_EMBEDDING_MODEL=gemma', production)
         self.assertIn('--license-review distribution/licenses/production-license-review.json', production)
 
 

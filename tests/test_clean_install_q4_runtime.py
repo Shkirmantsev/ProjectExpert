@@ -14,7 +14,7 @@ class Q4RuntimeTests(unittest.TestCase):
         from pi_platform.cli.main import _bootstrap_and_index_target
         from pi_platform.ports.ui.rest_api import UiActor, RetrieveRequest
         with tempfile.TemporaryDirectory() as raw, patch.dict(os.environ, {
-            'PI_STARTUP_PROFILE':'production', 'PI_EMBEDDING_MODEL':'qwen-gguf',
+            'PI_STARTUP_PROFILE':'production', 'PI_EMBEDDING_MODEL':'gemma',
             'PI_EMBEDDING_DEVICE':'cpu', 'PI_DENSE_INDEX':'usearch',
             'PI_DOCLING_ENABLED':'1', 'PI_PREPARE_DOCLING':'1',
             'PI_DOCLING_CACHE':str(Path(raw)/'unused-document-assets'),

@@ -337,8 +337,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     start.add_argument("--target", type=Path, default=Path("."),
                        help="target repository root (default: current directory)")
-    start.add_argument("--model", choices=("gemma", "qwen", "qwen-gguf", "gemma-gguf"), default=None,
-                       help="embedding model alias (gemma → google/embeddinggemma-2)")
+    start.add_argument("--model", choices=("gemma", "gemma-torch"), default=None,
+                       help="embedding model alias (gemma → pinned EmbeddingGemma 2 GGUF binding)")
     start.add_argument("--device", choices=("auto", "cpu", "cuda", "vulkan"), default=None,
                        help="execution device (default: auto)")
     start.add_argument("--host", default=DEFAULT_UI_HOST,
@@ -386,17 +386,17 @@ def build_parser() -> argparse.ArgumentParser:
         "pull", help="download a model into the local Hugging Face cache",
     )
     models_pull.add_argument("alias", type=str,
-                             help="model alias (gemma|qwen) or Hugging Face model id")
+                             help="model alias (gemma|gemma-torch) or Hugging Face model id")
     models_verify = models_sub.add_parser(
         "verify", help="verify the model files exist in the local Hugging Face cache",
     )
     models_verify.add_argument("alias", type=str,
-                               help="model alias (gemma|qwen) or Hugging Face model id")
+                               help="model alias (gemma|gemma-torch) or Hugging Face model id")
     models_use = models_sub.add_parser(
         "use", help="record the selected model alias as the active selection",
     )
     models_use.add_argument("alias", type=str,
-                            help="model alias (gemma|qwen) or Hugging Face model id")
+                            help="model alias (gemma|gemma-torch) or Hugging Face model id")
     models_use.add_argument("--target", type=Path, default=Path("."),
                             help="target repository root (default: current directory)")
 
@@ -1525,7 +1525,7 @@ def _cmd_accelerator(args: argparse.Namespace) -> int:
     from ..ports.retrieval.embedding_profile import (
         EMBEDDINGGEMMA2_512,
         HASHING_DEFAULT,
-        QWEN3_EMBEDDING_0_6B_1024,
+        EMBEDDINGGEMMA2_GGUF_512,
     )
 
     def _build_config() -> AcceleratorConfig:
@@ -1594,7 +1594,7 @@ def _cmd_accelerator(args: argparse.Namespace) -> int:
     profiles = {
         HASHING_DEFAULT.identity(): HASHING_DEFAULT,
         EMBEDDINGGEMMA2_512.identity(): EMBEDDINGGEMMA2_512,
-        QWEN3_EMBEDDING_0_6B_1024.identity(): QWEN3_EMBEDDING_0_6B_1024,
+        EMBEDDINGGEMMA2_GGUF_512.identity(): EMBEDDINGGEMMA2_GGUF_512,
     }
     token, log, al = bootstrap_all(config)
     embedding_models = build_default_embedding_models(profiles)
@@ -2219,7 +2219,7 @@ def _bootstrap_and_index_target_locked(
     ).resolve()
     if wizard_schema.get("visible") and not retrieval_settings_path(target).exists():
         settings = wizard.submit({
-            "model": initial_config.embedding_model if initial_config.embedding_model in {"gemma", "qwen", "qwen-gguf", "gemma-gguf"} else "gemma",
+            "model": initial_config.embedding_model if initial_config.embedding_model in {"gemma", "gemma-torch"} else "gemma",
             "device": initial_config.embedding_device,
             "document_processing_enabled": initial_config.docling_enabled,
             "target_repo": str(target),
@@ -2503,7 +2503,7 @@ def _cmd_models_pull(args: argparse.Namespace) -> int:
             "details": {"alias": str(args.alias)},
         }), file=sys.stderr)
         return 2
-    if alias in {'qwen-gguf', 'gemma-gguf'}:
+    if alias == 'gemma':
         from .gguf_setup import prepare
         try:
             path = prepare(Path(os.environ.get('PI_GGUF_CACHE', '/models')), alias)
@@ -2556,13 +2556,13 @@ def _cmd_models_verify(args: argparse.Namespace) -> int:
             "details": {"alias": str(args.alias)},
         }), file=sys.stderr)
         return 2
-    if alias in {'qwen-gguf', 'gemma-gguf'}:
+    if alias == 'gemma':
         from .gguf_setup import file_hash
-        from ..adapters.retrieval.gguf_artifacts import (FILENAME, SHA256, GEMMA_FILENAME,
+        from ..adapters.retrieval.gguf_artifacts import (GEMMA_FILENAME,
             GEMMA_SHA256, GEMMA_PROJECTOR_FILENAME, GEMMA_PROJECTOR_SHA256)
         cache = Path(os.environ.get('PI_GGUF_CACHE', '/models'))
-        files = ((FILENAME, SHA256),) if alias == 'qwen-gguf' else (
-            (GEMMA_FILENAME, GEMMA_SHA256), (GEMMA_PROJECTOR_FILENAME, GEMMA_PROJECTOR_SHA256))
+        files = ((GEMMA_FILENAME, GEMMA_SHA256),
+                 (GEMMA_PROJECTOR_FILENAME, GEMMA_PROJECTOR_SHA256))
         path = cache / files[0][0]
         valid = all((cache / name).is_file() and file_hash(cache / name) == digest for name, digest in files)
         print(json.dumps({'ok': valid, 'alias': alias, 'path': str(path)}))

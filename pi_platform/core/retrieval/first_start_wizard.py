@@ -5,8 +5,8 @@ cache has no model selection (``bootstrap_state == "not-started"``)
 the web control plane MUST render a first-start wizard with
 
 * the target repository confirmation,
-* the two production embedding models (EmbeddingGemma 2 and
-  Qwen3 Embedding 0.6B),
+* the production embedding model (EmbeddingGemma 2, in its pinned GGUF
+  binding and in the native Transformers binding),
 * the execution device choices (auto, CPU, GPU),
 * the document-processing (Docling) toggle,
 
@@ -50,10 +50,8 @@ __all__ = [
 INITIALISE_ACTION = "initialise_and_build_index"
 
 MODEL_LABELS = {
-    "google/embeddinggemma-2": "EmbeddingGemma 2",
-    "Qwen/Qwen3-Embedding-0.6B": "Qwen3 Embedding 0.6B",
-    "ggml-org/embeddinggemma-2-GGUF": "Gemma2 GGUF text/image (configured runtime)",
-    "Qwen/Qwen3-Embedding-0.6B-GGUF": "Qwen3 GGUF (requires accelerator setup)",
+    "ggml-org/embeddinggemma-2-GGUF": "EmbeddingGemma 2 (Q8_0, text/image/audio/video)",
+    "google/embeddinggemma-2": "EmbeddingGemma 2 (native Transformers binding)",
 }
 
 

@@ -243,9 +243,9 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         )
         active.append(ActiveChunk(cid, body.get('contentHash', text_hash), text, text_hash, meta))
     for entry in image_entries:
-        if config.embedding_model not in {'gemma', 'gemma-gguf'}:
+        if config.embedding_model not in {'gemma', 'gemma-torch'}:
             failures.append({'path': entry.path, 'category': 'unsupported_modality',
-                             'error': 'Image embeddings require Gemma; Qwen is text-only'})
+                             'error': 'Image embeddings require the Gemma binding'})
             continue
         path = (target / entry.path).resolve()
         if not path.is_relative_to(target):
@@ -282,9 +282,7 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
                       if str(chunk.metadata.get('sourcePath', '')).lower().endswith('.pdf')]
         if pdf_chunks:
             from pi_platform.adapters.pdf.runtime_projection import PdfRuntimeProjection, PDF_RUNTIME_PROJECTION_VERSION
-            tokenizer_model = ('Qwen/Qwen3-Embedding-0.6B' if config.embedding_model == 'qwen-gguf'
-                               else 'google/embeddinggemma-2' if config.embedding_model == 'gemma-gguf'
-                               else runtime.embedding_model.profile().model_id)
+            tokenizer_model = runtime.embedding_model.profile().model_id
             projection = PdfRuntimeProjection(tokenizer_model)
             projected = []
             for chunk in active:
@@ -293,7 +291,7 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
                     continue
                 image_path = None
                 body = chunks_by_id[chunk.chunk_id]
-                if config.embedding_model in {'gemma', 'gemma-gguf'}:
+                if config.embedding_model in {'gemma', 'gemma-torch'}:
                     image_path = _figure_image_path(body, cache_root)
                 segments = projection(body)
                 if not segments:

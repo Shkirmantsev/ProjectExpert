@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import Mock, patch
 from pi_platform.adapters.config.runtime_device import select_device
 from pi_platform.adapters.retrieval.embeddinggemma2_embedding_model import EmbeddingGemma2EmbeddingModel
-from pi_platform.adapters.retrieval.qwen3_embedding_model import Qwen3EmbeddingModel, QUERY_INSTRUCTION
+from pi_platform.adapters.retrieval.llama_cpp_embedding_model import LlamaCppEmbeddingModel
 from pi_platform.ports.retrieval.embedding_model import EmbeddingRequest, EmbeddingRole, EmbeddingTask
 
 
@@ -38,16 +38,49 @@ class EmbeddingRuntimeContracts(unittest.TestCase):
         ])
         self.assertEqual(model.encode.call_args.kwargs['prompt'], '')
 
-    def test_qwen_mixed_batch_uses_instruct_template_once(self):
-        adapter = Qwen3EmbeddingModel()
-        model = self.fake_loaded(adapter)
-        adapter.embed_requests([
-            EmbeddingRequest(text='refund', role=EmbeddingRole.QUERY),
-            EmbeddingRequest(text='contract', role=EmbeddingRole.DOCUMENT),
+    def test_gguf_query_task_prompt_applied_only_to_queries(self):
+        # The retired Qwen3 binding is gone; the production GGUF binding
+        # (llama.cpp / EmbeddingGemma 2) is exercised against a fake
+        # transport instead of a real runtime. The query side must carry
+        # the EmbeddingGemma 2 task prompt while the document side must
+        # stay in the plain "title: ... | text: ..." document format.
+        from pi_platform.adapters.retrieval.gguf_artifacts import GEMMA_MODEL_ALIAS
+        adapter = LlamaCppEmbeddingModel()
+        calls = []
+        def request(path, payload=None):
+            calls.append((path, payload))
+            if path == '/v1/models':
+                return {'data': [{'id': GEMMA_MODEL_ALIAS,
+                                  'architecture': {'input_modalities': ['text', 'image', 'audio', 'video']}}]}
+            return {'data': [{'index': 0, 'embedding': [1/math.sqrt(768)] * 768}]}
+        with patch.object(adapter, '_request', side_effect=request):
+            vectors = adapter.embed_requests([
+                EmbeddingRequest('refund', EmbeddingRole.QUERY),
+                EmbeddingRequest('function', EmbeddingRole.QUERY, task=EmbeddingTask.CODE_RETRIEVAL),
+                EmbeddingRequest('contract', EmbeddingRole.DOCUMENT, title='Billing'),
+                EmbeddingRequest('plain', EmbeddingRole.DOCUMENT),
+            ])
+        # One identity probe plus one request per sequence.
+        self.assertEqual([path for path, _ in calls], ['/v1/models'] + ['/v1/embeddings'] * 4)
+        query_payloads = [calls[1][1]['input'][0], calls[2][1]['input'][0]]
+        self.assertEqual(query_payloads, [
+            'task: search result | query: refund',
+            'task: code retrieval | query: function',
         ])
-        self.assertEqual(model.encode.call_count, 1)
-        self.assertEqual(model.encode.call_args.args[0], [f'Instruct: {QUERY_INSTRUCTION}\nQuery:refund', 'contract'])
-        self.assertEqual(model.encode.call_args.kwargs['prompt'], '')
+        for payload in query_payloads:
+            self.assertTrue(payload.startswith('task: '), payload)
+        # The task prompt is applied ONLY to queries: documents keep the
+        # structured title/text format and never receive a task prompt.
+        doc_payloads = [calls[3][1]['input'][0], calls[4][1]['input'][0]]
+        self.assertEqual(doc_payloads, [
+            'title: Billing | text: contract',
+            'title: none | text: plain',
+        ])
+        for payload in doc_payloads:
+            self.assertNotIn('task: ', payload)
+            self.assertNotIn('query: ', payload)
+        self.assertEqual(len(vectors), 4)
+        self.assertEqual({len(vector) for vector in vectors}, {512})
 
     def test_gemma_loader_disables_unused_encoders_and_keeps_cpu_float32(self):
         constructor = Mock(return_value=object())

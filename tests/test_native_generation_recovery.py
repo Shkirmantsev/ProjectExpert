@@ -159,15 +159,15 @@ class NativeGenerationRecoveryTests(unittest.TestCase):
         first, _ = self.build()
         self.assertEqual(first['active_model'], 'gemma')
         server = UiHttpServer(self.service, readiness=self.readiness.is_ready)
-        response = server.admin_routes.handle_put_retrieval({'embedding_model_alias':'qwen', 'device':'cpu'})
+        response = server.admin_routes.handle_put_retrieval({'embedding_model_alias':'gemma-torch', 'device':'cpu'})
         self.assertEqual(response.status, 200)
         self.assertFalse(self.readiness.is_ready())
         selected, _ = self.build(model_alias='gemma')  # old startup CLI/default cannot undo a later command
-        self.assertEqual(selected['active_model'], 'qwen')
+        self.assertEqual(selected['active_model'], 'gemma-torch')
         (self.root / 'changed.md').write_text('# Change\nTrigger a later branch refresh.\n')
         refreshed, _ = self.build()
-        self.assertEqual(refreshed['active_model'], 'qwen')
-        self.assertEqual(load_retrieval_settings(self.root).embedding_model_alias, 'qwen')
+        self.assertEqual(refreshed['active_model'], 'gemma-torch')
+        self.assertEqual(load_retrieval_settings(self.root).embedding_model_alias, 'gemma-torch')
 
     def test_operator_change_at_publication_cannot_be_cleared_by_refresh_finalizer(self):
         from pi_platform.adapters.ui.http_server import UiHttpServer
@@ -175,26 +175,26 @@ class NativeGenerationRecoveryTests(unittest.TestCase):
         self.build()
         server = UiHttpServer(self.service, readiness=self.readiness.is_ready)
         def late_operator_change(*args, **kwargs):
-            response = server.admin_routes.handle_put_retrieval({'embedding_model_alias':'qwen'})
+            response = server.admin_routes.handle_put_retrieval({'embedding_model_alias':'gemma-torch'})
             self.assertEqual(response.status, 200)
             return {'ready':True}
         with patch('pi_platform.cli.main._bootstrap_and_index_target_locked', side_effect=late_operator_change):
             with self.assertRaisesRegex(RuntimeError, 'configuration changed during indexing'):
                 self.build()
         self.assertFalse(self.readiness.is_ready())
-        self.assertEqual(load_retrieval_settings(self.root).embedding_model_alias, 'qwen')
+        self.assertEqual(load_retrieval_settings(self.root).embedding_model_alias, 'gemma-torch')
         recovered, _ = self.build()
-        self.assertEqual(recovered['active_model'], 'qwen')
+        self.assertEqual(recovered['active_model'], 'gemma-torch')
         self.assertTrue(self.readiness.is_ready())
 
     def test_first_bootstrap_preserves_project_defaults_and_retrieval_hash_inventory(self):
         from pi_platform.core.control.retrieval_settings import load_retrieval_settings
-        (self.root / 'project-context.yaml').write_text('runtime:\n  embedding_model: qwen\n  embedding_device: cpu\n')
+        (self.root / 'project-context.yaml').write_text('runtime:\n  embedding_model: gemma-torch\n  embedding_device: cpu\n')
         with patch.dict(os.environ):
             os.environ.pop('PI_EMBEDDING_MODEL', None)
             summary, _ = self.build()
-        self.assertEqual(summary['active_model'], 'qwen')
-        self.assertEqual(load_retrieval_settings(self.root).embedding_model_alias, 'qwen')
+        self.assertEqual(summary['active_model'], 'gemma-torch')
+        self.assertEqual(load_retrieval_settings(self.root).embedding_model_alias, 'gemma-torch')
         inventory = json.loads((self.cache / 'source-inventory.json').read_text())
         entries = inventory['entries']
         if isinstance(entries, dict):

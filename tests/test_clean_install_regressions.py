@@ -165,17 +165,20 @@ class ModelCacheTests(unittest.TestCase):
 class GgufDocumentTests(unittest.TestCase):
     def test_gguf_documents_use_pinned_native_tokenizer(self):
         from pi_platform.adapters.pdf.real_docling import _resolve_tokenizer_id
-        from pi_platform.adapters.retrieval.gguf_artifacts import MODEL_ID
+        from pi_platform.adapters.retrieval.gguf_artifacts import GEMMA_MODEL_ID
         with patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(_resolve_tokenizer_id(MODEL_ID), 'Qwen/Qwen3-Embedding-0.6B')
-            self.assertEqual(_resolve_tokenizer_id('ggml-org/embeddinggemma-2-GGUF'), 'google/embeddinggemma-2')
+            # Both bindings of EmbeddingGemma 2 resolve to the pinned
+            # native tokenizer; the retired model id is no longer used.
+            self.assertEqual(GEMMA_MODEL_ID, 'ggml-org/embeddinggemma-2-GGUF')
+            self.assertEqual(_resolve_tokenizer_id(GEMMA_MODEL_ID), 'google/embeddinggemma-2')
+            self.assertEqual(_resolve_tokenizer_id('google/embeddinggemma-2'), 'google/embeddinggemma-2')
 
     def test_code_only_production_does_not_download_pdf_assets(self):
         from pi_platform.core.orchestration.repository_indexing import index_repository
         from pi_platform.core.ingest.repository_source_discovery import RepositorySourceDiscovery
         from pi_platform.core.control.retrieval_settings import load_retrieval_settings
         with tempfile.TemporaryDirectory() as raw, patch.dict(os.environ, {
-            'PI_STARTUP_PROFILE':'production','PI_EMBEDDING_MODEL':'qwen-gguf',
+            'PI_STARTUP_PROFILE':'production','PI_EMBEDDING_MODEL':'gemma',
             'PI_DENSE_INDEX':'usearch','PI_DOCLING_ENABLED':'1','PI_PREPARE_DOCLING':'1',
         }):
             root = Path(raw)

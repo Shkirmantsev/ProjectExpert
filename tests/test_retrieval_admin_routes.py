@@ -93,7 +93,7 @@ class GetRetrievalTests(AdminRoutesTestBase):
     def test_get_returns_current_settings(self) -> None:
         save_retrieval_settings(
             RetrievalSettings(
-                embedding_model_alias="qwen",
+                embedding_model_alias="gemma-torch",
                 device="cpu",
                 document_processing_enabled=False,
                 bootstrap_state="ready",
@@ -108,7 +108,7 @@ class GetRetrievalTests(AdminRoutesTestBase):
             response.body,
             load_retrieval_settings(self.tmp).as_dict(),
         )
-        self.assertEqual(response.body["embedding_model_alias"], "qwen")
+        self.assertEqual(response.body["embedding_model_alias"], "gemma-torch")
         self.assertEqual(response.body["device"], "cpu")
 
 
@@ -119,19 +119,19 @@ class PutRetrievalTests(AdminRoutesTestBase):
         _routes, dispatch = self.build()
         response = dispatch(
             "PUT", RETRIEVAL_PATH,
-            {"embedding_model_alias": "qwen", "device": "cuda"},
+            {"embedding_model_alias": "gemma-torch", "device": "cuda"},
         )
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.body["embedding_model_alias"], "qwen")
+        self.assertEqual(response.body["embedding_model_alias"], "gemma-torch")
         self.assertEqual(response.body["device"], "cuda")
         persisted = load_retrieval_settings(self.tmp)
-        self.assertEqual(persisted.embedding_model_alias, "qwen")
+        self.assertEqual(persisted.embedding_model_alias, "gemma-torch")
         self.assertEqual(persisted.device, "cuda")
 
     def test_put_refused_for_non_admin_caller(self) -> None:
         _routes, dispatch = self.build(capability=CODING_AGENT)
         response = dispatch(
-            "PUT", RETRIEVAL_PATH, {"embedding_model_alias": "qwen"},
+            "PUT", RETRIEVAL_PATH, {"embedding_model_alias": "gemma-torch"},
         )
         body = self.assertStructuredError(self, response, 403)
         self.assertEqual(body["code"], "admin-capability-required")
@@ -162,7 +162,7 @@ class JobQueueTests(AdminRoutesTestBase):
     def test_models_pull_returns_queued_job(self) -> None:
         routes, dispatch = self.build()
         response = dispatch(
-            "POST", MODELS_PULL_PATH, {"alias": "qwen"},
+            "POST", MODELS_PULL_PATH, {"alias": "gemma"},
         )
         self.assertEqual(response.status, 202)
         self.assertEqual(response.body["status"], "queued")

@@ -112,7 +112,7 @@ RUN python -m pip install --no-cache-dir --no-deps ".[production]" \
         --license-evidence distribution/licenses/production-license-evidence.json \
         --additional-inventory distribution/licenses/production-java-dependency-inventory.json --sbom-output .
 ENV PI_STARTUP_PROFILE=production \
-    PI_EMBEDDING_MODEL=qwen \
+    PI_EMBEDDING_MODEL=gemma \
     PI_DENSE_INDEX=usearch \
     PI_DOCLING_ENABLED=1 \
     PI_PREPARE_DOCLING=1 \

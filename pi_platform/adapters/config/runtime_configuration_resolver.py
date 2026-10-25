@@ -36,6 +36,8 @@ __all__ = [
     "RuntimeConfigurationResolver",
     "ConfigurationError",
     "DEFAULT_EMBEDDING_MODEL",
+    "PRODUCTION_EMBEDDING_ALIASES",
+    "RETIRED_EMBEDDING_ALIASES",
     "DEFAULT_EMBEDDING_DEVICE",
     "DEFAULT_DENSE_INDEX",
     "DEFAULT_DOCLING_ENABLED",
@@ -47,6 +49,16 @@ __all__ = [
 
 
 DEFAULT_EMBEDDING_MODEL = "gemma"
+#: ProjectExpert ships one production embedding model. Two bindings of it
+#: are selectable: the pinned GGUF binding (default) and the native
+#: Transformers binding (explicit opt-in).
+PRODUCTION_EMBEDDING_ALIASES = frozenset({"gemma", "gemma-torch"})
+
+#: The retired alternative embedding model. These aliases are rejected
+#: with an actionable message instead of being silently substituted.
+RETIRED_EMBEDDING_ALIASES = frozenset(
+    {"qwen", "qwen-gguf", "qwen3", "qwen3-embedding-0.6b"}
+)
 DEFAULT_EMBEDDING_DEVICE = "auto"
 DEFAULT_DENSE_INDEX = "usearch"
 DEFAULT_DOCLING_ENABLED = True
@@ -244,12 +256,19 @@ class RuntimeConfigurationResolver:
                 )
             return value
         if field == "embedding_model":
-            aliases = {"embeddinggemma2": "gemma", "qwen3": "qwen", "qwen3-embedding-0.6b": "qwen",
-                       "google/embeddinggemma-2": "gemma", "qwen/qwen3-embedding-0.6b": "qwen",
-                       "ggml-org/embeddinggemma-2-gguf": "gemma-gguf",
-                       "qwen/qwen3-embedding-0.6b-gguf": "qwen-gguf",
-                       "openmycel/qwen3-embedding-0.6b-gguf": "qwen-gguf"}
+            aliases = {"embeddinggemma2": "gemma", "gemma-gguf": "gemma",
+                       "ggml-org/embeddinggemma-2-gguf": "gemma",
+                       "gemma-torch": "gemma-torch",
+                       "embeddinggemma2-torch": "gemma-torch",
+                       "google/embeddinggemma-2": "gemma-torch"}
             lowered = str(value).strip().lower()
+            if lowered in RETIRED_EMBEDDING_ALIASES:
+                raise ConfigurationError(
+                    f"embedding_model={value!r} names the retired embedding "
+                    f"model. ProjectExpert ships one production embedding "
+                    f"model: select 'gemma' for the pinned GGUF binding or "
+                    f"'gemma-torch' for the native binding."
+                )
             return aliases.get(lowered, lowered)
         if field == "dense_index":
             return str(value).strip().lower()
@@ -266,17 +285,14 @@ class RuntimeConfigurationResolver:
             raise ConfigurationError("production requires the real usearch dense backend; select minimal for flat")
         startup = resolved["startup_profile"]
         embedding = resolved["embedding_model"]
-        if startup == "production" and embedding not in {"gemma", "qwen", "qwen-gguf", "gemma-gguf"}:
+        if startup == "production" and embedding not in PRODUCTION_EMBEDDING_ALIASES:
             # The production profile refuses the hashing alias and
             # any other non-real alias; the operator must either
             # select an explicit production alias or switch to the
             # ``minimal`` profile.
-            if embedding in {"hashing"} or embedding not in {
-                "gemma", "qwen", "qwen-gguf", "gemma-gguf",
-            }:
-                raise ConfigurationError(
-                    f"startup_profile='production' but "
-                    f"embedding_model='{embedding}' is not a real "
-                    f"production alias. Select 'gemma' or 'qwen', "
-                    f"or switch startup_profile to 'minimal'."
-                )
+            raise ConfigurationError(
+                f"startup_profile='production' but "
+                f"embedding_model='{embedding}' is not a real "
+                f"production alias. Select 'gemma' or 'gemma-torch', "
+                f"or switch startup_profile to 'minimal'."
+            )

@@ -61,7 +61,6 @@ from pi_platform.adapters.retrieval.embedding_model_factory import (
     GEMMA_ALIAS,
     HASHING_ALIAS,
     PRODUCTION_ALIASES,
-    QWEN_ALIAS,
     StartupProfile,
 )
 from pi_platform.adapters.runtime.bm25_sparse_index import Bm25SparseIndex
@@ -95,6 +94,7 @@ from pi_platform.ports.retrieval.hybrid_retrieval import (
     HybridRetrievalPort,
     RetrievalHit,
 )
+from pi_platform.core.canonical.value_types import Metadata
 from pi_platform.ports.retrieval.metadata_filter import MetadataFilterPort
 from pi_platform.ports.retrieval.multi_stage_retrieval import (
     MultiStageRetrievalPort,
@@ -399,6 +399,9 @@ def build_multi_stage_retrieval(
     graph expansion → context assembly) is enforced; building a
     parallel orchestrator outside the composition would re-create
     the "UI-only search path" the spec explicitly bans.
+
+    The rerank policy is the operator-controllable configuration that
+    decides whether reranking runs and how it fails.
     """
 
     if multi_stage_retrieval is not None:

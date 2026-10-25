@@ -22,8 +22,9 @@ The module owns three things:
   truncated settings file behind.
 
 The default values are the documented production defaults:
-EmbeddingGemma 2 (alias ``gemma``), ``device="auto"``,
-Docling document processing ON and ``bootstrap_state="not-started"``.
+EmbeddingGemma 2 through the pinned GGUF binding (alias ``gemma``),
+``device="auto"``, Docling document processing ON and
+``bootstrap_state="not-started"``.
 """
 
 from __future__ import annotations
@@ -72,22 +73,23 @@ DEFAULT_BOOTSTRAP_STATE = "not-started"
 
 # The two production-enabled models from
 # ``distribution/licenses/model-licenses.json``.
+# ProjectExpert ships ONE embedding model: EmbeddingGemma 2. The default
+# alias points at the pinned GGUF binding, because it is the only binding
+# that runs on Windows and Linux with CUDA, Vulkan, an integrated GPU or
+# CPU only, and the only one that exposes the full multimodal package.
+# The native Transformers binding of the same checkpoint stays selectable as
+# an explicit opt-in.
 PRODUCTION_MODEL_CHOICES = (
-    "google/embeddinggemma-2",
-    "Qwen/Qwen3-Embedding-0.6B",
-    "openmycel/Qwen3-Embedding-0.6B-GGUF",
     "ggml-org/embeddinggemma-2-GGUF",
+    "google/embeddinggemma-2",
 )
 PRODUCTION_ALIAS_TO_MODEL_ID = {
-    "gemma": "google/embeddinggemma-2",
-    "qwen": "Qwen/Qwen3-Embedding-0.6B",
-    "qwen-gguf": "openmycel/Qwen3-Embedding-0.6B-GGUF",
-    "gemma-gguf": "ggml-org/embeddinggemma-2-GGUF",
+    "gemma": "ggml-org/embeddinggemma-2-GGUF",
+    "gemma-torch": "google/embeddinggemma-2",
 }
 MODEL_ID_TO_ALIAS = {
     model_id: alias for alias, model_id in PRODUCTION_ALIAS_TO_MODEL_ID.items()
 }
-MODEL_ID_TO_ALIAS["Qwen/Qwen3-Embedding-0.6B-GGUF"] = "qwen-gguf"
 PRODUCTION_ALIASES = frozenset(PRODUCTION_ALIAS_TO_MODEL_ID)
 
 DEVICE_CHOICES = ("auto", "cpu", "cuda", "mps", "vulkan")
