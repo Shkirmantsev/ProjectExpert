@@ -400,7 +400,61 @@ def build_parser() -> argparse.ArgumentParser:
     models_use.add_argument("--target", type=Path, default=Path("."),
                             help="target repository root (default: current directory)")
 
+    inference = sub.add_parser(
+        "inference",
+        help="portable inference runtime policy (plan/doctor/status)",
+    )
+    inference_sub = inference.add_subparsers(dest="inference_command", required=True)
+    inference_plan = inference_sub.add_parser(
+        "plan", help="compute the inference profile from probe evidence",
+    )
+    _add_inference_evidence_arguments(inference_plan)
+    inference_doctor = inference_sub.add_parser(
+        "doctor", help="print the full inference diagnostics report",
+    )
+    _add_inference_evidence_arguments(inference_doctor)
+    inference_status = inference_sub.add_parser(
+        "status", help="print the status of the configured runtime endpoint",
+    )
+    inference_status.add_argument("--endpoint", type=str, default=None,
+                                  help="runtime endpoint (default: PI_LLAMA_ENDPOINT)")
+    inference_benchmark = inference_sub.add_parser(
+        "benchmark", help="measure the embedding latency of a running runtime",
+    )
+    inference_benchmark.add_argument("--endpoint", type=str, default=None,
+                                     help="runtime endpoint (default: PI_LLAMA_ENDPOINT)")
+    inference_benchmark.add_argument("--iterations", type=int, default=30,
+                                     help="measured requests (default: 30)")
+    inference_benchmark.add_argument("--warmup", type=int, default=5,
+                                     help="warm-up requests (default: 5)")
+    inference_benchmark.add_argument("--timeout", type=float, default=120.0,
+                                     help="per-request timeout in seconds")
+
     return parser
+
+
+def _add_inference_evidence_arguments(parser: argparse.ArgumentParser) -> None:
+    """Attach the probe-evidence inputs and launch-plan knobs."""
+
+    evidence = parser.add_mutually_exclusive_group()
+    evidence.add_argument("--evidence-b64", type=str, default=None,
+                          help="base64 of the probe evidence JSON (shell-quoting safe)")
+    evidence.add_argument("--evidence", type=str, default=None,
+                          help="path to the probe evidence JSON ('-' for stdin)")
+    parser.add_argument("--cache", type=Path, default=None,
+                        help="runtime model cache used to build the launch plan")
+    parser.add_argument("--model-path", type=str, default=None,
+                        help="explicit backbone path for the launch plan "
+                             "(overrides --cache; required when the runtime "
+                             "lives outside the container filesystem)")
+    parser.add_argument("--projector-path", type=str, default=None,
+                        help="explicit multimodal projector path for the launch plan")
+    parser.add_argument("--host", type=str, default=None,
+                        help="runtime bind host for the launch plan (default: 127.0.0.1)")
+    parser.add_argument("--port", type=int, default=None,
+                        help="runtime bind port for the launch plan (default: 8769)")
+    parser.add_argument("--api-key-file", type=str, default=None,
+                        help="runtime API key file for the launch plan")
 
 
 def _resolve_cache_root(args: argparse.Namespace) -> Path:
@@ -2664,10 +2718,19 @@ def _cmd_models(args: argparse.Namespace) -> int:
     return handler(args)
 
 
+def _cmd_inference(args: argparse.Namespace) -> int:
+    """Dispatch the ``inference`` command group (plan/doctor/status)."""
+
+    from .inference import run_inference_command
+
+    return run_inference_command(args)
+
+
 _DISPATCH.update(
     {
         "start": _cmd_start,
         "models": _cmd_models,
+        "inference": _cmd_inference,
         "reindex": _cmd_reindex,
         "doctor": _cmd_doctor,
     }
