@@ -1,9 +1,43 @@
+# CUDA runtime profile: GPU runtime image, NVIDIA device request, the device
+# and the memory-fit budget. The command below is the compose.accelerator.yaml
+# argument vector plus the device and `--fit on --fit-target ${PI_FIT_TARGET:-192}`.
 services:
   production:
     environment:
       PI_EMBEDDING_DEVICE: cuda
   embeddings:
-    environment:
-      LLAMA_ARG_DEVICE: ${PI_GPU_DEVICE:-CUDA0}
     image: ghcr.io/ggml-org/llama.cpp:server-cuda-b11515@sha256:ccfd96bb2aba4ef77e3df656d713ce85bf3c6a886d7974243127c5ad66ca6d2a
     gpus: all
+    command:
+      - --embeddings
+      - --model
+      - /models/embeddinggemma-2-Q8_0.gguf
+      - --mmproj
+      - /models/mmproj-embeddinggemma-2-Q8_0.gguf
+      - --alias
+      - project-intelligence-gemma2-q8-2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135-c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f
+      - --pooling
+      - mean
+      - --embd-normalize
+      - "2"
+      - --ctx-size
+      - "2048"
+      - --batch-size
+      - "1024"
+      - --ubatch-size
+      - "1024"
+      - --parallel
+      - "1"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8769"
+      - --api-key-file
+      - /models/llama-api-key
+      - --device
+      - ${PI_GPU_DEVICE:-CUDA0}
+      - --fit
+      - "on"
+      - --fit-target
+      - ${PI_FIT_TARGET:-192}
+      - --no-mmproj-offload

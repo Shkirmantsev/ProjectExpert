@@ -1,11 +1,10 @@
-# Default lightweight GGUF CPU runtime; native PyTorch is explicitly selectable.
+# CPU runtime profile. Overrides ONLY the device to none (the model, alias
+# and pooling live in compose.accelerator.yaml and are never re-declared
+# here). The multimodal projector stays on the CPU as well (the base command
+# passes --no-mmproj-offload exactly once).
 services:
   production:
     environment:
       PI_EMBEDDING_DEVICE: cpu
   embeddings:
-    image: ghcr.io/ggml-org/llama.cpp:server-vulkan-b11515@sha256:b7ac2b757dd43ab04fdc236b9e96a0020ba8566d0b8c33839add482e93c80f3b
-    environment:
-      LLAMA_ARG_DEVICE: none
-      LLAMA_ARG_N_GPU_LAYERS: "0"
-      LLAMA_ARG_MMPROJ_OFFLOAD: "0"
+    entrypoint: ["/app/llama-server", "--device", "none"]

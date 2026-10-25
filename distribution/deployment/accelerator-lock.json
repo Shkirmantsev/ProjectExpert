@@ -3,10 +3,20 @@
   "runtime_license": "MIT",
   "runtime_source": "https://github.com/ggml-org/llama.cpp/releases/tag/b11515",
   "model_license": "Apache-2.0",
-  "model_url": "https://huggingface.co/openmycel/Qwen3-Embedding-0.6B-GGUF/resolve/333bba6d067e5ab591bc8c21f1b15950e4435083/Qwen3-Embedding-0.6B-Q4_K_M.gguf",
-  "model_filename": "Qwen3-Embedding-0.6B-Q4_K_M.gguf",
-  "model_sha256": "23d234bb57a42528a22a13e7beb8b57d8844b2b9cc741b4c27a8ff132abf0dfd",
-  "model_alias": "project-intelligence-qwen3-q4-23d234bb57a42528a22a13e7beb8b57d8844b2b9cc741b4c27a8ff132abf0dfd",
+  "models": {
+    "gemma": {
+      "model_url": "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/58faf90940886df2d62be555c8765d00dac362c5/embeddinggemma-2-Q8_0.gguf",
+      "model_filename": "embeddinggemma-2-Q8_0.gguf",
+      "model_sha256": "2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135",
+      "model_alias": "project-intelligence-gemma2-q8-2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135-c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f",
+      "model_license": "Apache-2.0",
+      "projector_url": "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/58faf90940886df2d62be555c8765d00dac362c5/mmproj-embeddinggemma-2-Q8_0.gguf",
+      "projector_filename": "mmproj-embeddinggemma-2-Q8_0.gguf",
+      "projector_sha256": "c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f",
+      "pooling": "mean",
+      "quantization": "Q8_0"
+    }
+  },
   "windows": {
     "vulkan": [
       {
@@ -28,26 +38,5 @@
   "linux": {
     "vulkan": "ghcr.io/ggml-org/llama.cpp:server-vulkan-b11515@sha256:b7ac2b757dd43ab04fdc236b9e96a0020ba8566d0b8c33839add482e93c80f3b",
     "cuda": "ghcr.io/ggml-org/llama.cpp:server-cuda-b11515@sha256:ccfd96bb2aba4ef77e3df656d713ce85bf3c6a886d7974243127c5ad66ca6d2a"
-  },
-  "models": {
-    "qwen-gguf": {
-      "model_url": "https://huggingface.co/openmycel/Qwen3-Embedding-0.6B-GGUF/resolve/333bba6d067e5ab591bc8c21f1b15950e4435083/Qwen3-Embedding-0.6B-Q4_K_M.gguf",
-      "model_filename": "Qwen3-Embedding-0.6B-Q4_K_M.gguf",
-      "model_sha256": "23d234bb57a42528a22a13e7beb8b57d8844b2b9cc741b4c27a8ff132abf0dfd",
-      "model_alias": "project-intelligence-qwen3-q4-23d234bb57a42528a22a13e7beb8b57d8844b2b9cc741b4c27a8ff132abf0dfd",
-      "model_license": "Apache-2.0",
-      "pooling": "last"
-    },
-    "gemma-gguf": {
-      "model_url": "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/58faf90940886df2d62be555c8765d00dac362c5/embeddinggemma-2-Q8_0.gguf",
-      "model_filename": "embeddinggemma-2-Q8_0.gguf",
-      "model_sha256": "2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135",
-      "model_alias": "project-intelligence-gemma2-q8-2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135-c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f",
-      "model_license": "Apache-2.0",
-      "projector_url": "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/58faf90940886df2d62be555c8765d00dac362c5/mmproj-embeddinggemma-2-Q8_0.gguf",
-      "projector_filename": "mmproj-embeddinggemma-2-Q8_0.gguf",
-      "projector_sha256": "c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f",
-      "pooling": "mean"
-    }
   }
 }

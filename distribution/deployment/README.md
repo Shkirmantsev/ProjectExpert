@@ -7,58 +7,132 @@ for the optional CUDA profile; the CPU profile needs Compose 2.20+.
 
 The target repository defaults to the parent directory. Set PI_TARGET_REPO in
 `deployment.env` to change it; use forward slashes for Windows paths. The target
-must already exist. First startup downloads the selected embedding model. The default Qwen Q4_K_M
-artifact is 396 MB; PDF layout/table/OCR assets download only when PDFs are present.
+must already exist. First startup downloads the selected embedding model. The
+default EmbeddingGemma 2 artifact is ~310 MB and its multimodal projector is
+~555 MB; PDF layout/table/OCR assets download only when PDFs are present.
 Allow network access; the launcher timeout is 30 minutes, not an expected startup duration. The launcher reports success only after retrieval readiness.
 
 ## Models and hardware
 
-Select the model and backend independently in `deployment.env`:
+ProjectExpert ships **one** embedding model: **EmbeddingGemma 2**, quantised
+`Q8_0`, served by a pinned `llama.cpp` runtime. The pinned package is the
+`Q8_0` backbone **plus** the `Q8_0` multimodal projector, so text, image,
+audio and video embeddings are all available. The retired alternative
+embedding model is no longer selectable, is no longer a setup option and is
+not part of any deployment profile.
 
-| PI_EMBEDDING_MODEL | PI_ACCELERATOR | Execution |
-|---|---|---|
-| qwen-gguf | cpu | Qwen Q4_K_M CPU sidecar (default) |
-| qwen | cpu | Qwen PyTorch CPU, explicit full-precision option |
-| gemma | cpu | Gemma PyTorch CPU, text and images |
-| qwen | vulkan or cuda | Qwen GGUF GPU |
-| gemma | vulkan or cuda | Gemma GGUF GPU, text and images |
+| PI_EMBEDDING_MODEL | Execution |
+|---|---|
+| gemma (default) | pinned EmbeddingGemma 2 Q8_0 GGUF (backbone + projector) through the managed `llama.cpp` runtime |
+| gemma-torch | native Transformers binding of the same checkpoint; explicit opt-in; text and image only; needs `torch` |
 
-Run the same start command after editing the file. GPU choices automatically
-select the corresponding GGUF model; Gemma also downloads its multimodal
-projector. CPU operation never requires a discrete GPU or special GPU driver.
-To select a GGUF model on CPU, use `qwen-gguf` or
-`gemma-gguf` with `PI_ACCELERATOR=cpu`; this starts a CPU sidecar on both OSes.
-Changing PyTorch/GGUF profiles rebuilds vectors in a separate namespace.
+### Automatic backend selection
 
-Gemma's PyTorch model access may require accepting provider terms and exporting
-HF_TOKEN in your shell. Never store credentials in deployment files. Audio/video
-embedding is not exposed. Docling OCR still runs on CPU independently of the
-embedding backend.
+`PI_ACCELERATOR=auto` (the default) detects the backend on the machine and
+starts the deployment with the best **validated** profile:
 
-Linux Vulkan needs working vendor drivers and /dev/dri access. CUDA needs an
-NVIDIA GPU and NVIDIA Container Toolkit. An unavailable selected GPU produces a
-startup error before model setup; explicitly choose CPU to run without acceleration.
-Vulkan supports compatible Intel/AMD integrated GPUs as well as discrete GPUs.
-The launcher probes `llama-server --list-devices`; set `PI_GPU_DEVICE=Vulkan1`
-(or `CUDA1`) if the intended device is not index 0. The selected device must appear
-in the probe. `PI_EMBEDDING_DEVICE=cuda` alone does not provision a GPU runtime:
-use `PI_ACCELERATOR=cuda` or `vulkan` and the launcher. Bash launchers target a
-local Linux Docker Engine; Windows integrated GPUs use the native PowerShell path.
+```
+CUDA  ->  Vulkan  ->  CPU
+```
 
-Windows Vulkan/CUDA uses a pinned native llama.cpp service downloaded and started
-automatically alongside the application container; it does not require Vulkan
-passthrough into Docker. Vendor drivers are prerequisites. The authenticated
-service listens on port 8769 so Docker can reach it. Permit access only from
-Docker/WSL in Windows Firewall, not public networks. Its key stays in accelerator/
-and is never printed. Run `powershell -File stop.ps1` before switching models or
-backends, then start again. Linux uses `make platform-stop` before switching.
+The order is a preference, not a requirement. A candidate is only selected
+when the runtime itself proves it can use a device: the launcher asks the
+runtime for its device list and the device must be reported. A software
+rasteriser (lavapipe, SwiftShader) is never selected, and the multimodal
+projector always stays on the CPU because its ~555 MB of Q8 weights plus
+runtime buffers do not fit a small integrated-GPU allocation safely.
+
+**A GPU that is not measurably faster is also not selected.** The GPU is an
+optimisation, so the launcher measures it: the CPU baseline and every
+validated GPU candidate are started, measured with the same fixed corpus and
+stopped again before the winner is started for real. A GPU candidate is only
+selected when it is at least **1.10x faster** than the CPU baseline. A GPU
+that works but is slower is rejected with that reason and the CPU profile is
+used.
+
+**An unavailable or unusable GPU is a downgrade, not a failure.** The
+deployment falls back to the validated CPU profile, reports which candidates
+were rejected and why, and keeps serving. The same is true for an explicitly
+selected backend that does not validate. An explicitly selected backend is the
+operator's decision and is not second-guessed by the benchmark.
+
+| Host | Selected |
+|---|---|
+| NVIDIA GPU with a working driver / container toolkit | CUDA |
+| NVIDIA GPU without the container toolkit, or an AMD/Intel GPU with a Vulkan driver | Vulkan |
+| Integrated / office graphics driver, or no GPU | CPU |
+
+The CPU profile is the reference mode and never requires a GPU driver, the
+CUDA toolkit or a Vulkan SDK. The launcher never installs or upgrades drivers.
+
+`PI_ACCELERATOR` may still be set to `cpu`, `vulkan` or `cuda` to skip the
+detection; an explicit choice that does not validate still degrades to CPU.
+`PI_GPU_DEVICE` pins a specific device (for example `Vulkan1` or `CUDA1`); it
+is honoured only when the runtime actually reported that device.
+
+### What is supported and what is not
+
+* **ROCm / HIP is not supported.** There is no AMD ROCm backend, and no ROCm
+  runtime is shipped or downloaded. An AMD GPU is served through Vulkan when
+  a Vulkan driver is present, otherwise through the CPU profile.
+* No CUDA toolkit, Vulkan SDK or driver is ever installed on a client
+  machine. The Linux GPU profiles use the pinned official runtime images; the
+  Windows GPU profile uses the pinned native release archive.
+* The runtime flags are passed as an explicit argument vector. The
+  `LLAMA_ARG_*` environment variables are deliberately **not** used for
+  inference flags: llama.cpp's variable names differ from its flag names
+  (`--batch-size` is `LLAMA_ARG_BATCH`, `--ubatch-size` is `LLAMA_ARG_UBATCH`,
+  `--parallel` is `LLAMA_ARG_N_PARALLEL`) and a wrong name is silently
+  ignored.
+
+### Physically verified vs. conditional
+
+| Configuration | Status |
+|---|---|
+| Linux, CPU only, `llama.cpp` b11515 | **verified**: real inference, text + image + audio + video embeddings, 768-dimensional unit-norm vectors |
+| Linux, Vulkan (AMD integrated GPU) | **verified**: the device is detected, the runtime offloads to it, all four modalities return valid vectors, and the CPU/Vulkan parity gate passes |
+| Linux, automatic backend selection | **verified**: the launcher probes, measures and selects; on the verification host it correctly rejected a working-but-slower Vulkan profile |
+| Linux, CUDA | conditional: the runtime image, the device selection and the `--fit` budget are implemented and probed, but no NVIDIA hardware was available for this verification |
+| Windows, any backend | conditional: the launcher implements the same duty list and the native runtime is pinned, but no Windows host was available for this verification |
+
+### Measured on the verification host
+
+AMD Radeon Graphics (RADV RENOIR), integrated GPU, 512 MiB dedicated VRAM
+carve-out, Mesa 25.2.8, Vulkan 1.4.318, llama.cpp b11515:
+
+| Measurement | Value |
+|---|---|
+| Device reported by `--list-devices` | `Vulkan0: AMD Radeon Graphics (RADV RENOIR) (32334 MiB, 30768 MiB free)` |
+| CPU / Vulkan cosine parity (text, image, audio, video) | 0.999945 / 0.999929 / 0.999911 / 0.999953 (gate: >= 0.995) |
+| Vulkan embedding latency (median of 30) | 30.77 ms -> 32.50 emb/s |
+| CPU embedding latency (median of 30) | 22.19 ms -> 45.06 emb/s |
+| Measured speed-up | 0.72x -- **below the 1.10x gate, so the CPU profile is selected** |
+
+The integrated GPU produces numerically equivalent embeddings but is slower
+than the CPU for this workload, so the automatic selection keeps the CPU
+profile. The Vulkan profile itself remains available and is used when the
+operator selects it explicitly.
+
+See `tmp/local/mm-run/evidence.md` in the development repository for the raw
+measurements behind these statements.
+
+### Windows specifics
+
+Windows uses Docker Desktop with Linux containers. The CPU profile runs the
+managed sidecar container. When a GPU candidate validates, a pinned **native**
+`llama-server` is started on the host instead, and the application reaches it
+through `host.docker.internal:8769`; it does not require Vulkan passthrough
+into Docker. The native service listens on 127.0.0.1 with a per-run bearer
+token stored in `accelerator/llama-api-key`; the token is never printed.
+Permit access only from Docker/WSL in Windows Firewall, not public networks.
+Run `powershell -File stop.ps1` before switching models or backends, then
+start again. Linux uses `make platform-stop` before switching.
+
+### Cache and maintenance
 
 CPU/model state persists in the model-cache volume. Windows GPU assets persist
 in accelerator/. Linux GPU weights share model-cache. `make platform-stop`
-keeps caches. On Windows `powershell -File stop.ps1` also stops the kit's native
-service. Stop before changing accelerator. Never use `down -v` unless deleting
-cached assets intentionally. Physical GPU support depends on the driver/device;
-this release's local verification did not have GPU devices or Windows available.
+keeps caches. Never use `down -v` unless deleting cached assets intentionally.
 
 Use `make platform-models`, `make platform-doctor`, `make platform-reindex`,
 `make platform-logs`, `make eval`, `make eval-retrieval`, or
@@ -72,6 +146,22 @@ then update your existing kit deliberately. Export never overwrites your files.
 SHA tags are retained without an automatic expiry/cleanup job. Registry owners
 can delete packages; keep a local archive if permanent independent retention
 is required. Files also live in Git under distribution/deployment/.
+
+## Diagnostics
+
+The inference runtime has its own diagnostic commands:
+
+```bash
+# inside the application container
+python -m pi_platform.cli inference doctor --evidence-b64 <base64>
+python -m pi_platform.cli inference plan --evidence-b64 <base64>
+python -m pi_platform.cli inference status
+```
+
+`plan` prints exactly one JSON object: the selected backend and device, the
+fit budget, every rejected candidate with its reason, the runtime argument
+vector and the Compose environment fragment. The launchers use the same
+command, so the Linux and Windows launchers cannot drift apart.
 
 ## Recovery and cache maintenance
 
@@ -90,8 +180,9 @@ bash compose.sh exec -T production python -m pi_platform.cli models prune-incomp
 ```
 
 This removes only `.incomplete` blobs older than 24 hours whose downloader lock
-can be acquired. Completed weights and active downloads are retained. Q4 setup
-removes its temporary file on failed downloads. Q4 has a distinct vector profile;
-upgrading from Q8 rebuilds vectors once. Existing kits preserve their configuration
-on export: copy the updated launcher/Compose files and deliberately set
-`PI_EMBEDDING_MODEL=qwen-gguf` when upgrading.
+can be acquired. Completed weights and active downloads are retained. Setup
+removes its temporary file on failed downloads. The Gemma Q8_0 package has a
+distinct vector profile from the retired model; upgrading rebuilds the vectors
+once. Existing kits preserve their configuration on export: copy the updated
+launcher/Compose files and deliberately set `PI_EMBEDDING_MODEL=gemma` when
+upgrading.
