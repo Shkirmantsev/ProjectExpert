@@ -18,6 +18,7 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 
 - [Portable deployment architecture](architecture/portable-deployment.md)
 - [ADR: Portable model runtimes and OCI kit](adr/0029-portable-model-runtime-and-oci-kit.md)
+- [ADR: LLM Wiki as the curated knowledge layer](adr/0030-llm-wiki-as-curated-knowledge.md)
 - [System overview](architecture/system-overview.md)
 - [Platform architecture overview](architecture/platform-overview.md)
 - [Architecture baseline v0.8](../../project-intelligence-platform-architecture-v0.8.md)
@@ -35,6 +36,8 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [ADR: Phase 7 secret references and redaction](adr/0015-secret-references-and-redaction.md)
 - [ADR: Phase 7 audit vs operational log separation](adr/0016-audit-vs-operational-log-separation.md)
 - [Platform core modules](modules/platform-core.md)
+- [Inference runtime module](modules/inference-runtime.md)
+- [LLM Wiki module](modules/llm-wiki.md)
 - [Phase 7 Feature / Plugin Registry module map](modules/registry.md)
 - [Phase 7 Hook Runtime module map](modules/hooks.md)
 - [Phase 7 Policy Engine module map](modules/policy-engine.md)

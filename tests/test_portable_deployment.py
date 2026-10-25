@@ -30,9 +30,56 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn('--license-review distribution/licenses/production-license-review.json', production)
 
 
+    def test_only_one_production_embedding_model_is_shipped(self):
+        """The retired alternative model must be gone from the kit."""
+
+        lock = json.loads((BUNDLE / 'accelerator-lock.json').read_text())
+        self.assertEqual(set(lock['models']), {'gemma'})
+        record = lock['models']['gemma']
+        self.assertEqual(record['quantization'], 'Q8_0')
+        self.assertEqual(record['pooling'], 'mean')
+        self.assertIn('embeddinggemma-2-Q8_0.gguf', record['model_filename'])
+        self.assertIn('mmproj-embeddinggemma-2-Q8_0.gguf', record['projector_filename'])
+        for name in ('compose.yaml', 'compose.accelerator.yaml', 'deployment.env'):
+            content = (BUNDLE / name).read_text()
+            self.assertNotIn('qwen', content.lower(), f'{name} still references the retired model')
+        env = (BUNDLE / 'deployment.env').read_text()
+        self.assertIn('PI_EMBEDDING_MODEL=gemma', env)
+        self.assertIn('PI_ACCELERATOR=auto', env)
+
+    def test_runtime_flags_are_explicit_and_not_environment_variables(self):
+        """llama.cpp's LLAMA_ARG_* names differ from its flag names, so the
+        deployment must pass an explicit argument vector instead."""
+
+        content = (BUNDLE / 'compose.accelerator.yaml').read_text()
+        self.assertNotIn('LLAMA_ARG_BATCH_SIZE', content)
+        self.assertNotIn('LLAMA_ARG_UBATCH_SIZE', content)
+        self.assertNotIn('LLAMA_ARG_N_GPU_LAYERS', content)
+        command = content.split('  embeddings:', 1)[1]
+        self.assertIn('--embeddings', command)
+        self.assertIn('--mmproj', command)
+        self.assertIn('--pooling', command)
+        # The projector must be off the GPU exactly once in the argument vector.
+        self.assertEqual(command.count('- --no-mmproj-offload'), 1)
+
+    def test_the_launcher_measures_the_candidates_before_deciding(self):
+        """The GPU is an optimisation: it is selected only when it is
+        measurably faster than the CPU baseline."""
+
+        script = (BUNDLE / 'compose.sh').read_text()
+        self.assertIn('inference benchmark', script)
+        self.assertIn('inference plan', script)
+        self.assertIn('measurements', script)
+
+    def test_the_launcher_never_uses_the_environment_variables_for_the_flags(self):
+        script = (BUNDLE / 'compose.sh').read_text()
+        for wrong in ('LLAMA_ARG_BATCH_SIZE', 'LLAMA_ARG_UBATCH_SIZE',
+                      'LLAMA_ARG_N_GPU_LAYERS'):
+            self.assertNotIn(wrong, script)
+
     @unittest.skipUnless(os.name != 'nt' and shutil.which('docker') and shutil.which('bash'), 'Linux Compose matrix; Windows has native launcher contract tests')
     def test_model_device_matrix_preserves_cpu_and_selects_matching_gpu_model(self):
-        for model in ('qwen', 'gemma', 'qwen-gguf', 'gemma-gguf'):
+        for model in ('gemma', 'gemma-torch'):
             for backend in ('cpu', 'vulkan', 'cuda'):
                 with self.subTest(model=model, backend=backend):
                     env = {**os.environ, 'PI_EMBEDDING_MODEL':model, 'PI_ACCELERATOR':backend}
@@ -41,21 +88,23 @@ class DeploymentTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stderr)
                     services = json.loads(result.stdout)['services']
                     app = services['production']['environment']
-                    uses_gguf = backend != 'cpu' or model.endswith('-gguf')
-                    expected = model.split('-')[0]+'-gguf' if uses_gguf else model
-                    self.assertEqual(app['PI_EMBEDDING_MODEL'], expected)
-                    self.assertEqual(app['PI_EMBEDDING_DEVICE'], backend)
-                    if not uses_gguf:
+                    self.assertEqual(app['PI_EMBEDDING_MODEL'], model)
+                    if model == 'gemma-torch':
+                        # The native binding runs no llama.cpp sidecar.
                         self.assertNotIn('embeddings', services)
                         continue
-                    runtime = services['embeddings']['environment']
-                    self.assertEqual(runtime['LLAMA_ARG_DEVICE'], {'cpu':'none','cuda':'CUDA0','vulkan':'Vulkan0'}[backend])
-                    self.assertEqual(runtime['LLAMA_ARG_N_GPU_LAYERS'], '0' if backend=='cpu' else '99')
-                    if model.startswith('gemma'):
-                        self.assertIn('mmproj-embeddinggemma-2', runtime['LLAMA_ARG_MMPROJ'])
-                        self.assertEqual(runtime['LLAMA_ARG_POOLING'], 'mean')
+                    self.assertEqual(app['PI_EMBEDDING_DEVICE'], backend)
+                    command = services['embeddings']['command']
+                    self.assertIn('--mmproj', command)
+                    self.assertIn('/models/mmproj-embeddinggemma-2-Q8_0.gguf', command)
+                    self.assertIn('mean', command)
+                    if backend == 'cpu':
+                        self.assertEqual(services['embeddings']['entrypoint'],
+                                         ['/app/llama-server', '--device', 'none'])
                     else:
-                        self.assertNotIn('LLAMA_ARG_MMPROJ', runtime)
+                        self.assertIn('--fit', command)
+                        self.assertIn('on', command)
+                        self.assertIn('--fit-target', command)
 
     def test_export_preserves_existing_configuration_and_symlinks(self):
         spec = importlib.util.spec_from_file_location('kit_export', BUNDLE / 'export.py')
@@ -105,37 +154,50 @@ class DeploymentTests(unittest.TestCase):
         self.assertNotIn('harness.py', run.stdout)
 
     @unittest.skipUnless(os.name != 'nt' and shutil.which('docker'), 'Linux Compose config required')
-    def test_default_is_q4_and_explicit_integrated_device_is_preserved(self):
+    def test_default_is_gemma_and_explicit_integrated_device_is_preserved(self):
         env = {key: value for key, value in os.environ.items() if not key.startswith('PI_')}
         result = subprocess.run(['bash', str(BUNDLE/'compose.sh'), 'config', '--format', 'json'], env=env, capture_output=True, text=True, check=True)
         services = json.loads(result.stdout)['services']
-        self.assertEqual(services['production']['environment']['PI_EMBEDDING_MODEL'], 'qwen-gguf')
-        self.assertIn('Q4_K_M', services['embeddings']['environment']['LLAMA_ARG_MODEL'])
+        self.assertEqual(services['production']['environment']['PI_EMBEDDING_MODEL'], 'gemma')
+        command = services['embeddings']['command']
+        self.assertIn('/models/embeddinggemma-2-Q8_0.gguf', command)
+        self.assertIn('/models/mmproj-embeddinggemma-2-Q8_0.gguf', command)
         env.update(PI_ACCELERATOR='vulkan', PI_GPU_DEVICE='Vulkan1')
         result = subprocess.run(['bash', str(BUNDLE/'compose.sh'), 'config', '--format', 'json'], env=env, capture_output=True, text=True, check=True)
-        self.assertEqual(json.loads(result.stdout)['services']['embeddings']['environment']['LLAMA_ARG_DEVICE'], 'Vulkan1')
+        self.assertIn('Vulkan1', json.loads(result.stdout)['services']['embeddings']['command'])
 
     @unittest.skipUnless(os.name != 'nt' and shutil.which('bash'), 'Bash launcher required')
-    def test_cuda_startup_probes_device_before_up(self):
+    def test_unavailable_gpu_degrades_to_cpu_instead_of_failing(self):
+        """An unusable GPU is a downgrade, never a startup failure."""
+
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             shutil.copytree(BUNDLE, root/'kit')
             docker = root/'docker'
-            docker.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALLS"\ncase "$*" in *--list-devices*) echo "CUDA1: test GPU";; esac\n')
+            # The fake docker reports a device that is not the requested one
+            # and never returns a usable plan.
+            docker.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALLS"\n'
+                              'case "$*" in *--list-devices*) echo "Available devices:"; echo "  CUDA1: test GPU";; esac\n')
             docker.chmod(0o755)
-            env = {**os.environ, 'PATH':str(root)+os.pathsep+os.environ['PATH'], 'CALLS':str(root/'calls'), 'PI_ACCELERATOR':'cuda', 'PI_GPU_DEVICE':'CUDA1'}
+            env = {**os.environ, 'PATH':str(root)+os.pathsep+os.environ['PATH'], 'CALLS':str(root/'calls'), 'PI_ACCELERATOR':'cuda'}
             result = subprocess.run(['bash',str(root/'kit/compose.sh'),'up','-d'],env=env,capture_output=True,text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn('--list-devices', (root/'calls').read_text().splitlines()[0])
-            result = subprocess.run(['bash',str(root/'kit/compose.sh'),'up','-d'],env={**env,'PI_GPU_DEVICE':'CUDA0'},capture_output=True,text=True)
-            self.assertEqual(result.returncode, 2)
-            self.assertIn('Selected device CUDA0 is unavailable', result.stderr)
+            calls = (root/'calls').read_text()
+            self.assertIn('--list-devices', calls)
+            # The deployment must not abort: it falls back to the CPU profile.
+            self.assertNotIn('Selected device', result.stderr)
+            self.assertIn('cpu', calls)
 
     def test_windows_gpu_probes_before_download_and_tracks_device(self):
         script = (BUNDLE/'setup-windows-accelerator.ps1').read_text()
-        self.assertLess(script.index("-ArgumentList '--list-devices'"), script.index('Get-VerifiedFile $modelSpec.model_url'))
-        self.assertIn('$env:PI_GPU_DEVICE', script)
+        self.assertLess(script.index("'--list-devices'"), script.index('Get-VerifiedFile $modelSpec.model_url'))
         self.assertIn("'device.txt'", script)
+        self.assertIn("'backend.txt'", script)
+        # The Windows launcher must apply the shared Python decision.
+        self.assertIn('pi_platform.cli', script)
+        self.assertIn('inference', script)
+        self.assertIn('plan', script)
+        # The runtime flags must not come from LLAMA_ARG_* variables.
+        self.assertNotIn('LLAMA_ARG_BATCH', script)
 
 
 class ScopedReviewTests(unittest.TestCase):

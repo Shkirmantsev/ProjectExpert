@@ -165,6 +165,18 @@ EXTENSION_TOOLS: tuple[str, ...] = (
     "project.describe_capabilities",
 )
 
+#: The LLM Wiki tools. They let a CALLING LLM curate the canonical
+#: project knowledge: read the curated pages, search them, write a new
+#: page and validate the bundle. The pages are OKF v0.2 concepts and are
+#: part of the searchable corpus on the next refresh.
+WIKI_TOOLS: tuple[str, ...] = (
+    "project.wiki_list_pages",
+    "project.wiki_read_page",
+    "project.wiki_search",
+    "project.wiki_write_page",
+    "project.wiki_validate",
+)
+
 # Debug-only tools (Change Package I, plan §33). These tools
 # require :attr:`ToolContext.debug_mode` to be truthy; the server
 # rejects calls with :class:`DebugModeRequiredError` when it is
@@ -720,6 +732,133 @@ async def _tool_get_retrieval_trace(ctx: ToolContext,
             "stats": ctx.trace_store.stats()}
 
 
+
+# ---------------------------------------------------------------------------
+# LLM Wiki tools
+# ---------------------------------------------------------------------------
+
+
+def _wiki(ctx: ToolContext):
+    """Return the :class:`LlmWiki` of the target repository."""
+
+    from pi_platform.core.wiki.llm_wiki import LlmWiki, LlmWikiError
+
+    if ctx.repo_root is None:
+        raise McpServerError(
+            "the LLM Wiki tools require a target repository root"
+        )
+    return LlmWiki(Path(ctx.repo_root))
+
+
+async def _tool_wiki_list_pages(ctx: ToolContext,
+                                arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    """List the curated Wiki pages of the target repository."""
+
+    from pi_platform.core.wiki.llm_wiki import LlmWikiError
+
+    try:
+        wiki = _wiki(ctx)
+        pages = wiki.list_pages()
+    except LlmWikiError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {
+        "ok": True,
+        "root": str(wiki.root),
+        "count": len(pages),
+        "pages": pages,
+    }
+
+
+async def _tool_wiki_read_page(ctx: ToolContext,
+                               arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Read one curated Wiki page."""
+
+    from pi_platform.core.wiki.llm_wiki import LlmWikiError
+
+    path = _require(arguments, "path")
+    include_body = bool(_optional(arguments, "include_body", True))
+    try:
+        page = _wiki(ctx).read_page(str(path))
+    except LlmWikiError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True, "page": page.as_dict(include_body=include_body)}
+
+
+async def _tool_wiki_search(ctx: ToolContext,
+                            arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Search the curated Wiki pages."""
+
+    from pi_platform.core.wiki.llm_wiki import LlmWikiError
+
+    query = _require(arguments, "query")
+    top_k = int(_optional(arguments, "top_k", 8))
+    try:
+        pages = _wiki(ctx).search_pages(str(query), top_k=top_k)
+    except LlmWikiError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True, "count": len(pages), "pages": pages}
+
+
+async def _tool_wiki_write_page(ctx: ToolContext,
+                                arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Create or update a curated Wiki page.
+
+    The page is validated against the OKF v0.2 profile before it is
+    written. An invalid page is never stored. The write is atomic and is
+    recorded in the reserved Wiki log.
+    """
+
+    from pi_platform.core.wiki.llm_wiki import LlmWikiError
+
+    path = _require(arguments, "path")
+    title = _require(arguments, "title")
+    body = _require(arguments, "body")
+    page_type = str(_optional(arguments, "type", "Concept"))
+    summary = str(_optional(arguments, "summary", ""))
+    author = str(_optional(arguments, "author", "calling-llm"))
+    source = str(_optional(arguments, "source", ""))
+    dry_run = bool(_optional(arguments, "dry_run", False))
+    try:
+        wiki = _wiki(ctx)
+        wiki.ensure_scaffold()
+        result = wiki.write_page(
+            relative_path=str(path),
+            title=str(title),
+            body=str(body),
+            page_type=page_type,
+            summary=summary,
+            author=author,
+            source=source,
+            dry_run=dry_run,
+        )
+    except LlmWikiError as exc:
+        return {"ok": False, "error": str(exc)}
+    result["note"] = (
+        "The page becomes part of the searchable corpus on the next "
+        "project refresh."
+    )
+    return result
+
+
+async def _tool_wiki_validate(ctx: ToolContext,
+                              arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Validate the curated Wiki bundle against the OKF profile."""
+
+    from pi_platform.core.wiki.llm_wiki import LlmWikiError
+
+    try:
+        wiki = _wiki(ctx)
+        errors = wiki.validate()
+    except LlmWikiError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {
+        "ok": not errors,
+        "root": str(wiki.root),
+        "profile": "okf-0.2",
+        "errors": errors,
+    }
+
+
 TOOL_REGISTRY: dict[str, ToolHandler] = {
     "project.search": _tool_search,
     "project.retrieve_context": _tool_retrieve_context,
@@ -740,6 +879,11 @@ TOOL_REGISTRY: dict[str, ToolHandler] = {
     "project.refresh_sources": _tool_refresh_sources,
     "project.describe_capabilities": _tool_describe_capabilities,
     "project.get_retrieval_trace": _tool_get_retrieval_trace,
+    "project.wiki_list_pages": _tool_wiki_list_pages,
+    "project.wiki_read_page": _tool_wiki_read_page,
+    "project.wiki_search": _tool_wiki_search,
+    "project.wiki_write_page": _tool_wiki_write_page,
+    "project.wiki_validate": _tool_wiki_validate,
 }
 
 

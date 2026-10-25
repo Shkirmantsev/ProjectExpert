@@ -38,6 +38,33 @@ _CONTRACTS = {
     'refresh_sources': ({'approval_id': _TEXT, 'repo_root': _TEXT}, ['approval_id']),
     'describe_capabilities': ({}, []),
     'get_retrieval_trace': ({'trace_id': _TEXT}, ['trace_id']),
+    'wiki_list_pages': ({}, []),
+    'wiki_read_page': ({
+        'path': {**_TEXT, 'description': 'Wiki-relative page path, e.g. "architecture/overview.md".'},
+        'include_body': {'type': 'boolean', 'default': True},
+    }, ['path']),
+    'wiki_search': ({
+        'query': {**_TEXT, 'description': 'Free-text query over the curated pages.'},
+        'top_k': {'type': 'integer', 'minimum': 1, 'default': 8},
+    }, ['query']),
+    'wiki_write_page': ({
+        'path': {**_TEXT, 'description': 'Wiki-relative page path, e.g. "architecture/overview.md".'},
+        'title': {**_TEXT, 'description': 'Human-readable page title.'},
+        'body': {**_TEXT, 'description': 'The Markdown body of the page.'},
+        'type': {
+            'type': 'string', 'default': 'Concept',
+            'enum': [
+                'Concept', 'Architecture', 'Module', 'Interface', 'Process',
+                'Decision', 'Requirement', 'Glossary', 'Domain', 'Invariant',
+            ],
+            'description': 'OKF concept type of the page.',
+        },
+        'summary': {'type': 'string', 'default': ''},
+        'author': {'type': 'string', 'default': 'calling-llm'},
+        'source': {'type': 'string', 'default': ''},
+        'dry_run': {'type': 'boolean', 'default': False},
+    }, ['path', 'title', 'body']),
+    'wiki_validate': ({}, []),
 }
 
 

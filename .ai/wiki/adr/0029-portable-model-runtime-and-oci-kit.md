@@ -83,3 +83,18 @@ Qwen GGUF, with retained Apache-2.0 provenance and a distinct vector identity.
 Real CPU inference, Java indexing, search and vector reuse pass on a small clean
 fixture. Device preflight and explicit device selection improve GPU diagnostics;
 physical GPU and Windows execution remain uncertified.
+
+## Update 2026-10-25
+
+The runtime policy described above is now owned by
+`pi_platform/core/inference/` (backend vocabulary, `--list-devices`
+probe, pure selection policy, launch-plan builder) and exposed
+through the `inference plan` / `doctor` / `status` CLI group.
+Three refinements apply: the backend is selected automatically in
+`cuda -> vulkan -> cpu` order from probe evidence, an
+unavailable or unusable GPU downgrades to the validated CPU
+profile instead of failing startup, and the runtime flags are
+passed as an explicit argument vector rather than `LLAMA_ARG_*`
+environment variables, whose names differ from the flag names and
+are silently ignored when wrong. See
+[`modules/inference-runtime`](../modules/inference-runtime.md).

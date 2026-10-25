@@ -9,12 +9,14 @@ sourceRefs:
   - pi_platform/core/control/retrieval_settings.py
   - pi_platform/core/retrieval/first_start_wizard.py
   - pi_platform/adapters/ui/retrieval_admin_routes.py
+  - pi_platform/core/inference/profile.py
   - openspec/specs/2026-10-18-one-command-production-ux/spec.md
 maintenance:
   mode: authored
 related:
   - modules.release-gate
   - modules.retrieval
+  - modules.inference-runtime
 ---
 
 # One-command production UX
@@ -57,6 +59,30 @@ defaults, malformed → raises, never silent reset) +
 `save_retrieval_settings()` with atomic `.tmp` + fsync +
 `os.replace`. The settings file lives at
 `.project-intelligence-cache/retrieval-settings.json`.
+
+The same layer owns the operator-visible retrieval defaults.
+ProjectExpert ships one embedding model: EmbeddingGemma 2 in the
+pinned Q8_0 quantisation (the native Transformers binding of the
+same checkpoint stays an explicit `gemma-torch` opt-in). The
+retired Qwen3-Embedding-0.6B aliases are rejected with an
+actionable message naming the supported aliases — in settings
+(`RetrievalSettings`), in the runtime configuration resolver
+(`PI_EMBEDDING_MODEL`) and in the embedding factory — instead of
+being silently substituted. BM25-light reranking is active by
+default (`reranking_enabled`, family `bm25-light`) and is
+operator-controllable through the settings file, the
+`PI_RERANKING_ENABLED` override and the per-query
+`enable_reranking` argument on `project.search` /
+`project.retrieve_context`.
+
+Note: the accepted
+[`one-command-production-ux` spec](../../../openspec/specs/2026-10-18-one-command-production-ux/spec.md)
+and the CLI / wizard paragraphs of this node still describe the
+retired Qwen3 choice and the older `--model {gemma,qwen} --device
+{auto,cpu,cuda}` flags. The implemented consolidation
+(`consolidate-embeddinggemma2-and-autoconfigure-inference`)
+supersedes them; this node records the observed implementation
+and reports the spec lag rather than hiding it.
 
 ## First-start wizard
 
@@ -137,3 +163,17 @@ GGUF profiles have distinct cache identities and Gemma preserves image inputs.
 After successful bootstrap, persisted ready-state model/device settings reflect
 the effective runtime selection, including deployment environment overrides;
 a prior CPU model must not remain displayed after a GGUF/GPU switch.
+
+## Automatic backend selection
+
+The deployment no longer asks the operator to pick the runtime
+backend by hand. `python -m pi_platform.cli inference plan`
+(`pi_platform/core/inference/`) reads probe evidence and selects
+the backend automatically in `cuda -> vulkan -> cpu` order: a
+candidate wins only when the runtime's own `--list-devices`
+reports a usable, non-software device of that backend. An
+unavailable or unusable GPU is a downgrade to the validated CPU
+profile — startup continues on CPU instead of failing. The
+launchers parse the printed decision JSON and apply it; on any
+plan error they fall back to the validated CPU profile. See
+[`modules/inference-runtime`](../modules/inference-runtime.md).

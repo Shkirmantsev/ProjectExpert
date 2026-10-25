@@ -4,7 +4,14 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from .core import build_index, code_symbol as find_symbol, get_document, search, validate
+from .core import (
+    build_index,
+    code_symbol as find_symbol,
+    get_document,
+    search,
+    validate,
+    write_document,
+)
 
 ROOT = Path(os.environ.get("PROJECT_ROOT", ".")).expanduser().resolve()
 mcp = FastMCP(
@@ -32,6 +39,41 @@ def kb_neighbors(id: str, depth: int = 1) -> dict:
     import re
     links = re.findall(r"\[([^\]]+)\]\(([^)]+)\)", doc["content"])
     return {"id": id, "depth": min(max(depth, 1), 1), "links": [{"title": a, "target": b} for a,b in links]}
+
+@mcp.tool()
+def kb_write(
+    path: str,
+    title: str,
+    body: str,
+    id: str | None = None,
+    kind: str = "project",
+    status: str = "active",
+    summary: str = "",
+    dry_run: bool = False,
+) -> dict:
+    """Create or update one Wiki page of this project.
+
+    Use it to record durable project knowledge you derived: an architecture
+    decision, a module map, a glossary entry, an invariant. The page keeps
+    the Wiki conventions (stable id, kind, status, summary), the write is
+    atomic, and the search index is refreshed so the page is immediately
+    retrievable.
+    """
+    try:
+        return write_document(
+            ROOT,
+            relative_path=path,
+            title=title,
+            body=body,
+            doc_id=id,
+            kind=kind,
+            status=status,
+            summary=summary,
+            dry_run=dry_run,
+        )
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc)}
+
 
 @mcp.tool()
 def code_symbol(symbol: str, max_results: int = 20) -> list[dict]:
