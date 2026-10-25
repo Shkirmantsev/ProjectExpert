@@ -207,11 +207,15 @@ async def _tool_search(ctx: ToolContext,
     include_trace = bool(
         ctx.debug_mode and _optional(arguments, "include_trace", False),
     )
+    enable_reranking = _optional(arguments, "enable_reranking", None)
     from pi_platform.ports.retrieval.multi_stage_retrieval import RetrievalQuery
     result = ctx.multi_stage_retrieval.retrieve(RetrievalQuery(
         text=text, top_k=top_k,
         filters=filters, projectVersion=project_version,
         include_trace=include_trace,
+        enableReranking=(
+            None if enable_reranking is None else bool(enable_reranking)
+        ),
     ))
     return {"ok": True, "result": _serialise(result)}
 
@@ -231,11 +235,17 @@ async def _tool_retrieve_context(ctx: ToolContext,
     include_trace = bool(
         ctx.debug_mode and _optional(arguments, "include_trace", False),
     )
+    # Reranking is controlled by the operator policy; the caller may
+    # override it for a single query.
+    enable_reranking = _optional(arguments, "enable_reranking", None)
     from pi_platform.ports.retrieval.multi_stage_retrieval import RetrievalQuery
     result = ctx.multi_stage_retrieval.retrieve(RetrievalQuery(
         text=text, top_k=top_k, contextBudget=context_budget,
         filters=filters, projectVersion=project_version,
         include_trace=include_trace,
+        enableReranking=(
+            None if enable_reranking is None else bool(enable_reranking)
+        ),
     ))
     bundle = ctx.context_assembler.assemble(
         retrieval=result, budget_tokens=context_budget,

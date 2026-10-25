@@ -38,6 +38,22 @@ DROP_NEAR_DUPLICATE = "near_duplicate"
 _HIT_STATE_PROTECTED = "PROTECTED"
 
 
+def _effective_order_key(hit: RetrievalHit):
+    """Return the ordering key that honours the rerank decision.
+
+    A candidate that was reranked is ordered by the reranker's own rank:
+    re-sorting it by the earlier retrieval score would silently undo the
+    rerank. Candidates that were never reranked keep the retrieval-score
+    order and follow the reranked group.
+    """
+
+    if hit.rerankRank > 0:
+        return (0, float(hit.rerankRank), hit.chunkId)
+    if hit.rerankScore is not None:
+        return (1, -float(hit.rerankScore), hit.chunkId)
+    return (2, -float(hit.score), hit.chunkId)
+
+
 class SelectionCore(SelectionPort):
     """Default non-destructive candidate selection implementation.
 
@@ -60,7 +76,7 @@ class SelectionCore(SelectionPort):
                 protected.append((hit, reason))
             else:
                 rest.append(hit)
-        rest.sort(key=lambda h: (-h.score, h.chunkId))
+        rest.sort(key=_effective_order_key)
         primary_cap = min(DEFAULT_PRIMARY_TOP_K, max(budget, 0))
         reserve_cap = min(
             DEFAULT_RESERVE_TOP_K, max(budget - 0, 0),
@@ -225,6 +241,10 @@ class SelectionCore(SelectionPort):
                 exact_match=hit.source == "exact",
                 rrf_rank=rrf_ranks.get(chunk_id, 0),
                 rrf_score=hit.score,
+                rerank_rank=hit.rerankRank,
+                rerank_score=(
+                    hit.rerankScore if hit.rerankScore is not None else 0.0
+                ),
                 selection_state=state,
                 protected_reason=protected_reason,
                 duplicate_of=duplicate,

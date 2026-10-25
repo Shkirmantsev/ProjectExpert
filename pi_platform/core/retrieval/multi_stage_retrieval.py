@@ -63,7 +63,12 @@ from pi_platform.ports.retrieval.multi_stage_retrieval import (
     STAGE_SUPPORT_MARKING,
     StageReport,
 )
-from pi_platform.ports.retrieval.reranker import RerankerPort
+from pi_platform.ports.retrieval.reranker import (
+    RERANK_FALLBACK_FAIL,
+    RerankPolicy,
+    RerankerPort,
+    ensure_rerank_order,
+)
 
 if TYPE_CHECKING:
     # Imported for typing only; the v2 path resolves the selection
@@ -152,6 +157,7 @@ class MultiStageRetrievalCore(MultiStageRetrievalPort):
         context_assembler: ContextAssemblerPort | None = None,
         budgets: Mapping[str, int] | None = None,
         selection: object = None,
+        rerank_policy: RerankPolicy | None = None,
     ) -> None:
         self._hybrid = hybrid
         self._metadata = metadata
@@ -159,6 +165,7 @@ class MultiStageRetrievalCore(MultiStageRetrievalPort):
         self._reranker = reranker
         self._context_assembler = context_assembler
         self._selection = selection
+        self._rerank_policy = rerank_policy or RerankPolicy()
         self._budgets = dict(DEFAULT_BUDGETS)
         if budgets:
             self._budgets.update(budgets)
@@ -178,6 +185,19 @@ class MultiStageRetrievalCore(MultiStageRetrievalPort):
 
     def stats(self) -> Mapping[str, int]:
         return {"calls": self._calls}
+
+    def _rerank_enabled(self, query: RetrievalQuery) -> bool:
+        """Resolve whether reranking runs for this query.
+
+        A query may carry an explicit override. When it does not, the
+        operator-controllable policy decides: BM25-light reranking is
+        cheap and improves precision, so it is active by default and can
+        be switched off explicitly.
+        """
+
+        if query.enableReranking is None:
+            return self._rerank_policy.enabled
+        return bool(query.enableReranking)
 
     # -- legacy seven-stage path -------------------------------------------
 
@@ -265,7 +285,8 @@ class MultiStageRetrievalCore(MultiStageRetrievalPort):
 
         ranked = list(filtered) + list(expansion) + list(hierarchy)
         dedup_ranked = _dedupe_hits(ranked)[:cand_out]
-        if query.enableReranking and self._reranker is not None:
+        rerank_error = ""
+        if self._rerank_enabled(query) and self._reranker is not None:
             t4 = _now_ms()
             rerank_input = dedup_ranked[:rerank_budget]
             reports.append(StageReport(
@@ -275,9 +296,18 @@ class MultiStageRetrievalCore(MultiStageRetrievalPort):
                 durationMs=0,
                 budgetExhausted=len(dedup_ranked) > rerank_budget,
             ))
-            dedup_ranked = list(self._reranker.rerank(
-                query.text, rerank_input, top_k=query.top_k,
-            ))
+            try:
+                dedup_ranked = list(self._reranker.rerank(
+                    query.text, rerank_input, top_k=query.top_k,
+                ))
+            except Exception as exc:
+                # The legacy path must degrade exactly like the v2 path:
+                # a failing reranker never fails the retrieval.
+                if self._rerank_policy.fallback == RERANK_FALLBACK_FAIL:
+                    raise
+                dedup_ranked = list(rerank_input)
+                rerank_error = f"{type(exc).__name__}: {exc}"
+            dedup_ranked = ensure_rerank_order(dedup_ranked)
             rerank_duration = _now_ms() - t4
             reports[-1] = StageReport(
                 stage=STAGE_RERANK,
@@ -285,6 +315,7 @@ class MultiStageRetrievalCore(MultiStageRetrievalPort):
                 candidatesOut=len(dedup_ranked),
                 durationMs=rerank_duration,
                 budgetExhausted=len(rerank_input) >= rerank_budget,
+                error=rerank_error,
             )
 
         if self._context_assembler is None:
@@ -432,16 +463,19 @@ class MultiStageRetrievalCore(MultiStageRetrievalPort):
         rerank_error = ""
         reranked = list(pool)
         rerank_duration = 0
-        if query.enableReranking and self._reranker is not None:
+        if self._rerank_enabled(query) and self._reranker is not None:
             t2 = _now_ms()
             try:
                 reranked = list(self._reranker.rerank(
                     query.text, pool, top_k=pool_cap,
                 ))
             except Exception as exc:
+                if self._rerank_policy.fallback == RERANK_FALLBACK_FAIL:
+                    raise
                 reranked = list(pool)
                 rerank_error = f"{type(exc).__name__}: {exc}"
                 budget_decisions.append("rerank_fallback_to_rrf")
+            reranked = ensure_rerank_order(reranked)
             rerank_duration = _now_ms() - t2
         reports.append(StageReport(
             stage=STAGE_RERANK_DIRECT,

@@ -336,6 +336,8 @@ def _replace_hit(
         dropReason=hit.dropReason,
         evidenceWeight=hit.evidenceWeight,
         selection_state=selection_state,
+        rerankScore=hit.rerankScore,
+        rerankRank=hit.rerankRank,
     )
 
 

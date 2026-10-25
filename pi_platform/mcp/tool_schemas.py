@@ -9,6 +9,14 @@ _SEARCH = {
     'filters': {'type': ['object', 'null']},
     'project_version': _VERSION,
     'include_trace': {'type': 'boolean', 'default': False},
+    'enable_reranking': {
+        'type': ['boolean', 'null'],
+        'description': (
+            'Override the operator reranking policy for this query. '
+            'Omit to use the configured policy (BM25-light reranking is '
+            'active by default).'
+        ),
+    },
 }
 _CONTRACTS = {
     'search': (_SEARCH, ['text']),

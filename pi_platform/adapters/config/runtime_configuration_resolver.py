@@ -36,8 +36,6 @@ __all__ = [
     "RuntimeConfigurationResolver",
     "ConfigurationError",
     "DEFAULT_EMBEDDING_MODEL",
-    "PRODUCTION_EMBEDDING_ALIASES",
-    "RETIRED_EMBEDDING_ALIASES",
     "DEFAULT_EMBEDDING_DEVICE",
     "DEFAULT_DENSE_INDEX",
     "DEFAULT_DOCLING_ENABLED",
@@ -45,10 +43,31 @@ __all__ = [
     "DEFAULT_STARTUP_PROFILE",
     "ENV_OVERRIDE_PREFIX",
     "LOCAL_SETTINGS_RELATIVE_PATH",
+    "PRODUCTION_EMBEDDING_ALIASES",
+    "RETIRED_EMBEDDING_ALIASES",
+    "DEFAULT_RERANKING_ENABLED",
+    "DEFAULT_RERANKING_FAMILY",
+    "DEFAULT_RERANKING_TOP_N",
+    "DEFAULT_RERANKING_TIMEOUT_MS",
 ]
 
 
 DEFAULT_EMBEDDING_MODEL = "gemma"
+DEFAULT_EMBEDDING_DEVICE = "auto"
+DEFAULT_DENSE_INDEX = "usearch"
+DEFAULT_DOCLING_ENABLED = True
+DEFAULT_MODEL_CACHE_DIR = str(Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")))
+DEFAULT_STARTUP_PROFILE = "production"
+# Reranking is on by default: BM25-light is cheap and improves the
+# precision of the context handed to a calling LLM. It can be switched
+# off explicitly.
+DEFAULT_RERANKING_ENABLED = True
+DEFAULT_RERANKING_FAMILY = "bm25-light"
+DEFAULT_RERANKING_TOP_N = 10
+DEFAULT_RERANKING_TIMEOUT_MS = 2000
+ENV_OVERRIDE_PREFIX = "PI_"
+LOCAL_SETTINGS_RELATIVE_PATH = ".project-intelligence-cache/settings.json"
+
 #: ProjectExpert ships one production embedding model. Two bindings of it
 #: are selectable: the pinned GGUF binding (default) and the native
 #: Transformers binding (explicit opt-in).
@@ -59,16 +78,13 @@ PRODUCTION_EMBEDDING_ALIASES = frozenset({"gemma", "gemma-torch"})
 RETIRED_EMBEDDING_ALIASES = frozenset(
     {"qwen", "qwen-gguf", "qwen3", "qwen3-embedding-0.6b"}
 )
-DEFAULT_EMBEDDING_DEVICE = "auto"
-DEFAULT_DENSE_INDEX = "usearch"
-DEFAULT_DOCLING_ENABLED = True
-DEFAULT_MODEL_CACHE_DIR = str(Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")))
-DEFAULT_STARTUP_PROFILE = "production"
-ENV_OVERRIDE_PREFIX = "PI_"
-LOCAL_SETTINGS_RELATIVE_PATH = ".project-intelligence-cache/settings.json"
 
 ENV_EMBEDDING_MODEL = "PI_EMBEDDING_MODEL"
 ENV_EMBEDDING_DEVICE = "PI_EMBEDDING_DEVICE"
+ENV_RERANKING_ENABLED = "PI_RERANKING_ENABLED"
+ENV_RERANKING_FAMILY = "PI_RERANKING_FAMILY"
+ENV_RERANKING_TOP_N = "PI_RERANKING_TOP_N"
+ENV_RERANKING_TIMEOUT_MS = "PI_RERANKING_TIMEOUT_MS"
 ENV_DENSE_INDEX = "PI_DENSE_INDEX"
 ENV_DOCLING_ENABLED = "PI_DOCLING_ENABLED"
 ENV_MODEL_CACHE = "PI_MODEL_CACHE"
@@ -95,6 +111,10 @@ class RuntimeConfiguration:
     dense_index: str = DEFAULT_DENSE_INDEX
     docling_enabled: bool = DEFAULT_DOCLING_ENABLED
     model_cache_dir: str = DEFAULT_MODEL_CACHE_DIR
+    reranking_enabled: bool = DEFAULT_RERANKING_ENABLED
+    reranking_family: str = DEFAULT_RERANKING_FAMILY
+    reranking_top_n: int = DEFAULT_RERANKING_TOP_N
+    reranking_timeout_ms: int = DEFAULT_RERANKING_TIMEOUT_MS
     sources: Mapping[str, str] = field(default_factory=dict)
 
     def as_dict(self) -> Mapping[str, Any]:
@@ -118,6 +138,10 @@ class RuntimeConfigurationResolver:
         "dense_index": ENV_DENSE_INDEX,
         "docling_enabled": ENV_DOCLING_ENABLED,
         "model_cache_dir": ENV_MODEL_CACHE,
+        "reranking_enabled": ENV_RERANKING_ENABLED,
+        "reranking_family": ENV_RERANKING_FAMILY,
+        "reranking_top_n": ENV_RERANKING_TOP_N,
+        "reranking_timeout_ms": ENV_RERANKING_TIMEOUT_MS,
     }
 
     _DEFAULTS: Mapping[str, Any] = {
@@ -127,6 +151,10 @@ class RuntimeConfigurationResolver:
         "dense_index": DEFAULT_DENSE_INDEX,
         "docling_enabled": DEFAULT_DOCLING_ENABLED,
         "model_cache_dir": DEFAULT_MODEL_CACHE_DIR,
+        "reranking_enabled": DEFAULT_RERANKING_ENABLED,
+        "reranking_family": DEFAULT_RERANKING_FAMILY,
+        "reranking_top_n": DEFAULT_RERANKING_TOP_N,
+        "reranking_timeout_ms": DEFAULT_RERANKING_TIMEOUT_MS,
     }
 
     def __init__(
@@ -255,6 +283,32 @@ class RuntimeConfigurationResolver:
                     f"auto, cpu, cuda, mps, vulkan"
                 )
             return value
+        if field == "reranking_enabled":
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                lowered = value.strip().lower()
+                if lowered in {"1", "true", "yes", "on"}:
+                    return True
+                if lowered in {"0", "false", "no", "off", ""}:
+                    return False
+            raise ConfigurationError(
+                f"cannot coerce {field}={value!r} to bool"
+            )
+        if field == "reranking_family":
+            return str(value).strip().lower()
+        if field in {"reranking_top_n", "reranking_timeout_ms"}:
+            try:
+                parsed = int(value)
+            except (TypeError, ValueError) as exc:
+                raise ConfigurationError(
+                    f"cannot coerce {field}={value!r} to int"
+                ) from exc
+            if parsed <= 0:
+                raise ConfigurationError(
+                    f"{field} must be positive, got {parsed}"
+                )
+            return parsed
         if field == "embedding_model":
             aliases = {"embeddinggemma2": "gemma", "gemma-gguf": "gemma",
                        "ggml-org/embeddinggemma-2-gguf": "gemma",

@@ -109,7 +109,11 @@ class DefaultQueryOrchestrator(QueryOrchestratorPort):
             contextBudget=max(2000, 0),
             filters=filters,
             projectVersion=project_version,
-            enableReranking=(target == OrchestrationLevel.L1_RETRIEVAL_PLUS_LLM),
+            # The operator-controllable rerank policy decides. The
+            # orchestrator does not silently switch reranking off: it
+            # is cheap (BM25-light) and improves the precision of the
+            # context handed to the LLM.
+            enableReranking=None,
         )
         retrieval_result = self._retrieval.retrieve(retrieval_query)
         if target == OrchestrationLevel.L0_DIRECT_RETRIEVAL:

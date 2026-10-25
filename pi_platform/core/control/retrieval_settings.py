@@ -52,6 +52,11 @@ __all__ = [
     "DEFAULT_DEVICE",
     "DEFAULT_DOCUMENT_PROCESSING_ENABLED",
     "DEFAULT_BOOTSTRAP_STATE",
+    "DEFAULT_RERANKING_ENABLED",
+    "DEFAULT_RERANKING_FAMILY",
+    "DEFAULT_RERANKING_TOP_N",
+    "DEFAULT_RERANKING_TIMEOUT_MS",
+    "RERANKING_FAMILIES",
     "PRODUCTION_MODEL_CHOICES",
     "PRODUCTION_ALIAS_TO_MODEL_ID",
     "MODEL_ID_TO_ALIAS",
@@ -71,14 +76,23 @@ DEFAULT_DEVICE = "auto"
 DEFAULT_DOCUMENT_PROCESSING_ENABLED = True
 DEFAULT_BOOTSTRAP_STATE = "not-started"
 
-# The two production-enabled models from
-# ``distribution/licenses/model-licenses.json``.
-# ProjectExpert ships ONE embedding model: EmbeddingGemma 2. The default
-# alias points at the pinned GGUF binding, because it is the only binding
-# that runs on Windows and Linux with CUDA, Vulkan, an integrated GPU or
-# CPU only, and the only one that exposes the full multimodal package.
-# The native Transformers binding of the same checkpoint stays selectable as
-# an explicit opt-in.
+# Reranking policy defaults. BM25-light reranking is cheap and improves
+# the precision of the context handed to a calling LLM, so it is active by
+# default. It can be switched off explicitly for deployments that prefer
+# the raw fusion order.
+DEFAULT_RERANKING_ENABLED = True
+DEFAULT_RERANKING_FAMILY = "bm25-light"
+DEFAULT_RERANKING_TOP_N = 10
+DEFAULT_RERANKING_TIMEOUT_MS = 2000
+RERANKING_FAMILIES = ("bm25-light",)
+
+# The production-enabled models from
+# ``distribution/licenses/model-licenses.json``. ProjectExpert ships one
+# embedding model: EmbeddingGemma 2. The default alias points at the pinned
+# GGUF binding, because it is the only binding that runs on Windows and
+# Linux with CUDA, Vulkan, an integrated GPU or CPU only, and the only one
+# that exposes the full multimodal package. The native Transformers binding
+# of the same checkpoint stays selectable as an explicit opt-in.
 PRODUCTION_MODEL_CHOICES = (
     "ggml-org/embeddinggemma-2-GGUF",
     "google/embeddinggemma-2",
@@ -177,6 +191,10 @@ class RetrievalSettings:
     device: str = DEFAULT_DEVICE
     document_processing_enabled: bool = DEFAULT_DOCUMENT_PROCESSING_ENABLED
     bootstrap_state: str = DEFAULT_BOOTSTRAP_STATE
+    reranking_enabled: bool = DEFAULT_RERANKING_ENABLED
+    reranking_family: str = DEFAULT_RERANKING_FAMILY
+    reranking_top_n: int = DEFAULT_RERANKING_TOP_N
+    reranking_timeout_ms: int = DEFAULT_RERANKING_TIMEOUT_MS
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -195,6 +213,27 @@ class RetrievalSettings:
             self, "bootstrap_state",
             normalise_bootstrap_state(self.bootstrap_state),
         )
+        if not isinstance(self.reranking_enabled, bool):
+            raise RetrievalSettingsError(
+                "reranking_enabled must be a boolean, got "
+                f"{type(self.reranking_enabled).__name__}"
+            )
+        family = str(self.reranking_family).strip().lower()
+        if family not in RERANKING_FAMILIES:
+            raise RetrievalSettingsError(
+                f"unknown reranking family {self.reranking_family!r}; "
+                f"expected one of {list(RERANKING_FAMILIES)}"
+            )
+        object.__setattr__(self, "reranking_family", family)
+        if self.reranking_top_n <= 0:
+            raise RetrievalSettingsError(
+                f"reranking_top_n must be positive, got {self.reranking_top_n}"
+            )
+        if self.reranking_timeout_ms <= 0:
+            raise RetrievalSettingsError(
+                "reranking_timeout_ms must be positive, got "
+                f"{self.reranking_timeout_ms}"
+            )
 
     @property
     def model_id(self) -> str:
@@ -210,7 +249,23 @@ class RetrievalSettings:
             "device": self.device,
             "document_processing_enabled": self.document_processing_enabled,
             "bootstrap_state": self.bootstrap_state,
+            "reranking_enabled": self.reranking_enabled,
+            "reranking_family": self.reranking_family,
+            "reranking_top_n": self.reranking_top_n,
+            "reranking_timeout_ms": self.reranking_timeout_ms,
         }
+
+    def rerank_policy(self):
+        """Return the :class:`RerankPolicy` described by these settings."""
+
+        from pi_platform.ports.retrieval.reranker import RerankPolicy
+
+        return RerankPolicy(
+            enabled=self.reranking_enabled,
+            family=self.reranking_family,
+            top_n=self.reranking_top_n,
+            timeout_ms=self.reranking_timeout_ms,
+        )
 
     @classmethod
     def from_mapping(cls, payload: Mapping[str, Any]) -> "RetrievalSettings":

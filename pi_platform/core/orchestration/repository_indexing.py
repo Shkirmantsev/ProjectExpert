@@ -253,7 +253,12 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         cid = hashlib.sha256(('image:' + entry.path).encode()).hexdigest()
         text = 'Image: ' + entry.path
         meta = {'sourcePath': entry.path, 'documentId': 'repo:' + entry.path,
-                'version': entry.content_hash, 'language': 'und'}
+                'version': entry.content_hash, 'language': 'und',
+                # The media marker lets the reranker know that this
+                # candidate was embedded together with its pixels, so a
+                # text-only reranker does not demote it for having no
+                # textual representation.
+                'extensions': {'media': 'image'}}
         image_hash = hashlib.sha256((text + entry.content_hash + 'gemma-image-v1').encode()).hexdigest()
         active.append(ActiveChunk(cid, entry.content_hash, text, image_hash, meta, image_path=str(path)))
         catalog[cid] = RetrievalHit(chunkId=cid, score=0.5, source='dense', snippet=text,
@@ -267,12 +272,20 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
     for cid, hit in catalog.items():
         exact.index_document('chunks', cid, hit.snippet, {})
     graph_expansion, graph_node_ids = _candidate_graph(target, cache_root, cache)
+    from pi_platform.ports.retrieval.reranker import RerankPolicy
+    rerank_policy = RerankPolicy(
+        enabled=config.reranking_enabled,
+        family=config.reranking_family,
+        top_n=config.reranking_top_n,
+        timeout_ms=config.reranking_timeout_ms,
+    )
     runtime = build_production_retrieval_runtime(
         cache_root=cache_root / 'indexes', embedding_alias=config.embedding_model,
         startup_profile=config.startup_profile, device=config.embedding_device,
         model_cache_dir=config.model_cache_dir,
         prefer_real_usearch=config.dense_index == 'usearch', chunk_catalog=catalog, exact_lookup=exact,
         graph_expansion=graph_expansion,
+        rerank_policy=rerank_policy,
     )
     # A production model must actually load, even for an empty repository.
     if config.startup_profile == 'production':
