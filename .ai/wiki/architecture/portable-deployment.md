@@ -20,70 +20,48 @@ maintenance:
 
 # Portable production deployment
 
-The production image is Linux amd64. Windows runs it through Docker Desktop
-with WSL2/Linux containers. The default uses native Qwen CPU inference; Gemma
-CPU is selectable. The diagnostic core image remains dependency-light and uses
-hashing rather than semantic model inference.
+The production image is Linux amd64. Windows runs the application through Docker
+Desktop with WSL2/Linux containers. The exported kit defaults to EmbeddingGemma 2
+Q8_0 plus its pinned multimodal projector, served by llama.cpp. The standalone
+application image defaults to `gemma-torch`, because it has no managed sidecar.
+The diagnostic core image uses hashing rather than semantic inference.
 
-```mermaid
-flowchart TD
-    Kit[OCI deployment kit] --> Launcher[Bash or PowerShell launcher]
-    Launcher --> App[Application container: UI, REST, MCP, CLI]
-    Launcher --> Setup[Optional GGUF model setup]
-    Setup --> Cache[Persistent model and projector cache]
-    App --> CPU[Native Qwen or Gemma CPU]
-    App --> OCR[Docling layout, table and OCR on CPU]
-    App --> Adapter[Authenticated GGUF embedding adapter]
-    Adapter --> Linux[Linux llama.cpp sidecar: CPU, Vulkan or CUDA]
-    Adapter --> Windows[Windows native llama.cpp: Vulkan or CUDA]
-    App --> Repo[Target repository mounted at /repo]
-    App --> Derived[Profile-specific derived runtime indexes]
-```
+## Runtime selection and ownership
 
-## Setup and data ownership
+Linux runs CPU, Vulkan or CUDA inference in a sidecar. Windows GPU inference uses
+a native service reachable from Docker; CPU inference stays in the container.
+Auto selection probes actual runtime devices and compares successful embeddings
+against CPU. Software rasterizers and failed candidates are rejected. Missing
+measurements select CPU. Explicit GPU selection still requires usable inference,
+but does not require outperforming CPU. CPU threads and GPU free-memory fit margins
+come from the inference plan; PDF/OCR processing remains on CPU.
 
-The kit defaults the target to its parent directory, preserves existing export
-files, and provides product-only Make targets. Model setup obtains the pinned
-selected weights and Docling assets before retrieval readiness. Gemma GGUF also
-requires its projector. Native CPU models and document assets persist in the
-model volume; Windows GPU assets persist in the kit's accelerator directory.
-The target owns canonical knowledge and derived `.project-intelligence-cache/`;
-the application image does not own the user's project. Model cache storage is
-separate from profile-specific vector namespaces.
+Model and projector downloads are hash-checked and cached separately from target
+repository indexes. PDF assets are prepared only when needed. The target owns
+canonical knowledge and `.project-intelligence-cache/`. Distinct runtime profiles
+isolate vector namespaces. Text and repository/PDF images are supported;
+audio/video repository ingestion is not exposed.
 
-UI, MCP and CLI share production retrieval composition. Environment overrides
-are resolved before source fingerprinting and recorded with readiness, so
-switching models cannot retain a misleading previous-model status. Gemma
-embeds repository images and extracted PDF figures; Qwen is the text path.
-Audio/video ingestion is not exposed.
+## Startup and security
 
-## Failure, recovery and security
+Launchers wait for retrieval readiness, not merely liveness. GPU setup failures
+fall back to CPU. The version monitor accepts the identity published by bootstrap
+so startup-generated configuration does not immediately invalidate readiness;
+subsequent user edits still trigger refresh.
 
-Liveness can succeed while setup/indexing is pending; launchers require retrieval
-readiness. Missing credentials, invalid downloads, unavailable GPU devices and
-model failures must be diagnosed rather than silently changing the selected
-backend. GGUF files are hash-checked and downloads are installed atomically.
-Stop services before changing backend; restarting reuses downloaded assets.
-PyTorch/GGUF identities isolate incompatible vectors. Native generation recovery
-and branch reconciliation rebuild disposable indexes from authoritative inputs.
+The UI binds to loopback. GGUF HTTP uses a bearer key and checks model identity.
+Windows firewall access should be limited to Docker/WSL. Credentials are runtime
+inputs, never shipped in the image. Existing exported kit files are preserved;
+upgrade explicitly using a separately exported kit and its tested image digest.
 
-The UI binds to loopback by default. GGUF HTTP uses a local bearer key and checks
-model identity. On Windows restrict native service access to Docker/WSL in the
-firewall. Credentials are runtime inputs, never kit/image content. Materialising
-canonical data continues to require operator approval. Exact dependency review
-acceptance is invalidated by changed lock, inventory or evidence hashes.
+## Delivery and evidence
 
-## Delivery and validation
+The publication workflow builds and tests PRs without publishing. Pushes to dev,
+development and main publish the tested image and a digest-bound deployment kit.
+Local tests do not prove that a remote branch alias exists. Physical Windows/CUDA
+acceptance and remote publication must be recorded separately from software tests.
+The broader portable-OCI change remains active until its acceptance is complete.
 
-The GitHub workflow verifies pull requests without publishing. Pushes to dev,
-development and main build and test production, publish a commit-tagged image,
-then publish the matching digest-bound kit and promote branch aliases. No
-automatic expiry is configured; registry owners can still delete artifacts.
-
-Local validation covers real CPU model search, Gemma image sensitivity, Docling
-OCR, container startup/restart, kit export and backend configuration. Physical
-Vulkan/CUDA and Windows runs and remote publication remain unverified. Follow
-[installation](../../../docs/PRODUCTION_INSTALL.md),
-[kit operation](../../../distribution/deployment/README.md), and the
-[verification report](../../../docs/PRODUCTION_RECONCILIATION_STATUS.md).
-The full portability change stays active until those acceptance checks finish.
+See [installation](../../../docs/PRODUCTION_INSTALL.md),
+[kit operation](../../../distribution/deployment/README.md), and
+[review evidence](../../../docs/RUNTIME_PYTHON_REVIEW.md).

@@ -3,8 +3,7 @@
 .. note::
    Superseded by the profile-aware bindings
    (:class:`pi_platform.adapters.retrieval.embeddinggemma2_embedding_model.EmbeddingGemma2EmbeddingModel`
-   and
-   :class:`pi_platform.adapters.retrieval.qwen3_embedding_model.Qwen3EmbeddingModel`).
+   and the native EmbeddingGemma 2 binding).
    This class remains as the pre-change placeholder for callers
    that need the legacy ``multilingual-st`` alias.
 

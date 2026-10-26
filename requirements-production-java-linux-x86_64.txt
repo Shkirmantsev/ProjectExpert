@@ -1,0 +1,4 @@
+# Additive Java grammar; tree-sitter==0.26.0 is supplied by the main production lock.
+# CPython ABI3 Linux x86_64 wheel, PyPI metadata verified 2026-10-24.
+tree-sitter-java==0.23.5 \
+    --hash=sha256:370b204b9500b847f6d0c5ad584045831cee69e9a3e4d878535d39e4a7e4c4f1

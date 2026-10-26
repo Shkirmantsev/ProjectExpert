@@ -253,20 +253,9 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 if not self._authorised():
                     self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
                     return
-                resources = (
-                    list(server.skill_plane.list_resources())
-                    if server.skill_plane is not None
-                    else []
-                )
-                self._send(
-                    HTTPStatus.OK,
-                    {
-                        "protocol": "mcp-jsonrpc-2.0",
-                        "server": dict(server.mcp_server._context.server_identity),
-                        "tools": list(server.mcp_server.tool_names),
-                        "resources": resources,
-                    },
-                )
+                # Stateless Streamable HTTP has no server-initiated SSE stream.
+                # Returning discovery JSON here makes SDKs misidentify this as SSE.
+                self._send(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "Use POST for MCP requests"})
                 return
             if path == "/.well-known/agent-card.json" and server.agent_card is not None:
                 if not server.agent_card.is_published():
@@ -294,6 +283,15 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 self._dispatch(lambda: _get_route(server, self, path))
                 return
             self._serve_static(path)
+
+        def do_DELETE(self) -> None:  # noqa: N802
+            if urlparse(self.path).path in ("/mcp", "/mcp/"):
+                if not self._authorised():
+                    self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
+                    return
+                self._send(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "Stateless MCP has no sessions to delete"})
+                return
+            self._send(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
         def do_PUT(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
@@ -328,7 +326,10 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 response = server.mcp_server.handle_jsonrpc(
                     body, skill_plane=server.skill_plane,
                 )
-                self._send(HTTPStatus.OK, response)
+                if "id" not in body:
+                    self._send(HTTPStatus.ACCEPTED, b"", content_type="application/json")
+                else:
+                    self._send(HTTPStatus.OK, response)
                 return
             if path == "/a2a/v1/tasks:send" and server.a2a_adapter is not None:
                 if not self._authorised():

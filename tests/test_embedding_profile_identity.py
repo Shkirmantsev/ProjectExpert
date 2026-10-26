@@ -11,8 +11,8 @@ import unittest
 
 from pi_platform.ports.retrieval.embedding_profile import (
     EMBEDDINGGEMMA2_512,
+    EMBEDDINGGEMMA2_GGUF_512,
     HASHING_DEFAULT,
-    QWEN3_EMBEDDING_0_6B_1024,
     EmbeddingProfile,
     EmbeddingProfileMismatchError,
     EmbeddingProfileRegistry,
@@ -91,19 +91,30 @@ class EmbeddingProfileIdentityTests(unittest.TestCase):
         self.assertEqual(first.identity(), second.identity())
         self.assertEqual(len(first.identity()), 64)
 
-    def test_hash_vs_embeddinggemma2_vs_qwen3_distinct(self):
+    def test_hash_vs_embeddinggemma2_vs_gguf_distinct(self):
+        # Three distinct vector spaces remain: the hashing fallback,
+        # the native EmbeddingGemma 2 binding and the pinned GGUF
+        # binding of the same checkpoint.
         identities = {
             HASHING_DEFAULT.identity(),
             EMBEDDINGGEMMA2_512.identity(),
-            QWEN3_EMBEDDING_0_6B_1024.identity(),
+            EMBEDDINGGEMMA2_GGUF_512.identity(),
         }
         self.assertEqual(len(identities), 3)
         self.assertNotEqual(HASHING_DEFAULT.identity(), EMBEDDINGGEMMA2_512.identity())
         self.assertNotEqual(
-            EMBEDDINGGEMMA2_512.identity(), QWEN3_EMBEDDING_0_6B_1024.identity()
+            EMBEDDINGGEMMA2_512.identity(), EMBEDDINGGEMMA2_GGUF_512.identity()
         )
         self.assertNotEqual(
-            HASHING_DEFAULT.identity(), QWEN3_EMBEDDING_0_6B_1024.identity()
+            HASHING_DEFAULT.identity(), EMBEDDINGGEMMA2_GGUF_512.identity()
+        )
+        # The two bindings of the one production model still describe
+        # different modalities and output geometries.
+        self.assertEqual(EMBEDDINGGEMMA2_512.output_dimension, 512)
+        self.assertEqual(EMBEDDINGGEMMA2_GGUF_512.output_dimension, 512)
+        self.assertEqual(EMBEDDINGGEMMA2_GGUF_512.modality, "text-image-audio-video")
+        self.assertNotEqual(
+            EMBEDDINGGEMMA2_512.modality, EMBEDDINGGEMMA2_GGUF_512.modality
         )
 
     def test_non_hashing_profiles_use_pinned_real_revision(self):
@@ -112,14 +123,16 @@ class EmbeddingProfileIdentityTests(unittest.TestCase):
         # model weights are bound (open spec change PR 3 + PR 4).
         # The revision MUST be the documented immutable SHA, NOT
         # the placeholder, when production is enabled.
+        from pi_platform.adapters.retrieval.gguf_artifacts import GEMMA_REVISION
         self.assertEqual(
             EMBEDDINGGEMMA2_512.model_revision,
             "914f7f89142e33e77833254d9c9b90c3cef7303b",
         )
         self.assertEqual(
-            QWEN3_EMBEDDING_0_6B_1024.model_revision,
-            "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+            EMBEDDINGGEMMA2_GGUF_512.model_revision,
+            GEMMA_REVISION,
         )
+        self.assertNotIn("pinned-stub", EMBEDDINGGEMMA2_GGUF_512.model_revision)
         # The hashing profile is the only profile that keeps its
         # synthetic revision marker.
         self.assertEqual(HASHING_DEFAULT.model_revision, "v1")
@@ -150,8 +163,8 @@ class EmbeddingProfileRegistryTests(unittest.TestCase):
             self.registry.default("embeddinggemma2"), EMBEDDINGGEMMA2_512
         )
         self.assertEqual(
-            self.registry.default("qwen3-embedding-0.6b"),
-            QWEN3_EMBEDDING_0_6B_1024,
+            self.registry.default("embeddinggemma2-gguf"),
+            EMBEDDINGGEMMA2_GGUF_512,
         )
 
     def test_registry_unknown_identity_raises(self):

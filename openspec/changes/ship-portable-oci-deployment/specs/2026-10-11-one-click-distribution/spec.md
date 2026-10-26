@@ -44,10 +44,11 @@ without a separate manual download. Linux MUST use pinned runtime images.
 Gemma image embeddings and Docling OCR MUST remain available in the CPU profile.
 
 #### Scenario: Initial assets prepared automatically
-Given a clean cache and access to the selected model
+Given a clean cache, access to the selected model, and a repository containing PDFs
 When production setup starts
-Then the selected embedding model and Docling layout, table and OCR assets are
+Then the selected embedding model and required Docling layout, table and OCR assets are
 obtained automatically before retrieval readiness.
+And code-only repositories do not download document assets.
 
 #### Scenario: Unsupported GPU
 Given no usable selected GPU device

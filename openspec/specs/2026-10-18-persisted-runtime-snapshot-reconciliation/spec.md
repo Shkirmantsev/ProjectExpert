@@ -162,3 +162,18 @@ Then the reconciliation loop detects the dirty tree
 And a full reconciliation is scheduled
 And the new dense generation is activated atomically only if
 reconciliation succeeds
+
+### Requirement: Stable-tree retry
+Failed refreshes SHALL retry without another edit, including explicit refreshes of unchanged content; only verified content identities may be published.
+
+#### Scenario: Clean external repository
+- **WHEN** the user starts the platform in a clean external repository
+- **THEN** the runtime follows this contract without development-harness prerequisites
+
+### Requirement: Monitor published bootstrap identity
+A successful refresh MAY return its published project identity to the version monitor. The monitor SHALL use that identity as its baseline and SHALL still detect later user edits.
+
+#### Scenario: Bootstrap persists effective settings
+- **GIVEN** bootstrap writes settings and publishes the resulting identity
+- **WHEN** the next monitor poll observes that identity
+- **THEN** it does not invalidate readiness with a redundant refresh

@@ -84,6 +84,17 @@ class LocalFilesystemAdapter:
         "templates and the §10 OKF conformance rules.\n"
     )
 
+    _OKF_WIKI_LOG_STUB = (
+        "---\n"
+        "type: 'Log'\n"
+        "title: 'Project Knowledge Log'\n"
+        "---\n"
+        "# Log\n"
+        "\n"
+        "Chronological record of the curated knowledge changes written by\n"
+        "a calling LLM.\n"
+    )
+
     def ensure_canonical_tree(self) -> None:
         """Create the documented canonical knowledge directory tree."""
 
@@ -97,6 +108,11 @@ class LocalFilesystemAdapter:
         wiki_index = self.knowledge_root / "wiki" / "index.md"
         if not wiki_index.exists():
             wiki_index.write_text(self._OKF_WIKI_INDEX_STUB, encoding="utf-8")
+        # The LLM Wiki needs its reserved log so the curated knowledge
+        # has an audit trail. Existing files are preserved.
+        wiki_log = self.knowledge_root / "wiki" / "log.md"
+        if not wiki_log.exists():
+            wiki_log.write_text(self._OKF_WIKI_LOG_STUB, encoding="utf-8")
 
     def ensure_distribution_tree(self) -> None:
         for sub in ("licenses", "skills", "codex", "claude-code",

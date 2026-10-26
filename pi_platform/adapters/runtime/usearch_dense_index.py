@@ -384,7 +384,10 @@ class USearchDenseIndex(DenseIndexPort):
                     # Convert cosine distance to similarity.
                     score = 1.0 - float(distance)
                     if score > 0:
-                        hits.append(DenseHit(chunkId=chunk_id, score=score))
+                        hits.append(DenseHit(
+                            chunkId=chunk_id, score=score,
+                            metadata=dict(self._metadata.get(chunk_id) or {}),
+                        ))
                 hits.sort(key=lambda h: (-h.score, h.chunkId))
                 return tuple(hits[:top_k])
             except Exception as exc:  # pragma: no cover
@@ -397,7 +400,7 @@ class USearchDenseIndex(DenseIndexPort):
             scored.append((chunk_id, score))
         scored.sort(key=lambda x: (-x[1], x[0]))
         return tuple(
-            DenseHit(chunkId=cid, score=score)
+            DenseHit(chunkId=cid, score=score, metadata=dict(self._metadata.get(cid) or {}))
             for cid, score in scored[:top_k]
             if score > 0
         )

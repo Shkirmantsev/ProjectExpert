@@ -3,11 +3,12 @@
 Covers the ``one-command-production-ux`` spec delta:
 
 * the wizard renders only while ``bootstrap_state == "not-started"``;
-* the schema offers the two production models (EmbeddingGemma 2 and
-  Qwen3-Embedding-0.6B), the auto/CPU/GPU device choices, the Docling
+* the schema offers the two bindings of the single production model
+  (EmbeddingGemma 2: the pinned GGUF binding and the native
+  Transformers binding), the auto/CPU/GPU device choices, the Docling
   toggle and a single ``initialise_and_build_index`` action;
-* ``submit`` rejects an unknown model and returns valid settings for
-  a valid form.
+* ``submit`` rejects an unknown or retired model and returns valid
+  settings for a valid form.
 """
 
 from __future__ import annotations
@@ -66,11 +67,22 @@ class WizardRenderTests(FirstStartWizardTestBase):
         model_ids = [c["model_id"] for c in schema["model_choices"]]
         self.assertEqual(
             model_ids,
-            ["google/embeddinggemma-2", "Qwen/Qwen3-Embedding-0.6B", "Qwen/Qwen3-Embedding-0.6B-GGUF", "ggml-org/embeddinggemma-2-GGUF"],
+            ["ggml-org/embeddinggemma-2-GGUF", "google/embeddinggemma-2"],
         )
+        # Exactly the two bindings of EmbeddingGemma 2; the retired
+        # model is no longer offered anywhere in the schema.
+        self.assertEqual(
+            set(model_ids),
+            {"ggml-org/embeddinggemma-2-GGUF", "google/embeddinggemma-2"},
+        )
+        for qwen_id in (
+            "Qwen/Qwen3-Embedding-0.6B",
+            "openmycel/Qwen3-Embedding-0.6B-GGUF",
+        ):
+            self.assertNotIn(qwen_id, model_ids)
         labels = [c["label"] for c in schema["model_choices"]]
-        self.assertIn("EmbeddingGemma 2", labels)
-        self.assertIn("Qwen3 Embedding 0.6B", labels)
+        self.assertIn("EmbeddingGemma 2", labels[0])
+        self.assertIn("EmbeddingGemma 2", labels[1])
 
     def test_schema_device_toggle_and_single_action(self) -> None:
         schema = self.wizard.render(self.tmp)
@@ -87,12 +99,12 @@ class WizardSubmitTests(FirstStartWizardTestBase):
 
     def test_submit_returns_valid_settings(self) -> None:
         settings = self.wizard.submit({
-            "model": "Qwen/Qwen3-Embedding-0.6B",
+            "model": "google/embeddinggemma-2",
             "device": "cpu",
             "document_processing_enabled": False,
         })
         self.assertIsInstance(settings, RetrievalSettings)
-        self.assertEqual(settings.embedding_model_alias, "qwen")
+        self.assertEqual(settings.embedding_model_alias, "gemma-torch")
         self.assertEqual(settings.device, "cpu")
         self.assertFalse(settings.document_processing_enabled)
         self.assertEqual(settings.bootstrap_state, "not-started")
@@ -107,9 +119,11 @@ class WizardSubmitTests(FirstStartWizardTestBase):
         self.assertTrue(settings.document_processing_enabled)
 
     def test_submit_rejects_unknown_model(self) -> None:
-        with self.assertRaises(WizardValidationError) as ctx:
-            self.wizard.submit({"model": "meta/llama-70b"})
-        self.assertIn("unknown model", str(ctx.exception))
+        for model in ("meta/llama-70b", "Qwen/Qwen3-Embedding-0.6B", "qwen"):
+            with self.subTest(model=model):
+                with self.assertRaises(WizardValidationError) as ctx:
+                    self.wizard.submit({"model": model})
+                self.assertIn("unknown model", str(ctx.exception))
 
     def test_submit_rejects_missing_or_invalid_fields(self) -> None:
         for form in (

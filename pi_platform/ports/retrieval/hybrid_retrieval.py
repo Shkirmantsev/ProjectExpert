@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass, field
+import math
 from typing import Final, Mapping, Sequence
 
 from pi_platform.core.canonical.value_types import KnowledgeState, Metadata
@@ -71,6 +72,13 @@ class RetrievalHit:
     dropReason: str = ""
     evidenceWeight: float = 1.0
     selection_state: str = ""
+    #: The reranker's own score for this candidate. ``None`` means the
+    #: candidate was never reranked. The retrieval ``score`` is preserved
+    #: unchanged so it stays available for fallback and diagnostics.
+    rerankScore: float | None = None
+    #: The candidate's 1-based position in the reranker's own ordering.
+    #: ``0`` means the candidate was never reranked.
+    rerankRank: int = 0
 
     def __post_init__(self) -> None:
         if self.source not in HIT_SOURCE_ALLOWED:
@@ -91,6 +99,14 @@ class RetrievalHit:
             raise ValueError(
                 f"RetrievalHit.selection_state must be one of "
                 f"{SELECTION_STATE_ALLOWED}, got {self.selection_state!r}"
+            )
+        if self.rerankScore is not None and not math.isfinite(self.rerankScore):
+            raise ValueError(
+                f"RetrievalHit.rerankScore must be finite, got {self.rerankScore!r}"
+            )
+        if self.rerankRank < 0:
+            raise ValueError(
+                f"RetrievalHit.rerankRank must be non-negative, got {self.rerankRank!r}"
             )
 
 

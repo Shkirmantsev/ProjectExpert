@@ -10,16 +10,16 @@ class RuntimeConfigurationTests(unittest.TestCase):
     def test_project_file_local_environment_and_cli_precedence(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / 'project-context.yaml').write_text('runtime:\n  embedding_model: qwen\n  embedding_device: cpu\n')
+            (root / 'project-context.yaml').write_text('runtime:\n  embedding_model: gemma-torch\n  embedding_device: cpu\n')
             settings = root / '.project-intelligence-cache/settings.json'
             cfg = RuntimeConfigurationResolver(env={}, local_settings_path=settings).resolve()
-            self.assertEqual(cfg.embedding_model, 'qwen')
+            self.assertEqual(cfg.embedding_model, 'gemma-torch')
             self.assertEqual(cfg.sources['embedding_model'], 'project-context')
             settings.parent.mkdir()
             settings.write_text(json.dumps({'embedding_model': 'gemma'}))
             self.assertEqual(RuntimeConfigurationResolver(env={}, local_settings_path=settings).resolve().embedding_model, 'gemma')
-            self.assertEqual(RuntimeConfigurationResolver(env={'PI_EMBEDDING_MODEL':'qwen'}, local_settings_path=settings).resolve().embedding_model, 'qwen')
-            cfg = RuntimeConfigurationResolver(env={'PI_EMBEDDING_MODEL':'qwen'}, local_settings_path=settings, cli_overrides={'embedding_model':'gemma'}).resolve()
+            self.assertEqual(RuntimeConfigurationResolver(env={'PI_EMBEDDING_MODEL':'gemma-torch'}, local_settings_path=settings).resolve().embedding_model, 'gemma-torch')
+            cfg = RuntimeConfigurationResolver(env={'PI_EMBEDDING_MODEL':'gemma-torch'}, local_settings_path=settings, cli_overrides={'embedding_model':'gemma'}).resolve()
             self.assertEqual(cfg.embedding_model, 'gemma')
             self.assertEqual(cfg.sources['embedding_model'], 'cli')
 
@@ -34,4 +34,15 @@ class RuntimeConfigurationTests(unittest.TestCase):
                 RuntimeConfigurationResolver(env=env).resolve()
 
     def test_legacy_production_alias_resolves_canonically(self):
-        self.assertEqual(RuntimeConfigurationResolver(env={'PI_EMBEDDING_MODEL':'qwen3'}).resolve().embedding_model, 'qwen')
+        # "gemma-gguf" remains a tolerated legacy spelling of the
+        # default GGUF binding; it normalises to "gemma".
+        self.assertEqual(RuntimeConfigurationResolver(env={'PI_EMBEDDING_MODEL':'gemma-gguf'}).resolve().embedding_model, 'gemma')
+
+    def test_retired_alias_raises_configuration_error(self):
+        # The retired alternative embedding model is rejected with an
+        # actionable error instead of being silently substituted.
+        for retired in ('qwen', 'qwen-gguf', 'qwen3', 'qwen3-embedding-0.6b'):
+            with self.subTest(alias=retired):
+                with self.assertRaises(ConfigurationError) as ctx:
+                    RuntimeConfigurationResolver(env={'PI_EMBEDDING_MODEL': retired}).resolve()
+                self.assertIn('retired embedding model', str(ctx.exception))

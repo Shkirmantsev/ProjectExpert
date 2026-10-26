@@ -12,6 +12,8 @@ function global:docker {
 }
 function global:Invoke-WebRequest { return @{ StatusCode = 200 } }
 $env:PI_OPEN_BROWSER = '0'
+$env:PI_ACCELERATOR = 'cpu'
+$env:PI_EMBEDDING_MODEL = 'gemma'
 try {
     Get-ChildItem (Join-Path $repo 'distribution/deployment') -Filter '*.ps1' | ForEach-Object {
         $parseErrors = $null
@@ -21,25 +23,34 @@ try {
     }
     Copy-Item (Join-Path $repo 'distribution/deployment/*') $temp
     & (Join-Path $temp 'start.ps1')
-    if (-not ($global:Calls -match 'compose --env-file deployment.env -f compose.yaml up -d --wait --wait-timeout 1800')) {
+    if (-not ($global:Calls -match 'compose --env-file deployment.env .*up -d --wait --wait-timeout 1800')) {
         throw 'Bundle launcher did not wait for readiness'
     }
     # Model selection must survive the Windows wrapper into native setup.
     $setupPath = Join-Path $temp 'setup-windows-accelerator.ps1'
-    Set-Content -LiteralPath $setupPath -Value 'param($Backend,$Model); $global:SelectedAccelerator = "$Backend/$Model"'
-    foreach ($model in @('gemma','qwen')) {
+    Set-Content -LiteralPath $setupPath -Value @'
+param($Backend,$Model)
+$global:SelectedAccelerator = "$Backend/$Model"
+$cache = Join-Path $PSScriptRoot 'accelerator'
+New-Item -ItemType Directory -Force -Path $cache | Out-Null
+@{ok=$true; backend=$Backend; device='GPU0'; fit_target_mib=192} | ConvertTo-Json | Set-Content (Join-Path $cache 'plan.json')
+'@
+    foreach ($model in @('gemma','gemma-gguf')) {
         foreach ($backend in @('vulkan','cuda')) {
             $env:PI_EMBEDDING_MODEL = $model
             $env:PI_ACCELERATOR = $backend
             & (Join-Path $temp 'start.ps1')
-            if ($global:SelectedAccelerator -ne "$backend/$model-gguf") { throw 'Windows selected the wrong GPU model' }
-            if ($env:PI_RUNTIME_MODEL -ne "$model-gguf") { throw 'Container and native runtime models differ' }
+            if ($global:SelectedAccelerator -ne "$backend/gemma") { throw 'Windows selected the wrong GPU model' }
+            if ($env:PI_EMBEDDING_MODEL -ne 'gemma') { throw 'Container and native runtime models differ' }
         }
     }
     $env:PI_ACCELERATOR = 'cpu'
-    $env:PI_EMBEDDING_MODEL = 'qwen'
+    $env:PI_EMBEDDING_MODEL = 'gemma'
     & (Join-Path $temp 'start.ps1')
-    if ($env:PI_EMBEDDING_DEVICE -ne 'cpu') { throw 'Explicit Qwen CPU selection was lost' }
+    if ($env:PI_EMBEDDING_DEVICE -ne 'cpu') { throw 'Explicit Gemma CPU selection was lost' }
+    $global:SelectedAccelerator = 'not-called'
+    & (Join-Path $temp 'compose.ps1') config
+    if ($global:SelectedAccelerator -ne 'not-called') { throw 'config unexpectedly started GPU setup' }
     $global:StartExit = 7
     $failed = $false
     try { & (Join-Path $temp 'start.ps1') } catch { $failed = $true }

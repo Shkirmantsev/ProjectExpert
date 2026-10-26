@@ -17,14 +17,17 @@ metadata:
 Use the Project Intelligence MCP server (`project.*` tools) to
 retrieve project knowledge, trace requirements, inspect
 architecture and dependencies, build bounded task context, and
-refresh or materialize approved project knowledge.
+refresh or materialize approved project knowledge. The same
+surface closes the LLM Wiki loop: search the project, read the
+curated pages, write back what you learned with
+`project.wiki_write_page`, and finish with `project.wiki_validate`.
 
 Prefer MCP retrieval over broad repository scanning whenever the
 question can be expressed against the canonical knowledge model.
 The MCP server is the canonical retrieval surface; the
 repository is the secondary surface.
 
-## Behaviour contract (10 steps)
+## Behaviour contract (12 steps)
 
 1. Inspect project / version capabilities with
    `project.describe_capabilities` and `project.get_project_version`.
@@ -52,8 +55,19 @@ repository is the secondary surface.
    `sourceRepository`, `evidenceHash`); do not invent
    requirements, references or commit ids.
 10. Materialise durable knowledge only through the explicit
-    approved workflow (`project.materialize_knowledge`,
-    `project.refresh_sources`) — never silently.
+     approved workflow (`project.materialize_knowledge`,
+     `project.refresh_sources`) — never silently.
+11. Close the LLM Wiki loop when you learned something durable:
+     search the project (`project.search` /
+     `project.retrieve_context`), read what the curated Wiki
+     already holds (`project.wiki_list_pages`,
+     `project.wiki_read_page`), then write what you learned with
+     `project.wiki_write_page`.
+12. Finish a Wiki write with `project.wiki_validate`. A curated
+     page needs no `approval_id` — it is curated knowledge, not
+     derived materialisation — but it is validated against the
+     OKF v0.2 profile before it is stored, and it becomes part of
+     the searchable corpus on the next project refresh.
 
 ## v0.8 retrieval semantics (Change Package I)
 
@@ -162,6 +176,17 @@ are read-only and do not require approval.
 `project.materialize_knowledge` and `project.refresh_sources`
 are write / materialization actions and require an `approval_id`
 issued by the trusted operator boundary.
+
+The LLM Wiki tools split the same way with one deliberate
+exception: `project.wiki_list_pages`, `project.wiki_read_page`,
+`project.wiki_search` and `project.wiki_validate` are read-only,
+while `project.wiki_write_page` is a curated write that does NOT
+require an `approval_id` — it stores curated knowledge in the
+Git-versioned OKF v0.2 bundle, not derived materialisation. The
+derived-knowledge write tools (`project.materialize_knowledge`,
+`project.refresh_sources`) still require an `approval_id`, and
+the server still rejects an invalid Wiki page before it is
+stored.
 
 The debug-only tool `project.get_retrieval_trace(trace_id)`
 requires `PI_MCP_DEBUG=1` on the server; it is read-only but

@@ -2,7 +2,9 @@
 
 ## Purpose
 Provide a replaceable text embedding interface with consistent dimensions, batch support, model identity, and license reporting.
+
 ## Requirements
+
 ### Requirement: EmbeddingModelPort contract
 
 The platform MUST expose an `EmbeddingModelPort` abstract class in
@@ -88,10 +90,16 @@ And the application layer chooses which adapter to call through the
 ### Requirement: replaceable provider
 
 The `EmbeddingModelPort` MUST be implementable by a default
-multilingual CPU adapter and one or more alternative adapters without
-leaking backend-specific details into the port surface. The active
+multilingual CPU adapter and by alternative bindings of the same model
+without leaking backend-specific details into the port surface. The active
 adapter MUST be selected through
 `project-context.yaml:embedding.backend` configuration.
+
+The platform MUST offer exactly one production embedding model. The set of
+production model identifiers MUST be a single model family, and the retired
+alternative model MUST no longer be selectable, no longer appear as a
+production-enabled licence record, and no longer be offered as a deployment
+setup option.
 
 #### Scenario: backend swap does not change observable behaviour
 
@@ -103,6 +111,13 @@ Then both return a vector of the declared `dimension()`
 And both record the same `model_version()` string in the
 `VersionIdentity.embeddingModelVersion` field of any chunk they
 produced vector for.
+
+#### Scenario: only one production model is offered
+
+Given the production startup profile
+When the operator lists the selectable embedding models
+Then exactly one production model family is listed
+And the retired alternative is absent
 
 ### Requirement: commercially-usable license
 
@@ -168,4 +183,3 @@ Then the `DenseIndexPort` deletes the old entry and indexes the new
 vector
 And the freshness tracker records the transition from `verified` to
 `stale` for the affected chunk until the re-indexing finishes.
-

@@ -59,6 +59,14 @@ When `retrieve(...)` runs
 Then `stageReports` lists ten entries (no rerank entry)
 And `budgetUsed` records the rerank budget as zero.
 
+#### Scenario: a failing reranker does not fail the retrieval
+
+Given a reranker that raises
+When the pipeline executes the rerank stage
+Then the retrieval still succeeds
+And the stage report records the reranker failure
+And the pre-rerank order is kept
+
 ### Requirement: explicit budget per stage
 
 The previous per-stage budget contract from

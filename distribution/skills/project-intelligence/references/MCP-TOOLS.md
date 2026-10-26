@@ -120,6 +120,100 @@ verifying the approval against the
 Trigger a hydrate / reconcile cycle against the configured
 sources. Requires `approval_id`.
 
+## LLM Wiki tools
+
+These tools expose the curated LLM Wiki — the Git-versioned OKF
+v0.2 bundle at `project-knowledge/wiki/` of the target
+repository. A curated page is a Markdown file with OKF
+frontmatter; `type` is mandatory. Only `project.wiki_write_page`
+writes, and it does NOT require an `approval_id`: it stores
+curated knowledge, not derived materialisation. The derived
+knowledge write tools above still require an `approval_id`.
+Wiki tool failures return `{ok: false, error}` with `error` a
+plain message string.
+
+### `project.wiki_list_pages`
+
+List the curated Wiki pages of the target repository.
+Arguments: none.
+
+Returns: `{ok, root, count, pages}` — one entry per curated page
+(`{path, title, type, summary}`); the reserved `index.md` and
+`log.md` are excluded.
+
+### `project.wiki_read_page`
+
+Read one curated Wiki page.
+
+Arguments:
+
+- `path` (string, required): Wiki-relative page path, e.g.
+  `"architecture/overview.md"`.
+- `include_body` (boolean, optional, default `true`): include
+  the Markdown `body` and the parsed `frontmatter`.
+
+Returns: `{ok, page}` — `{path, title, type, summary}` plus
+`body` and `frontmatter` when `include_body` is true.
+
+### `project.wiki_search`
+
+Search the curated pages by text overlap. The body is searched
+too, so a page is findable by the content it explains and not
+only by its title.
+
+Arguments:
+
+- `query` (string, required): free-text query over the curated
+  pages.
+- `top_k` (integer, optional, default 8): maximum hits.
+
+Returns: `{ok, count, pages}` — the same page shape as
+`project.wiki_list_pages`.
+
+### `project.wiki_write_page`
+
+Create or update one curated Wiki page. The page is rendered
+with OKF frontmatter and validated against the OKF v0.2 profile
+BEFORE it is stored — an invalid page is never written. The
+write is atomic, cannot escape the Wiki root, is recorded in the
+reserved `log.md`, and refreshes the navigation section of the
+reserved `index.md`. The reserved `index.md` / `log.md`
+themselves cannot be written through this tool. No
+`approval_id`.
+
+Arguments:
+
+- `path` (string, required): Wiki-relative page path.
+- `title` (string, required): human-readable page title.
+- `body` (string, required): the Markdown body of the page.
+- `type` (string, optional, default `"Concept"`): OKF concept
+  type — one of `Concept`, `Architecture`, `Module`,
+  `Interface`, `Process`, `Decision`, `Requirement`,
+  `Glossary`, `Domain`, `Invariant`.
+- `summary` (string, optional, default `""`): frontmatter
+  summary.
+- `author` (string, optional, default `"calling-llm"`): stored
+  as `pi_author`.
+- `source` (string, optional, default `""`): stored as
+  `pi_source`.
+- `dry_run` (boolean, optional, default `false`): validate and
+  report without storing.
+
+Returns: `{ok, written, created, path, bytes,
+index_refreshed, note}`. With `dry_run` the shape is
+`{ok, written: false, dry_run: true, path, bytes}`. `note`
+states that the page becomes part of the searchable corpus on
+the next project refresh — a written page is searchable after
+the next refresh, not instantly through the dense index.
+
+### `project.wiki_validate`
+
+Validate the curated Wiki bundle against the OKF v0.2 profile.
+Arguments: none.
+
+Returns: `{ok, root, profile: "okf-0.2", errors}` — `ok` is
+false when the bundle carries validation errors.
+
 ## Return shape
 
 Every tool returns a JSON object with `ok: bool`. On failure,

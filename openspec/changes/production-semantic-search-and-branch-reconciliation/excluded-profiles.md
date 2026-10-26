@@ -20,7 +20,7 @@ binding for the selected model and satisfy its independent license policy.
 | `model_id` | Scope | Reason |
 |---|---|---|
 | `ggml-org/embeddinggemma-2-GGUF` | Optional pinned llama.cpp text/image runtime | Separate GGUF probe with model and projector hashes; excluded from in-process PyTorch probes, not disabled. |
-| `Qwen/Qwen3-Embedding-0.6B-GGUF` | Optional pinned llama.cpp runtime | Separately probed through authenticated model identity and real vector checks; not part of the two in-process PyTorch probes. GPU hardware checks remain pending. |
+| `openmycel/Qwen3-Embedding-0.6B-GGUF` | Default kit Q4 pinned llama.cpp runtime | Separately probed through authenticated model identity and real vector checks; not part of the two in-process PyTorch probes. GPU hardware checks remain pending. |
 | `hashing-1.0.0` | Explicit minimal profile | Deterministic diagnostic backend; never an implicit production semantic fallback. |
 | `qwen3-reranker-0.6b` | Optional quality reranker | Placeholder excluded pending a separately verified binding. |
 | `multimodal-figure-512` | Optional multimodal profile | Placeholder excluded pending a separately verified binding. |

@@ -255,14 +255,9 @@ class StandaloneContainerCapabilitiesTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(len(query_body.get("results", [])) >= 1)
 
-        # 4. MCP GET discovery and POST JSON-RPC tool calls
+        # Stateless MCP exposes discovery through POST methods; GET streams unsupported.
         status, mcp_info = _http_json(f"{base}/mcp")
-        self.assertEqual(status, 200)
-        self.assertIn("project.search", mcp_info["tools"])
-        self.assertIn(
-            "project-intelligence://distribution/manifest",
-            mcp_info["resources"],
-        )
+        self.assertEqual(status, 405)
 
         status, rpc_init = _http_json(
             f"{base}/mcp",

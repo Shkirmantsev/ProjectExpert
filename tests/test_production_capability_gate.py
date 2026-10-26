@@ -71,6 +71,8 @@ GATE_MODULE = "pi_platform.core.orchestration.production_capability_gate"
 
 GEMMA_MODEL_ID = "google/embeddinggemma-2"
 GEMMA_PROFILE = "semantic-cpu"
+GEMMA_GGUF_MODEL_ID = "ggml-org/embeddinggemma-2-GGUF"
+GEMMA_GGUF_PROFILE = "semantic-portable"
 EXCLUDED_MODEL_ID = "multimodal-figure-512"
 
 
@@ -134,12 +136,12 @@ class ProductionEnabledBoundaryTests(unittest.TestCase):
             if r.get("production_enabled") is True
         }
         expected = {
-            "google/embeddinggemma-2", "Qwen/Qwen3-Embedding-0.6B",
+            "ggml-org/embeddinggemma-2-GGUF", "google/embeddinggemma-2",
         }
         self.assertEqual(
             production_set, expected,
             "production_enabled set MUST be exactly the documented "
-            "set (EmbeddingGemma 2 + Qwen3 Embedding 0.6B). Add a row "
+            "set (the two bindings of EmbeddingGemma 2). Add a row "
             "to excluded-profiles.md before changing this set."
         )
 
@@ -212,14 +214,30 @@ class ProductionCapabilityGateTests(unittest.TestCase):
         # pinned weights through the unchanged default strict gate.
         import math
         from types import SimpleNamespace
-        from pi_platform.adapters.retrieval.qwen3_embedding_model import Qwen3EmbeddingModel
+        from pi_platform.adapters.retrieval.gguf_artifacts import GEMMA_MODEL_ALIAS
+        from pi_platform.adapters.retrieval.llama_cpp_embedding_model import (
+            LlamaCppEmbeddingModel,
+        )
         class Row(list):
             def tolist(self):
                 return list(self)
+        def fake_gguf_request(path, payload=None):
+            # Fake llama.cpp transport: identity probe plus a valid
+            # 768-dimensional vector that the adapter truncates to 512.
+            if path == '/v1/models':
+                return {'data': [{'id': GEMMA_MODEL_ALIAS,
+                                  'architecture': {'input_modalities': ['text', 'image', 'audio', 'video']}}]}
+            return {'data': [{'index': 0, 'embedding': [1 / math.sqrt(768)] * 768}]}
         def build(provider, **kwargs):
-            adapter = EmbeddingGemma2EmbeddingModel() if provider == "embeddinggemma2" else Qwen3EmbeddingModel()
-            dim = adapter.dimension()
-            adapter._model = SimpleNamespace(encode=lambda texts, **kw: [Row([1 / math.sqrt(dim)] * dim) for _ in texts])
+            # The two remaining production providers: the native
+            # Transformers binding and the pinned llama.cpp GGUF binding.
+            if provider == "embeddinggemma2":
+                adapter = EmbeddingGemma2EmbeddingModel()
+                dim = adapter.dimension()
+                adapter._model = SimpleNamespace(encode=lambda texts, **kw: [Row([1 / math.sqrt(dim)] * dim) for _ in texts])
+                return adapter
+            adapter = LlamaCppEmbeddingModel(device=kwargs.get("device", "cpu"))
+            adapter._request = fake_gguf_request
             return adapter
         for target, options in [
             (f"{GATE_MODULE}.EmbeddingModelFactory.build", {"side_effect": build}),
@@ -290,7 +308,6 @@ class ProductionCapabilityGateTests(unittest.TestCase):
                 if record.get("production_enabled") is True:
                     record["status"] = "pinned-stub"
                     record["revision"] = "pinned-stub"
-                    break
 
         report = run_production_capability_gate(
             inventory_path=self._mutated_inventory(mutate),
@@ -299,6 +316,8 @@ class ProductionCapabilityGateTests(unittest.TestCase):
         failed = self._failed_text(report)
         self.assertIn(GEMMA_MODEL_ID, failed)
         self.assertIn(GEMMA_PROFILE, failed)
+        self.assertIn(GEMMA_GGUF_MODEL_ID, failed)
+        self.assertIn(GEMMA_GGUF_PROFILE, failed)
         self.assertIn("pinned-stub", failed)
 
     def test_gate_ignores_excluded_profiles_pinned_stub(self):

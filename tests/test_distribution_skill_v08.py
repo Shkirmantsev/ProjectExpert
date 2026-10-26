@@ -96,15 +96,29 @@ class DistributionSkillContentTests(unittest.TestCase):
 
     def test_skill_keeps_legacy_behaviour_contract(self) -> None:
         # Backwards compatibility: the original 10-step contract
-        # must still be present so existing agents keep working.
+        # must still be present so existing agents keep working. The
+        # contract may grow (the LLM Wiki loop added two steps), but the
+        # original steps and the tools they name MUST remain.
         text = _SKILL_PATH.read_text(encoding="utf-8")
-        self.assertIn("Behaviour contract (10 steps)", text)
-        # The 10-step contract lists specific tool names.
+        match = re.search(r"Behaviour contract \((\d+) steps\)", text)
+        self.assertIsNotNone(match, "the behaviour contract heading is missing")
+        self.assertGreaterEqual(int(match.group(1)), 10)
+        # The original contract lists specific tool names.
         for tool in (
             "project.search",
             "project.retrieve_context",
             "project.build_task_context",
             "project.materialize_knowledge",
+        ):
+            self.assertIn(tool, text)
+
+    def test_skill_documents_the_llm_wiki_loop(self) -> None:
+        text = _SKILL_PATH.read_text(encoding="utf-8")
+        for tool in (
+            "project.wiki_list_pages",
+            "project.wiki_read_page",
+            "project.wiki_write_page",
+            "project.wiki_validate",
         ):
             self.assertIn(tool, text)
 

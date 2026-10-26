@@ -31,7 +31,7 @@ from pi_platform.ports.retrieval.embedding_model import (
 from pi_platform.ports.retrieval.embedding_profile import (
     EMBEDDINGGEMMA2_512,
     HASHING_DEFAULT,
-    QWEN3_EMBEDDING_0_6B_1024,
+    EMBEDDINGGEMMA2_GGUF_512,
     EmbeddingProfile,
 )
 
@@ -175,7 +175,7 @@ class HostEmbeddingClient(EmbeddingModelPort):
             return "Apache-2.0"
         if self._profile is EMBEDDINGGEMMA2_512:
             return "Apache-2.0"
-        if self._profile is QWEN3_EMBEDDING_0_6B_1024:
+        if self._profile is EMBEDDINGGEMMA2_GGUF_512:
             return "Apache-2.0"
         return "Apache-2.0"
 

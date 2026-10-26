@@ -2,7 +2,9 @@
 
 ## Purpose
 Coordinate candidate generation, fusion, filtering, graph expansion, reranking, and bounded context assembly with observable stage results.
+
 ## Requirements
+
 ### Requirement: MultiStageRetrievalPort contract
 
 The platform MUST expose a `MultiStageRetrievalPort` abstract class
@@ -147,13 +149,21 @@ The reranker MUST NOT be invoked on support nodes. The
 by the Context Assembler with their own `evidence_kind` and
 `source` discriminator.
 
+A failing reranker MUST NOT fail the retrieval in ANY pipeline path:
+the pipeline MUST keep the pre-rerank order and record the failure in
+the rerank stage report.
+
 #### Scenario: rerank runs before graph / hierarchy expansion
 
-Given a query that returns 60 direct candidates and 25 support
-nodes that would be added by graph expansion
-When `retrieve(...)` runs
-Then the reranker receives 60 direct candidates
-And the support nodes are attached only after the selection stage
-And the reranker never sees the support nodes
-And `stageReports` lists the eleven stages in the documented order.
+Given a candidate set that reaches the rerank stage
+When the pipeline executes
+Then the reranker sees only the DIRECT candidates
+And the graph / hierarchy expansion runs after the selection
 
+#### Scenario: a failing reranker does not fail the retrieval
+
+Given a reranker that raises
+When the pipeline executes the rerank stage
+Then the retrieval still succeeds
+And the stage report records the reranker failure
+And the pre-rerank order is kept

@@ -93,6 +93,8 @@ def build_parser() -> argparse.ArgumentParser:
                           help="run the license gate against the dependency inventory")
     gate.add_argument("--target", type=Path, default=Path("."))
     gate.add_argument("--inventory", type=Path, default=None)
+    gate.add_argument("--additional-inventory", type=Path, action="append", default=[],
+                      help="also gate additive dependencies and include them in the SBOM; does not extend scoped approval")
     gate.add_argument("--production-lock", type=Path, default=None,
                       help="require reviewed exact coordinates for every dependency in this production lock")
     gate.add_argument("--license-review", type=Path, default=None,
@@ -335,8 +337,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     start.add_argument("--target", type=Path, default=Path("."),
                        help="target repository root (default: current directory)")
-    start.add_argument("--model", choices=("gemma", "qwen", "qwen-gguf", "gemma-gguf"), default=None,
-                       help="embedding model alias (gemma → google/embeddinggemma-2)")
+    start.add_argument("--model", choices=("gemma", "gemma-torch"), default=None,
+                       help="embedding model alias (gemma → pinned EmbeddingGemma 2 GGUF binding)")
     start.add_argument("--device", choices=("auto", "cpu", "cuda", "vulkan"), default=None,
                        help="execution device (default: auto)")
     start.add_argument("--host", default=DEFAULT_UI_HOST,
@@ -367,6 +369,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="manage the production embedding models (list/status/pull/verify/use)",
     )
     models_sub = models.add_subparsers(dest="models_command", required=True)
+    models_prune = models_sub.add_parser(
+        "prune-incomplete", help="remove interrupted downloads older than 24h, excluding active downloads",
+    )
     models_list = models_sub.add_parser(
         "list", help="list the production-enabled models from the licence record",
     )
@@ -381,21 +386,75 @@ def build_parser() -> argparse.ArgumentParser:
         "pull", help="download a model into the local Hugging Face cache",
     )
     models_pull.add_argument("alias", type=str,
-                             help="model alias (gemma|qwen) or Hugging Face model id")
+                             help="model alias (gemma|gemma-torch) or Hugging Face model id")
     models_verify = models_sub.add_parser(
         "verify", help="verify the model files exist in the local Hugging Face cache",
     )
     models_verify.add_argument("alias", type=str,
-                               help="model alias (gemma|qwen) or Hugging Face model id")
+                               help="model alias (gemma|gemma-torch) or Hugging Face model id")
     models_use = models_sub.add_parser(
         "use", help="record the selected model alias as the active selection",
     )
     models_use.add_argument("alias", type=str,
-                            help="model alias (gemma|qwen) or Hugging Face model id")
+                            help="model alias (gemma|gemma-torch) or Hugging Face model id")
     models_use.add_argument("--target", type=Path, default=Path("."),
                             help="target repository root (default: current directory)")
 
+    inference = sub.add_parser(
+        "inference",
+        help="portable inference runtime policy (plan/doctor/status)",
+    )
+    inference_sub = inference.add_subparsers(dest="inference_command", required=True)
+    inference_plan = inference_sub.add_parser(
+        "plan", help="compute the inference profile from probe evidence",
+    )
+    _add_inference_evidence_arguments(inference_plan)
+    inference_doctor = inference_sub.add_parser(
+        "doctor", help="print the full inference diagnostics report",
+    )
+    _add_inference_evidence_arguments(inference_doctor)
+    inference_status = inference_sub.add_parser(
+        "status", help="print the status of the configured runtime endpoint",
+    )
+    inference_status.add_argument("--endpoint", type=str, default=None,
+                                  help="runtime endpoint (default: PI_LLAMA_ENDPOINT)")
+    inference_benchmark = inference_sub.add_parser(
+        "benchmark", help="measure the embedding latency of a running runtime",
+    )
+    inference_benchmark.add_argument("--endpoint", type=str, default=None,
+                                     help="runtime endpoint (default: PI_LLAMA_ENDPOINT)")
+    inference_benchmark.add_argument("--iterations", type=int, default=30,
+                                     help="measured requests (default: 30)")
+    inference_benchmark.add_argument("--warmup", type=int, default=5,
+                                     help="warm-up requests (default: 5)")
+    inference_benchmark.add_argument("--timeout", type=float, default=120.0,
+                                     help="per-request timeout in seconds")
+
     return parser
+
+
+def _add_inference_evidence_arguments(parser: argparse.ArgumentParser) -> None:
+    """Attach the probe-evidence inputs and launch-plan knobs."""
+
+    evidence = parser.add_mutually_exclusive_group()
+    evidence.add_argument("--evidence-b64", type=str, default=None,
+                          help="base64 of the probe evidence JSON (shell-quoting safe)")
+    evidence.add_argument("--evidence", type=str, default=None,
+                          help="path to the probe evidence JSON ('-' for stdin)")
+    parser.add_argument("--cache", type=Path, default=None,
+                        help="runtime model cache used to build the launch plan")
+    parser.add_argument("--model-path", type=str, default=None,
+                        help="explicit backbone path for the launch plan "
+                             "(overrides --cache; required when the runtime "
+                             "lives outside the container filesystem)")
+    parser.add_argument("--projector-path", type=str, default=None,
+                        help="explicit multimodal projector path for the launch plan")
+    parser.add_argument("--host", type=str, default=None,
+                        help="runtime bind host for the launch plan (default: 127.0.0.1)")
+    parser.add_argument("--port", type=int, default=None,
+                        help="runtime bind port for the launch plan (default: 8769)")
+    parser.add_argument("--api-key-file", type=str, default=None,
+                        help="runtime API key file for the launch plan")
 
 
 def _resolve_cache_root(args: argparse.Namespace) -> Path:
@@ -597,6 +656,8 @@ def _cmd_license_gate(args: argparse.Namespace) -> int:
         except (OSError, ValueError, KeyError, TypeError) as exc:
             print(json.dumps({"passed": False, "error": str(exc)}))
             return 1
+    for extra_inventory in getattr(args, "additional_inventory", ()):
+        deps.extend(DependencyInventory(extra_inventory).load())
     passed, findings = LicenseGate(policy).run(deps)
     coverage_errors: list[str] = []
     production_lock = getattr(args, "production_lock", None)
@@ -1003,7 +1064,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         a2a_adapter=a2a_adapter,
         agent_card=agent_card,
     )
-    from ..core.sync.version_monitor import PollingProjectVersionMonitor
+    from ..core.sync.version_monitor import PollingProjectVersionMonitor, ProjectVersionState
     import threading
 
     first_refresh = True
@@ -1020,6 +1081,9 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         )
         first_refresh = False
         print(json.dumps({"status": "ready", **summary}), flush=True)
+        active = getattr(service, "_published_version", None)
+        if active is not None:
+            return ProjectVersionState(active.head, active.branch, active.working_tree_fingerprint)
 
     def failed(exc):
         readiness.record_failure(str(exc))
@@ -1070,9 +1134,12 @@ def _cmd_mcp_serve(args: argparse.Namespace) -> int:
         hydrate_on_start=False,
         defer_runtime=True,
     )
-    from ..core.sync.version_monitor import PollingProjectVersionMonitor
+    from ..core.sync.version_monitor import PollingProjectVersionMonitor, ProjectVersionState
     def refresh(_event):
         _bootstrap_and_index_target(target, service=service, readiness=readiness, cache_root=cache_root)
+        active = getattr(service, "_published_version", None)
+        if active is not None:
+            return ProjectVersionState(active.head, active.branch, active.working_tree_fingerprint)
     def failed(exc):
         readiness.record_failure(str(exc))
         readiness.end_refresh()
@@ -1518,7 +1585,7 @@ def _cmd_accelerator(args: argparse.Namespace) -> int:
     from ..ports.retrieval.embedding_profile import (
         EMBEDDINGGEMMA2_512,
         HASHING_DEFAULT,
-        QWEN3_EMBEDDING_0_6B_1024,
+        EMBEDDINGGEMMA2_GGUF_512,
     )
 
     def _build_config() -> AcceleratorConfig:
@@ -1587,7 +1654,7 @@ def _cmd_accelerator(args: argparse.Namespace) -> int:
     profiles = {
         HASHING_DEFAULT.identity(): HASHING_DEFAULT,
         EMBEDDINGGEMMA2_512.identity(): EMBEDDINGGEMMA2_512,
-        QWEN3_EMBEDDING_0_6B_1024.identity(): QWEN3_EMBEDDING_0_6B_1024,
+        EMBEDDINGGEMMA2_GGUF_512.identity(): EMBEDDINGGEMMA2_GGUF_512,
     }
     token, log, al = bootstrap_all(config)
     embedding_models = build_default_embedding_models(profiles)
@@ -2212,7 +2279,7 @@ def _bootstrap_and_index_target_locked(
     ).resolve()
     if wizard_schema.get("visible") and not retrieval_settings_path(target).exists():
         settings = wizard.submit({
-            "model": initial_config.embedding_model if initial_config.embedding_model in {"gemma", "qwen", "qwen-gguf", "gemma-gguf"} else "gemma",
+            "model": initial_config.embedding_model if initial_config.embedding_model in {"gemma", "gemma-torch"} else "gemma",
             "device": initial_config.embedding_device,
             "document_processing_enabled": initial_config.docling_enabled,
             "target_repo": str(target),
@@ -2314,6 +2381,7 @@ def _bootstrap_and_index_target_locked(
     if service is not None:
         from ..adapters.ui.composition import publish_runtime
         publish_runtime(service, runtime)
+        service._published_version = active_ver
     readiness.record_hydrate(hydrate_report)
     readiness.record_reconcile(
         transient_readiness._reconcile_report,
@@ -2495,7 +2563,7 @@ def _cmd_models_pull(args: argparse.Namespace) -> int:
             "details": {"alias": str(args.alias)},
         }), file=sys.stderr)
         return 2
-    if alias in {'qwen-gguf', 'gemma-gguf'}:
+    if alias == 'gemma':
         from .gguf_setup import prepare
         try:
             path = prepare(Path(os.environ.get('PI_GGUF_CACHE', '/models')), alias)
@@ -2548,13 +2616,13 @@ def _cmd_models_verify(args: argparse.Namespace) -> int:
             "details": {"alias": str(args.alias)},
         }), file=sys.stderr)
         return 2
-    if alias in {'qwen-gguf', 'gemma-gguf'}:
+    if alias == 'gemma':
         from .gguf_setup import file_hash
-        from ..adapters.retrieval.gguf_artifacts import (FILENAME, SHA256, GEMMA_FILENAME,
+        from ..adapters.retrieval.gguf_artifacts import (GEMMA_FILENAME,
             GEMMA_SHA256, GEMMA_PROJECTOR_FILENAME, GEMMA_PROJECTOR_SHA256)
         cache = Path(os.environ.get('PI_GGUF_CACHE', '/models'))
-        files = ((FILENAME, SHA256),) if alias == 'qwen-gguf' else (
-            (GEMMA_FILENAME, GEMMA_SHA256), (GEMMA_PROJECTOR_FILENAME, GEMMA_PROJECTOR_SHA256))
+        files = ((GEMMA_FILENAME, GEMMA_SHA256),
+                 (GEMMA_PROJECTOR_FILENAME, GEMMA_PROJECTOR_SHA256))
         path = cache / files[0][0]
         valid = all((cache / name).is_file() and file_hash(cache / name) == digest for name, digest in files)
         print(json.dumps({'ok': valid, 'alias': alias, 'path': str(path)}))
@@ -2626,11 +2694,19 @@ def _cmd_models_use(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_models_prune(args: argparse.Namespace) -> int:
+    from ..adapters.retrieval.model_cache import prune_incomplete
+    from ..adapters.config.runtime_configuration_resolver import RuntimeConfigurationResolver
+    print(json.dumps(prune_incomplete(RuntimeConfigurationResolver().resolve().model_cache_dir), indent=2))
+    return 0
+
+
 def _cmd_models(args: argparse.Namespace) -> int:
     """Dispatch the ``models`` command group (list/status/pull/verify/use)."""
 
     subcommand = getattr(args, "models_command", None)
     handlers = {
+        "prune-incomplete": _cmd_models_prune,
         "list": _cmd_models_list,
         "status": _cmd_models_status,
         "pull": _cmd_models_pull,
@@ -2648,10 +2724,19 @@ def _cmd_models(args: argparse.Namespace) -> int:
     return handler(args)
 
 
+def _cmd_inference(args: argparse.Namespace) -> int:
+    """Dispatch the ``inference`` command group (plan/doctor/status)."""
+
+    from .inference import run_inference_command
+
+    return run_inference_command(args)
+
+
 _DISPATCH.update(
     {
         "start": _cmd_start,
         "models": _cmd_models,
+        "inference": _cmd_inference,
         "reindex": _cmd_reindex,
         "doctor": _cmd_doctor,
     }

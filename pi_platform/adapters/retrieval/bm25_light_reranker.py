@@ -13,6 +13,7 @@ from pi_platform.core.retrieval.reranker import (
     BM25_LIGHT_VERSION,
     Bm25LightRerankerCore,
 )
+from pi_platform.ports.retrieval.reranker import RerankPolicy
 
 
 __all__ = [
@@ -27,8 +28,10 @@ ADAPTER_NAME = "bm25-light"
 class Bm25LightRerankerAdapter(Bm25LightRerankerCore):
     """Stdlib-only BM25-light reranker fallback adapter."""
 
-    def __init__(self, budget: int = 50) -> None:
-        super().__init__(budget=budget)
+    def __init__(
+        self, budget: int = 50, *, policy: RerankPolicy | None = None,
+    ) -> None:
+        super().__init__(budget=budget, policy=policy)
         self._name = ADAPTER_NAME
 
     @property

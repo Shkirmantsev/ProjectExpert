@@ -248,7 +248,6 @@ jobs:
       - name: Verify optional GGUF runtime with real CPU inference
         run: |
           python scripts/smoke_gguf_container.py
-          python scripts/smoke_gguf_container.py --model gemma-gguf
       - name: Build and test deployment kit export
         run: |
           docker build -f Containerfile --target deployment-kit -t deployment-kit:test .

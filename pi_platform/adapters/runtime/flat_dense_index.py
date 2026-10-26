@@ -79,7 +79,7 @@ class FlatDenseIndex(DenseIndexPort):
             scored.append((chunk_id, score))
         scored.sort(key=lambda x: (-x[1], x[0]))
         return tuple(
-            DenseHit(chunkId=cid, score=score)
+            DenseHit(chunkId=cid, score=score, metadata=dict(self._metadata.get(cid) or {}))
             for cid, score in scored[:top_k]
             if score > 0
         )

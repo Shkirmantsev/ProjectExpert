@@ -1,165 +1,181 @@
 {
-  "schema_version": "1.0",
-  "recorded_at": "2026-10-19",
-  "notes": "production_enabled marks records that the production-capability-gate checks for pinned-stub / not-bound status. False means the record is intentionally out of scope (minimal/test/excluded); the exclusion rationale is documented in openspec/changes/production-semantic-search-and-branch-reconciliation/excluded-profiles.md. The two production-enabled model revisions (google/embeddinggemma-2 and Qwen/Qwen3-Embedding-0.6B) are the immutable upstream Hugging Face SHAs returned by https://huggingface.co/api/models/<id> on 2026-10-19; they MUST match the EmbeddingProfile identity used at runtime, otherwise the production-capability-gate fails the release. Document-processing assets are inventoried separately with document_processing_enabled=true; production_enabled remains the embedding-profile gate selector, not an assertion that document assets are disabled.",
-  "models": [
-    {
-      "model_id": "hashing-1.0.0",
-      "provider": "hashing",
-      "revision": "v1",
-      "modality": "text",
-      "spdx": "Apache-2.0",
-      "profile": "minimal",
-      "production_enabled": false,
-      "status": "active-default",
-      "rationale": "Diagnostic backend for the explicit minimal startup profile and for deterministic CI. Never selected silently by the production profile."
-    },
-    {
-      "model_id": "google/embeddinggemma-2",
-      "provider": "embeddinggemma2",
-      "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "modality": "text-image",
-      "spdx": "Apache-2.0",
-      "profile": "semantic-cpu",
-      "production_enabled": true,
-      "status": "real-and-available-when-bound",
-      "rationale": "Default production profile. Bound through the EmbeddingGemma 2 sentence-transformers adapter (PR 3). The revision is the immutable Hugging Face SHA-1 of the upstream google/embeddinggemma-2 checkpoint. The production-capability-gate asserts the revision is not the pinned-stub placeholder and the adapter reports real_binding=1."
-    },
-    {
-      "model_id": "Qwen/Qwen3-Embedding-0.6B",
-      "provider": "qwen3-embedding-0.6b",
-      "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
-      "modality": "text",
-      "spdx": "Apache-2.0",
-      "profile": "quality",
-      "production_enabled": true,
-      "status": "real-and-available-when-bound",
-      "rationale": "Alternative production profile. Bound through the Qwen3 sentence-transformers adapter (PR 4). The revision is the immutable Hugging Face SHA-1 of the upstream Qwen/Qwen3-Embedding-0.6B checkpoint. The production-capability-gate asserts the revision is not the pinned-stub placeholder and the adapter reports real_binding=1."
-    },
-    {
-      "model_id": "qwen3-reranker-0.6b",
-      "provider": "qwen3-reranker-0.6b",
-      "revision": "pinned-stub",
-      "modality": "text",
-      "spdx": "Apache-2.0",
-      "profile": "quality",
-      "production_enabled": false,
-      "status": "pinned-stub",
-      "rationale": "Reranker binding is part of the post-v0.8 retrieval refinement roadmap and is excluded from the production-capability-gate until the real binding lands."
-    },
-    {
-      "model_id": "multimodal-figure-512",
-      "provider": "multimodal-figure",
-      "revision": "pinned-stub",
-      "modality": "multimodal",
-      "spdx": "Apache-2.0",
-      "profile": "multimodal",
-      "production_enabled": false,
-      "status": "pinned-stub",
-      "rationale": "Multimodal figure binding is gated behind the multimodal profile and is excluded from the production-capability-gate until the real binding lands."
-    },
-    {
-      "model_id": "tesseract-ocr",
-      "provider": "tesseract",
-      "revision": "5.x-stub",
-      "modality": "ocr",
-      "spdx": "Apache-2.0",
-      "profile": "documents",
-      "production_enabled": false,
-      "status": "pinned-stub",
-      "rationale": "OCR engine selection is part of the Docling / document processing follow-up; the documents profile uses Docling's bundled OCR by default. Excluded until a real engine binding is recorded."
-    },
-    {
-      "model_id": "paddleocr",
-      "provider": "paddleocr",
-      "revision": "2.x-stub",
-      "modality": "ocr",
-      "spdx": "Apache-2.0",
-      "profile": "documents",
-      "production_enabled": false,
-      "status": "pinned-stub",
-      "rationale": "Alternative OCR engine selection; same follow-up as Tesseract. Excluded until a real engine binding is recorded."
-    },
-    {
-      "model_id": "docling-project/docling-layout-heron",
-      "provider": "docling-layout",
-      "revision": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
-      "modality": "layout",
-      "spdx": "Apache-2.0",
-      "profile": "documents",
-      "production_enabled": false,
-      "document_processing_enabled": true,
-      "status": "real-and-available-when-cached",
-      "source": "https://huggingface.co/docling-project/docling-layout-heron/tree/8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
-      "license_source": "https://huggingface.co/docling-project/docling-layout-heron/blob/8f39ad3c0b4c58e9c2d2c84a38465abf757272d8/README.md",
-      "files": [
-        "config.json",
-        "preprocessor_config.json",
-        "model.safetensors"
-      ],
-      "rationale": "Explicit immutable checkpoint selected by the real PDF adapter. This model asset license is separate from the MIT Docling package license. Downloaded on first PDF use; local cache supports offline operation. Not an embedding profile."
-    },
-    {
-      "model_id": "docling-project/docling-models",
-      "provider": "docling-table-structure",
-      "revision": "2199320848bb9a8a519d22e4b528185a4f9a6f64",
-      "modality": "table-structure",
-      "spdx": "CDLA-Permissive-2.0 AND Apache-2.0",
-      "profile": "documents",
-      "production_enabled": false,
-      "document_processing_enabled": true,
-      "status": "real-and-available-when-cached",
-      "source": "https://huggingface.co/docling-project/docling-models/tree/2199320848bb9a8a519d22e4b528185a4f9a6f64",
-      "license_source": "https://huggingface.co/docling-project/docling-models/blob/2199320848bb9a8a519d22e4b528185a4f9a6f64/README.md",
-      "files": [
-        "model_artifacts/tableformer/accurate/tableformer_accurate.safetensors",
-        "model_artifacts/tableformer/accurate/tm_config.json"
-      ],
-      "rationale": "Explicit immutable checkpoint selected by the real PDF adapter. This model asset license is separate from the MIT Docling package license. Downloaded on first PDF use; local cache supports offline operation. Not an embedding profile."
-    },
-    {
-      "model_id": "SWHL/RapidOCR",
-      "provider": "docling-ocr",
-      "revision": "1cfba2e90fc938db55889873735088de210cc173",
-      "modality": "ocr",
-      "spdx": "Apache-2.0",
-      "profile": "documents",
-      "production_enabled": false,
-      "document_processing_enabled": true,
-      "status": "real-and-available-when-cached",
-      "source": "https://huggingface.co/SWHL/RapidOCR/tree/1cfba2e90fc938db55889873735088de210cc173",
-      "license_source": "https://huggingface.co/SWHL/RapidOCR/blob/1cfba2e90fc938db55889873735088de210cc173/README.md",
-      "files": [
-        "PP-OCRv4/ch_PP-OCRv4_det_infer.onnx",
-        "PP-OCRv3/ch_ppocr_mobile_v2.0_cls_train.onnx",
-        "PP-OCRv4/ch_PP-OCRv4_rec_infer.onnx"
-      ],
-      "rationale": "Explicit immutable checkpoint selected by the real PDF adapter. This model asset license is separate from the MIT Docling package license. Downloaded on first PDF use; local cache supports offline operation. Not an embedding profile."
-    },
-    {
-      "model_id": "Qwen/Qwen3-Embedding-0.6B-GGUF",
-      "provider": "llama.cpp-qwen3-q8_0",
-      "revision": "370f27d7550e0def9b39c1f16d3fbaa13aa67728",
-      "sha256": "06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439",
-      "modality": "text",
-      "spdx": "Apache-2.0",
-      "profile": "optional-gguf",
-      "production_enabled": false,
-      "optional_runtime_enabled": true,
-      "status": "optional-real-runtime",
-      "rationale": "Opt-in Q8_0 model with separate profile identity and pinned llama.cpp runtime; verified separately from default PyTorch release gate."
-    },
-    {
-      "model_id": "ggml-org/embeddinggemma-2-GGUF",
-      "provider": "llama.cpp-embeddinggemma2-q8_0",
-      "revision": "58faf90940886df2d62be555c8765d00dac362c5",
-      "modality": "text-image",
-      "spdx": "Apache-2.0",
-      "profile": "optional-real-runtime",
-      "production_enabled": false,
-      "optional_runtime_enabled": true,
-      "status": "real-and-available-when-bound",
-      "rationale": "Pinned official llama.cpp conversion of Google revision 914f7f89142e33e77833254d9c9b90c3cef7303b with Q8 model and multimodal projector; independent authenticated runtime proof."
-    }
-  ]
+    "schema_version": "1.0",
+    "recorded_at": "2026-10-19",
+    "notes": "production_enabled marks records that the production-capability-gate checks for pinned-stub / not-bound status. False means the record is intentionally out of scope (minimal/test/excluded); the exclusion rationale is documented in openspec/changes/production-semantic-search-and-branch-reconciliation/excluded-profiles.md. The production-enabled records are the two bindings of one model: the pinned ggml-org EmbeddingGemma 2 GGUF package (production default, pinned by revision and artefact SHA-256) and the native google/embeddinggemma-2 checkpoint (explicit opt-in, immutable upstream Hugging Face SHA-1 returned by https://huggingface.co/api/models/<id> on 2026-10-19); they MUST match the EmbeddingProfile identity used at runtime, otherwise the production-capability-gate fails the release. Document-processing assets are inventoried separately with document_processing_enabled=true; production_enabled remains the embedding-profile gate selector, not an assertion that document assets are disabled.",
+    "models": [
+        {
+            "model_id": "hashing-1.0.0",
+            "provider": "hashing",
+            "revision": "v1",
+            "modality": "text",
+            "spdx": "Apache-2.0",
+            "profile": "minimal",
+            "production_enabled": false,
+            "status": "active-default",
+            "rationale": "Diagnostic backend for the explicit minimal startup profile and for deterministic CI. Never selected silently by the production profile."
+        },
+        {
+            "model_id": "ggml-org/embeddinggemma-2-GGUF",
+            "provider": "llama.cpp-embeddinggemma2",
+            "revision": "58faf90940886df2d62be555c8765d00dac362c5",
+            "modality": "text-image-audio-video",
+            "spdx": "Apache-2.0",
+            "profile": "semantic-portable",
+            "production_enabled": true,
+            "status": "real-and-available-when-bound",
+            "rationale": "The production default. The official ggml-org conversion of EmbeddingGemma 2 in the Q8_0 quantisation, together with the matching Q8_0 multimodal projector. Both artefacts are pinned by revision and verified by SHA-256 (2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135 and c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f). The projector carries the gemma4v vision encoder and the gemma4a audio encoder, so text, image, audio and video inputs are available through one portable runtime on Windows and Linux with CUDA, Vulkan, an integrated GPU or CPU only. The upstream google/embeddinggemma-2 checkpoint is published in the Transformers format and therefore cannot be executed by that runtime; it is kept below as the explicit native opt-in.",
+            "artefacts": {
+                "backbone": {
+                    "filename": "embeddinggemma-2-Q8_0.gguf",
+                    "sha256": "2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135",
+                    "size_bytes": 309855456
+                },
+                "projector": {
+                    "filename": "mmproj-embeddinggemma-2-Q8_0.gguf",
+                    "sha256": "c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f",
+                    "size_bytes": 554821024
+                },
+                "quantization": "Q8_0",
+                "pooling": "mean",
+                "full_dimension": 768,
+                "index_dimension": 512,
+                "runtime_version": "b11515"
+            }
+        },
+        {
+            "model_id": "google/embeddinggemma-2",
+            "provider": "embeddinggemma2",
+            "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
+            "modality": "text-image",
+            "spdx": "Apache-2.0",
+            "profile": "semantic-cpu",
+            "production_enabled": true,
+            "status": "real-and-available-when-bound",
+            "rationale": "The native Transformers binding of the same checkpoint, kept as an explicit opt-in for hosts that already provide torch. It is not the default because it cannot run on an integrated GPU through Vulkan and it disables the audio encoder. The default production binding is the pinned ggml-org GGUF package above."
+        },
+        {
+            "model_id": "Qwen/Qwen3-Embedding-0.6B",
+            "provider": "qwen3-embedding-0.6b",
+            "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+            "modality": "text",
+            "spdx": "Apache-2.0",
+            "profile": "quality",
+            "production_enabled": false,
+            "status": "retired",
+            "rationale": "Retired by the change consolidate-embeddinggemma2-and-autoconfigure-inference. ProjectExpert ships one production embedding model; the retired model is no longer selectable, no longer a deployment setup option, and its vector space is never merged with the current one. The record is kept as historical evidence."
+        },
+        {
+            "model_id": "qwen3-reranker-0.6b",
+            "provider": "qwen3-reranker-0.6b",
+            "revision": "pinned-stub",
+            "modality": "text",
+            "spdx": "Apache-2.0",
+            "profile": "quality",
+            "production_enabled": false,
+            "status": "pinned-stub",
+            "rationale": "Reranker binding is part of the post-v0.8 retrieval refinement roadmap and is excluded from the production-capability-gate until the real binding lands."
+        },
+        {
+            "model_id": "multimodal-figure-512",
+            "provider": "multimodal-figure",
+            "revision": "pinned-stub",
+            "modality": "multimodal",
+            "spdx": "Apache-2.0",
+            "profile": "multimodal",
+            "production_enabled": false,
+            "status": "pinned-stub",
+            "rationale": "Multimodal figure binding is gated behind the multimodal profile and is excluded from the production-capability-gate until the real binding lands."
+        },
+        {
+            "model_id": "tesseract-ocr",
+            "provider": "tesseract",
+            "revision": "5.x-stub",
+            "modality": "ocr",
+            "spdx": "Apache-2.0",
+            "profile": "documents",
+            "production_enabled": false,
+            "status": "pinned-stub",
+            "rationale": "OCR engine selection is part of the Docling / document processing follow-up; the documents profile uses Docling's bundled OCR by default. Excluded until a real engine binding is recorded."
+        },
+        {
+            "model_id": "paddleocr",
+            "provider": "paddleocr",
+            "revision": "2.x-stub",
+            "modality": "ocr",
+            "spdx": "Apache-2.0",
+            "profile": "documents",
+            "production_enabled": false,
+            "status": "pinned-stub",
+            "rationale": "Alternative OCR engine selection; same follow-up as Tesseract. Excluded until a real engine binding is recorded."
+        },
+        {
+            "model_id": "docling-project/docling-layout-heron",
+            "provider": "docling-layout",
+            "revision": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
+            "modality": "layout",
+            "spdx": "Apache-2.0",
+            "profile": "documents",
+            "production_enabled": false,
+            "document_processing_enabled": true,
+            "status": "real-and-available-when-cached",
+            "source": "https://huggingface.co/docling-project/docling-layout-heron/tree/8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
+            "license_source": "https://huggingface.co/docling-project/docling-layout-heron/blob/8f39ad3c0b4c58e9c2d2c84a38465abf757272d8/README.md",
+            "files": [
+                "config.json",
+                "preprocessor_config.json",
+                "model.safetensors"
+            ],
+            "rationale": "Explicit immutable checkpoint selected by the real PDF adapter. This model asset license is separate from the MIT Docling package license. Downloaded on first PDF use; local cache supports offline operation. Not an embedding profile."
+        },
+        {
+            "model_id": "docling-project/docling-models",
+            "provider": "docling-table-structure",
+            "revision": "2199320848bb9a8a519d22e4b528185a4f9a6f64",
+            "modality": "table-structure",
+            "spdx": "CDLA-Permissive-2.0 AND Apache-2.0",
+            "profile": "documents",
+            "production_enabled": false,
+            "document_processing_enabled": true,
+            "status": "real-and-available-when-cached",
+            "source": "https://huggingface.co/docling-project/docling-models/tree/2199320848bb9a8a519d22e4b528185a4f9a6f64",
+            "license_source": "https://huggingface.co/docling-project/docling-models/blob/2199320848bb9a8a519d22e4b528185a4f9a6f64/README.md",
+            "files": [
+                "model_artifacts/tableformer/accurate/tableformer_accurate.safetensors",
+                "model_artifacts/tableformer/accurate/tm_config.json"
+            ],
+            "rationale": "Explicit immutable checkpoint selected by the real PDF adapter. This model asset license is separate from the MIT Docling package license. Downloaded on first PDF use; local cache supports offline operation. Not an embedding profile."
+        },
+        {
+            "model_id": "SWHL/RapidOCR",
+            "provider": "docling-ocr",
+            "revision": "1cfba2e90fc938db55889873735088de210cc173",
+            "modality": "ocr",
+            "spdx": "Apache-2.0",
+            "profile": "documents",
+            "production_enabled": false,
+            "document_processing_enabled": true,
+            "status": "real-and-available-when-cached",
+            "source": "https://huggingface.co/SWHL/RapidOCR/tree/1cfba2e90fc938db55889873735088de210cc173",
+            "license_source": "https://huggingface.co/SWHL/RapidOCR/blob/1cfba2e90fc938db55889873735088de210cc173/README.md",
+            "files": [
+                "PP-OCRv4/ch_PP-OCRv4_det_infer.onnx",
+                "PP-OCRv3/ch_ppocr_mobile_v2.0_cls_train.onnx",
+                "PP-OCRv4/ch_PP-OCRv4_rec_infer.onnx"
+            ],
+            "rationale": "Explicit immutable checkpoint selected by the real PDF adapter. This model asset license is separate from the MIT Docling package license. Downloaded on first PDF use; local cache supports offline operation. Not an embedding profile."
+        },
+        {
+            "model_id": "openmycel/Qwen3-Embedding-0.6B-GGUF",
+            "provider": "llama.cpp-qwen3-q4_k_m",
+            "revision": "333bba6d067e5ab591bc8c21f1b15950e4435083",
+            "sha256": "23d234bb57a42528a22a13e7beb8b57d8844b2b9cc741b4c27a8ff132abf0dfd",
+            "modality": "text",
+            "spdx": "Apache-2.0",
+            "profile": "optional-gguf",
+            "production_enabled": false,
+            "optional_runtime_enabled": false,
+            "status": "retired",
+            "rationale": "Retired by the change consolidate-embeddinggemma2-and-autoconfigure-inference. The third-party Q4_K_M requantisation of Qwen3-Embedding is no longer downloaded, offered or selectable. The record is kept as historical evidence of what the deployment used before the consolidation."
+        }
+    ]
 }

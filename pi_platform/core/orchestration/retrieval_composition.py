@@ -61,7 +61,6 @@ from pi_platform.adapters.retrieval.embedding_model_factory import (
     GEMMA_ALIAS,
     HASHING_ALIAS,
     PRODUCTION_ALIASES,
-    QWEN_ALIAS,
     StartupProfile,
 )
 from pi_platform.adapters.runtime.bm25_sparse_index import Bm25SparseIndex
@@ -95,11 +94,12 @@ from pi_platform.ports.retrieval.hybrid_retrieval import (
     HybridRetrievalPort,
     RetrievalHit,
 )
+from pi_platform.core.canonical.value_types import Metadata
 from pi_platform.ports.retrieval.metadata_filter import MetadataFilterPort
 from pi_platform.ports.retrieval.multi_stage_retrieval import (
     MultiStageRetrievalPort,
 )
-from pi_platform.ports.retrieval.reranker import RerankerPort
+from pi_platform.ports.retrieval.reranker import RerankerPort, RerankPolicy
 from pi_platform.ports.runtime.dense_index import DenseIndexPort
 from pi_platform.ports.runtime.full_text_index import FullTextIndexPort
 from pi_platform.ports.runtime.sparse_index import SparseIndexPort
@@ -243,16 +243,19 @@ def build_dense_index(
 def build_reranker(
     *, reranker: RerankerPort | None = None,
     budget: int = DEFAULT_RERANK_BUDGET,
+    policy: RerankPolicy | None = None,
 ) -> RerankerPort:
     """Return the production :class:`RerankerPort`.
 
     Defaults to :class:`Bm25LightRerankerAdapter`. Tests may inject
-    a fake.
+    a fake. The policy is the operator-controllable reranking
+    configuration; it is attached to the adapter so the policy is
+    visible from the runtime status.
     """
 
     if reranker is not None:
         return reranker
-    return Bm25LightRerankerAdapter(budget=budget)
+    return Bm25LightRerankerAdapter(budget=budget, policy=policy)
 
 
 def build_graph_expansion(
@@ -315,6 +318,37 @@ def vector_record_store_from_db(
     return SqliteVectorRecordStore(db_path=db_path)
 
 
+def _hit_from_dense_hit(hit) -> RetrievalHit:
+    """Rebuild a :class:`RetrievalHit` from a dense-index match.
+
+    Used when the in-memory chunk catalog is empty (for example after a
+    restart). The metadata the index stored with the vector is carried
+    over so facts that are only known at indexing time survive: most
+    importantly the media marker that tells the reranker a candidate was
+    embedded together with an image, a recording or a clip.
+    """
+
+    raw = getattr(hit, "metadata", None) or {}
+    extensions = raw.get("extensions") if isinstance(raw, Mapping) else None
+    metadata = Metadata(
+        documentId=str(raw.get("documentId") or hit.chunkId) if isinstance(raw, Mapping) else hit.chunkId,
+        version=str(raw.get("version") or "0.1.0") if isinstance(raw, Mapping) else "0.1.0",
+        language=str(raw.get("language") or "und") if isinstance(raw, Mapping) else "und",
+        sourcePath=(
+            str(raw.get("sourcePath")) if isinstance(raw, Mapping) and raw.get("sourcePath")
+            else None
+        ),
+        extensions=dict(extensions) if isinstance(extensions, Mapping) else {},
+    )
+    return RetrievalHit(
+        chunkId=hit.chunkId,
+        score=min(1.0, max(0.0, float(hit.score))),
+        source="dense",
+        snippet=str(raw.get("retrieval_text") or "") if isinstance(raw, Mapping) else "",
+        metadata=metadata,
+    )
+
+
 def build_hybrid_retrieval(
     *,
     dense_index: DenseIndexPort,
@@ -345,6 +379,11 @@ def build_hybrid_retrieval(
             base = (chunk_catalog or {}).get(hit.chunkId)
             if base is not None:
                 hits.append(replace(base, score=min(1.0, max(0.0, float(hit.score))), source="dense"))
+                continue
+            # No in-memory catalog entry (for example after a restart):
+            # rebuild the hit from the metadata the index stored with
+            # the vector so facts such as the media marker survive.
+            hits.append(_hit_from_dense_hit(hit))
         return tuple(hits)
 
     def _sparse_query(text: str, top_k: int) -> Sequence[RetrievalHit]:
@@ -391,6 +430,7 @@ def build_multi_stage_retrieval(
     reranker: RerankerPort,
     context_assembler: ContextAssemblerPort,
     multi_stage_retrieval: MultiStageRetrievalPort | None = None,
+    rerank_policy: RerankPolicy | None = None,
 ) -> MultiStageRetrievalPort:
     """Return the production :class:`MultiStageRetrievalPort`.
 
@@ -399,6 +439,9 @@ def build_multi_stage_retrieval(
     graph expansion → context assembly) is enforced; building a
     parallel orchestrator outside the composition would re-create
     the "UI-only search path" the spec explicitly bans.
+
+    The rerank policy is the operator-controllable configuration that
+    decides whether reranking runs and how it fails.
     """
 
     if multi_stage_retrieval is not None:
@@ -411,6 +454,7 @@ def build_multi_stage_retrieval(
         graph_expansion=graph_expansion,
         reranker=reranker,
         context_assembler=context_assembler,
+        rerank_policy=rerank_policy,
     )
 
 
@@ -457,6 +501,7 @@ def build_production_retrieval_runtime(
     embedding_model_factory: EmbeddingModelFactory | None = None,
     prefer_real_usearch: bool = True,
     rerank_budget: int = DEFAULT_RERANK_BUDGET,
+    rerank_policy: RerankPolicy | None = None,
     chunk_catalog: Mapping[str, RetrievalHit] | None = None,
 ) -> ProductionRetrievalRuntime:
     """Build the production retrieval runtime.
@@ -555,7 +600,9 @@ def build_production_retrieval_runtime(
     meta = build_metadata_filter(metadata_filter=metadata_filter)
 
     # --- 7. reranker -----------------------------------------------
-    rnk = build_reranker(reranker=reranker, budget=rerank_budget)
+    rnk = build_reranker(
+        reranker=reranker, budget=rerank_budget, policy=rerank_policy,
+    )
 
     # --- 8. graph expansion ----------------------------------------
     graph = build_graph_expansion(graph_expansion=graph_expansion, graph=LocalShardedGraph(cache_root_path / "graph"))
@@ -573,6 +620,7 @@ def build_production_retrieval_runtime(
         reranker=rnk,
         context_assembler=assembler,
         multi_stage_retrieval=multi_stage_retrieval,
+        rerank_policy=rerank_policy,
     )
 
     # --- 11. semantic index service --------------------------------

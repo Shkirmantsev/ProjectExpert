@@ -22,7 +22,10 @@ from .retrieval_composition import build_production_retrieval_runtime
 
 
 def _family(path):
+    from pi_platform.adapters.python.intelligence import python_family
     p = Path(path)
+    if family := python_family(p):
+        return family
     if p.suffix.lower() == '.pdf':
         return SourceContentFamily.PDF
     if p.suffix.lower() in {'.md', '.markdown'}:
@@ -149,7 +152,8 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
     ).resolve()
     import os
     if (config.startup_profile == 'production' and config.docling_enabled
-            and os.environ.get('PI_PREPARE_DOCLING', '0') == '1'):
+            and os.environ.get('PI_PREPARE_DOCLING', '0') == '1'
+            and any(_family(e.path) == SourceContentFamily.PDF for e in inventory.entries)):
         from pi_platform.adapters.pdf.real_docling import _pinned_pdf_assets
         _pinned_pdf_assets(do_ocr=True)
     cache_path = cache_root / 'ingestion.json'
@@ -242,9 +246,9 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         )
         active.append(ActiveChunk(cid, body.get('contentHash', text_hash), text, text_hash, meta))
     for entry in image_entries:
-        if config.embedding_model not in {'gemma', 'gemma-gguf'}:
+        if config.embedding_model not in {'gemma', 'gemma-torch'}:
             failures.append({'path': entry.path, 'category': 'unsupported_modality',
-                             'error': 'Image embeddings require Gemma; Qwen is text-only'})
+                             'error': 'Image embeddings require the Gemma binding'})
             continue
         path = (target / entry.path).resolve()
         if not path.is_relative_to(target):
@@ -252,7 +256,12 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         cid = hashlib.sha256(('image:' + entry.path).encode()).hexdigest()
         text = 'Image: ' + entry.path
         meta = {'sourcePath': entry.path, 'documentId': 'repo:' + entry.path,
-                'version': entry.content_hash, 'language': 'und'}
+                'version': entry.content_hash, 'language': 'und',
+                # The media marker lets the reranker know that this
+                # candidate was embedded together with its pixels, so a
+                # text-only reranker does not demote it for having no
+                # textual representation.
+                'extensions': {'media': 'image'}}
         image_hash = hashlib.sha256((text + entry.content_hash + 'gemma-image-v1').encode()).hexdigest()
         active.append(ActiveChunk(cid, entry.content_hash, text, image_hash, meta, image_path=str(path)))
         catalog[cid] = RetrievalHit(chunkId=cid, score=0.5, source='dense', snippet=text,
@@ -266,12 +275,20 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
     for cid, hit in catalog.items():
         exact.index_document('chunks', cid, hit.snippet, {})
     graph_expansion, graph_node_ids = _candidate_graph(target, cache_root, cache)
+    from pi_platform.ports.retrieval.reranker import RerankPolicy
+    rerank_policy = RerankPolicy(
+        enabled=config.reranking_enabled,
+        family=config.reranking_family,
+        top_n=config.reranking_top_n,
+        timeout_ms=config.reranking_timeout_ms,
+    )
     runtime = build_production_retrieval_runtime(
         cache_root=cache_root / 'indexes', embedding_alias=config.embedding_model,
         startup_profile=config.startup_profile, device=config.embedding_device,
         model_cache_dir=config.model_cache_dir,
         prefer_real_usearch=config.dense_index == 'usearch', chunk_catalog=catalog, exact_lookup=exact,
         graph_expansion=graph_expansion,
+        rerank_policy=rerank_policy,
     )
     # A production model must actually load, even for an empty repository.
     if config.startup_profile == 'production':
@@ -281,9 +298,7 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
                       if str(chunk.metadata.get('sourcePath', '')).lower().endswith('.pdf')]
         if pdf_chunks:
             from pi_platform.adapters.pdf.runtime_projection import PdfRuntimeProjection, PDF_RUNTIME_PROJECTION_VERSION
-            tokenizer_model = ('Qwen/Qwen3-Embedding-0.6B' if config.embedding_model == 'qwen-gguf'
-                               else 'google/embeddinggemma-2' if config.embedding_model == 'gemma-gguf'
-                               else runtime.embedding_model.profile().model_id)
+            tokenizer_model = runtime.embedding_model.profile().model_id
             projection = PdfRuntimeProjection(tokenizer_model)
             projected = []
             for chunk in active:
@@ -292,7 +307,7 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
                     continue
                 image_path = None
                 body = chunks_by_id[chunk.chunk_id]
-                if config.embedding_model in {'gemma', 'gemma-gguf'}:
+                if config.embedding_model in {'gemma', 'gemma-torch'}:
                     image_path = _figure_image_path(body, cache_root)
                 segments = projection(body)
                 if not segments:

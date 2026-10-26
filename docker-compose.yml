@@ -83,7 +83,7 @@ services:
       <<: *common-env
       PI_TARGET_ROOT: /repo
       PI_STARTUP_PROFILE: production
-      PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-qwen}
+      PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-gemma-torch}
       PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-auto}
       PI_DENSE_INDEX: ${PI_DENSE_INDEX:-usearch}
       PI_DOCLING_ENABLED: ${PI_DOCLING_ENABLED:-1}

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "notes": "Exact installed wheel metadata evidence. Unknown licenses and policy-required reviews remain blocking; metadata extraction is not license approval.",
+  "dependencies": [
+    {
+      "name": "tree-sitter-java",
+      "version": "0.23.5",
+      "spdx": "MIT",
+      "scope": "production",
+      "source": "https://pypi.org/project/tree-sitter-java/0.23.5/",
+      "evidence": {
+        "kind": "exact legacy License field",
+        "upstream_urls": [
+          "Homepage, https://github.com/tree-sitter/tree-sitter-java"
+        ],
+        "audited_license_files": [],
+        "metadata_sha256": "d74c7602596322bc89f607b69b0e18dd1240d911dcf3340536dea3fb1b950f0a",
+        "wheel_sha256": "73bbbfb9b117911dae0457cd6f002cf464c49a74c1ea6708a86396686ed073e7",
+        "license_expression": null,
+        "license_classifiers": [
+          "License :: OSI Approved :: MIT License"
+        ],
+        "license_files": [
+          "LICENSE"
+        ],
+        "lock_sha256": "e1b1222469acfdc9a8c4cdd332c8d408a64ce6730898f591848c0a0fa9f56674"
+      }
+    }
+  ]
+}

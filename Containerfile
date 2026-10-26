@@ -86,26 +86,34 @@ ENTRYPOINT ["python", "/bundle/export.py"]
 # Cache the hash-locked dependency closure independently from application edits.
 FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS production-dependencies
 COPY requirements-production-linux-x86_64.txt /requirements-production-linux-x86_64.txt
+COPY requirements-production-java-linux-x86_64.txt /requirements-production-java-linux-x86_64.txt
 RUN python -m pip install --no-cache-dir --require-hashes --prefix=/opt/production \
         --index-url https://pypi.org/simple \
         --extra-index-url https://download.pytorch.org/whl/cpu \
-        -r /requirements-production-linux-x86_64.txt
+        -r /requirements-production-linux-x86_64.txt -r /requirements-production-java-linux-x86_64.txt
 
-# Normal end-user image (CPU, Linux x86_64). No model weights are embedded.
+# Standalone image uses the native CPU binding. The deployment kit overrides
+# this with gemma and manages the portable llama.cpp sidecar. No weights embedded.
 # Build: docker build -f Containerfile --target production -t project-intelligence:production .
 # Minimal: docker build -f Containerfile --target core -t project-intelligence:core .
 FROM core AS production
 COPY requirements-production-linux-x86_64.txt ./requirements-production-linux-x86_64.txt
+COPY requirements-production-java-linux-x86_64.txt ./requirements-production-java-linux-x86_64.txt
 COPY --from=production-dependencies /opt/production/ /usr/local/
 RUN python -m pip install --no-cache-dir --no-deps ".[production]" \
     && python -m pip check \
+    && python -c 'from pathlib import Path; from pi_platform.adapters.java.parser_subprocess import TreeSitterJavaSubprocess; from pi_platform.ports.ingest.java_parser import JavaParseRequest; TreeSitterJavaSubprocess(required=True).parse(JavaParseRequest(source="class StartupProbe { int value; }", file_path=Path("StartupProbe.java")))' \
+    && python -m pi_platform.cli license-gate \
+        --inventory distribution/licenses/production-java-dependency-inventory.json \
+        --production-lock requirements-production-java-linux-x86_64.txt \
     && python -m pi_platform.cli license-gate \
         --inventory distribution/licenses/production-dependency-inventory.json \
         --production-lock requirements-production-linux-x86_64.txt \
         --license-review distribution/licenses/production-license-review.json \
-        --license-evidence distribution/licenses/production-license-evidence.json --sbom-output .
+        --license-evidence distribution/licenses/production-license-evidence.json \
+        --additional-inventory distribution/licenses/production-java-dependency-inventory.json --sbom-output .
 ENV PI_STARTUP_PROFILE=production \
-    PI_EMBEDDING_MODEL=qwen \
+    PI_EMBEDDING_MODEL=gemma-torch \
     PI_DENSE_INDEX=usearch \
     PI_DOCLING_ENABLED=1 \
     PI_PREPARE_DOCLING=1 \

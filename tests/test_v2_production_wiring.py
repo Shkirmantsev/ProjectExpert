@@ -138,8 +138,8 @@ class EmbeddingProfileImportableTest(unittest.TestCase):
     def test_imports(self) -> None:
         from pi_platform.ports.retrieval.embedding_profile import (
             EMBEDDINGGEMMA2_512,
+            EMBEDDINGGEMMA2_GGUF_512,
             HASHING_DEFAULT,
-            QWEN3_EMBEDDING_0_6B_1024,
             EmbeddingProfile,
             EmbeddingProfileRegistry,
         )
@@ -148,7 +148,7 @@ class EmbeddingProfileImportableTest(unittest.TestCase):
             True,
         )
         self.assertEqual(
-            EMBEDDINGGEMMA2_512.identity() != QWEN3_EMBEDDING_0_6B_1024.identity(),
+            EMBEDDINGGEMMA2_512.identity() != EMBEDDINGGEMMA2_GGUF_512.identity(),
             True,
         )
         registry = EmbeddingProfileRegistry()

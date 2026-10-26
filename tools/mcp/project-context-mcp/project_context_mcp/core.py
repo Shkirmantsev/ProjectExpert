@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import tempfile
@@ -355,6 +356,153 @@ def validate(root: Path) -> dict:
                 issues.append(f"broken link in {doc.path}: {href}")
     return {"ok": not issues, "documents": len(docs), "issues": issues}
 
+
+
+WIKI_ROOT = Path(".ai") / "wiki"
+PAGE_KINDS = (
+    "adr", "architecture", "modules", "module", "interfaces", "interface",
+    "invariants", "glossary", "domain", "project", "index", "convention",
+)
+PAGE_STATUSES = ("active", "accepted", "proposed", "draft", "superseded")
+
+
+def wiki_root_for(root: Path) -> Path:
+    """Return the harness Wiki root of ``root``."""
+    return root / WIKI_ROOT
+
+
+def _safe_wiki_path(root: Path, relative_path: str) -> Path:
+    """Resolve a Wiki-relative path and refuse to leave the Wiki root."""
+    candidate = (relative_path or "").strip().replace("\\", "/")
+    if not candidate:
+        raise ValueError("a wiki page path is required")
+    if candidate.startswith("/") or candidate.startswith("~"):
+        raise ValueError("a wiki page path must be relative to the wiki root")
+    if not candidate.endswith(".md"):
+        candidate = candidate + ".md"
+    parts = [segment for segment in candidate.split("/") if segment]
+    if not parts:
+        raise ValueError("a wiki page path is required")
+    for segment in parts:
+        if segment in (".", ".."):
+            raise ValueError(
+                "a wiki page path must not traverse outside the wiki root"
+            )
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", segment):
+            raise ValueError(
+                f"invalid wiki page path segment {segment!r}; use letters, "
+                "digits, '.', '_' or '-'"
+            )
+    base = wiki_root_for(root).resolve()
+    target = (base / Path(*parts)).resolve()
+    if not target.is_relative_to(base):
+        raise ValueError(
+            "a wiki page path must not traverse outside the wiki root"
+        )
+    return target
+
+
+def write_document(
+    root: Path,
+    *,
+    relative_path: str,
+    title: str,
+    body: str,
+    doc_id: str | None = None,
+    kind: str = "project",
+    status: str = "active",
+    summary: str = "",
+    dry_run: bool = False,
+) -> dict:
+    """Create or update one harness Wiki page.
+
+    The page keeps the harness Wiki conventions: an explicit stable
+    ``id`` in the frontmatter, a ``kind``, a ``status`` and a ``summary``.
+    The write is atomic, the navigation index is refreshed and the
+    disposable search index is rebuilt so the new page is immediately
+    retrievable.
+    """
+    if not title or not title.strip():
+        raise ValueError("a wiki page requires a non-empty title")
+    if kind not in PAGE_KINDS:
+        raise ValueError(
+            f"unknown page kind {kind!r}; expected one of {list(PAGE_KINDS)}"
+        )
+    if status not in PAGE_STATUSES:
+        raise ValueError(
+            f"unknown page status {status!r}; expected one of "
+            f"{list(PAGE_STATUSES)}"
+        )
+    target = _safe_wiki_path(root, relative_path)
+    relative = target.relative_to(wiki_root_for(root).resolve()).as_posix()
+    if relative == "INDEX.md":
+        raise ValueError("the navigation index is maintained by the platform")
+    resolved_id = (doc_id or "").strip() or (
+        "wiki." + relative.removeprefix(".ai/wiki/").removesuffix(".md")
+        .replace("/", ".")
+    )
+    if not resolved_id or " " in resolved_id:
+        raise ValueError("a wiki page requires a stable id without spaces")
+    resolved_summary = summary.strip() or _summary(body)
+    frontmatter = (
+        "---\n"
+        f"id: {resolved_id}\n"
+        f"title: {title.strip()}\n"
+        f"kind: {kind}\n"
+        f"status: {status}\n"
+        f"summary: {resolved_summary}\n"
+        "---\n\n"
+    )
+    content = frontmatter + body.strip() + "\n"
+    if dry_run:
+        return {
+            "ok": True,
+            "written": False,
+            "dry_run": True,
+            "path": relative,
+            "id": resolved_id,
+        }
+    existed = target.is_file()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(target.name + ".tmp")
+    temporary.write_text(content, encoding="utf-8")
+    os.replace(temporary, target)
+    _refresh_wiki_index(root)
+    build_index(root)
+    return {
+        "ok": True,
+        "written": True,
+        "created": not existed,
+        "path": relative,
+        "id": resolved_id,
+        "index_refreshed": True,
+    }
+
+
+def _refresh_wiki_index(root: Path) -> None:
+    """Add the page to the navigation index when it is not listed yet."""
+    index = wiki_root_for(root) / "INDEX.md"
+    if not index.is_file():
+        return
+    text = index.read_text(encoding="utf-8")
+    docs = load_documents(root)
+    entries = []
+    for doc in docs:
+        if doc.path.endswith("/INDEX.md") or doc.path == ".ai/wiki/INDEX.md":
+            continue
+        href = doc.path.removeprefix(".ai/wiki/")
+        if f"]({href})" not in text:
+            entries.append(f"- [{doc.title}]({href})")
+    if not entries:
+        return
+    marker = "\n## Knowledge documents\n"
+    if marker in text:
+        text = text.replace(marker, marker + "\n".join(entries) + "\n", 1)
+    else:
+        text = text.rstrip("\n") + "\n" + marker + "\n".join(entries) + "\n"
+    temporary = index.with_name(index.name + ".tmp")
+    temporary.write_text(text, encoding="utf-8")
+    os.replace(temporary, index)
 
 def code_symbol(root: Path, symbol: str, max_results: int = 20) -> list[dict]:
     needle = symbol.lower()

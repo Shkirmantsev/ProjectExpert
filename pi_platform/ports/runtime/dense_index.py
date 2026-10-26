@@ -8,7 +8,7 @@ Knowledge Graphs).
 from __future__ import annotations
 
 import abc
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Mapping, Optional, Sequence
 
 
@@ -27,6 +27,12 @@ class DenseIndexError(RuntimeError):
 class DenseHit:
     chunkId: str
     score: float
+    #: The chunk metadata the index stored with the vector. It is
+    #: additive: an index MAY return an empty mapping. It lets a
+    #: consumer recover facts that are only known at indexing time
+    #: (for example that the chunk was embedded together with an
+    #: image) without re-running the ingestion pipeline.
+    metadata: Mapping[str, object] = field(default_factory=dict)
 
 
 class DenseIndexPort(abc.ABC):

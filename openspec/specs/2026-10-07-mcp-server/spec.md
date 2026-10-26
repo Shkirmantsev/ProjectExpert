@@ -6,7 +6,6 @@ Expose platform retrieval, knowledge, orchestration, and approval-controlled wri
 
 ## Requirements
 
-
 Covers architecture section §36 (MCP Integration) and §47
 (Capability Discovery). The MCP server exposes the platform's
 Phase 1-5 surface as 17 semantic tools plus the
@@ -47,7 +46,6 @@ project.refresh_sources
 Phase 4 / Phase 5 retrieval-first policy. Exact entity, graph, version,
 provenance and sync operations delegate to their owning ports/services;
 they do not invoke retrieval or an LLM solely to perform an exact lookup.
-
 
 ### Requirement: MCP server composes the Phase 5 / Phase 4 surface
 
@@ -331,6 +329,57 @@ capability
 When the client calls the model switch tool
 Then the tool returns a structured authorisation error
 And the active embedding profile is unchanged.
+
+### Requirement: Interoperable transport
+The server SHALL provide standard initialize serverInfo.version and complete argument schemas, accept notifications without JSON-RPC replies, and return 405 for unsupported GET streams.
+
+#### Scenario: Clean external repository
+- **WHEN** the user starts the platform in a clean external repository
+- **THEN** the runtime follows this contract without development-harness prerequisites
+
+### Requirement: the caller may control reranking per query
+
+The MCP retrieval tools MUST let the caller override the operator
+reranking policy for a single query. The override MUST NOT change the
+configured policy for any other query.
+
+#### Scenario: the caller enables reranking for one query
+
+Given a deployment whose policy disables reranking
+When the caller asks the MCP retrieval tool for reranking
+Then the query is executed with reranking enabled
+And the configured policy is unchanged
+
+#### Scenario: the caller disables reranking for one query
+
+Given a deployment whose policy enables reranking
+When the caller asks the MCP retrieval tool not to rerank
+Then the query is executed without reranking
+And the configured policy is unchanged
+
+### Requirement: the MCP server exposes the LLM Wiki surface
+
+The MCP server MUST expose the LLM Wiki tools alongside the canonical
+tool names. The tool names MUST NOT shadow the canonical §36 names.
+
+The Wiki tools MUST NOT require the operator approval id. The existing
+rule that the write and materialisation tools require it MUST continue to
+apply to the derived-knowledge tools.
+
+#### Scenario: the Wiki tools are listed
+
+Given an MCP server
+When the client lists the tools
+Then the LLM Wiki tools are listed
+And the canonical tool names are unchanged
+
+#### Scenario: the Wiki tools do not require an approval id
+
+Given a target repository with an initialised Wiki
+When the caller writes a curated page
+Then the write succeeds without an approval id
+And the derived materialisation tools still refuse a call without an
+approval id
 
 ## Phase 6 task coverage
 

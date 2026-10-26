@@ -43,6 +43,12 @@ __all__ = [
     "DEFAULT_STARTUP_PROFILE",
     "ENV_OVERRIDE_PREFIX",
     "LOCAL_SETTINGS_RELATIVE_PATH",
+    "PRODUCTION_EMBEDDING_ALIASES",
+    "RETIRED_EMBEDDING_ALIASES",
+    "DEFAULT_RERANKING_ENABLED",
+    "DEFAULT_RERANKING_FAMILY",
+    "DEFAULT_RERANKING_TOP_N",
+    "DEFAULT_RERANKING_TIMEOUT_MS",
 ]
 
 
@@ -52,11 +58,33 @@ DEFAULT_DENSE_INDEX = "usearch"
 DEFAULT_DOCLING_ENABLED = True
 DEFAULT_MODEL_CACHE_DIR = str(Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")))
 DEFAULT_STARTUP_PROFILE = "production"
+# Reranking is on by default: BM25-light is cheap and improves the
+# precision of the context handed to a calling LLM. It can be switched
+# off explicitly.
+DEFAULT_RERANKING_ENABLED = True
+DEFAULT_RERANKING_FAMILY = "bm25-light"
+DEFAULT_RERANKING_TOP_N = 10
+DEFAULT_RERANKING_TIMEOUT_MS = 2000
 ENV_OVERRIDE_PREFIX = "PI_"
 LOCAL_SETTINGS_RELATIVE_PATH = ".project-intelligence-cache/settings.json"
 
+#: ProjectExpert ships one production embedding model. Two bindings of it
+#: are selectable: the pinned GGUF binding (default) and the native
+#: Transformers binding (explicit opt-in).
+PRODUCTION_EMBEDDING_ALIASES = frozenset({"gemma", "gemma-torch"})
+
+#: The retired alternative embedding model. These aliases are rejected
+#: with an actionable message instead of being silently substituted.
+RETIRED_EMBEDDING_ALIASES = frozenset(
+    {"qwen", "qwen-gguf", "qwen3", "qwen3-embedding-0.6b"}
+)
+
 ENV_EMBEDDING_MODEL = "PI_EMBEDDING_MODEL"
 ENV_EMBEDDING_DEVICE = "PI_EMBEDDING_DEVICE"
+ENV_RERANKING_ENABLED = "PI_RERANKING_ENABLED"
+ENV_RERANKING_FAMILY = "PI_RERANKING_FAMILY"
+ENV_RERANKING_TOP_N = "PI_RERANKING_TOP_N"
+ENV_RERANKING_TIMEOUT_MS = "PI_RERANKING_TIMEOUT_MS"
 ENV_DENSE_INDEX = "PI_DENSE_INDEX"
 ENV_DOCLING_ENABLED = "PI_DOCLING_ENABLED"
 ENV_MODEL_CACHE = "PI_MODEL_CACHE"
@@ -83,6 +111,10 @@ class RuntimeConfiguration:
     dense_index: str = DEFAULT_DENSE_INDEX
     docling_enabled: bool = DEFAULT_DOCLING_ENABLED
     model_cache_dir: str = DEFAULT_MODEL_CACHE_DIR
+    reranking_enabled: bool = DEFAULT_RERANKING_ENABLED
+    reranking_family: str = DEFAULT_RERANKING_FAMILY
+    reranking_top_n: int = DEFAULT_RERANKING_TOP_N
+    reranking_timeout_ms: int = DEFAULT_RERANKING_TIMEOUT_MS
     sources: Mapping[str, str] = field(default_factory=dict)
 
     def as_dict(self) -> Mapping[str, Any]:
@@ -106,6 +138,10 @@ class RuntimeConfigurationResolver:
         "dense_index": ENV_DENSE_INDEX,
         "docling_enabled": ENV_DOCLING_ENABLED,
         "model_cache_dir": ENV_MODEL_CACHE,
+        "reranking_enabled": ENV_RERANKING_ENABLED,
+        "reranking_family": ENV_RERANKING_FAMILY,
+        "reranking_top_n": ENV_RERANKING_TOP_N,
+        "reranking_timeout_ms": ENV_RERANKING_TIMEOUT_MS,
     }
 
     _DEFAULTS: Mapping[str, Any] = {
@@ -115,6 +151,10 @@ class RuntimeConfigurationResolver:
         "dense_index": DEFAULT_DENSE_INDEX,
         "docling_enabled": DEFAULT_DOCLING_ENABLED,
         "model_cache_dir": DEFAULT_MODEL_CACHE_DIR,
+        "reranking_enabled": DEFAULT_RERANKING_ENABLED,
+        "reranking_family": DEFAULT_RERANKING_FAMILY,
+        "reranking_top_n": DEFAULT_RERANKING_TOP_N,
+        "reranking_timeout_ms": DEFAULT_RERANKING_TIMEOUT_MS,
     }
 
     def __init__(
@@ -243,12 +283,46 @@ class RuntimeConfigurationResolver:
                     f"auto, cpu, cuda, mps, vulkan"
                 )
             return value
+        if field == "reranking_enabled":
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                lowered = value.strip().lower()
+                if lowered in {"1", "true", "yes", "on"}:
+                    return True
+                if lowered in {"0", "false", "no", "off", ""}:
+                    return False
+            raise ConfigurationError(
+                f"cannot coerce {field}={value!r} to bool"
+            )
+        if field == "reranking_family":
+            return str(value).strip().lower()
+        if field in {"reranking_top_n", "reranking_timeout_ms"}:
+            try:
+                parsed = int(value)
+            except (TypeError, ValueError) as exc:
+                raise ConfigurationError(
+                    f"cannot coerce {field}={value!r} to int"
+                ) from exc
+            if parsed <= 0:
+                raise ConfigurationError(
+                    f"{field} must be positive, got {parsed}"
+                )
+            return parsed
         if field == "embedding_model":
-            aliases = {"embeddinggemma2": "gemma", "qwen3": "qwen", "qwen3-embedding-0.6b": "qwen",
-                       "google/embeddinggemma-2": "gemma", "qwen/qwen3-embedding-0.6b": "qwen",
-                       "ggml-org/embeddinggemma-2-gguf": "gemma-gguf",
-                       "qwen/qwen3-embedding-0.6b-gguf": "qwen-gguf"}
+            aliases = {"embeddinggemma2": "gemma", "gemma-gguf": "gemma",
+                       "ggml-org/embeddinggemma-2-gguf": "gemma",
+                       "gemma-torch": "gemma-torch",
+                       "embeddinggemma2-torch": "gemma-torch",
+                       "google/embeddinggemma-2": "gemma-torch"}
             lowered = str(value).strip().lower()
+            if lowered in RETIRED_EMBEDDING_ALIASES:
+                raise ConfigurationError(
+                    f"embedding_model={value!r} names the retired embedding "
+                    f"model. ProjectExpert ships one production embedding "
+                    f"model: select 'gemma' for the pinned GGUF binding or "
+                    f"'gemma-torch' for the native binding."
+                )
             return aliases.get(lowered, lowered)
         if field == "dense_index":
             return str(value).strip().lower()
@@ -265,17 +339,14 @@ class RuntimeConfigurationResolver:
             raise ConfigurationError("production requires the real usearch dense backend; select minimal for flat")
         startup = resolved["startup_profile"]
         embedding = resolved["embedding_model"]
-        if startup == "production" and embedding not in {"gemma", "qwen", "qwen-gguf", "gemma-gguf"}:
+        if startup == "production" and embedding not in PRODUCTION_EMBEDDING_ALIASES:
             # The production profile refuses the hashing alias and
             # any other non-real alias; the operator must either
             # select an explicit production alias or switch to the
             # ``minimal`` profile.
-            if embedding in {"hashing"} or embedding not in {
-                "gemma", "qwen", "qwen-gguf", "gemma-gguf",
-            }:
-                raise ConfigurationError(
-                    f"startup_profile='production' but "
-                    f"embedding_model='{embedding}' is not a real "
-                    f"production alias. Select 'gemma' or 'qwen', "
-                    f"or switch startup_profile to 'minimal'."
-                )
+            raise ConfigurationError(
+                f"startup_profile='production' but "
+                f"embedding_model='{embedding}' is not a real "
+                f"production alias. Select 'gemma' or 'gemma-torch', "
+                f"or switch startup_profile to 'minimal'."
+            )

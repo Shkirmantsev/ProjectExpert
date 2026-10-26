@@ -1,8 +1,10 @@
-# Native Windows llama.cpp runtime; no Vulkan passthrough assumption.
+# Native Windows llama.cpp runtime (Gemma Q8_0 + Q8_0 projector); no Vulkan
+# passthrough assumption. The native service is selected and started by
+# setup-windows-accelerator.ps1 and reached through host.docker.internal:8769.
 services:
   production:
     environment:
-      PI_EMBEDDING_MODEL: ${PI_RUNTIME_MODEL:-qwen-gguf}
+      PI_EMBEDDING_MODEL: gemma
       PI_EMBEDDING_DEVICE: ${PI_ACCELERATOR:-vulkan}
       PI_LLAMA_ENDPOINT: http://host.docker.internal:8769
       PI_LLAMA_API_KEY_FILE: /accelerator/llama-api-key

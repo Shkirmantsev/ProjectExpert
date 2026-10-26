@@ -79,11 +79,19 @@ class EmbeddingTask(str, Enum):
 
 @dataclass(frozen=True)
 class EmbeddingRequest:
-    """One embedding request with role, task, text and optional title.
+    """One embedding request with role, task, text and optional media.
 
     The title participates in document-side encoding (plan §9.4) for
     models that benefit from a title prefix. Query-side requests
     ignore the title. The text field is mandatory.
+
+    At most one media input may be attached. ``image_path``,
+    ``audio_path`` and ``video_path`` name a local file; the adapter
+    never hands a path to a remote runtime to resolve, it transports
+    the bytes. A modality that the active runtime does not advertise
+    MUST be refused explicitly: a binding MUST NOT silently fall back
+    to the text-only representation of a media input, and MUST NOT
+    return a fabricated vector for it.
     """
 
     text: str
@@ -91,6 +99,8 @@ class EmbeddingRequest:
     task: EmbeddingTask = EmbeddingTask.SEARCH
     title: str | None = None
     image_path: str | None = None
+    audio_path: str | None = None
+    video_path: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.role, EmbeddingRole):
@@ -104,6 +114,16 @@ class EmbeddingRequest:
             raise ValueError(
                 f"EmbeddingRequest.task must be an EmbeddingTask "
                 f"instance, got {type(self.task).__name__}"
+            )
+        media = [
+            name
+            for name in ("image_path", "audio_path", "video_path")
+            if getattr(self, name)
+        ]
+        if len(media) > 1:
+            raise ValueError(
+                "an embedding request accepts at most one media input; "
+                f"got {media}"
             )
 
 

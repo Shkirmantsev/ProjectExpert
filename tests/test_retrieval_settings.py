@@ -50,7 +50,8 @@ class LoadDefaultsTests(RetrievalSettingsTestBase):
     def test_load_defaults_when_file_absent(self) -> None:
         settings = load_retrieval_settings(self.tmp)
         self.assertEqual(settings.embedding_model_alias, DEFAULT_MODEL_ALIAS)
-        self.assertEqual(settings.model_id, "google/embeddinggemma-2")
+        # The default alias is the pinned GGUF binding of EmbeddingGemma 2.
+        self.assertEqual(settings.model_id, "ggml-org/embeddinggemma-2-GGUF")
         self.assertEqual(settings.device, DEFAULT_DEVICE)
         self.assertTrue(settings.document_processing_enabled)
         self.assertEqual(settings.bootstrap_state, "not-started")
@@ -58,7 +59,7 @@ class LoadDefaultsTests(RetrievalSettingsTestBase):
 
     def test_defaults_are_the_production_documented_values(self) -> None:
         settings = RetrievalSettings()
-        self.assertIn(settings.embedding_model_alias, ("gemma", "qwen"))
+        self.assertIn(settings.embedding_model_alias, ("gemma", "gemma-torch"))
         self.assertIn(settings.model_id, PRODUCTION_MODEL_CHOICES)
         self.assertIn(settings.device, DEVICE_CHOICES)
         self.assertIn(settings.bootstrap_state, BOOTSTRAP_STATES)
@@ -69,7 +70,7 @@ class SaveLoadTests(RetrievalSettingsTestBase):
 
     def test_save_writes_atomically_without_temp_residue(self) -> None:
         settings = RetrievalSettings(
-            embedding_model_alias="qwen",
+            embedding_model_alias="gemma-torch",
             device="cpu",
             document_processing_enabled=False,
             bootstrap_state="provisioning",
@@ -87,7 +88,7 @@ class SaveLoadTests(RetrievalSettingsTestBase):
 
     def test_load_after_save_round_trips(self) -> None:
         settings = RetrievalSettings(
-            embedding_model_alias="qwen",
+            embedding_model_alias="gemma-torch",
             device="cuda",
             document_processing_enabled=False,
             bootstrap_state="indexing",
@@ -95,17 +96,39 @@ class SaveLoadTests(RetrievalSettingsTestBase):
         save_retrieval_settings(settings, self.tmp)
         loaded = load_retrieval_settings(self.tmp)
         self.assertEqual(loaded, settings)
-        self.assertEqual(loaded.model_id, "Qwen/Qwen3-Embedding-0.6B")
+        self.assertEqual(loaded.model_id, "google/embeddinggemma-2")
 
     def test_model_id_input_is_normalised_to_alias(self) -> None:
         settings = RetrievalSettings(
-            embedding_model_alias="Qwen/Qwen3-Embedding-0.6B",
+            embedding_model_alias="google/embeddinggemma-2",
         )
-        self.assertEqual(settings.embedding_model_alias, "qwen")
+        self.assertEqual(settings.embedding_model_alias, "gemma-torch")
         save_retrieval_settings(settings, self.tmp)
         self.assertEqual(
-            load_retrieval_settings(self.tmp).embedding_model_alias, "qwen",
+            load_retrieval_settings(self.tmp).embedding_model_alias,
+            "gemma-torch",
         )
+        # The GGUF model id maps to the default alias.
+        gguf = RetrievalSettings(
+            embedding_model_alias="ggml-org/embeddinggemma-2-GGUF",
+        )
+        self.assertEqual(gguf.embedding_model_alias, "gemma")
+
+    def test_retired_aliases_raise_retrieval_settings_error(self) -> None:
+        for retired in (
+            "qwen",
+            "qwen-gguf",
+            "qwen3",
+            "qwen3-embedding-0.6b",
+            "Qwen/Qwen3-Embedding-0.6B",
+        ):
+            with self.subTest(alias=retired):
+                with self.assertRaises(RetrievalSettingsError):
+                    RetrievalSettings(embedding_model_alias=retired)
+                with self.assertRaises(RetrievalSettingsError):
+                    validate_retrieval_settings(
+                        {"embedding_model_alias": retired},
+                    )
 
     def test_crash_mid_write_leaves_previous_settings_unchanged(
         self,

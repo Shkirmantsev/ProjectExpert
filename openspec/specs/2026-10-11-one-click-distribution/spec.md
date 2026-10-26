@@ -2,7 +2,7 @@
 
 ## Purpose
 Make the platform installable as "download → start → open browser" (§58) by
-finalising the single-container default image, documenting the optional
+finalising the single application container with a default Q4 model sidecar, documenting the optional
 two-container profile and the distribution profile matrix (§45), completing the
 launcher duty list for Linux and Windows, and verifying a real launch.
 
@@ -55,27 +55,28 @@ When the launcher reaches readiness
 Then it prints the URL and exits successfully without failing.
 
 ### Requirement: Single-container default
+The platform application SHALL keep backend, REST, UI, runtime store and MCP in
+one container. The lightweight deployment kit SHALL additionally start its
+managed managed model sidecar by default. Explicit native model configurations
+SHALL retain single-container execution.
 
-The default deployment MUST run backend, REST, UI, runtime store and MCP in one
-container. The lightweight UI MUST be served by that same container.
+The default sidecar MUST load the pinned model together with its pinned
+multimodal projector, so that the default profile is the full multimodal
+profile and not a text-only profile.
 
 #### Scenario: default profile is one container
-
-Given the default distribution profile
-When the platform is started
-Then exactly one core container runs and serves the UI.
+- **WHEN** a clean kit starts with default settings
+- **THEN** its application and managed CPU embedding services start automatically
+- **AND** the embedding service reports the multimodal capability
 
 ### Requirement: Optional two-container profile
-
-A second container MUST remain optional and MUST be used only for isolated model
-runtime or an optional UI integration. It MUST NOT be required by any default
-profile.
+Isolated model runtimes MAY run as a second service. Native model execution and
+optional UI integrations SHALL remain explicitly selectable. A model sidecar SHALL
+be required only for the selected profile, including the lightweight default.
 
 #### Scenario: second container stays optional
-
-Given the optional UI or model runtime profile
-When it is not selected
-Then no second container is started.
+- **WHEN** the operator selects the native binding of the model on CPU
+- **THEN** no embedding sidecar is started
 
 ### Requirement: Documented distribution profiles
 
@@ -145,11 +146,26 @@ The Linux and Windows launchers MUST implement the same documented duty list, an
 the supported Windows entry point MUST be documented together with how any
 compiled launcher artefact is produced and licensed.
 
+The backend selection duty MUST be identical on both platforms: both launchers
+MUST discover the available backends automatically, MUST validate the selected
+device with the runtime itself, and MUST fall back to the CPU profile when no
+GPU candidate validates. Neither launcher MAY require a per-machine manual
+backend selection, and a wrong manual selection MUST NOT abort the deployment.
+
 #### Scenario: duty parity is verified
 
 Given both launchers
 When their declared duties are compared
 Then the duty sets are equal.
+
+#### Scenario: a workstation without a supported GPU starts
+
+Given a Windows or Linux workstation with an office graphics driver, an
+integrated GPU, or no GPU
+When the operator runs the launcher without changing the backend setting
+Then the launcher selects a validated backend automatically
+And the application starts
+And the selected backend and the rejected candidates are reported
 
 ### Requirement: GHCR OCI container pipeline on development merges
 
@@ -194,19 +210,50 @@ Given a user starts the container or `docker compose` with a target repository m
 When the container boots
 Then it automatically hydrates and reconciles `/repo`, reports `200 OK` on `/health/ready`, and serves the UI, REST API (`/api/v1/*`), MCP endpoint (`/mcp`), and optional A2A routes (`/.well-known/agent-card.json`, `/a2a/v1/tasks:send`).
 
-
 ### Requirement: CPU production startup provisions inference assets
-
-The production CPU deployment MUST obtain the selected pinned Qwen or Gemma
-model and Docling layout, table and OCR assets during startup into persistent
-storage. It MUST require no separate model-download command and MUST report
-retrieval readiness only after setup and indexing succeed. The diagnostic core
-image MUST remain distinct from production semantic inference.
+Production startup SHALL obtain the selected pinned embedding model automatically.
+It SHALL obtain Docling layout/table/OCR assets on demand for PDF inputs, and SHALL
+not download these assets for code-only repositories. Persistent caches SHALL be
+reused across restarts.
 
 #### Scenario: Clean CPU startup
+- **WHEN** the default kit starts against source code with no PDFs
+- **THEN** only its selected embedding weights are downloaded
 
-Given a production container, network/model access and an empty model cache
-When it starts against a target repository
-Then it prepares the selected model and document assets automatically
-And real search becomes available before the launcher reports success
-And a restart reuses the persistent assets.
+### Requirement: Lightweight deployment
+The deployment kit SHALL default to the pinned EmbeddingGemma 2 Q8_0 GGUF
+backbone together with the pinned Q8_0 multimodal projector on CPU, load PDF
+assets on demand, include Java parsing in production, and support automatic
+CPU, CUDA or Vulkan device selection with actionable diagnostics.
+
+#### Scenario: Clean external repository
+- **WHEN** the user starts the platform in a clean external repository
+- **THEN** the runtime follows this contract without development-harness prerequisites
+
+#### Scenario: default profile is the multimodal model
+- **WHEN** a clean kit starts with default settings
+- **THEN** the runtime loads the pinned backbone and the pinned projector
+- **AND** the embedding service advertises the multimodal capability
+
+### Requirement: GPU-independent default
+
+The default deployment MUST run real embedding inference on CPU without requiring
+CUDA or Vulkan drivers. Documentation MUST distinguish compatibility with hosts
+having office graphics from GPU-accelerated inference.
+
+The launcher MUST treat an unavailable or unusable GPU as a downgrade to the
+validated CPU profile, not as a startup failure. It MUST NOT require a
+per-machine manual backend selection.
+
+#### Scenario: No accelerator available
+Given a Linux or Windows host with no supported GPU passthrough
+When the default deployment starts
+Then the selected real embedding model executes on CPU
+And the deployment reports that the CPU profile was selected
+
+#### Scenario: an unusable GPU is a downgrade
+Given a host whose selected GPU backend cannot be validated
+When the deployment starts
+Then the deployment uses the validated CPU profile
+And the application starts and serves normally
+And the downgrade is reported with the rejected candidates

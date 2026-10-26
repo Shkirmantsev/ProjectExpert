@@ -33,6 +33,7 @@ project product.
 | [Context enrichment](specs/2026-10-04-context-enrichment/spec.md) |
 | [Document source adapters](specs/2026-10-04-document-source-adapters/spec.md) |
 | [Ingestion pipeline driver](specs/2026-10-04-ingestion-pipeline-driver/spec.md) |
+| [Python dependency intelligence](specs/2026-10-26-python-dependency-intelligence/spec.md) |
 | [Jar dependency intelligence](specs/2026-10-04-jar-dependency-intelligence/spec.md) |
 | [Local source inbox](specs/2026-10-04-local-source-inbox/spec.md) |
 | [Openspec change adapter](specs/2026-10-04-openspec-change-adapter/spec.md) |
@@ -86,6 +87,8 @@ project product.
 | [External coding agent integration](specs/2026-10-12-external-coding-agent-integration/spec.md) |
 | [Integration quality gates](specs/2026-10-12-integration-quality-gates/spec.md) |
 | [Retrieval candidate selection](specs/2026-10-16-retrieval-candidate-selection/spec.md) |
+| [Portable inference runtime](specs/2026-10-25-portable-inference-runtime/spec.md) |
+| [LLM Wiki curated knowledge](specs/2026-10-25-llm-wiki-curated-knowledge/spec.md) |
 | [Retrieval trace](specs/2026-10-16-retrieval-trace/spec.md) |
 | [Embedding execution profile](specs/2026-10-16-embedding-execution-profile/spec.md) |
 | [Rich document graph](specs/2026-10-16-rich-document-graph/spec.md) |
@@ -93,7 +96,7 @@ project product.
 | [Production runtime configuration resolver](specs/2026-10-18-production-runtime-configuration-resolver/spec.md) |
 | [Embedding port query/document roles](specs/2026-10-18-embedding-port-query-document-roles/spec.md) |
 | [Real EmbeddingGemma 2 binding](specs/2026-10-18-real-embeddinggemma2-binding/spec.md) |
-| [Real Qwen3 embedding binding](specs/2026-10-18-real-qwen3-embedding-binding/spec.md) |
+
 | [Semantic index service](specs/2026-10-18-semantic-index-service/spec.md) |
 | [Real USearch dense backend](specs/2026-10-18-real-usearch-dense-backend/spec.md) |
 | [Unified production retrieval composition](specs/2026-10-18-unified-production-retrieval-composition/spec.md) |
@@ -128,3 +131,73 @@ assets automatically, and license governance accepts only the exact approved
 closure. These contracts have local implementation evidence. The broader
 `ship-portable-oci-deployment` change remains active: physical GPU/Windows
 acceptance and remote GHCR publication are not completed or certified here.
+
+## Clean-install reliability adoption — 2026-10-25
+
+MCP now provides standard handshake metadata, argument schemas and stateless
+Streamable HTTP semantics. Refresh failures retry on stable trees; generated
+SBOMs do not invalidate content identity, and status reflects published semantic
+state. At that historical adoption, the deployment kit defaulted to pinned Qwen Q4_K_M on a managed CPU sidecar (superseded by the Gemma consolidation below),
+loads document assets only for PDFs, and supports GPU device preflight/selection.
+Native CPU deployment remains selectable. Java parsing and safe incomplete-cache
+cleanup are included. Existing capability identities are retained; the verified
+change is archived as `2026-10-25-fix-clean-install-runtime`. Physical GPU/Windows
+and remote publication acceptance remain separate from these software checks.
+
+## EmbeddingGemma 2 consolidation and portable inference runtime — 2026-10-25
+
+ProjectExpert ships one embedding model: EmbeddingGemma 2 in the pinned `Q8_0`
+quantisation, with the pinned `Q8_0` multimodal projector. Text, image, audio and
+video embeddings are served through one portable `llama.cpp` runtime. The
+retired alternative model is no longer selectable, no longer a deployment setup
+option and no longer a production-enabled licence record; the capability
+`real-qwen3-embedding-binding` is retired.
+
+The inference runtime policy is owned by the platform: the candidate backends
+are probed, a candidate is selected only when the runtime reports a usable
+device, a software rasteriser is never selected, and an unavailable GPU is a
+downgrade to the validated CPU profile rather than a startup failure. The
+runtime flags are passed as an explicit argument vector because the runtime's
+environment-variable names differ from its flag names.
+
+The capability `portable-inference-runtime` records this behaviour. The
+verified change is archived as
+`2026-10-25-consolidate-embeddinggemma2-and-autoconfigure-inference`. Physical
+CUDA, Vulkan and Windows acceptance remain conditional: they were not
+available on the verification host.
+
+## Rerank decision propagation and the LLM Wiki — 2026-10-25
+
+The reranker's decision now survives the handover to the selection stage: a
+reranked hit carries the reranker's own score and rank, the retrieval score is
+preserved for fallback and diagnostics, and the selection orders by the rerank
+decision. Reranking became operator-controllable: BM25-light is active by
+default, the policy can switch it off, a query can override it, and a failing
+reranker degrades to the pre-rerank order in every pipeline path. A text-only
+reranker no longer demotes a media candidate.
+
+The LLM Wiki is the canonical, curated knowledge layer of a project: an OKF
+v0.2 bundle under `project-knowledge/wiki/` that a CALLING LLM writes through
+new MCP tools. A page is validated against the OKF profile before it is
+stored, the write is atomic and path-bound, every write is audited in the
+reserved log, and a curated page becomes part of the searchable corpus. The
+capability `llm-wiki-curated-knowledge` records this behaviour. The verified
+changes are archived as `2026-10-25-fix-rerank-decision-propagation` and
+`2026-10-25-add-llm-wiki-curated-knowledge`.
+
+## Runtime review and Python dependency intelligence — 2026-10-26
+
+Static Python manifests, source/stubs and wheels now supply searchable dependency
+and API evidence without executing target code. Constraints and markers remain
+unresolved; exact wheel metadata is not transitive resolution or license approval.
+Standalone container/Make startup defaults to native Gemma, while the kit keeps
+managed GGUF. Wiki path checks, unique atomic temporary files, audit failure
+reporting, published-version monitoring and measured Linux device selection were
+hardened. See [review evidence](../docs/RUNTIME_PYTHON_REVIEW.md).
+
+These software contracts do not close physical hardware or remote publication
+acceptance in the active `ship-portable-oci-deployment` change. Historical hardware
+statements above describe their respective verification runs, not universal limits.
+
+The completed review change is archived as
+`2026-10-26-add-python-dependency-intelligence`; its evidence and limits are retained.

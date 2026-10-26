@@ -10,6 +10,22 @@ from unittest.mock import patch
 
 @unittest.skipUnless(os.environ.get('PI_RUN_MODEL_TESTS') == '1', 'enable PI_RUN_MODEL_TESTS=1 for real production acceptance')
 class ProductionEndToEndTests(unittest.TestCase):
+    def setUp(self):
+        # Both production bindings are exercised: the pinned GGUF binding
+        # ('gemma') and the native Transformers binding ('gemma-torch').
+        # The latter needs sentence-transformers + torch at runtime, so an
+        # opted-in environment without them skips with a clear reason
+        # instead of failing mid-acceptance.
+        from pi_platform.adapters.retrieval.embeddinggemma2_embedding_model import (
+            is_real_binding_available,
+        )
+        if not is_real_binding_available():
+            self.skipTest(
+                "native 'gemma-torch' binding unavailable: install "
+                "sentence-transformers and torch to run real production "
+                "acceptance for both production bindings"
+            )
+
     def test_multilingual_golden_retrieval_for_both_real_models(self):
         import json
         import math
@@ -49,7 +65,7 @@ class ProductionEndToEndTests(unittest.TestCase):
                 (root/name).write_text(body, encoding='utf-8')
             with patch.dict(os.environ, {'PI_STARTUP_PROFILE':'production', 'PI_DOCLING_ENABLED':'0', 'PI_DENSE_INDEX':'usearch'}):
                 service, readiness = build_ui_service(repo_root=root, defer_runtime=True)
-                for alias in ('gemma', 'qwen'):
+                for alias in ('gemma', 'gemma-torch'):
                     _bootstrap_and_index_target(root, model_alias=alias, device='cpu', service=service, readiness=readiness)
                     runtime = service._retrieval.runtime
                     rows = []
@@ -108,7 +124,7 @@ class ProductionEndToEndTests(unittest.TestCase):
             with patch.dict(os.environ, {'PI_STARTUP_PROFILE':'production', 'PI_DOCLING_ENABLED':'0', 'PI_DENSE_INDEX':'usearch'}):
                 service, readiness = build_ui_service(repo_root=root, defer_runtime=True)
                 identities = []
-                for alias in ('gemma', 'qwen', 'gemma'):
+                for alias in ('gemma', 'gemma-torch', 'gemma'):
                     with self.subTest(model=alias):
                         summary = _bootstrap_and_index_target(root, model_alias=alias, device='cpu', service=service, readiness=readiness)
                         self.assertTrue(summary['ready'])

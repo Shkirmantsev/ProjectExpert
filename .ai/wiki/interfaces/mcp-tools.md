@@ -81,3 +81,13 @@ configured.
 
 Every tool returns `{"ok": bool, ...}` so the caller can
 branch on success without parsing prose.
+## Streamable HTTP contract
+
+`POST /mcp` accepts JSON-RPC requests and responds with JSON. Notifications receive
+an empty HTTP 202 response. `GET /mcp` returns 405 because the stateless server does
+not offer server-initiated SSE; clients must use Streamable HTTP. Initialize
+negotiates a supported version and supplies standard `serverInfo.name/version`.
+Both stdlib and SDK registration use `pi_platform/mcp/tool_schemas.py`, including
+required `text`, `goal`, entity identifiers and approval arguments. This contract
+is exercised by `tests/test_clean_install_regressions.py`, including an optional
+official SDK integration test.

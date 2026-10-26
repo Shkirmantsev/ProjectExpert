@@ -119,7 +119,7 @@ class MakefileAndComposeProductSurfaceTests(unittest.TestCase):
         self.assertIn('"production"', text)
         self.assertIn("${PI_BIND_HOST:-127.0.0.1}:${PI_CONTROL_PORT:-8765}:8765", text)
         self.assertIn("pi-model-cache:/models/huggingface:rw", text)
-        self.assertIn("PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-qwen}", text)
+        self.assertIn("PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-gemma-torch}", text)
         self.assertIn("PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-auto}", text)
         self.assertIn("PI_DENSE_INDEX: ${PI_DENSE_INDEX:-usearch}", text)
         self.assertIn("HF_HOME: ${PI_MODEL_CACHE:-/models/huggingface}", text)
@@ -164,7 +164,7 @@ class OneCommandStartAndModelSwitchTests(unittest.TestCase):
             "--target",
             str(self.repo),
             "--model",
-            "qwen",
+            "gemma-torch",
             "--device",
             "cpu",
         ])
@@ -172,14 +172,14 @@ class OneCommandStartAndModelSwitchTests(unittest.TestCase):
 
         # Settings are persisted and unified across both RetrievalSettings and RuntimeConfigurationResolver
         settings = load_retrieval_settings(self.repo)
-        self.assertEqual(settings.embedding_model_alias, "qwen")
+        self.assertEqual(settings.embedding_model_alias, "gemma-torch")
         self.assertEqual(settings.device, "cpu")
         self.assertEqual(settings.bootstrap_state, "ready")
 
         resolved = RuntimeConfigurationResolver(
             local_settings_path=self.repo / LOCAL_SETTINGS_RELATIVE_PATH
         ).resolve()
-        self.assertEqual(resolved.embedding_model, "qwen")
+        self.assertEqual(resolved.embedding_model, "gemma-torch")
         self.assertEqual(resolved.embedding_device, "cpu")
 
         # Source inventory and runtime snapshot are persisted
@@ -193,8 +193,8 @@ class OneCommandStartAndModelSwitchTests(unittest.TestCase):
 
     def test_restart_environment_selection_is_saved_as_active_model(self) -> None:
         from unittest.mock import patch
-        self.assertEqual(cli_main(['start','--no-serve','--target',str(self.repo),'--model','qwen']),0)
-        for alias, device in [('gemma-gguf','vulkan'), ('qwen','cpu')]:
+        self.assertEqual(cli_main(['start','--no-serve','--target',str(self.repo),'--model','gemma-torch']),0)
+        for alias, device in [('gemma','vulkan'), ('gemma-torch','cpu')]:
             with patch.dict(os.environ, {'PI_EMBEDDING_MODEL':alias, 'PI_EMBEDDING_DEVICE':device}):
                 self.assertEqual(cli_main(['start','--no-serve','--target',str(self.repo)]),0)
                 settings=load_retrieval_settings(self.repo)
@@ -214,24 +214,24 @@ class OneCommandStartAndModelSwitchTests(unittest.TestCase):
         snap_gemma = RuntimeSnapshotService(cache_root=cache_root).read_snapshot()
         assert snap_gemma is not None
 
-        # Switch to Qwen via CLI models use + reindex
+        # Switch to the native binding via CLI models use + reindex
         self.assertEqual(
-            cli_main(["models", "use", "qwen", "--target", str(self.repo)]),
+            cli_main(["models", "use", "gemma-torch", "--target", str(self.repo)]),
             0,
         )
         self.assertEqual(
             cli_main(["reindex", "--target", str(self.repo)]),
             0,
         )
-        snap_qwen = RuntimeSnapshotService(cache_root=cache_root).read_snapshot()
-        assert snap_qwen is not None
+        snap_torch = RuntimeSnapshotService(cache_root=cache_root).read_snapshot()
+        assert snap_torch is not None
         self.assertNotEqual(
             snap_gemma.active.embedding_profile_identity,
-            snap_qwen.active.embedding_profile_identity,
+            snap_torch.active.embedding_profile_identity,
         )
         self.assertNotEqual(
             snap_gemma.active.active_index_generation,
-            snap_qwen.active.active_index_generation,
+            snap_torch.active.active_index_generation,
         )
 
         # Canonical Git working tree has zero untracked/modified files
@@ -329,19 +329,19 @@ class HttpServerAdminAndWizardIntegrationTests(unittest.TestCase):
         status, wizard_schema = _http_request(f"{self.base}/api/v1/wizard")
         self.assertEqual(status, 200)
         self.assertTrue(wizard_schema["visible"])
-        self.assertEqual(len(wizard_schema["model_choices"]), 4)
+        self.assertEqual(len(wizard_schema["model_choices"]), 2)
 
         status, submitted = _http_request(
             f"{self.base}/api/v1/wizard",
             method="POST",
             payload={
-                "model": "qwen",
+                "model": "gemma-torch",
                 "device": "cpu",
                 "document_processing_enabled": True,
             },
         )
         self.assertEqual(status, 200)
-        self.assertEqual(submitted["embedding_model_alias"], "qwen")
+        self.assertEqual(submitted["embedding_model_alias"], "gemma-torch")
         self.assertEqual(submitted["bootstrap_state"], "not-started")
 
         # Setup submission schedules bootstrap; it cannot claim runtime readiness.
@@ -354,11 +354,11 @@ class HttpServerAdminAndWizardIntegrationTests(unittest.TestCase):
         status, body = _http_request(
             f"{self.base}/api/v1/admin/retrieval",
             method="PUT",
-            payload={"embedding_model_alias": "qwen", "device": "cpu"},
+            payload={"embedding_model_alias": "gemma-torch", "device": "cpu"},
             headers={"X-Actor-Capability": "administrator"},
         )
         self.assertEqual(status, 200)
-        self.assertEqual(body["embedding_model_alias"], "qwen")
+        self.assertEqual(body["embedding_model_alias"], "gemma-torch")
 
         # Coding agent PUT is rejected with 403 and structured error
         status, err = _http_request(

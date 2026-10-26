@@ -1,6 +1,9 @@
 from pathlib import Path
 import tempfile, unittest
-from project_context_mcp.core import build_index, get_document, search, validate, _wiki_fingerprint, _read_recorded_fingerprint, state_path
+from project_context_mcp.core import (
+    build_index, get_document, search, validate, write_document,
+    _wiki_fingerprint, _read_recorded_fingerprint, state_path,
+)
 
 class CoreTest(unittest.TestCase):
     def test_sections_keep_numeric_order(self):
@@ -113,3 +116,74 @@ class CoreTest(unittest.TestCase):
             self.assertEqual(recorded, state['wiki_fingerprint'])
 
 if __name__=='__main__': unittest.main()
+
+
+class WikiWriteTest(unittest.TestCase):
+    """The calling LLM must be able to create and read Wiki pages."""
+
+    def _root(self, tmp):
+        root = Path(tmp)
+        wiki = root / '.ai/wiki'
+        wiki.mkdir(parents=True)
+        (wiki / 'INDEX.md').write_text(
+            '---\nid: wiki.index\ntitle: Index\nkind: index\n'
+            'status: active\n---\n\n# Index\n\n## Knowledge documents\n'
+        )
+        return root
+
+    def test_a_written_page_is_searchable(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self._root(d)
+            result = write_document(
+                root,
+                relative_path='architecture/pipeline',
+                title='Retrieval pipeline',
+                body='Candidates are fused, reranked and selected.',
+                kind='architecture',
+                summary='How the retrieval pipeline works.',
+            )
+            self.assertTrue(result['written'])
+            self.assertTrue(result['created'])
+            found = search(root, 'reranked')
+            self.assertEqual('wiki.architecture.pipeline', found[0]['id'])
+            document = get_document(root, 'wiki.architecture.pipeline')
+            self.assertEqual('Retrieval pipeline', document['title'])
+            self.assertIn('reranked', document['content'])
+
+    def test_a_dry_run_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self._root(d)
+            result = write_document(
+                root, relative_path='architecture/pipeline', title='T', body='B',
+                dry_run=True,
+            )
+            self.assertFalse(result['written'])
+            self.assertEqual([], search(root, 'pipeline'))
+
+    def test_a_path_outside_the_wiki_root_is_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self._root(d)
+            for bad in ('../escape', '/etc/passwd', 'a/../../b'):
+                with self.assertRaises(ValueError):
+                    write_document(
+                        root, relative_path=bad, title='T', body='B',
+                    )
+
+    def test_an_unknown_kind_is_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self._root(d)
+            with self.assertRaises(ValueError):
+                write_document(
+                    root, relative_path='architecture/pipeline', title='T',
+                    body='B', kind='nonsense',
+                )
+
+    def test_the_navigation_index_lists_the_new_page(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self._root(d)
+            write_document(
+                root, relative_path='architecture/pipeline',
+                title='Retrieval pipeline', body='Body.',
+            )
+            index = (root / '.ai/wiki/INDEX.md').read_text()
+            self.assertIn('architecture/pipeline.md', index)

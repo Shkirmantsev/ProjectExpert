@@ -12,7 +12,7 @@ from typing import Dict, FrozenSet, Iterable, Optional
 from pi_platform.ports.retrieval.embedding_profile import (
     EMBEDDINGGEMMA2_512,
     HASHING_DEFAULT,
-    QWEN3_EMBEDDING_0_6B_1024,
+    EMBEDDINGGEMMA2_GGUF_512,
     EmbeddingProfile,
     EmbeddingProfileRegistry,
 )
@@ -146,12 +146,12 @@ class AllowListError(RuntimeError):
     """Raised when the allow-list cannot satisfy a request."""
 
 
-# Pre-registered identities: the three built-in
+# Pre-registered identities: the built-in
 # EmbeddingProfile values from the v0.8 refinement.
 DEFAULT_ALLOWED_IDENTITIES: FrozenSet[str] = frozenset({
     HASHING_DEFAULT.identity(),
     EMBEDDINGGEMMA2_512.identity(),
-    QWEN3_EMBEDDING_0_6B_1024.identity(),
+    EMBEDDINGGEMMA2_GGUF_512.identity(),
 })
 
 
@@ -215,13 +215,13 @@ class ModelAllowList:
     def ensure_default_registrations(
         self, registry: Optional[EmbeddingProfileRegistry] = None,
     ) -> int:
-        """Register the three built-in profiles if they are not
+        """Register the built-in profiles if they are not
         already in the allow-list. Returns the number of new
         registrations performed."""
         before = self._identities
         for profile in (
             HASHING_DEFAULT, EMBEDDINGGEMMA2_512,
-            QWEN3_EMBEDDING_0_6B_1024,
+            EMBEDDINGGEMMA2_GGUF_512,
         ):
             if profile.identity() not in before:
                 before = before | {profile.identity()}

@@ -48,12 +48,12 @@ __all__ = [
 
 DEFAULT_INCLUDE_PATTERNS: tuple[str, ...] = (
     # Source code
-    "*.java", "*.py", "*.kt", "*.scala", "*.go", "*.rs",
+    "*.java", "*.py", "*.pyi", "*.whl", "*.kt", "*.scala", "*.go", "*.rs",
     "*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs", "*.cjs",
     # Build / dependency manifests
     "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle",
     "settings.gradle.kts", "package.json", "requirements*.txt",
-    "pyproject.toml", "Cargo.toml", "go.mod",
+    "pyproject.toml", "requirements*.in", "Cargo.toml", "go.mod",
     # Documentation
     "*.md", "*.rst", "*.adoc", "*.txt", "*.html", "*.htm", "*.pdf",
     "*.xml", "*.yaml", "*.yml", "*.json", "*.proto", "*.graphql", "*.sql",
@@ -70,6 +70,7 @@ DEFAULT_EXCLUDE_PATTERNS: tuple[str, ...] = (
     "node_modules/**", ".venv/**", "venv/**", "__pycache__/**",
     # Build outputs
     "target/**", "build/**", "dist/**", "out/**", ".next/**",
+    "distribution/sbom/**",
     # Generated / vendor directories
     "vendor/**", "third_party/**", "generated/**", ".generated/**",
     # Local scratch
@@ -117,7 +118,7 @@ _FAMILY_RULES: tuple[tuple[str, Sequence[str]], ...] = (
     (
         SOURCE_FAMILY_SOURCE_CODE,
         (
-            "*.java", "*.py", "*.kt", "*.scala", "*.go", "*.rs",
+            "*.java", "*.py", "*.pyi", "*.whl", "*.kt", "*.scala", "*.go", "*.rs",
             "*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs", "*.cjs",
         ),
     ),

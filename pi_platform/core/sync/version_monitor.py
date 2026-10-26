@@ -81,7 +81,7 @@ class ProjectVersionMonitor(abc.ABC):
     """
 
     poll_interval_seconds: int = DEFAULT_POLL_INTERVAL_SECONDS
-    on_change: Callable[[HeadChange], None] | None = None
+    on_change: Callable[[HeadChange], ProjectVersionState | None] | None = None
 
     @abc.abstractmethod
     def start(self) -> None: ...
@@ -106,7 +106,7 @@ class ProjectVersionMonitorStub(ProjectVersionMonitor):
         self,
         *,
         poll_interval_seconds: int = DEFAULT_POLL_INTERVAL_SECONDS,
-        on_change: Callable[[HeadChange], None] | None = None,
+        on_change: Callable[[HeadChange], ProjectVersionState | None] | None = None,
     ) -> None:
         if not (
             MIN_POLL_INTERVAL_SECONDS
@@ -205,7 +205,7 @@ class PollingProjectVersionMonitor(ProjectVersionMonitor):
     refresh is retried even when HEAD and file contents have not changed again.
     """
 
-    def __init__(self, repo_root: Path, *, on_change: Callable[[HeadChange], None],
+    def __init__(self, repo_root: Path, *, on_change: Callable[[HeadChange], ProjectVersionState | None],
                  poll_interval_seconds: int = DEFAULT_POLL_INTERVAL_SECONDS,
                  on_error: Callable[[Exception], None] | None = None,
                  state_reader: Callable[[], ProjectVersionState] | None = None) -> None:
@@ -240,10 +240,16 @@ class PollingProjectVersionMonitor(ProjectVersionMonitor):
                 current.working_tree_fingerprint,
                 datetime.now(timezone.utc).isoformat(),
             )
-            self.on_change(event)
-            # Keep the pre-refresh identity: a checkout/edit made during model
-            # indexing must trigger another pass, never become an accepted state.
-            self._previous = current
+            try:
+                accepted = self.on_change(event)
+            except Exception:
+                # Explicit refreshes may target the already accepted version.
+                # Preserve the retry even for deterministic/manual polling.
+                self._previous = None
+                raise
+            # A publisher can return its verified snapshot identity after bootstrap
+            # creates settings. Never re-read here: that could swallow a later edit.
+            self._previous = accepted if isinstance(accepted, ProjectVersionState) else current
             return event
 
     def request_refresh(self) -> None:

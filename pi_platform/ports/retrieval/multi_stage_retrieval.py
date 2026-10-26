@@ -98,7 +98,11 @@ class RetrievalQuery:
     filters: Optional[MetadataFilter] = None
     purpose: str = ""
     projectVersion: Optional[ProjectVersion] = None
-    enableReranking: bool = False
+    #: Whether reranking runs. ``None`` means "use the operator policy"
+    #: (BM25-light is active by default and can be switched off
+    #: explicitly); ``True`` / ``False`` force the decision for this
+    #: query.
+    enableReranking: Optional[bool] = None
     # Additive v0.8-refinement fields (Change Package A3 / A5). The
     # defaults preserve the pre-change behaviour: no trace is built
     # and query features are extracted by the v2 pipeline itself.
