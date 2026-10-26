@@ -200,6 +200,9 @@ class LocalSourceInboxScanner(LocalSourceInboxScannerPort):
 
     @staticmethod
     def _family_for(path):
+        from pi_platform.adapters.python.intelligence import python_family
+        if family := python_family(path):
+            return family.value
         name = path.name.lower()
         if "openspec" in path.parts and name.endswith(".md"):
             return "openspec"

@@ -56,7 +56,7 @@ __all__ = [
 MIN_FIT_TARGET_MIB = 192
 #: Upper bound of the memory-fit target (MiB).
 MAX_FIT_TARGET_MIB = 512
-#: Share of the reported free device memory the runtime may consume.
+#: Fraction used to calculate the free-memory margin (not a consumption cap).
 FIT_MEMORY_FRACTION = 0.35
 #: A GPU candidate is only selected when it is at least this much faster
 #: than the CPU baseline. Below the threshold the GPU is an optimisation

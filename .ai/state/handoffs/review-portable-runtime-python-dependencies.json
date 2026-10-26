@@ -1,0 +1,70 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "No merge/push or GHCR publication. Physical Windows/CUDA/Vulkan and native PyTorch/PDF execution not run in this review; retained as limits in docs/RUNTIME_PYTHON_REVIEW.md and broader deployment change.",
+    "Disk exhaustion during rebuild was resolved when Docker released cache; affected final checks rerun successfully. Logs: tmp/local/review-verification/."
+  ],
+  "decisions": [
+    "Add stdlib-only static Python manifest/wheel/API ingestion, preserving unresolved constraints; no target imports or dependency installation"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Reviewed implementation since 8a2dcdd and fixed Wiki, readiness, Gemma migration and launcher defects",
+      "Implemented and documented static Python dependency/source/wheel analysis through ingestion and search",
+      "Adopted current specs and archived 2026-10-26-add-python-dependency-intelligence; broader hardware deployment change remains active"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-25T23:16:32+00:00",
+    "id": "review-portable-runtime-python-dependencies",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-26T07:55:07+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Focused regressions and harness check pass; Python dependency analysis exposed through ingestion and documented; dev pipeline produces usable deployment kit and image or explicit verified limits"
+    ],
+    "goal": "Review changes since 8a2dcdd, fix Wiki/inference/deployment defects, add Python dependency intelligence",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full regression suite PASS: 1540 tests, 14 optional skips; final focused regressions PASS: 17 tests",
+      "Final harness core check PASS; strict OpenSpec 89/89 PASS; Wiki links and artifact manifest PASS",
+      "Final production image real Gemma CPU startup, Python dependency search, UI/MCP, pip check and restart PASS; real GGUF pixel-sensitive image vectors PASS",
+      "Final deployment kit build/export and CPU Compose configuration PASS; git diff check PASS"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "docs/RUNTIME_PYTHON_REVIEW.md",
+      "sha256": "f11c23c839ea6dbe4d856afa76c6863d5fb65f9e601c230dd4a61f0389f92477"
+    },
+    {
+      "path": "openspec/changes/archive/2026-10-26-add-python-dependency-intelligence/tasks.md",
+      "sha256": "ff4027acc558162de557bfd14bbe7c25a69815de8f1e62b4af31875b2e7fc58a"
+    },
+    {
+      "path": "pi_platform/adapters/python/intelligence.py",
+      "sha256": "d52a0766aa156b9c319ec346aa3dc7f81b1b8bb39eb67b8eb96f22d1e957892d"
+    }
+  ]
+}

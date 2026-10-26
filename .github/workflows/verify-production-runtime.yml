@@ -25,6 +25,8 @@ jobs:
       HF_HOME: ${{ github.workspace }}/tmp/local/model-cache
       PI_MODEL_CACHE: ${{ github.workspace }}/tmp/local/model-cache
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      PI_LLAMA_ENDPOINT: http://127.0.0.1:8769
+      PI_LLAMA_API_KEY_FILE: ${{ github.workspace }}/tmp/local/gguf-validation/llama-api-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -32,16 +34,18 @@ jobs:
           python-version: "3.11"
       - name: Install the hashed production dependency closure
         run: |
-          python -m pip install --require-hashes -r requirements-production-linux-x86_64.txt
+          python -m pip install --require-hashes -r requirements-production-linux-x86_64.txt -r requirements-production-java-linux-x86_64.txt
           python -m pip install --no-deps '.[production]'
           python -m pip check
       - name: Review licenses against the actual production closure
         run: python -m pi_platform.cli license-gate --inventory distribution/licenses/production-dependency-inventory.json --production-lock requirements-production-linux-x86_64.txt --license-review distribution/licenses/production-license-review.json --license-evidence distribution/licenses/production-license-evidence.json --sbom-output .
-      - name: Strict production capability gate (loads both model snapshots)
+      - name: Start and verify the pinned GGUF CPU runtime
+        run: python scripts/smoke_gguf_container.py --keep-running --name pi-runtime-ci --port 8769
+      - name: Strict production capability gate (loads the configured model snapshot)
         run: python -m pi_platform.cli.production_capability_gate
       - name: Real embedding, ANN, and PDF regression suites
         run: |
-          python -m unittest tests.test_embeddinggemma2_embedding_model tests.test_qwen3_embedding_model tests.test_usearch_dense_index tests.test_real_docling_binding tests.test_production_end_to_end tests.test_docling_production_binding -v
+          python -m unittest tests.test_embeddinggemma2_embedding_model tests.test_multimodal_gguf_runtime tests.test_usearch_dense_index tests.test_real_docling_binding tests.test_production_end_to_end tests.test_docling_production_binding -v
       - name: Normalize publication image
         id: image
         shell: bash
@@ -80,3 +84,7 @@ jobs:
           push: true
           tags: ${{ steps.image.outputs.name }}:production
           cache-from: type=gha,scope=production
+
+      - name: Stop isolated inference runtime
+        if: always()
+        run: docker rm -f pi-runtime-ci || true

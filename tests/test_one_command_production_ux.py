@@ -119,7 +119,7 @@ class MakefileAndComposeProductSurfaceTests(unittest.TestCase):
         self.assertIn('"production"', text)
         self.assertIn("${PI_BIND_HOST:-127.0.0.1}:${PI_CONTROL_PORT:-8765}:8765", text)
         self.assertIn("pi-model-cache:/models/huggingface:rw", text)
-        self.assertIn("PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-gemma}", text)
+        self.assertIn("PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-gemma-torch}", text)
         self.assertIn("PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-auto}", text)
         self.assertIn("PI_DENSE_INDEX: ${PI_DENSE_INDEX:-usearch}", text)
         self.assertIn("HF_HOME: ${PI_MODEL_CACHE:-/models/huggingface}", text)

@@ -32,7 +32,7 @@ administrative REST endpoints that require the
 The existing `pi_platform/cli/main.py` parser grows two new
 top-level subparsers:
 
-- `python -m pi_platform.cli start --target PATH --model {gemma,qwen} --device {auto,cpu,cuda}` —
+- `python -m pi_platform.cli start --target PATH --model {gemma-torch,gemma} --device {auto,cpu,cuda}` —
   opens the HTTP control plane before model loading or indexing, with readiness
   false. A worker loads settings, hydrates, discovers sources and builds a
   candidate retrieval runtime. It publishes the runtime and successful version
@@ -148,17 +148,16 @@ it cannot silently manufacture a Gemma choice over a configured Qwen default.
 `distribution/deployment/` contains product-only Compose, non-secret defaults,
 Make targets and Bash/PowerShell launchers. The `deployment-kit` Containerfile
 stage exports them without overwriting existing files. Published kits bind the
-runtime to a tested image digest. The kit default selects Qwen Q4_K_M in a managed CPU sidecar and automatically
-downloads weights into persistent model storage. Startup waits for HTTP retrieval
-readiness for up to 30 minutes. Windows uses Docker Desktop's Linux engine.
-Office GPUs require no special driver for CPU operation. Optional pinned Gemma/Qwen
-GGUF Vulkan/CUDA runtimes use Linux sidecars or a native Windows service; setup
-also downloads their weights. Physical GPU and Windows validation remains pending. See [installation](../../../docs/PRODUCTION_INSTALL.md).
+runtime to a tested image digest. The kit defaults to Gemma Q8_0 with its pinned
+projector and a managed inference service. Startup waits for retrieval readiness
+for up to 30 minutes. Auto selection measures usable GPU inference against CPU;
+failed candidates fall back to CPU. Linux uses sidecars; Windows GPU inference
+uses a native service with compatible drivers. CPU operation requires no GPU.
+Standalone application/container Make targets default to `gemma-torch`.
+See [installation](../../../docs/PRODUCTION_INSTALL.md).
 
-Model and accelerator selection are independent in the kit. `gemma` plus a GPU
-backend selects `gemma-gguf` with its pinned multimodal projector; `qwen` plus
-CPU stays native Qwen CPU. Explicit GGUF aliases can also run in a CPU sidecar.
-GGUF profiles have distinct cache identities and Gemma preserves image inputs.
+GGUF and native profiles have distinct cache identities; Gemma preserves image
+inputs. Physical hardware and registry publication acceptance remain separate.
 
 After successful bootstrap, persisted ready-state model/device settings reflect
 the effective runtime selection, including deployment environment overrides;

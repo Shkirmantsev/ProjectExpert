@@ -28,6 +28,9 @@ from __future__ import annotations
 
 import os
 import re
+import tempfile
+import threading
+from functools import wraps
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -75,6 +78,18 @@ _SLUG_RE = re.compile(r"[^a-z0-9._/-]+")
 _SAFE_SEGMENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
+# HTTP/MCP requests can mutate the same bundle concurrently in one server.
+_WIKI_WRITE_LOCK = threading.RLock()
+
+
+def _serialized(method):
+    @wraps(method)
+    def locked(*args, **kwargs):
+        with _WIKI_WRITE_LOCK:
+            return method(*args, **kwargs)
+    return locked
+
+
 class LlmWikiError(RuntimeError):
     """Raised when a Wiki operation cannot be completed."""
 
@@ -113,7 +128,7 @@ class LlmWiki:
     """Read and write the OKF Wiki bundle of one project."""
 
     def __init__(self, repo_root: Path) -> None:
-        self.repo_root = Path(repo_root)
+        self.repo_root = Path(repo_root).resolve()
         self.root = wiki_root_for(self.repo_root)
         self.profile = OkfV02Profile()
 
@@ -185,6 +200,10 @@ class LlmWiki:
 
         if not self.root.is_dir():
             return [f"wiki root is not a directory: {self.root}"]
+        self._resolve(INDEX_FILENAME)
+        self._resolve(LOG_FILENAME)
+        for page in self.root.rglob("*.md"):
+            self._resolve(page.relative_to(self.root).as_posix())
         errors = []
         for error in validate_wiki_bundle(self.root, adapter=self.profile):
             errors.append(str(error))
@@ -192,6 +211,7 @@ class LlmWiki:
 
     # -- writing ----------------------------------------------------------
 
+    @_serialized
     def write_page(
         self,
         *,
@@ -252,11 +272,12 @@ class LlmWiki:
                 "path": relative,
                 "bytes": len(rendered.encode("utf-8")),
             }
+        # Validate reserved files before committing any page.
+        self._resolve(INDEX_FILENAME)
+        self._resolve(LOG_FILENAME)
         existed = path.is_file()
         path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_name(path.name + ".tmp")
-        temporary.write_text(rendered, encoding="utf-8")
-        os.replace(temporary, path)
+        self._atomic_write(path, rendered)
         self._append_log(
             "updated" if existed else "created", relative, title, now,
         )
@@ -270,6 +291,7 @@ class LlmWiki:
             "index_refreshed": True,
         }
 
+    @_serialized
     def refresh_index(self) -> Path | None:
         """Rewrite the navigation section of the reserved ``index.md``.
 
@@ -277,7 +299,7 @@ class LlmWiki:
         navigation list is replaced.
         """
 
-        index_path = self.root / INDEX_FILENAME
+        index_path = self._resolve(INDEX_FILENAME)
         if not index_path.is_file():
             return None
         raw = index_path.read_text(encoding="utf-8")
@@ -290,11 +312,10 @@ class LlmWiki:
         else:
             body = body.rstrip("\n") + "\n\n" + marker + "\n" + navigation
         rendered = self.profile.render_concept_markdown(dict(frontmatter), body)
-        temporary = index_path.with_name(index_path.name + ".tmp")
-        temporary.write_text(rendered, encoding="utf-8")
-        os.replace(temporary, index_path)
+        self._atomic_write(index_path, rendered)
         return index_path
 
+    @_serialized
     def ensure_scaffold(self) -> list[str]:
         """Create the reserved files of an empty Wiki bundle.
 
@@ -303,8 +324,10 @@ class LlmWiki:
         """
 
         created: list[str] = []
+        self._resolve(INDEX_FILENAME)
+        self._resolve(LOG_FILENAME)
         self.root.mkdir(parents=True, exist_ok=True)
-        index_path = self.root / INDEX_FILENAME
+        index_path = self._resolve(INDEX_FILENAME)
         if not index_path.is_file():
             index_path.write_text(
                 self.profile.render_concept_markdown(
@@ -322,7 +345,7 @@ class LlmWiki:
                 encoding="utf-8",
             )
             created.append(index_path.name)
-        log_path = self.root / LOG_FILENAME
+        log_path = self._resolve(LOG_FILENAME)
         if not log_path.is_file():
             log_path.write_text(
                 self.profile.render_concept_markdown(
@@ -366,6 +389,12 @@ class LlmWiki:
                     f"invalid wiki page path segment {segment!r}; use letters, "
                     "digits, '.', '_' or '-'"
                 )
+        # Reject symlink components, including the root and reserved paths.
+        current = self.repo_root
+        for segment in ("project-knowledge", WIKI_DIR_NAME, *parts):
+            current = current / segment
+            if current.is_symlink():
+                raise LlmWikiError("wiki paths must not contain symbolic links")
         path = (self.root / Path(*parts)).resolve()
         root = self.root.resolve()
         if not path.is_relative_to(root):
@@ -376,8 +405,9 @@ class LlmWiki:
 
     def _read(self, path: Path, relative: str) -> WikiPage | None:
         try:
+            self._resolve(relative)
             raw = path.read_text(encoding="utf-8")
-        except OSError:
+        except (OSError, UnicodeError, LlmWikiError):
             return None
         try:
             frontmatter, body = parse_frontmatter(raw)
@@ -403,6 +433,19 @@ class LlmWiki:
         )
 
     @staticmethod
+    def _atomic_write(path: Path, text: str) -> None:
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8",
+                                             dir=path.parent, prefix=".wiki-", delete=False) as stream:
+                temporary = Path(stream.name)
+                stream.write(text)
+            os.replace(temporary, path)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
+    @staticmethod
     def _first_paragraph(body: str, max_chars: int = 320) -> str:
         for block in body.split("\n\n"):
             cleaned = block.strip()
@@ -424,7 +467,7 @@ class LlmWiki:
     def _append_log(
         self, action: str, relative: str, title: str, timestamp: str,
     ) -> None:
-        log_path = self.root / LOG_FILENAME
+        log_path = self._resolve(LOG_FILENAME)
         if not log_path.is_file():
             self.ensure_scaffold()
         entry = (
@@ -433,6 +476,5 @@ class LlmWiki:
         try:
             with log_path.open("a", encoding="utf-8") as handle:
                 handle.write(entry)
-        except OSError:
-            # The audit trail must never block the write itself.
-            pass
+        except OSError as exc:
+            raise LlmWikiError(f"page stored but audit log append failed: {exc}") from exc

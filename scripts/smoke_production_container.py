@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import time
 import urllib.request
+import urllib.error
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -23,15 +24,18 @@ def request(base, path, payload=None):
     data = None if payload is None else json.dumps(payload).encode()
     req = urllib.request.Request(base + path, data=data,
                                  headers={'Content-Type': 'application/json'})
-    with urllib.request.urlopen(req, timeout=60) as response:
-        return json.load(response)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"{path}: HTTP {exc.code}: {exc.read(4096).decode(errors='replace')}") from exc
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--image', required=True)
     parser.add_argument('--timeout', type=int, default=1800)
-    parser.add_argument('--model-cache', type=Path, help='optional verified Q4 cache to reuse; omit for a cold-download test')
+    parser.add_argument('--model-cache', type=Path, help='optional verified Gemma Q8_0 backbone/projector cache to reuse; omit for a cold-download test')
     parser.add_argument('--minimal', action='store_true', help='test common core only; never production inference evidence')
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='pi-container-smoke-') as raw:
@@ -44,13 +48,15 @@ def main():
         (repo / 'README.md').write_text('# Invoice service\nInvoices are reconciled by the billing service.\n')
         if not args.minimal:
             (repo / 'BillingService.java').write_text('package billing; public class BillingService { public int reconcileInvoice() { return 1; } }')
+        (repo / 'pyproject.toml').write_text('[project]\nname = "billing"\ndependencies = ["httpx>=0.27"]\n')
+        (repo / 'billing.py').write_text('def reconcile_invoice(invoice_id: str):\n    """Reconcile an invoice using the billing service."""\n    return invoice_id\n')
         run('git', '-C', str(repo), 'add', '.')
         run('git', '-C', str(repo), 'commit', '-qm', 'fixture')
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
         env = {**os.environ, 'PI_IMAGE': args.image, 'PI_TARGET_REPO': str(repo),
-               'PI_CONTROL_PORT': str(port), 'PI_EMBEDDING_MODEL': 'qwen-gguf',
+               'PI_CONTROL_PORT': str(port), 'PI_EMBEDDING_MODEL': 'gemma',
                'PI_EMBEDDING_DEVICE': 'cpu', 'PI_DOCLING_ENABLED': '1'}
         compose = ['docker', 'compose', '--project-name', f'pi-smoke-{os.getpid()}',
                    '--env-file', str(ROOT / 'distribution/deployment/deployment.env'),
@@ -76,14 +82,16 @@ def main():
                 run('docker', 'run', '--rm', '--entrypoint', 'python',
                     '-v', str(args.model_cache.resolve()) + ':/seed:ro', '-v', volume + ':/models',
                     args.image, '-c',
-                    'from pi_platform.adapters.retrieval.gguf_artifacts import FILENAME; '
-                    'import shutil; shutil.copyfile("/seed/"+FILENAME, "/models/"+FILENAME)')
+                    'from pi_platform.adapters.retrieval.gguf_artifacts import GEMMA_FILENAME, GEMMA_PROJECTOR_FILENAME; '
+                    'import shutil; [shutil.copyfile("/seed/"+name, "/models/"+name) for name in (GEMMA_FILENAME, GEMMA_PROJECTOR_FILENAME)]')
             run(*compose, 'up', '-d', '--wait', '--wait-timeout', str(args.timeout), env=env)
             assert request(base, '/health/ready')['ready']
             with urllib.request.urlopen(base + '/', timeout=10) as page:
                 assert b'Project Intelligence' in page.read()
             result = request(base, '/api/v1/query', {'text': 'invoice billing', 'top_k': 3})
             assert result.get('results'), result
+            python_result = request(base, '/api/v1/query', {'text': 'httpx Python billing dependency', 'top_k': 10})
+            assert 'httpx' in json.dumps(python_result).lower(), python_result
             status = request(base, '/api/v1/indexing-status')
             assert status['indexes']['cache_entries'] > 0, status
             if not args.minimal:
@@ -100,7 +108,7 @@ def main():
                 try:
                     if request(base, '/health/ready')['ready']:
                         break
-                except (OSError, ValueError):
+                except (OSError, ValueError, RuntimeError):
                     pass
                 time.sleep(2)
             else:
@@ -111,11 +119,13 @@ def main():
         finally:
             subprocess.run([*compose, 'logs', '--tail', '80'], env=env)
             subprocess.run([*compose, 'down', '-v'], env=env)
-            # Container-generated fixture files can be root-owned on Linux.
-            subprocess.run(['docker', 'run', '--rm', '--entrypoint', 'python',
-                            '-v', f'{repo}:/repo', args.image, '-c',
-                            'import pathlib,shutil; '
-                            '[shutil.rmtree(p) for p in pathlib.Path("/repo").iterdir() if p.is_dir()]'])
+            # Restore ownership only on this TemporaryDirectory fixture. Python's
+            # context manager then removes its own temporary tree on the host.
+            if hasattr(os, 'getuid'):
+                subprocess.run(['docker', 'run', '--rm', '--entrypoint', 'chown',
+                                '-v', f'{repo}:/fixture', args.image,
+                                '-R', f'{os.getuid()}:{os.getgid()}', '/fixture'])
+
 
 
 if __name__ == '__main__':

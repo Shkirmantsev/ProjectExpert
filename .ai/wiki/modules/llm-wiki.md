@@ -96,3 +96,10 @@ to this development harness.
 - [`adr.0030-llm-wiki-as-curated-knowledge`](../adr/0030-llm-wiki-as-curated-knowledge.md)
 - [`interfaces.mcp-tools`](../interfaces/mcp-tools.md)
 - [`modules.mcp-server`](mcp-server.md)
+## Review hardening — 2026-10-26
+
+Relative repository roots are normalized. Page and reserved paths reject symlink
+components; list/search skip unsafe pages. Atomic writes use unique temporary
+files. Mutations are serialized within one process, and audit append failures
+are reported even if page storage succeeded. Separate processes are not covered
+by that lock.

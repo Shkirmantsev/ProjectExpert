@@ -13,7 +13,7 @@ requested="${PI_ACCELERATOR:-$(read_env PI_ACCELERATOR)}"
 requested="${requested:-auto}"
 model="${PI_EMBEDDING_MODEL:-$(read_env PI_EMBEDDING_MODEL)}"
 model="${model:-gemma}"
-pinned_device="${PI_GPU_DEVICE:-}"
+pinned_device="${PI_GPU_DEVICE:-$(read_env PI_GPU_DEVICE)}"
 benchmark_iterations="${PI_BENCHMARK_ITERATIONS:-20}"
 
 case "$model" in
@@ -114,9 +114,28 @@ apply_decision() { # backend device fit_target
 benchmark_backend() { # backend -> prints the median latency in ms
   local backend="$1"
   local median=""
+  local candidate_output=""
+  case "$backend" in
+    cuda) candidate_output="$out_cuda" ;;
+    vulkan) candidate_output="$out_vulkan" ;;
+    cpu) candidate_output="$out_cpu" ;;
+  esac
+  local candidate_evidence candidate_plan candidate_device candidate_fit selected
+  candidate_evidence=$(printf '%s' "{\"candidates\":[{\"backend\":\"$backend\",\"ok\":true,\"exit_code\":0,\"output\":\"$(json_escape "$candidate_output")\"}]}" | b64_encode)
+  candidate_plan=$(docker compose --env-file deployment.env -f compose.yaml \
+    run --rm --no-deps -T production inference plan --evidence-b64 "$candidate_evidence") || return 1
+  selected=$(printf '%s\n' "$candidate_plan" | sed -n 's/^[[:space:]]*"backend":[[:space:]]*"\([^"]*\)".*$/\1/p' | head -1)
+  [ "$selected" = "$backend" ] || return 1
+  candidate_device=$(printf '%s\n' "$candidate_plan" | sed -n 's/^[[:space:]]*"device":[[:space:]]*"\([^"]*\)".*$/\1/p' | head -1)
+  candidate_fit=$(printf '%s\n' "$candidate_plan" | sed -n 's/^[[:space:]]*"fit_target_mib":[[:space:]]*\([0-9]*\).*$/\1/p' | head -1)
+  export PI_GPU_DEVICE="${candidate_device:-none}" PI_FIT_TARGET="${candidate_fit:-192}"
   docker compose --env-file deployment.env -f compose.yaml \
     -f compose.accelerator.yaml -f "compose.$backend.yaml" \
-    up -d --wait embeddings >/dev/null 2>&1 || return 1
+    up -d --wait --wait-timeout 1800 embeddings >/dev/null 2>&1 || {
+      docker compose --env-file deployment.env -f compose.yaml \
+        -f compose.accelerator.yaml -f "compose.$backend.yaml" stop embeddings >/dev/null 2>&1 || true
+      return 1
+    }
   median=$(docker compose --env-file deployment.env -f compose.yaml \
     run --rm --no-deps -T production \
     inference benchmark \
@@ -199,6 +218,15 @@ for backend in $targets; do
     continue
   fi
   probe_backend "$backend"
+  if [ -n "$pinned_device" ] && [ "$backend" != cpu ] && [ "$probe_rc" = 0 ]; then
+    pinned_output=$(printf '%s\n' "$probe_output" | awk -v device="$pinned_device:" '$1 == device')
+    if [ -n "$pinned_output" ]; then
+      # Both the benchmark and final plan see precisely the requested device.
+      probe_output="$pinned_output"
+    else
+      echo "Warning: PI_GPU_DEVICE=$pinned_device was not reported by $backend; using detected devices." >&2
+    fi
+  fi
   add_candidate "$backend" "$([ "$probe_rc" = 0 ] && echo true || echo false)" "$probe_rc" "$probe_output"
   if [ "$probe_rc" != 0 ]; then
     if [ -n "$fallback_rejected" ]; then
@@ -223,17 +251,29 @@ done
 # GPU profile is worth selecting: a GPU that works but is slower is an
 # optimisation that costs time. An explicit backend selection is the
 # operator's decision and is not second-guessed by a benchmark.
+for backend in cuda vulkan; do
+  probed=0
+  case "$backend" in cuda) probed=$probed_cuda ;; vulkan) probed=$probed_vulkan ;; esac
+  if [ "$probed" = 1 ]; then
+    median=$(benchmark_backend "$backend" || true)
+    if [ -n "$median" ]; then
+      [ "$requested" != auto ] || add_measurement "$backend" "$median"
+    else
+      # Device enumeration does not prove that model loading/inference works.
+      candidates=${candidates//\"backend\": \"$backend\", \"ok\": true/\"backend\": \"$backend\", \"ok\": false}
+    fi
+  fi
+done
 if [ "$requested" = auto ]; then
-  if [ "$probed_cuda" = 1 ]; then
-    median=$(benchmark_backend cuda || true)
-    [ -n "$median" ] && add_measurement cuda "$median"
-  fi
-  if [ "$probed_vulkan" = 1 ]; then
-    median=$(benchmark_backend vulkan || true)
-    [ -n "$median" ] && add_measurement vulkan "$median"
-  fi
   median=$(benchmark_backend cpu || true)
-  [ -n "$median" ] && add_measurement cpu "$median"
+  if [ -n "$median" ]; then
+    add_measurement cpu "$median"
+  else
+    # Auto selection needs a measured CPU baseline, not just GPU enumeration.
+    for backend in cuda vulkan; do
+      candidates=${candidates//\"backend\": \"$backend\", \"ok\": true/\"backend\": \"$backend\", \"ok\": false}
+    done
+  fi
 fi
 
 evidence="{\"platform\": \"linux\", \"candidates\": [$candidates]"
@@ -274,22 +314,6 @@ case "$decision_backend" in
     decision_fit=192
     ;;
 esac
-
-# An explicit PI_GPU_DEVICE is honoured only when the runtime actually
-# reported that device for the selected backend; otherwise it is ignored
-# with a warning (the decision is never overridden blindly).
-if [ -n "$pinned_device" ] && [ "$decision_backend" != cpu ]; then
-  selected_output=""
-  case "$decision_backend" in
-    cuda) selected_output="$out_cuda" ;;
-    vulkan) selected_output="$out_vulkan" ;;
-  esac
-  if printf '%s\n' "$selected_output" | grep -q "^[[:space:]]*${pinned_device}:"; then
-    decision_device="$pinned_device"
-  else
-    echo "Warning: PI_GPU_DEVICE=$pinned_device was not reported by the $decision_backend runtime; using the detected device '${decision_device:-default}' instead." >&2
-  fi
-fi
 
 # The rejected candidates are reported as one pre-rendered line so the
 # launcher never has to parse the nested JSON array.

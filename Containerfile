@@ -92,7 +92,8 @@ RUN python -m pip install --no-cache-dir --require-hashes --prefix=/opt/producti
         --extra-index-url https://download.pytorch.org/whl/cpu \
         -r /requirements-production-linux-x86_64.txt -r /requirements-production-java-linux-x86_64.txt
 
-# Normal end-user image (CPU, Linux x86_64). No model weights are embedded.
+# Standalone image uses the native CPU binding. The deployment kit overrides
+# this with gemma and manages the portable llama.cpp sidecar. No weights embedded.
 # Build: docker build -f Containerfile --target production -t project-intelligence:production .
 # Minimal: docker build -f Containerfile --target core -t project-intelligence:core .
 FROM core AS production
@@ -112,7 +113,7 @@ RUN python -m pip install --no-cache-dir --no-deps ".[production]" \
         --license-evidence distribution/licenses/production-license-evidence.json \
         --additional-inventory distribution/licenses/production-java-dependency-inventory.json --sbom-output .
 ENV PI_STARTUP_PROFILE=production \
-    PI_EMBEDDING_MODEL=gemma \
+    PI_EMBEDDING_MODEL=gemma-torch \
     PI_DENSE_INDEX=usearch \
     PI_DOCLING_ENABLED=1 \
     PI_PREPARE_DOCLING=1 \

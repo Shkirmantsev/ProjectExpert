@@ -63,6 +63,7 @@ foreach ($candidate in $candidates) {
     }
     $runtimeDir = Join-Path $runtimeRoot $candidate
     New-Item -ItemType Directory -Force -Path $runtimeDir | Out-Null
+    try {
     foreach ($asset in $assets) {
         $archive = Join-Path $cache $asset.name
         Get-VerifiedFile ("https://github.com/ggml-org/llama.cpp/releases/download/{0}/{1}" -f $lock.runtime_version,$asset.name) $archive $asset.sha256
@@ -76,8 +77,13 @@ foreach ($candidate in $candidates) {
     }
     $outFile = Join-Path $cache ("devices-{0}.txt" -f $candidate)
     $errFile = Join-Path $cache ("devices-{0}-error.txt" -f $candidate)
-    $probe = Start-Process -FilePath $server.FullName -ArgumentList '--list-devices' -Wait -PassThru -NoNewWindow `
+    $probe = Start-Process -FilePath $server.FullName -ArgumentList '--list-devices' -PassThru -NoNewWindow `
         -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+    if (-not $probe.WaitForExit(15000)) {
+        Stop-Process -Id $probe.Id -ErrorAction SilentlyContinue
+        throw 'GPU device probe timed out'
+    }
+    $probe.Refresh()
     $text = ''
     if (Test-Path -LiteralPath $outFile) { $text += (Get-Content -LiteralPath $outFile -Raw) }
     if (Test-Path -LiteralPath $errFile) { $text += (Get-Content -LiteralPath $errFile -Raw) }
@@ -86,6 +92,9 @@ foreach ($candidate in $candidates) {
                     ok = ($probe.ExitCode -eq 0)
                     exit_code = $probe.ExitCode
                     output = $text }
+    } catch {
+        $evidence += @{ backend = $candidate; ok = $false; exit_code = -1; output = "runtime acquisition/probe failed: $_" }
+    }
 }
 
 # The CPU profile is always valid: the managed sidecar container runs the
@@ -194,14 +203,15 @@ $process = Start-Process -FilePath $server.FullName -ArgumentList $arguments -Pa
 [IO.File]::WriteAllText((Join-Path $cache 'runtime.pid'), [string]$process.Id)
 [IO.File]::WriteAllText((Join-Path $cache 'backend.txt'), $backend)
 [IO.File]::WriteAllText((Join-Path $cache 'device.txt'), $device)
+$ready = $false
 for ($attempt = 0; $attempt -lt 120; $attempt++) {
     if ($process.HasExited) { throw 'The GPU runtime exited; inspect accelerator/runtime-error.log, or use the CPU profile.' }
     try {
         $models = Invoke-RestMethod -Uri 'http://127.0.0.1:8769/v1/models' -Headers @{Authorization="Bearer $token"} -TimeoutSec 2
-        if ($models.data.id -contains $modelSpec.model_alias) { break }
+        if ($models.data.id -contains $modelSpec.model_alias) { $ready = $true; break }
     } catch { }
     Start-Sleep -Seconds 2
 }
-if ($process.HasExited) { throw 'The GPU runtime exited during startup; inspect accelerator/runtime-error.log.' }
+if ($process.HasExited -or -not $ready) { throw 'The GPU runtime did not become ready; using the CPU fallback.' }
 Write-Output "Selected inference backend: $backend (device $device, fit target $($plan.fit_target_mib) MiB)"
 $plan | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $cache 'plan.json') -Encoding UTF8

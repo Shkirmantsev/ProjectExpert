@@ -7,7 +7,7 @@ COMPOSE = bash ./compose.sh
 endif
 CLI = $(COMPOSE) exec -T production python -m pi_platform.cli
 WAIT_TIMEOUT ?= 1800
-MODEL ?= qwen
+MODEL ?= gemma
 
 .PHONY: platform-start platform-stop platform-status platform-logs platform-pull platform-restart platform-init platform-hydrate platform-materialise platform-models platform-model-pull platform-reindex platform-doctor eval eval-retrieval eval-chunk-size-sweep invariants metrics-gate
 platform-start:

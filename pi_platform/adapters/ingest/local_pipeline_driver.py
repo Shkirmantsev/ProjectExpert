@@ -11,6 +11,8 @@ instrumentation returned to the caller.
 
 from __future__ import annotations
 
+from pi_platform.adapters.python.intelligence import PythonManifestAdapter, PythonSourceAdapter, PythonWheelAdapter
+
 import time
 from pathlib import Path
 from typing import List, Optional, Sequence
@@ -135,6 +137,9 @@ def _default_parser_registry() -> SourceAdapterRegistry:
         LocalSourceAdapter(),
         JavaStructuredAdapter(),
         JarAdapter(),
+        PythonManifestAdapter(),
+        PythonSourceAdapter(),
+        PythonWheelAdapter(),
         MavenAdapter(),
         GradleAdapter(),
         OpenSpecChangeAdapter(),
@@ -155,6 +160,9 @@ def _default_chunker_registry() -> ChunkerRegistry:
             DependencyChunker(f)
             for f in (
                 SourceContentFamily.JAR,
+                SourceContentFamily.PYTHON_SOURCE,
+                SourceContentFamily.PYTHON_MANIFEST,
+                SourceContentFamily.PYTHON_WHEEL,
                 SourceContentFamily.MAVEN_POM,
                 SourceContentFamily.GRADLE_BUILD,
             )

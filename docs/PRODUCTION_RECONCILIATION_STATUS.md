@@ -238,3 +238,10 @@ restart all passed. The test reused verified Q4 weights in an isolated volume;
 the initial weight download and hash verification were tested separately. The
 exported deployment kit also passed configuration checks. Temporary smoke
 containers and volumes were removed. No new GHCR image has been published.
+
+## Runtime and Python review — 2026-10-26
+
+See [review evidence](RUNTIME_PYTHON_REVIEW.md) for the review since `8a2dcdd`,
+confirmed fixes, Python dependency analysis and current verification limits.
+Earlier model-selection descriptions are historical; current deployment uses
+EmbeddingGemma 2 and the installation guide documents its two runtime modes.

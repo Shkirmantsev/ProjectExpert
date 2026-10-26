@@ -1064,7 +1064,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         a2a_adapter=a2a_adapter,
         agent_card=agent_card,
     )
-    from ..core.sync.version_monitor import PollingProjectVersionMonitor
+    from ..core.sync.version_monitor import PollingProjectVersionMonitor, ProjectVersionState
     import threading
 
     first_refresh = True
@@ -1081,6 +1081,9 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         )
         first_refresh = False
         print(json.dumps({"status": "ready", **summary}), flush=True)
+        active = getattr(service, "_published_version", None)
+        if active is not None:
+            return ProjectVersionState(active.head, active.branch, active.working_tree_fingerprint)
 
     def failed(exc):
         readiness.record_failure(str(exc))
@@ -1131,9 +1134,12 @@ def _cmd_mcp_serve(args: argparse.Namespace) -> int:
         hydrate_on_start=False,
         defer_runtime=True,
     )
-    from ..core.sync.version_monitor import PollingProjectVersionMonitor
+    from ..core.sync.version_monitor import PollingProjectVersionMonitor, ProjectVersionState
     def refresh(_event):
         _bootstrap_and_index_target(target, service=service, readiness=readiness, cache_root=cache_root)
+        active = getattr(service, "_published_version", None)
+        if active is not None:
+            return ProjectVersionState(active.head, active.branch, active.working_tree_fingerprint)
     def failed(exc):
         readiness.record_failure(str(exc))
         readiness.end_refresh()

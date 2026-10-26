@@ -16,7 +16,7 @@ maintenance:
 # Phase 2 ingestion
 
 The ingestion pipeline runs parse, chunk, enrich, emit and store. The default
-`LocalPipelineDriver` composes document, Java, JAR, build-file and OpenSpec adapters.
+`LocalPipelineDriver` composes document, Java, JAR, Python, build-file and OpenSpec adapters.
 The process-local cache stores actual chunks, contextual chunks, entities, relations
 and evidence. A completed source manifest skips parsing and chunking on repeat runs;
 source changes invalidate owned cache records, and deletions mark derived records stale.
@@ -40,8 +40,10 @@ absent tool returns declared edges with a partial-tree advisory. Missing depende
 SPDX identifiers remain assumptions. CLI ingestion records discovered dependencies
 locally so the subsequent target license gate cannot silently pass unknown coordinates.
 
-PDF, OpenAPI and office adapters remain planned. Persistent databases, vectors and
-sharded graph storage belong to later phases.
+Python manifests, source/stubs and wheels have stdlib-only static adapters. See
+[Python dependency analysis](../../../docs/PYTHON_DEPENDENCY_ANALYSIS.md) for
+retrieval, supported declarations and partial-analysis limits. Production PDF
+ingestion uses the optional Docling adapter; availability depends on its assets.
 
 ## Repository source discovery (production)
 

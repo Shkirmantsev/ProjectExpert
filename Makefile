@@ -252,16 +252,16 @@ harness-clean: clean ## Alias of clean.
 # ---------------------------------------------------------------------------
 
 PI_TARGET ?= $(or $(TARGET),.)
-PI_MODEL ?= $(or $(MODEL),gemma)
+PI_MODEL ?= $(or $(MODEL),gemma-torch)
 PI_DEVICE ?= $(or $(DEVICE),auto)
 PI_HOST ?= $(or $(HOST),127.0.0.1)
 PI_PORT ?= $(or $(PORT),8765)
 
 pi-help: ## Show the user-facing Project Intelligence product commands.
 	@echo "Project Intelligence — One-Command Product Surface:"
-	@echo "  make pi-up [TARGET=/path/to/repo] [MODEL=gemma|qwen] [DEVICE=auto|cpu|cuda] [SERVE=1]"
+	@echo "  make pi-up [TARGET=/path/to/repo] [MODEL=gemma-torch|gemma] [DEVICE=auto|cpu|cuda] [SERVE=1]"
 	@echo "      Initialise, hydrate, discover sources, build semantic index, and start platform."
-	@echo "  make pi-model MODEL=gemma|qwen [TARGET=/path/to/repo]"
+	@echo "  make pi-model MODEL=gemma-torch|gemma [TARGET=/path/to/repo]"
 	@echo "      Switch active embedding model and atomically activate its vector namespace."
 	@echo "  make pi-status [TARGET=/path/to/repo]"
 	@echo "      Show active embedding model, profile identity, dense index generation, and readiness."
@@ -272,7 +272,7 @@ pi-help: ## Show the user-facing Project Intelligence product commands.
 	@echo "  make pi-down"
 	@echo "      Stop running Project Intelligence product containers."
 
-pi-up: ## Start Project Intelligence against TARGET with MODEL (gemma|qwen) and DEVICE (auto|cpu|cuda).
+pi-up: ## Start Project Intelligence against TARGET with MODEL (gemma-torch|gemma) and DEVICE (auto|cpu|cuda).
 	@if [ "$(DOCKER)" = "1" ]; then \
 		PI_TARGET_REPO="$(PI_TARGET)" PI_EMBEDDING_MODEL="$(PI_MODEL)" PI_EMBEDDING_DEVICE="$(PI_DEVICE)" \
 		docker compose --profile production up -d --build; \

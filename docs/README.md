@@ -43,3 +43,6 @@ needs, then run `make runtime` to regenerate client configs.
 - [Phase 3 follow-up prompt](handoff/phase-3-prompt.md)
 
 - [Phase 6 implementation prompt and readiness](handoff/phase-6-implementation-prompt.md)
+
+- [Python dependency and library analysis](PYTHON_DEPENDENCY_ANALYSIS.md)
+- [Runtime and Python review evidence](RUNTIME_PYTHON_REVIEW.md)

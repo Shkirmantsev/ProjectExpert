@@ -33,6 +33,7 @@ project product.
 | [Context enrichment](specs/2026-10-04-context-enrichment/spec.md) |
 | [Document source adapters](specs/2026-10-04-document-source-adapters/spec.md) |
 | [Ingestion pipeline driver](specs/2026-10-04-ingestion-pipeline-driver/spec.md) |
+| [Python dependency intelligence](specs/2026-10-26-python-dependency-intelligence/spec.md) |
 | [Jar dependency intelligence](specs/2026-10-04-jar-dependency-intelligence/spec.md) |
 | [Local source inbox](specs/2026-10-04-local-source-inbox/spec.md) |
 | [Openspec change adapter](specs/2026-10-04-openspec-change-adapter/spec.md) |
@@ -136,7 +137,7 @@ acceptance and remote GHCR publication are not completed or certified here.
 MCP now provides standard handshake metadata, argument schemas and stateless
 Streamable HTTP semantics. Refresh failures retry on stable trees; generated
 SBOMs do not invalidate content identity, and status reflects published semantic
-state. The deployment kit defaults to pinned Qwen Q4_K_M on a managed CPU sidecar,
+state. At that historical adoption, the deployment kit defaulted to pinned Qwen Q4_K_M on a managed CPU sidecar (superseded by the Gemma consolidation below),
 loads document assets only for PDFs, and supports GPU device preflight/selection.
 Native CPU deployment remains selectable. Java parsing and safe incomplete-cache
 cleanup are included. Existing capability identities are retained; the verified
@@ -183,3 +184,20 @@ reserved log, and a curated page becomes part of the searchable corpus. The
 capability `llm-wiki-curated-knowledge` records this behaviour. The verified
 changes are archived as `2026-10-25-fix-rerank-decision-propagation` and
 `2026-10-25-add-llm-wiki-curated-knowledge`.
+
+## Runtime review and Python dependency intelligence — 2026-10-26
+
+Static Python manifests, source/stubs and wheels now supply searchable dependency
+and API evidence without executing target code. Constraints and markers remain
+unresolved; exact wheel metadata is not transitive resolution or license approval.
+Standalone container/Make startup defaults to native Gemma, while the kit keeps
+managed GGUF. Wiki path checks, unique atomic temporary files, audit failure
+reporting, published-version monitoring and measured Linux device selection were
+hardened. See [review evidence](../docs/RUNTIME_PYTHON_REVIEW.md).
+
+These software contracts do not close physical hardware or remote publication
+acceptance in the active `ship-portable-oci-deployment` change. Historical hardware
+statements above describe their respective verification runs, not universal limits.
+
+The completed review change is archived as
+`2026-10-26-add-python-dependency-intelligence`; its evidence and limits are retained.

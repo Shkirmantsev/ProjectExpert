@@ -22,7 +22,10 @@ from .retrieval_composition import build_production_retrieval_runtime
 
 
 def _family(path):
+    from pi_platform.adapters.python.intelligence import python_family
     p = Path(path)
+    if family := python_family(p):
+        return family
     if p.suffix.lower() == '.pdf':
         return SourceContentFamily.PDF
     if p.suffix.lower() in {'.md', '.markdown'}:

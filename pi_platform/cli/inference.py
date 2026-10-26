@@ -35,6 +35,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import platform as _platform
@@ -292,7 +293,11 @@ def _benchmark_client(args):
             headers=headers,
         )
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            response.read()
+            result = json.loads(response.read(1024 * 1024))
+        rows = result.get("data", []) if isinstance(result, dict) else []
+        vector = rows[0].get("embedding", []) if rows and isinstance(rows[0], dict) else []
+        if len(vector) != 768 or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in vector):
+            raise ValueError("benchmark endpoint did not return a valid 768-dimensional embedding")
 
     return embed, endpoint
 
