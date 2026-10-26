@@ -1,5 +1,6 @@
 """Regression evidence for portable runtime/Wiki migration review."""
 import importlib.util
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -95,7 +96,8 @@ class AcceptedVersionTests(unittest.TestCase):
         self.assertIsNotNone(monitor.poll_once())
 
 class LauncherStartupTests(unittest.TestCase):
-    @unittest.skipUnless(__import__('shutil').which('bash'), 'bash required')
+    @unittest.skipUnless(os.name != 'nt' and __import__('shutil').which('bash'),
+                         'POSIX launcher fixture; Windows uses native PowerShell launcher tests')
     def test_gpu_device_probe_success_but_startup_failure_falls_back(self):
         import os
         import shutil

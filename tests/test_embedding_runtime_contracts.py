@@ -1,5 +1,6 @@
 """Exact vendor prompt, batch, loader and safe device regression contracts."""
 import math
+from pathlib import Path
 import sys
 from types import SimpleNamespace
 import unittest
@@ -91,7 +92,7 @@ class EmbeddingRuntimeContracts(unittest.TestCase):
         kwargs = constructor.call_args.kwargs
         self.assertEqual(kwargs['config_kwargs'], {'audio_config':None})
         self.assertEqual(kwargs['model_kwargs']['torch_dtype'], 'float32')
-        self.assertEqual(kwargs['cache_folder'], '/tmp/model-cache/hub')
+        self.assertEqual(Path(kwargs['cache_folder']), Path('/tmp/model-cache') / 'hub')
         self.assertEqual(kwargs['revision'], adapter.profile().model_revision)
 
     def test_gemma_passes_image_pixels_to_multimodal_encoder(self):
