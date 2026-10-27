@@ -242,7 +242,7 @@ The full ordered task list lives in [`openspec/changes/plan-v0-8-platform-archit
 
 ### Standalone container / Docker Compose (end users)
 
-Every merge into `dev` / `development` publishes a self-contained OCI image to GitHub Container Registry (`ghcr.io/shkirmantsev/project-intelligence:dev`). Any user can start the platform against their own repository with Docker or Docker Compose without installing the development harness:
+After its production checks succeed, each merge into `dev` / `development` publishes a self-contained OCI image to GitHub Container Registry under the corresponding branch tag (`:dev` / `:development`). Any user can start the platform against their own repository with Docker or Docker Compose without installing the development harness:
 
 ```bash
 # Start with Docker Compose (default single-container headless or desktop-lite profile)
@@ -251,8 +251,12 @@ PI_TARGET_REPO="$(pwd)" docker compose --profile core-headless up -d
 PI_TARGET_REPO="$(pwd)" docker compose --profile desktop-lite up -d
 
 # Or run the OCI container directly:
-docker run --rm -p 8765:8765 -v "$(pwd):/repo:rw" ghcr.io/shkirmantsev/project-intelligence:dev
+docker run --pull=always --rm -p 8765:8765 -v "$(pwd):/repo:rw" ghcr.io/shkirmantsev/project-intelligence:dev
 ```
+
+For the container-only setup kit and existing-install upgrades, follow the
+[installation guide](docs/PRODUCTION_INSTALL.md#ensure-you-receive-the-merged-revision).
+Fetching the latest kit preserves existing exported files and their image pin.
 
 Once started, the container automatically hydrates and reconciles `/repo` and exposes:
 - Web UI & Control Plane: `http://localhost:8765/`

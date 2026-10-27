@@ -58,6 +58,10 @@ upgrade explicitly using a separately exported kit and its tested image digest.
 
 The publication workflow builds and tests PRs without publishing. Pushes to dev,
 development and main publish the tested image and a digest-bound deployment kit.
+Publication completes after the production gates; the independent core job can
+finish earlier. Branch-tagged kit fetches use `docker run --pull=always` to avoid
+local stale tags. Export preserves existing files, so upgrading an installed kit
+requires adopting its new digest and checking any `PI_IMAGE` override.
 Local tests do not prove that a remote branch alias exists. Physical Windows/CUDA
 acceptance and remote publication must be recorded separately from software tests.
 The broader portable-OCI change remains active until its acceptance is complete.

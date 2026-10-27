@@ -185,7 +185,7 @@ a8063e1f1523a395a15a20c1508e6e127f8dc2d8cff3e31748a5fe0136bbc801  ./.ai/wiki/adr
 74afc16882f5a7bbe6719b8aef5b07c33ec4e5220f4380fc3c4da80ce23aa4d0  ./.ai/wiki/adr/0030-llm-wiki-as-curated-knowledge.md
 ed006694a7ef0637162b2730c2c2e21b412fa30eefdfd1757881267ce545a6ec  ./.ai/wiki/architecture/embedding-profile-identity.md
 b721c1e17149f490c9ec99d9e277dfafcb3db750a453b4bee1a3de9dbfa710f9  ./.ai/wiki/architecture/platform-overview.md
-421c05c11eeb7ca4020622787d021a73e9e636512166fd337bad2b771ecda99e  ./.ai/wiki/architecture/portable-deployment.md
+68b68683852372c91a8e1f61a1366531301b85ccf548cd6f7cbaf52f2e564a74  ./.ai/wiki/architecture/portable-deployment.md
 2184f13b8c7c080caddecfaee3b82a2e81a2e1e9b65010d7f4a8bad3c9817b85  ./.ai/wiki/architecture/retrieval-candidate-selection.md
 67d4adb93b0730d7a8d934c79f18131d51f861ec446cec855cf2ae0f14bf04fc  ./.ai/wiki/architecture/rich-document-graph.md
 bad4654d03b153ae827cf5526f728b085f7d2fc7a5fb916077666e454d1a27e3  ./.ai/wiki/architecture/system-overview.md
@@ -309,13 +309,13 @@ aa01697f5d1d3de0ebce837bbc01e51392b9cb6d8e9d20ede5f79bb8a2e2a9a9  ./AGENT.md
 6513830ea350bccc77a0c4cd48398b1ca5a82b82376ae635eb603cad681d027d  ./Makefile
 04cb5b15c9b21bb57f37838bbc01ccce6e639f056e5b922912de95fb0b2adfc0  ./NOTICE
 682bb521ef486840d1421274df1e9b59345a202a339817306edd0ae194b9f815  ./ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md
-643bc4ec013bfb0a2e65a6a3074ce9d9eefc56e184b5174e000fee7661235b9c  ./README.md
+f305e6af3f13d813add37aed33ef3b477cf4412b76e229b46d265913dc2cb3ee  ./README.md
 e1d49c569ae09b2ede16e2d83820a3809b35eb6c44c13ba9b5330598d6b8f43c  ./VERSION
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution/claude-code/.gitkeep
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution/codex/.gitkeep
 a32e267cadfc8a6e636d2d5402b5bf7d01052234ceaa9b2d9cb5573ee1422f26  ./distribution/deployment/.gitignore
 ca1c7114c27988e58d63ddf694f0011755ba522bc19666c226e72a2e7031b9be  ./distribution/deployment/Makefile
-fefb47ec4982ffe7b9f8983fa5992f875a8729167b4d79c068ce9a96ee849099  ./distribution/deployment/README.md
+c5efb75a1c44747b0addb88e822191532fefd42a308bccd7d5e64f71d0d0fb6b  ./distribution/deployment/README.md
 6a7a568641fc706e97264a162705ceffae8b6d0e212e23a4724032d633deb5a6  ./distribution/deployment/accelerator-lock.json
 1c3057ea432723b099f1ec54a3f116d5e8d02386506c9bb9bdda842c4e10e170  ./distribution/deployment/compose.accelerator.yaml
 795483e4f5efb4f577a4cd623b890e74c4d72d7aa487aa8fa14e99721ccd5700  ./distribution/deployment/compose.cpu.yaml
@@ -360,7 +360,7 @@ e52992a9e8ae5d45841b381abc4b50055a8a02395b371df32211821a648d3e2d  ./docs/HARNESS
 b3d845c0978db7bdecd71f13c359d6d58c48c3faf05359c044afeb3f9270a7be  ./docs/HERMES_NATIVE_SETUP.md
 e1ed0e8a22d26ecd35458aa3094117bb290d1706d99dddc08ec559db2eb495e8  ./docs/HERMES_REMOTE_AGENT_INSTRUCTION.md
 e1c310bd2cf495dfb8c768be0f874201b6255cffe95ef1d81fd26bd3a13f2f9b  ./docs/OPENCODE_COMPATIBILITY.md
-449e15ed85dc20fd19c37e566a65b7200bbaa187defd18c338dba75c3ab86984  ./docs/PRODUCTION_INSTALL.md
+aca9b451d3f734e22d482cdcdc7a52671b06901afa204480b07b6eecc80ad762  ./docs/PRODUCTION_INSTALL.md
 0aa2d489176417d3fb61133e0cedd1c616ccb814b861700ea8e4289e9e672ecf  ./docs/PRODUCTION_LICENSE_REVIEW.md
 ad963e82310827d994914560c337e41ca157e611c48451054056c121f4679d26  ./docs/PRODUCTION_RECONCILIATION_STATUS.md
 e5d3b84145be7110d7e5106b16b18ac7cda33f6fd788706cf9ad431c52e8737d  ./docs/PROJECT_STRUCTURE.md

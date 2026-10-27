@@ -143,6 +143,20 @@ to http://localhost:8765, bound to loopback. Materialisation needs APPROVAL_TOKE
 Published kits pin the tested application image digest and pinned accelerator
 assets. To upgrade, export a new kit into a separate directory, compare files,
 then update your existing kit deliberately. Export never overwrites your files.
+Use `docker run --pull=always` when fetching a branch-tagged kit; otherwise
+Docker may reuse a cached older image. Wait for the production publication job
+for the desired merge, not just the independent core-image job. To inspect the
+current kit pin without exporting files:
+
+```bash
+docker run --pull=always --rm --entrypoint cat ghcr.io/shkirmantsev/project-intelligence-deployment:dev /bundle/compose.yaml
+```
+
+An existing `PI_IMAGE` in `deployment.env` or the shell overrides the Compose
+pin. Update that override to the new kit's digest for an image-only upgrade,
+then run `start.sh` / `start.ps1` to recreate the service. A container restart
+does not change its image. Preserve local configuration and any sidecar patches.
+
 SHA tags are retained without an automatic expiry/cleanup job. Registry owners
 can delete packages; keep a local archive if permanent independent retention
 is required. Files also live in Git under distribution/deployment/.
