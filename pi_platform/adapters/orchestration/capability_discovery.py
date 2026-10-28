@@ -40,6 +40,7 @@ class DefaultCapabilityDiscoveryAdapter(DefaultCapabilityDiscovery):
         materialisation: object = None,
         local_llm: object = None,
         a2a: object = None,
+        dependency_research: object = None,
     ) -> None:
         super().__init__(
             server_version=server_version,
@@ -51,6 +52,7 @@ class DefaultCapabilityDiscoveryAdapter(DefaultCapabilityDiscovery):
             materialisation=materialisation,
             local_llm=local_llm,
             a2a=a2a,
+            dependency_research=dependency_research,
         )
         self._name = ADAPTER_NAME
 

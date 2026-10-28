@@ -314,6 +314,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     a2a_serve.add_argument("--host", default=DEFAULT_UI_HOST)
     a2a_serve.add_argument("--port", type=int, default=8766)
+    a2a_serve.add_argument(
+        "--target", default=".",
+        help="the project directory the research service reads",
+    )
 
     pkg_plugins = sub.add_parser(
         "package-plugins",
@@ -909,6 +913,15 @@ def _build_embedded_mcp_and_a2a(
     from ..mcp.server import McpServer
     from ..mcp.skill_plane import SkillDistributionPlane
 
+    from ..adapters.research.composition import (
+        build_dependency_research_service,
+    )
+
+    # One research service serves both transports, so an MCP answer and
+    # an A2A answer can never disagree.
+    research = build_dependency_research_service(
+        project_root=target, cache_root=cache_root)
+
     mcp_ctx = build_default_tool_context(
         debug_mode=debug_mode,
         repo_root=target,
@@ -920,6 +933,7 @@ def _build_embedded_mcp_and_a2a(
         ),
         orchestrator=getattr(service, "_orchestrator", None),
         boundary=getattr(service, "_approval", None),
+        dependency_research=research,
     )
     mcp_server = McpServer(context=mcp_ctx)
 
@@ -943,6 +957,7 @@ def _build_embedded_mcp_and_a2a(
     a2a_adapter = A2aAdapterCore(
         flags_provider=_flags_provider,
         policy_gate=lambda **_: "ALLOW" if a2a_inbound else "DENY",
+        research=research,
     )
     agent_card = AgentCardBuilder(
         descriptor={
@@ -955,18 +970,37 @@ def _build_embedded_mcp_and_a2a(
                     "version": "1.0",
                 }
             },
-            "skills": [
-                {
-                    "id": "project-intelligence",
-                    "description": "Retrieval-first project intelligence",
-                    "tags": ["retrieval", "mcp", "okf"],
-                }
-            ],
+            "skills": _agent_card_skills(research is not None),
         },
         flags_provider=_flags_provider,
         published=a2a_inbound,
     )
     return mcp_server, skill_plane, a2a_adapter, agent_card
+
+
+def _agent_card_skills(research_wired: bool) -> list:
+    """The skills the agent card advertises.
+
+    The research skill is advertised only when the research service is
+    actually wired: a card must not promise a capability the server
+    does not have.
+    """
+
+    skills = [
+        {
+            "id": "project-intelligence",
+            "description": "Retrieval-first project intelligence",
+            "tags": ["retrieval", "mcp", "okf"],
+        },
+    ]
+    if research_wired:
+        skills.append({
+            "id": "dependency-research",
+            "description": ("Evidence-backed dependency graphs and bounded "
+                            "library code for Java, Python and Node"),
+            "tags": ["research", "dependencies", "evidence"],
+        })
+    return skills
 
 
 def _cmd_health(args: argparse.Namespace) -> int:
@@ -1198,11 +1232,18 @@ def _cmd_a2a_serve(args: argparse.Namespace) -> int:
         A2aHttpServer,
         A2aHttpServerConfig,
     )
+    from ..adapters.research.composition import (
+        build_dependency_research_service,
+    )
     from ..core.a2a import A2aAdapterCore, AgentCardBuilder
+
+    target = Path(getattr(args, "target", None) or os.getcwd())
+    research = build_dependency_research_service(project_root=target)
 
     adapter = A2aAdapterCore(
         flags_provider=lambda _: True,
         policy_gate=lambda **_: "ALLOW",
+        research=research,
     )
     card = AgentCardBuilder(
         descriptor={
@@ -1215,13 +1256,7 @@ def _cmd_a2a_serve(args: argparse.Namespace) -> int:
                     "version": "1.0",
                 }
             },
-            "skills": [
-                {
-                    "id": "project-intelligence",
-                    "description": "Retrieval-first project intelligence",
-                    "tags": ["retrieval", "mcp", "okf"],
-                }
-            ],
+            "skills": _agent_card_skills(research is not None),
         },
         flags_provider=lambda _: True,
         published=True,

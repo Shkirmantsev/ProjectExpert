@@ -124,6 +124,10 @@ class ToolContext:
     cache_root: Optional[Path] = None
     trace_store: Optional[RetrievalTraceStorePort] = None
     debug_mode: bool = False
+    #: The shared dependency research service. ``None`` means the
+    #: deployment does not offer dependency research; the tools then
+    #: report that instead of answering with a placeholder.
+    dependency_research: Optional[object] = None
 
 
 # Default server identity used by both the MCP server and the
@@ -187,6 +191,15 @@ WIKI_TOOLS: tuple[str, ...] = (
 # an explicit ``debug_mode=True`` on the :class:`ToolContext`).
 DEBUG_TOOLS: tuple[str, ...] = (
     "project.get_retrieval_trace",
+)
+
+#: The dependency research tools. They call the shared research
+#: service; the handlers only validate and translate.
+DEPENDENCY_RESEARCH_TOOLS: tuple[str, ...] = (
+    "project.dependency_tree",
+    "project.dependency_search",
+    "project.dependency_read",
+    "project.dependency_acquire",
 )
 
 
@@ -524,16 +537,194 @@ async def _tool_get_architecture(ctx: ToolContext,
             "architecture": {"note": "Wiki architecture index"}}
 
 
+def _research(ctx: ToolContext):
+    """Return the research service or raise a typed error."""
+
+    service = getattr(ctx, "dependency_research", None)
+    if service is None:
+        raise McpServerError(
+            "dependency research is not enabled in this deployment")
+    return service
+
+
+def _research_error(exc: Exception) -> Mapping[str, Any]:
+    """Translate a research failure into a structured tool response."""
+
+    from pi_platform.core.research.records import (
+        ResearchDenied,
+        ResearchUnsupported,
+        StaleResearchCursor,
+    )
+
+    if isinstance(exc, ResearchDenied):
+        status = "denied"
+    elif isinstance(exc, ResearchUnsupported):
+        status = "unsupported"
+    elif isinstance(exc, StaleResearchCursor):
+        status = "stale"
+    else:
+        status = "failed"
+    return {"ok": False, "status": status,
+            "error": {"type": exc.__class__.__name__, "message": str(exc)}}
+
+
+def _research_result(result: Any) -> Mapping[str, Any]:
+    """Translate a research result into the tool response shape."""
+
+    payload = result.as_dict() if hasattr(result, "as_dict") else dict(result)
+    status = str(payload.get("status", "failed"))
+    return {
+        "ok": status in ("complete", "partial"),
+        "research": payload,
+        "status": status,
+        "completeness": payload.get("completeness"),
+        "warnings": list(payload.get("warnings", ())),
+        "truncated": bool(payload.get("truncated", False)),
+        "cursor": payload.get("cursor"),
+    }
+
+
 async def _tool_get_dependency(ctx: ToolContext,
                                arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Look a Maven coordinate up in the real dependency graph.
+
+    The input shape is the historical one -- ``group``, ``artifact``
+    and ``version`` -- and it is preserved. The answer is now real
+    evidence: the versions the project actually resolves, or an
+    explicit statement that the graph does not contain the
+    coordinate. A placeholder is never returned as a successful
+    analysis.
+    """
+
     await _enforce_readiness(ctx)
     group = _require(arguments, "group")
     artifact = _require(arguments, "artifact")
     version = _require(arguments, "version")
+    coordinate = f"{group}:{artifact}"
+    service = getattr(ctx, "dependency_research", None)
+    if service is None:
+        return {"ok": False, "dependency": {
+            "group": group, "artifact": artifact, "version": version,
+            "status": "unavailable",
+            "reason": "dependency research is not enabled in this deployment",
+        }}
+    from pi_platform.ports.research.dependency_research import DependencyTreeRequest
+
+    result = service.tree(DependencyTreeRequest(ecosystem="java",
+                                                package=coordinate))
+    payload = result.as_dict()
+    matches = [node for node in payload.get("nodes", ())
+               if node.get("package", {}).get("name") == coordinate]
+    resolved = [node.get("package", {}).get("resolvedVersion")
+                for node in matches]
+    resolved = [item for item in resolved if item]
+    declared = [node.get("package", {}).get("declaredConstraint")
+                for node in matches]
+    declared = [item for item in declared if item]
+    if not matches:
+        return {"ok": False, "dependency": {
+            "group": group, "artifact": artifact, "version": version,
+            "status": "unavailable",
+            "reason": ("the dependency graph does not contain this coordinate; "
+                       "the project declares it but no lock resolves it"),
+            "warnings": list(payload.get("warnings", ())),
+        }}
+    exact = [item for item in resolved if item == version]
+    declared_exact = [item for item in declared if item == version]
     return {"ok": True, "dependency": {
         "group": group, "artifact": artifact, "version": version,
-        "note": "metadata lookup; full record requires JAR-graph inspection",
+        "status": "complete" if (exact or declared_exact) else "partial",
+        "resolvedVersions": resolved,
+        "declaredVersions": declared,
+        "resolved": bool(exact),
+        "instances": matches,
+        "evidence": list(payload.get("evidence", ())),
+        "warnings": list(payload.get("warnings", ())),
     }}
+
+
+async def _tool_dependency_tree(ctx: ToolContext,
+                                arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    await _enforce_readiness(ctx)
+    from pi_platform.core.research.policy import ResearchLimits
+    from pi_platform.ports.research.dependency_research import DependencyTreeRequest
+
+    service = _research(ctx)
+    limits = ResearchLimits(
+        max_nodes=int(_optional(arguments, "max_nodes", 100)),
+        max_depth=int(_optional(arguments, "max_depth", 5)),
+    )
+    scopes = tuple(str(item) for item in (_optional(arguments, "scopes", ()) or ()))
+    try:
+        result = service.tree(DependencyTreeRequest(
+            ecosystem=str(_require(arguments, "ecosystem")),
+            package=_optional(arguments, "package"),
+            environment=str(_optional(arguments, "environment", "default")),
+            scopes=scopes,
+            limits=limits,
+            cursor=_optional(arguments, "cursor"),
+        ))
+    except Exception as exc:  # noqa: BLE001 - the tool boundary is wide
+        return _research_error(exc)
+    return _research_result(result)
+
+
+async def _tool_dependency_search(ctx: ToolContext,
+                                  arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    await _enforce_readiness(ctx)
+    from pi_platform.ports.research.dependency_research import DependencySearchRequest
+
+    service = _research(ctx)
+    try:
+        result = service.search(DependencySearchRequest(
+            ecosystem=str(_require(arguments, "ecosystem")),
+            package_ref=str(_require(arguments, "package_ref")),
+            query=str(_require(arguments, "query")),
+            limit=int(_optional(arguments, "limit", 20)),
+            cursor=_optional(arguments, "cursor"),
+        ))
+    except Exception as exc:  # noqa: BLE001 - the tool boundary is wide
+        return _research_error(exc)
+    return _research_result(result)
+
+
+async def _tool_dependency_read(ctx: ToolContext,
+                                arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    await _enforce_readiness(ctx)
+    from pi_platform.ports.research.dependency_research import DependencyReadRequest
+
+    service = _research(ctx)
+    try:
+        result = service.read(DependencyReadRequest(
+            evidence_ref=str(_optional(arguments, "evidence_ref", "")),
+            artifact=_optional(arguments, "artifact"),
+            member=_optional(arguments, "member"),
+            symbol=_optional(arguments, "symbol"),
+            start_line=_optional(arguments, "start_line"),
+            end_line=_optional(arguments, "end_line"),
+            max_bytes=_optional(arguments, "max_bytes"),
+        ))
+    except Exception as exc:  # noqa: BLE001 - the tool boundary is wide
+        return _research_error(exc)
+    return _research_result(result)
+
+
+async def _tool_dependency_acquire(ctx: ToolContext,
+                                   arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+    await _enforce_readiness(ctx)
+    from pi_platform.ports.research.dependency_research import DependencyAcquireRequest
+
+    service = _research(ctx)
+    try:
+        result = service.acquire(DependencyAcquireRequest(
+            ecosystem=str(_require(arguments, "ecosystem")),
+            name=str(_require(arguments, "name")),
+            version=str(_require(arguments, "version")),
+            source_id=str(_require(arguments, "source_id")),
+        ))
+    except Exception as exc:  # noqa: BLE001 - the tool boundary is wide
+        return _research_error(exc)
+    return _research_result(result)
 
 
 async def _tool_find_implementation(ctx: ToolContext,
@@ -779,11 +970,17 @@ async def _tool_wiki_read_page(ctx: ToolContext,
 
     path = _require(arguments, "path")
     include_body = bool(_optional(arguments, "include_body", True))
+    inputs = _optional(arguments, "inputs") or {}
     try:
-        page = _wiki(ctx).read_page(str(path))
+        wiki = _wiki(ctx)
+        page = wiki.read_page(str(path))
     except LlmWikiError as exc:
         return {"ok": False, "error": str(exc)}
-    return {"ok": True, "page": page.as_dict(include_body=include_body)}
+    payload = page.as_dict(include_body=include_body)
+    if isinstance(inputs, Mapping) and inputs:
+        payload["staleNotes"] = wiki.stale_dependency_notes(
+            str(path), inputs=inputs)
+    return {"ok": True, "page": payload}
 
 
 async def _tool_wiki_search(ctx: ToolContext,
@@ -820,6 +1017,8 @@ async def _tool_wiki_write_page(ctx: ToolContext,
     author = str(_optional(arguments, "author", "calling-llm"))
     source = str(_optional(arguments, "source", ""))
     dry_run = bool(_optional(arguments, "dry_run", False))
+    expected_revision = _optional(arguments, "expected_revision")
+    dependency_notes = _optional(arguments, "dependency_notes") or ()
     try:
         wiki = _wiki(ctx)
         wiki.ensure_scaffold()
@@ -832,6 +1031,10 @@ async def _tool_wiki_write_page(ctx: ToolContext,
             author=author,
             source=source,
             dry_run=dry_run,
+            expected_revision=(str(expected_revision)
+                               if expected_revision else None),
+            dependency_notes=tuple(
+                note for note in dependency_notes if isinstance(note, Mapping)),
         )
     except LlmWikiError as exc:
         return {"ok": False, "error": str(exc)}
@@ -886,6 +1089,10 @@ TOOL_REGISTRY: dict[str, ToolHandler] = {
     "project.wiki_search": _tool_wiki_search,
     "project.wiki_write_page": _tool_wiki_write_page,
     "project.wiki_validate": _tool_wiki_validate,
+    "project.dependency_tree": _tool_dependency_tree,
+    "project.dependency_search": _tool_dependency_search,
+    "project.dependency_read": _tool_dependency_read,
+    "project.dependency_acquire": _tool_dependency_acquire,
 }
 
 

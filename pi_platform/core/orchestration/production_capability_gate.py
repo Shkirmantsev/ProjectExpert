@@ -356,6 +356,77 @@ def _probe_documents_backend() -> GateVerdict:
     )
 
 
+def _probe_dependency_research() -> GateVerdict:
+    """Fail the build when the research capability only acknowledges.
+
+    The dependency research capability must answer with **evidence**: a
+    status, the nodes it could resolve and the warnings that explain
+    what it could not. An acknowledgement ("ok") or an echo of the
+    requested coordinates is not a capability, and the gate says so.
+    """
+
+    name = "dependency-research:evidence"
+    try:
+        from pi_platform.adapters.research.composition import (
+            build_dependency_research_service,
+        )
+        from pi_platform.ports.research.dependency_research import (
+            DependencyTreeRequest,
+        )
+    except ImportError as exc:  # pragma: no cover - the module ships
+        return GateVerdict(
+            state="FAIL", name=name,
+            detail=f"the dependency research service is not importable: {exc}",
+        )
+    try:
+        service = build_dependency_research_service(project_root=REPO_ROOT_HINT)
+        result = service.tree(DependencyTreeRequest(ecosystem="python"))
+    except Exception as exc:  # noqa: BLE001 - the gate must not crash
+        return GateVerdict(
+            state="FAIL", name=name,
+            detail=f"the dependency research service failed: {exc}",
+        )
+    payload = result.as_dict()
+    status = payload.get("status")
+    if status not in ("complete", "partial", "unavailable"):
+        return GateVerdict(
+            state="FAIL", name=name,
+            detail=(
+                f"the research answer carries the status {status!r}; an "
+                "acknowledgement is not a capability"
+            ),
+        )
+    if "nodes" not in payload or "warnings" not in payload:
+        return GateVerdict(
+            state="FAIL", name=name,
+            detail=("the research answer has no nodes and no warnings; it "
+                    "does not report what it could not resolve"),
+        )
+    nodes = payload.get("nodes") or ()
+    if nodes:
+        evidence = payload.get("evidence") or ()
+        if not evidence:
+            return GateVerdict(
+                state="FAIL", name=name,
+                detail=("the research answer reports nodes without any "
+                        "evidence reference"),
+            )
+        names = {node.get("package", {}).get("name") for node in nodes}
+        if len(names) < 2:
+            return GateVerdict(
+                state="FAIL", name=name,
+                detail=("the research answer echoes a single coordinate "
+                        "instead of a dependency graph"),
+            )
+    return GateVerdict(
+        state="PASS", name=name,
+        detail=(
+            f"the research capability answers with evidence (status={status}, "
+            f"nodes={len(nodes)})"
+        ),
+    )
+
+
 def run_production_capability_gate(
     *,
     inventory_path: Path | None = None,
@@ -412,6 +483,7 @@ def run_production_capability_gate(
     if runtime_checks:
         verdicts.append(_probe_dense_backend())
         verdicts.append(_probe_documents_backend())
+        verdicts.append(_probe_dependency_research())
 
     skipped = tuple(
         GateVerdict(
