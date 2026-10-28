@@ -312,7 +312,7 @@ aa01697f5d1d3de0ebce837bbc01e51392b9cb6d8e9d20ede5f79bb8a2e2a9a9  ./AGENT.md
 6513830ea350bccc77a0c4cd48398b1ca5a82b82376ae635eb603cad681d027d  ./Makefile
 04cb5b15c9b21bb57f37838bbc01ccce6e639f056e5b922912de95fb0b2adfc0  ./NOTICE
 682bb521ef486840d1421274df1e9b59345a202a339817306edd0ae194b9f815  ./ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md
-179591f21cf65975b261332e20a1b082741e1a3fddce83d4e1b2aefa2491646a  ./README.md
+e49dd5f38a746a3f721abd5698559da75af990df14d7c6553cb72e7b68465743  ./README.md
 e1d49c569ae09b2ede16e2d83820a3809b35eb6c44c13ba9b5330598d6b8f43c  ./VERSION
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution/claude-code/.gitkeep
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution/codex/.gitkeep
@@ -381,7 +381,7 @@ f11c23c839ea6dbe4d856afa76c6863d5fb65f9e601c230dd4a61f0389f92477  ./docs/RUNTIME
 0b6014cf29eca1ebe2f4c80caeecf811f5e992c3ef926abb0e08a6677c5b5386  ./docs/SKILLS.md
 d581f187424b23b09a0e1d6822b262df9da122de145d8f64d8be77210c1db6fd  ./docs/THIRD_PARTY_SKILLS.md
 c9bb47bc3e6a7b1ef951048160e9ba299fbd2acc232ecd102127b9ebd9f3d282  ./docs/TROUBLESHOOTING.md
-3e1b3e8e8d40d98ecfcacc02ce5568280a904e46cbd13ac14ba01fac904baa7f  ./docs/USER_GUIDE.md
+b4252af7a9ce8aeca1b3354eaef0c11c2faafef42056604c7ccfc2c1849a18de  ./docs/USER_GUIDE.md
 daf96fcf6bca5e14b713b2f4f4627d90ad4b354c711fe2a6f8ad7e902785b12a  ./docs/WEB_STACK.md
 56e30dc4073fd4045ae8ba1c95b3d978ebc6bd9276068765fede0cf7fe780e43  ./docs/conventions/README.md
 c50074f4bf6a729e73137213c667f9616c38ce86c0c0d86c6d2fefd3d51be736  ./docs/conventions/architecture-and-design.md

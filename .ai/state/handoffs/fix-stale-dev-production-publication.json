@@ -1,0 +1,69 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Merge run 40419063291 and live registry match; kit pins runtime 0f98468c577d3cc4e8e98a28dd6d8bf82ce7bfbeee48b1de7d252f805fd88647. Other project not modified."
+  ],
+  "decisions": [
+    "Publication succeeds; fixed documentation for cached tags and preserved image pins; no behavior contract change"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Live GHCR and merge job confirm production 0f98468 and kit 6c0e760 published for 8ac6fc6; freshly pulled kit pins matching runtime",
+      "Corrected setup commands to always pull branch tags and documented explicit existing-kit upgrade"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-27T07:21:09+00:00",
+    "id": "fix-stale-dev-production-publication",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-27T07:27:24+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Identify failed production gate, fix with regression coverage, verify harness and document publication status"
+    ],
+    "goal": "Fix stale production and deployment kit images after dev merge using failing publication evidence",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full harness PASS with local socket permission; OCI workflow tests 3 PASS; manifest and diff checks PASS"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": ".ai/wiki/architecture/portable-deployment.md",
+      "sha256": "68b68683852372c91a8e1f61a1366531301b85ccf548cd6f7cbaf52f2e564a74"
+    },
+    {
+      "path": "README.md",
+      "sha256": "f305e6af3f13d813add37aed33ef3b477cf4412b76e229b46d265913dc2cb3ee"
+    },
+    {
+      "path": "distribution/deployment/README.md",
+      "sha256": "c5efb75a1c44747b0addb88e822191532fefd42a308bccd7d5e64f71d0d0fb6b"
+    },
+    {
+      "path": "docs/PRODUCTION_INSTALL.md",
+      "sha256": "aca9b451d3f734e22d482cdcdc7a52671b06901afa204480b07b6eecc80ad762"
+    }
+  ]
+}

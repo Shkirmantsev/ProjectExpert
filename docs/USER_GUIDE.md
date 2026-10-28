@@ -28,8 +28,9 @@ the port is exposed from (loopback by default).
 
 ## The built-in web UI
 
-Open `http://localhost:8765/` and start with a concrete question about the
-project you mounted, for example:
+Open `http://localhost:8765/`. In **1. Ask a project question**, type a
+question and select **Ask**. Start with a concrete question about the project
+you mounted, for example:
 
 - “Where is order validation implemented?”
 - “Which requirement covers this endpoint?”
@@ -132,6 +133,23 @@ configuration — never in this repository or the exported kit.
    knowledge; the page becomes searchable after the next project refresh.
 5. When something fails, go to [troubleshooting](TROUBLESHOOTING.md); for
    settings and precedence see [configuration](CONFIGURATION.md).
+
+## Detailed capability limits
+
+| Area | Current support and limits |
+|---|---|
+| Java (Maven/Gradle) | Declared dependencies are read from `pom.xml` / `build.gradle`. The transitive closure is **not** resolved automatically, because a dependency-tree command executes project code; an explicitly selected local Maven repository supplies installed versions. |
+| Python | `uv.lock` (lockfile version 1) and `poetry.lock` (lock versions 1.1, 2.0, 2.1) are read; `pyproject.toml` and `requirements*.txt` give the declared constraints; an explicitly selected environment's dist-info metadata gives installed versions. A declaration is never reported as a resolution. |
+| Node/JavaScript/TypeScript | `package.json`, `package-lock.json` (npm lockfile versions 1, 2, 3), `pnpm-lock.yaml` (lockfile versions 6.0 and 9.0) and `yarn.lock` (Yarn classic v1 and Yarn berry lockfile v2–v8) are read. Source symbols come from the tree-sitter JavaScript/TypeScript grammars, which are **optional**: without them the Node source evidence is partial and the capability report says so. |
+| Dependency research tools over MCP | `project.dependency_tree`, `project.dependency_search`, `project.dependency_read`, `project.dependency_acquire`. `project.get_dependency` keeps its original Maven argument shape (group, artifact, version) and answers from the real dependency graph. |
+| Over A2A | The same research is available through a versioned envelope `{"schema_version":1,"operation":"dependency.tree","arguments":{...}}` with the allowlisted operations `dependency.tree`, `dependency.search`, `dependency.read`, `dependency.acquire`. An unknown operation is rejected; it never succeeds as an acknowledgement. |
+| Artifact acquisition | Downloads an exact name+version from an **approved source only**, verifies the digest, refuses a redirect that leaves the approved hosts, and never runs package code. It is disabled unless the operator names approved sources (`PI_RESEARCH_SOURCES`, comma separated, e.g. `pypi,npm,maven-central`). |
+| Reconstructed code | A disassembly is not recovered source and is labelled as such; a decompilation is a reconstruction. No decompiler is bundled. Native binaries are never decompiled. |
+| Curated Wiki | `project.wiki_search`, `project.wiki_read_page`, `project.wiki_write_page`, `project.wiki_validate`. A write presents the revision it read (`expected_revision`); a changed page yields a conflict instead of an overwrite. A page becomes part of the searchable corpus on the next project refresh. |
+
+Language-by-language examples, provenance and Wiki reuse are in
+[dependency research](docs/DEPENDENCY_RESEARCH.md).
+
 
 ## Related pages
 

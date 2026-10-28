@@ -1,0 +1,55 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "PR 11 is open against dev; development is also covered by workflow push triggers. No workflow edits, merge, push or publication performed.",
+    "Existing digest-pinned kits need explicit upgrade; no new OpenSpec requirement is needed"
+  ],
+  "decisions": [
+    "No publication defect found; preserve working workflow and existing OpenSpec contracts"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Verified push triggers and publication conditions cover dev, development and main",
+      "Confirmed run 39864014480 published production and dev digest 9884dc80dd5521f17a046d33216f6e1f65989a4434bb4cfff2568457f702a62c plus digest-bound deployment kit",
+      "Confirmed PR 11 remains open with base dev; PR jobs do not publish by design"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-26T22:48:37+00:00",
+    "id": "check-development-image-publication",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-26T22:49:24+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Trace merge publication trigger and latest execution; fix confirmed gaps with regression evidence"
+    ],
+    "goal": "Verify and fix container refresh after merging into development",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "GitHub publication job 120121737276 logs confirm runtime and kit pushes plus dev/production alias promotion succeeded",
+      "Three local OCI workflow contract tests PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
