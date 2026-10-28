@@ -35,6 +35,8 @@ project product.
 | [Ingestion pipeline driver](specs/2026-10-04-ingestion-pipeline-driver/spec.md) |
 | [Python dependency intelligence](specs/2026-10-26-python-dependency-intelligence/spec.md) |
 | [Jar dependency intelligence](specs/2026-10-04-jar-dependency-intelligence/spec.md) |
+| [Dependency research](specs/2026-10-28-dependency-research/spec.md) |
+| [JavaScript dependency intelligence](specs/2026-10-28-javascript-dependency-intelligence/spec.md) |
 | [Local source inbox](specs/2026-10-04-local-source-inbox/spec.md) |
 | [Openspec change adapter](specs/2026-10-04-openspec-change-adapter/spec.md) |
 | [Semantic structural chunking](specs/2026-10-04-semantic-structural-chunking/spec.md) |
@@ -84,6 +86,7 @@ project product.
 | [OKF wiki profile distribution](specs/2026-10-11-okf-wiki-profile-distribution/spec.md) |
 | [One-click distribution](specs/2026-10-11-one-click-distribution/spec.md) |
 | [A2A adapter](specs/2026-10-12-a2a-adapter/spec.md) |
+| [User onboarding](specs/2026-10-28-user-onboarding/spec.md) |
 | [External coding agent integration](specs/2026-10-12-external-coding-agent-integration/spec.md) |
 | [Integration quality gates](specs/2026-10-12-integration-quality-gates/spec.md) |
 | [Retrieval candidate selection](specs/2026-10-16-retrieval-candidate-selection/spec.md) |
@@ -201,3 +204,39 @@ statements above describe their respective verification runs, not universal limi
 
 The completed review change is archived as
 `2026-10-26-add-python-dependency-intelligence`; its evidence and limits are retained.
+
+## Dependency research, Wiki enrichment and onboarding — 2026-10-28
+
+One shared dependency research service now answers dependency
+questions for Java, Python and Node with bounded, evidence-backed
+graphs, symbols and code. The MCP tools and the A2A adapter call that
+one service, so their answers match; a research request over A2A uses
+a versioned envelope and an unknown operation is rejected instead of
+succeeding as an acknowledgement. The historical Maven lookup keeps
+its argument shape and now answers from the real graph.
+
+Acquisition is an explicit, policy-controlled operation: an approved
+source, an exact name and version, a verified digest, a redirect that
+stays on the approved hosts and a bounded download. Inspection never
+reaches the network and never runs dependency code. A disassembly is
+labelled as a disassembly, a decompilation as a reconstruction, and no
+decompiler is bundled.
+
+The curated Wiki accepts a research enrichment with a content
+revision precondition: a page that changed in the meantime produces a
+conflict instead of an overwrite. The provenance of the research is
+stored with the page, a changed dependency marks the recorded evidence
+stale, and the write result separates the stored state from the
+indexed state.
+
+The exported deployment kit is help-first: bare `make` lists the
+commands and changes nothing, startup is explicit, the reported
+address is the effective one, and every launcher invocation uses the
+complete Compose topology so the healthy sidecars are no longer
+reported as orphans. Nothing is deleted automatically.
+
+The README and the new user, architecture and dependency-research
+guides describe the current behaviour. The completed change is
+archived as `2026-10-28-improve-dependency-research-and-onboarding`;
+its evidence, the scenario-to-test table and the environment
+limitations are retained there.
