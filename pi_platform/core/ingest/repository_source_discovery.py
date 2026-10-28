@@ -54,6 +54,9 @@ DEFAULT_INCLUDE_PATTERNS: tuple[str, ...] = (
     "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle",
     "settings.gradle.kts", "package.json", "requirements*.txt",
     "pyproject.toml", "requirements*.in", "Cargo.toml", "go.mod",
+    # Dependency lock files
+    "uv.lock", "poetry.lock", "package-lock.json", "pnpm-lock.yaml",
+    "yarn.lock",
     # Documentation
     "*.md", "*.rst", "*.adoc", "*.txt", "*.html", "*.htm", "*.pdf",
     "*.xml", "*.yaml", "*.yml", "*.json", "*.proto", "*.graphql", "*.sql",
@@ -109,6 +112,8 @@ _FAMILY_RULES: tuple[tuple[str, Sequence[str]], ...] = (
             "pom.xml", "build.gradle", "settings.gradle",
             "package.json", "requirements", "pyproject.toml",
             "Cargo.toml", "go.mod",
+            "uv.lock", "poetry.lock", "package-lock.json",
+            "pnpm-lock.yaml", "yarn.lock",
         ),
     ),
     (

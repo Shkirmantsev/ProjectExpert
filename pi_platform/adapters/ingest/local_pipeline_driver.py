@@ -12,6 +12,11 @@ instrumentation returned to the caller.
 from __future__ import annotations
 
 from pi_platform.adapters.python.intelligence import PythonManifestAdapter, PythonSourceAdapter, PythonWheelAdapter
+from pi_platform.adapters.research.lock_ingest import (
+    NodeLockAdapter,
+    NodeManifestAdapter,
+    PythonLockAdapter,
+)
 
 import time
 from pathlib import Path
@@ -140,6 +145,9 @@ def _default_parser_registry() -> SourceAdapterRegistry:
         PythonManifestAdapter(),
         PythonSourceAdapter(),
         PythonWheelAdapter(),
+        NodeManifestAdapter(),
+        NodeLockAdapter(),
+        PythonLockAdapter(),
         MavenAdapter(),
         GradleAdapter(),
         OpenSpecChangeAdapter(),
@@ -165,6 +173,9 @@ def _default_chunker_registry() -> ChunkerRegistry:
                 SourceContentFamily.PYTHON_WHEEL,
                 SourceContentFamily.MAVEN_POM,
                 SourceContentFamily.GRADLE_BUILD,
+                SourceContentFamily.PYTHON_LOCK,
+                SourceContentFamily.NODE_MANIFEST,
+                SourceContentFamily.NODE_LOCK,
             )
         ],
     ):
