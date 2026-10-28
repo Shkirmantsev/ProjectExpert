@@ -26,6 +26,8 @@ This module owns the storage contract:
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import re
 import tempfile
@@ -81,6 +83,22 @@ _SAFE_SEGMENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 # HTTP/MCP requests can mutate the same bundle concurrently in one server.
 _WIKI_WRITE_LOCK = threading.RLock()
 
+#: One lock per page. The compare-and-write of a research enrichment
+#: happens inside the lock of the page it enriches.
+_PAGE_LOCKS: dict[str, threading.RLock] = {}
+_PAGE_LOCKS_GUARD = threading.Lock()
+
+
+def _page_lock(relative_path: str) -> threading.RLock:
+    """Return the lock of one page."""
+
+    with _PAGE_LOCKS_GUARD:
+        lock = _PAGE_LOCKS.get(relative_path)
+        if lock is None:
+            lock = threading.RLock()
+            _PAGE_LOCKS[relative_path] = lock
+        return lock
+
 
 def _serialized(method):
     @wraps(method)
@@ -96,7 +114,13 @@ class LlmWikiError(RuntimeError):
 
 @dataclass(frozen=True)
 class WikiPage:
-    """One curated Wiki page."""
+    """One curated Wiki page.
+
+    ``revision`` is the content address of the page body. It is the
+    precondition a research enrichment writes against: a caller that
+    read a page and then writes it back must present the revision it
+    read, so a concurrent change is detected instead of overwritten.
+    """
 
     path: str
     title: str
@@ -104,6 +128,8 @@ class WikiPage:
     summary: str
     body: str
     frontmatter: Mapping[str, object] = field(default_factory=dict)
+    revision: str = ""
+    dependency_notes: tuple = ()
 
     def as_dict(self, *, include_body: bool = False) -> dict:
         payload = {
@@ -111,11 +137,47 @@ class WikiPage:
             "title": self.title,
             "type": self.type,
             "summary": self.summary,
+            "revision": self.revision,
         }
         if include_body:
             payload["body"] = self.body
             payload["frontmatter"] = dict(self.frontmatter)
+            payload["dependencyNotes"] = [dict(note) for note in self.dependency_notes]
         return payload
+
+
+def _rendered_body(rendered: str) -> str:
+    """The body of a rendered page, without its frontmatter."""
+
+    try:
+        _frontmatter, body = parse_frontmatter(rendered)
+    except ValueError:
+        return rendered
+    return body
+
+
+def content_revision(body: str) -> str:
+    """The content address of a page body.
+
+    The revision is the precondition of a research enrichment: it
+    changes whenever the curated text changes.
+    """
+
+    return hashlib.sha256((body or "").encode("utf-8")).hexdigest()
+
+
+def _read_dependency_notes(frontmatter: Mapping[str, object]) -> list[dict]:
+    """Read the dependency provenance of a page."""
+
+    raw = frontmatter.get("pi_dependency_notes")
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+    if not isinstance(raw, list):
+        return []
+    return [dict(item) for item in raw if isinstance(item, Mapping)]
 
 
 def wiki_root_for(repo_root: Path) -> Path:
@@ -195,6 +257,37 @@ class LlmWiki:
         scored.sort(key=lambda item: (-item[0], item[1]["path"]))
         return [page for _score, page in scored[: max(1, top_k)]]
 
+    def stale_dependency_notes(
+        self,
+        relative_path: str,
+        *,
+        inputs: Mapping[str, Mapping[str, object]],
+    ) -> list[dict]:
+        """Report the recorded dependency evidence that is no longer current.
+
+        ``inputs`` maps a package name to the current ``version`` and
+        ``artifactHash`` of that package. A note is stale when the
+        recorded value differs from the current one: the curated
+        explanation is still readable, but it must be renewed.
+        """
+
+        page = self.read_page(relative_path)
+        stale: list[dict] = []
+        for note in page.dependency_notes:
+            package = str(note.get("package") or "")
+            current = inputs.get(package)
+            if not current:
+                continue
+            version = current.get("version")
+            artifact = current.get("artifactHash")
+            if version and note.get("version") and version != note.get("version"):
+                stale.append({**note, "staleReason": "version",
+                              "currentVersion": version})
+            elif artifact and note.get("artifactHash") and artifact != note.get("artifactHash"):
+                stale.append({**note, "staleReason": "artifactHash",
+                              "currentArtifactHash": artifact})
+        return stale
+
     def validate(self) -> list[str]:
         """Validate the bundle against the OKF profile."""
 
@@ -223,6 +316,8 @@ class LlmWiki:
         author: str = "calling-llm",
         source: str = "",
         dry_run: bool = False,
+        expected_revision: str | None = None,
+        dependency_notes: Sequence[Mapping[str, object]] = (),
     ) -> dict:
         """Create or update one curated page.
 
@@ -230,6 +325,14 @@ class LlmWiki:
         the OKF profile BEFORE it is written. An invalid page is never
         stored. The write is atomic and the change is recorded in the
         reserved log.
+
+        ``expected_revision`` is the precondition of a research
+        enrichment: the caller presents the revision it read, and a
+        page that changed in the meantime produces a conflict instead
+        of a silent overwrite. ``dependency_notes`` records the
+        provenance of the research the page explains, so a later reader
+        can tell which evidence the text is based on and whether that
+        evidence is still current.
         """
 
         if not title or not title.strip():
@@ -245,6 +348,52 @@ class LlmWiki:
             raise LlmWikiError(
                 "the reserved index and log files are maintained by the platform"
             )
+        with _page_lock(relative):
+            return self._write_page_locked(
+                path=path,
+                relative=relative,
+                title=title,
+                body=body,
+                page_type=page_type,
+                summary=summary,
+                author=author,
+                source=source,
+                dry_run=dry_run,
+                expected_revision=expected_revision,
+                dependency_notes=dependency_notes,
+            )
+
+    def _write_page_locked(
+        self,
+        *,
+        path: Path,
+        relative: str,
+        title: str,
+        body: str,
+        page_type: str,
+        summary: str,
+        author: str,
+        source: str,
+        dry_run: bool,
+        expected_revision: str | None,
+        dependency_notes: Sequence[Mapping[str, object]],
+    ) -> dict:
+        current = self._read(path, relative) if path.is_file() else None
+        if expected_revision is not None:
+            actual = current.revision if current is not None else ""
+            if actual != expected_revision:
+                # The page changed since the caller read it. The caller
+                # re-reads and merges; nothing is overwritten here.
+                return {
+                    "ok": False,
+                    "written": False,
+                    "conflict": True,
+                    "path": relative,
+                    "expectedRevision": expected_revision,
+                    "currentRevision": actual,
+                    "reason": ("the page changed since it was read; read it "
+                               "again and merge the change"),
+                }
         now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
         frontmatter: dict[str, object] = {
             "type": page_type,
@@ -256,6 +405,11 @@ class LlmWiki:
         frontmatter["pi_updated"] = now
         if source:
             frontmatter["pi_source"] = source
+        notes = [dict(note) for note in dependency_notes
+                 if isinstance(note, Mapping)]
+        if notes:
+            frontmatter["pi_dependency_notes"] = json.dumps(
+                notes, sort_keys=True)
         rendered = self.profile.render_concept_markdown(frontmatter, body)
         try:
             self.profile.validate_file(path, rendered)
@@ -264,6 +418,9 @@ class LlmWiki:
                 f"the page does not satisfy the OKF v{self.profile.profile_version} "
                 f"profile: {exc.reason}"
             ) from exc
+        # The revision is the address of the *stored* body, so a caller
+        # that reads the page back compares equal.
+        revision = content_revision(_rendered_body(rendered))
         if dry_run:
             return {
                 "ok": True,
@@ -271,6 +428,7 @@ class LlmWiki:
                 "dry_run": True,
                 "path": relative,
                 "bytes": len(rendered.encode("utf-8")),
+                "revision": revision,
             }
         # Validate reserved files before committing any page.
         self._resolve(INDEX_FILENAME)
@@ -281,14 +439,24 @@ class LlmWiki:
         self._append_log(
             "updated" if existed else "created", relative, title, now,
         )
-        self.refresh_index()
+        index_state = "ready"
+        try:
+            self.refresh_index()
+        except (OSError, LlmWikiError):
+            # The page is stored; the navigation index is retried later.
+            index_state = "failed"
         return {
             "ok": True,
             "written": True,
+            "stored": True,
             "created": not existed,
             "path": relative,
             "bytes": len(rendered.encode("utf-8")),
-            "index_refreshed": True,
+            "revision": revision,
+            "index_refreshed": index_state == "ready",
+            "index_state": index_state,
+            "retrieval_index_state": "pending",
+            "dependency_notes": notes,
         }
 
     @_serialized
@@ -430,6 +598,8 @@ class LlmWiki:
             summary=summary,
             body=body,
             frontmatter=dict(frontmatter),
+            revision=content_revision(body),
+            dependency_notes=tuple(_read_dependency_notes(frontmatter)),
         )
 
     @staticmethod

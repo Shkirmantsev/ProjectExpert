@@ -60,7 +60,84 @@ version.
 ### `project.get_dependency`
 
 Returns the dependency record for one coordinate (group,
-artifact, version).
+artifact, version). The argument shape is unchanged; the answer
+is now real evidence: the versions the project declares or
+resolves for the coordinate, the matching instances and the
+evidence behind them. A coordinate that the dependency graph does
+not contain is reported as `unavailable` with the reason — the
+tool never answers with a placeholder.
+
+### `project.dependency_tree`
+
+The evidence-backed dependency graph of the project.
+
+Arguments:
+
+- `ecosystem` (string, required): `python`, `java` or `node`.
+- `package` (string, optional): start the traversal at this
+  package instead of at the project root.
+- `environment` (string, optional, default `"default"`).
+- `scopes` (array of strings, optional).
+- `max_depth` (integer, optional, default 5).
+- `max_nodes` (integer, optional, default 100).
+- `cursor` (string, optional): the continuation token of a
+  truncated traversal.
+
+Returns: `{ok, research, status, completeness, warnings,
+truncated, cursor}` where `research` carries the nodes, the
+edges, the evidence references, the effective limits and the
+scope of the answer. A cursor is bound to the snapshot, the
+query and the policy: a cursor from another snapshot is
+rejected as `stale`.
+
+### `project.dependency_search`
+
+Search the symbols of one dependency.
+
+Arguments:
+
+- `ecosystem` (string, required).
+- `package_ref` (string, required): the package to search in.
+- `query` (string, required): the symbol name or fragment.
+- `limit` (integer, optional, default 20).
+
+Returns: `{ok, research, ...}` with the symbol cards in
+`research.excerpts`. Every card states the representation it was
+read from (`source`, `stub`, `mapped-source`, `disassembly`,
+`decompiled`).
+
+### `project.dependency_read`
+
+Read a bounded excerpt of library code.
+
+Arguments:
+
+- `evidence_ref` (string): the evidence reference of the code.
+- `artifact` / `member` (strings, optional): the acquired
+  artifact and the member inside it.
+- `symbol` (string, optional): narrow the excerpt to one symbol.
+- `start_line` / `end_line` (integers, optional).
+- `max_bytes` (integer, optional).
+
+Returns: `{ok, research, ...}` with the excerpt, its line range
+and the representation it really has. A disassembly is not
+recovered source and is labelled as such.
+
+### `project.dependency_acquire`
+
+Download one exact dependency artifact.
+
+Arguments:
+
+- `ecosystem` (string, required).
+- `name` (string, required): the exact package name.
+- `version` (string, required): the exact version.
+- `source_id` (string, required): the approved registry identity,
+  e.g. `"pypi"`.
+
+Returns: `{ok, research, ...}` with the cached artifact, its
+digest and the members it holds. Acquisition is denied when the
+source is not approved by the deployment policy.
 
 ### `project.find_implementation`
 
@@ -151,9 +228,15 @@ Arguments:
   `"architecture/overview.md"`.
 - `include_body` (boolean, optional, default `true`): include
   the Markdown `body` and the parsed `frontmatter`.
+- `inputs` (object, optional): the current state of the
+  dependencies the page explains, keyed by package name, e.g.
+  `{"requests": {"version": "2.32.4"}}`. The answer then reports
+  the recorded evidence that is stale.
 
-Returns: `{ok, page}` — `{path, title, type, summary}` plus
-`body` and `frontmatter` when `include_body` is true.
+Returns: `{ok, page}` — `{path, title, type, summary, revision}`
+plus `body`, `frontmatter` and `dependencyNotes` when
+`include_body` is true, plus `staleNotes` when `inputs` was
+given. The `revision` is the precondition of a later write.
 
 ### `project.wiki_search`
 
@@ -198,13 +281,26 @@ Arguments:
   `pi_source`.
 - `dry_run` (boolean, optional, default `false`): validate and
   report without storing.
+- `expected_revision` (string, optional): the revision the
+  caller read. A page that changed in the meantime produces a
+  conflict (`{ok: false, conflict: true, currentRevision}`)
+  instead of a silent overwrite.
+- `dependency_notes` (array of objects, optional): the
+  provenance of the research the page explains — `package`,
+  `ecosystem`, `version`, `artifactHash`, `evidence`,
+  `repositoryRevision`, `toolVersion` and the `label`
+  (`fact` or `inference`).
 
-Returns: `{ok, written, created, path, bytes,
-index_refreshed, note}`. With `dry_run` the shape is
-`{ok, written: false, dry_run: true, path, bytes}`. `note`
-states that the page becomes part of the searchable corpus on
-the next project refresh — a written page is searchable after
-the next refresh, not instantly through the dense index.
+Returns: `{ok, written, stored, created, path, bytes, revision,
+index_refreshed, index_state, retrieval_index_state,
+dependency_notes, note}`. `stored` is the state of the page, and
+`index_state` / `retrieval_index_state` the state of the two
+indexes: the navigation index of the Wiki and the retrieval index
+of the project. With `dry_run` the shape is `{ok, written: false,
+dry_run: true, path, bytes, revision}`. `note` states that the
+page becomes part of the searchable corpus on the next project
+refresh — a written page is searchable after the next refresh,
+not instantly through the dense index.
 
 ### `project.wiki_validate`
 

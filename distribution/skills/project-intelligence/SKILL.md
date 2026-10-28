@@ -68,6 +68,26 @@ repository is the secondary surface.
      derived materialisation — but it is validated against the
      OKF v0.2 profile before it is stored, and it becomes part of
      the searchable corpus on the next project refresh.
+13. Answer a dependency question Wiki-first. Read the curated
+     Wiki before you research (`project.wiki_search`,
+     `project.wiki_read_page`). Only when the curated pages do
+     not answer the question, ask for evidence:
+     `project.dependency_tree` for the graph,
+     `project.dependency_search` for the symbols and
+     `project.dependency_read` for a bounded excerpt.
+     `project.dependency_acquire` downloads an exact artifact and
+     needs an approved source; without one it is denied. Every
+     research answer states its `status` and its `warnings` — a
+     `partial` or `unavailable` answer is a truthful answer, not a
+     failure to retry with a bigger budget.
+14. Enrich the page that already explains the topic. Pass the
+     `revision` you read as `expected_revision`; a page that
+     changed in the meantime returns a conflict instead of an
+     overwrite, and you re-read and merge. Record the provenance
+     of the evidence in `dependency_notes` (package, version,
+     artifact hash, evidence reference, tool version) and label
+     an inference as an inference. A later read with `inputs`
+     reports which recorded evidence is stale.
 
 ## v0.8 retrieval semantics (Change Package I)
 
