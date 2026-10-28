@@ -29,19 +29,26 @@ case "$requested" in
   *) echo 'PI_ACCELERATOR must be auto, cpu, vulkan or cuda' >&2; exit 2 ;;
 esac
 
+is_up=0
+case " $* " in *" up "*) is_up=1 ;; esac
+is_down=0
+case " $* " in *" down "*) is_down=1 ;; esac
+
 files=(-f compose.yaml)
 if [ "$model" = gemma-torch ]; then
   # Native PyTorch binding: no llama.cpp sidecar, no runtime probing.
   export PI_EMBEDDING_DEVICE="${PI_EMBEDDING_DEVICE:-cpu}"
+  if [ "$is_down" = 1 ]; then
+    # Stopping must also reach the sidecars of an earlier sidecar deployment,
+    # so the complete service topology is used for `down`.
+    exec docker compose --env-file deployment.env -f compose.yaml -f compose.accelerator.yaml "$@"
+  fi
   exec docker compose --env-file deployment.env "${files[@]}" "$@"
 fi
 
 # The Gemma sidecar topology is the default; the backend overlay supplies the
 # device (and the GPU fit budget).
 files+=(-f compose.accelerator.yaml)
-
-is_up=0
-case " $* " in *" up "*) is_up=1 ;; esac
 
 # ---------------------------------------------------------------------------
 # Evidence helpers (portable bash; no Python required on the host).
@@ -122,7 +129,10 @@ benchmark_backend() { # backend -> prints the median latency in ms
   esac
   local candidate_evidence candidate_plan candidate_device candidate_fit selected
   candidate_evidence=$(printf '%s' "{\"candidates\":[{\"backend\":\"$backend\",\"ok\":true,\"exit_code\":0,\"output\":\"$(json_escape "$candidate_output")\"}]}" | b64_encode)
+  # Every helper invocation uses the complete applicable topology. A reduced
+  # file set would make the running sidecars look like orphans to Compose.
   candidate_plan=$(docker compose --env-file deployment.env -f compose.yaml \
+    -f compose.accelerator.yaml -f "compose.$backend.yaml" \
     run --rm --no-deps -T production inference plan --evidence-b64 "$candidate_evidence") || return 1
   selected=$(printf '%s\n' "$candidate_plan" | sed -n 's/^[[:space:]]*"backend":[[:space:]]*"\([^"]*\)".*$/\1/p' | head -1)
   [ "$selected" = "$backend" ] || return 1
@@ -137,6 +147,7 @@ benchmark_backend() { # backend -> prints the median latency in ms
       return 1
     }
   median=$(docker compose --env-file deployment.env -f compose.yaml \
+    -f compose.accelerator.yaml -f "compose.$backend.yaml" \
     run --rm --no-deps -T production \
     inference benchmark \
     --endpoint http://embeddings:8769 --iterations "$benchmark_iterations" \
@@ -283,7 +294,11 @@ evidence="$evidence}"
 b64=$(printf '%s' "$evidence" | b64_encode) || exit 2
 
 plan_rc=0
+# The decision is asked before the backend is known, so the provisional CPU
+# overlay supplies the complete service topology. The plan only runs the
+# production service (--no-deps), so no sidecar is started by this call.
 plan=$(docker compose --env-file deployment.env -f compose.yaml \
+  -f compose.accelerator.yaml -f compose.cpu.yaml \
   run --rm --no-deps -T production \
   inference plan --evidence-b64 "$b64") || plan_rc=$?
 

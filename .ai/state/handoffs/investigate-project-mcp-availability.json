@@ -1,0 +1,51 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Sandbox make mcp-status cannot see the host process; host status succeeds"
+  ],
+  "decisions": [
+    "Codex is configured for stdio; make mcp-run provides a separate HTTP server"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Verified both project-context MCP transports; no broken configuration identified"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Use project-context MCP for project retrieval",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-28T19:41:09+00:00",
+    "id": "investigate-project-mcp-availability",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-28T19:41:47+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Confirm actual MCP connection and correct any demonstrated configuration issue"
+    ],
+    "goal": "Diagnose and fix project-context MCP availability in Codex",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Codex MCP kb_search and kb_get returned project Wiki results; host make mcp-status reports HTTP server running"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

@@ -108,8 +108,12 @@ $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($evidenceJso
 # The decision is owned by the application code so the Windows and Linux
 # launchers cannot drift apart. It runs in the application container.
 # The application image entrypoint is already `python -m pi_platform.cli`, so
-# the command arguments are the CLI subcommand path.
-$composeArgs = @('--env-file','deployment.env','-f','compose.yaml','run','--rm','--no-deps','-T','production',
+# the command arguments are the CLI subcommand path. The provisional CPU
+# overlay supplies the complete service topology: a reduced file set would make
+# the running sidecars look like orphans to Compose. The plan only runs the
+# production service (--no-deps).
+$composeArgs = @('--env-file','deployment.env','-f','compose.yaml','-f','compose.accelerator.yaml',
+                 '-f','compose.cpu.yaml','run','--rm','--no-deps','-T','production',
                  'inference','plan','--evidence-b64',$encoded)
 $planRaw = & docker compose @composeArgs 2>$null
 if ($LASTEXITCODE -ne 0 -or -not $planRaw) {

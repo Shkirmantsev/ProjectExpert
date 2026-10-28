@@ -1,0 +1,60 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Real deployment image and Windows instructions were not run for this documentation-only revision"
+  ],
+  "decisions": [
+    "Keep current behavior and move technical reference material into the linked user guide"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Completed documentation revision and focused verification"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Use the revised README and linked guides",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-28T19:21:55+00:00",
+    "id": "simplify-user-onboarding",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-28T19:28:13+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Clear verified container setup, daily commands, realistic use cases, accessible navigation and truthful interfaces"
+    ],
+    "goal": "Make the README and connected guides easy for nontechnical users to start and use ProjectExpert",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Artifact manifest regenerated and verified after documentation edits"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "README.md",
+      "sha256": "de1fe5c8086c95cc74485fa8a5a0514e4ef0b62e2f1bdaf6bc0e098e3415e65e"
+    },
+    {
+      "path": "docs/USER_GUIDE.md",
+      "sha256": "b4252af7a9ce8aeca1b3354eaef0c11c2faafef42056604c7ccfc2c1849a18de"
+    }
+  ]
+}

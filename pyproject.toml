@@ -23,6 +23,11 @@ dependencies = [
 [project.optional-dependencies]
 yaml = ["PyYAML==6.0.3"]
 java = ["tree-sitter==0.26.0", "tree-sitter-java==0.23.5"]
+# The Node source analysis is optional on purpose: without the grammars
+# the Node manifest evidence stays partial and the capability report says
+# so. The grammars are MIT licensed and never a prerequisite of the core
+# harness.
+node = ["tree-sitter-javascript==0.25.0", "tree-sitter-typescript==0.23.2"]
 semantic-embeddings = ["torch==2.14.1", "sentence-transformers==6.1.0", "transformers==5.20.2", "huggingface-hub==1.33.0", "numpy==2.4.6"]
 dense-ann = ["usearch==2.26.5", "numpy==2.4.6"]
 documents = ["docling==2.140.0", "docling-core==2.103.1", "onnxruntime==1.31.0"]
@@ -39,7 +44,7 @@ include = ["pi_platform*"]
 "pi_platform.adapters.ui" = ["static/*"]
 
 [tool.setuptools.data-files]
-"distribution/licenses" = ["distribution/licenses/dependency-inventory.json", "distribution/licenses/model-licenses.json", "distribution/licenses/production-dependency-inventory.json", "distribution/licenses/production-java-dependency-inventory.json", "distribution/licenses/production-license-evidence.json", "distribution/licenses/tree-sitter-LICENSE.txt", "distribution/licenses/tree-sitter-java-LICENSE.txt"]
+"distribution/licenses" = ["distribution/licenses/dependency-inventory.json", "distribution/licenses/model-licenses.json", "distribution/licenses/production-dependency-inventory.json", "distribution/licenses/production-java-dependency-inventory.json", "distribution/licenses/production-license-evidence.json", "distribution/licenses/tree-sitter-LICENSE.txt", "distribution/licenses/tree-sitter-java-LICENSE.txt", "distribution/licenses/tree-sitter-javascript-LICENSE.txt", "distribution/licenses/tree-sitter-typescript-LICENSE.txt"]
 "distribution/skills/project-intelligence" = ["distribution/skills/project-intelligence/SKILL.md"]
 "distribution/skills/project-intelligence/references" = ["distribution/skills/project-intelligence/references/*.md"]
 "distribution/okf-profile" = ["distribution/okf-profile/PROFILE.md"]

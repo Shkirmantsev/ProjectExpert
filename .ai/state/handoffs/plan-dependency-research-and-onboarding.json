@@ -1,0 +1,60 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "User requests precise instructions for other agents; existing untracked files are unrelated"
+  ],
+  "decisions": [
+    "Planning package reviewed against four user concerns; implementation tasks remain unchecked"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Completed and reviewed proposal, nine deltas, design, context impact, 36 tasks, 38 scenarios, README blueprint, evidence, handoff and verification report"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Implementing agent starts a new session from handoff.md and executes tasks.md; active change remains proposed",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-27T20:02:53+00:00",
+    "id": "plan-dependency-research-and-onboarding",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-27T20:15:11+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Evidence-backed proposal, design, deltas, context-impact, sequenced tasks and handoff; validation recorded; no product implementation claimed"
+    ],
+    "goal": "Prepare implementation-ready OpenSpec and agent handoff for deployment UX, cross-language dependency research, Wiki reuse and readable onboarding",
+    "openspec_change": "improve-dependency-research-and-onboarding",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Strict OpenSpec PASS; repository OpenSpec 90 passed; full python3 harness.py check PASS with environment skips after socket permission; links and whitespace PASS"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "openspec/changes/improve-dependency-research-and-onboarding/handoff.md",
+      "sha256": "ddeeb57f0308d30b75b993426b01b28ff61155605ec6596b3ec530e8574cddca"
+    },
+    {
+      "path": "openspec/changes/improve-dependency-research-and-onboarding/verification.md",
+      "sha256": "6417882dffdc64d405a2520aeef08c4d5cbf80c4bfc57f51d8530fbea36f2eb3"
+    }
+  ]
+}

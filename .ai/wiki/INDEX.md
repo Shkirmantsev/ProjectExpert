@@ -16,6 +16,9 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Structure and ownership](../../docs/PROJECT_STRUCTURE.md)
 - [Engineering conventions](../../docs/conventions/README.md)
 
+- [Dependency research service](modules/dependency-research.md)
+- [Dependency research interfaces](interfaces/dependency-research.md)
+- [ADR: Cross-language research tooling policy](adr/0031-cross-language-research-tooling-policy.md)
 - [Portable deployment architecture](architecture/portable-deployment.md)
 - [ADR: Portable model runtimes and OCI kit](adr/0029-portable-model-runtime-and-oci-kit.md)
 - [ADR: LLM Wiki as the curated knowledge layer](adr/0030-llm-wiki-as-curated-knowledge.md)
@@ -205,3 +208,8 @@ When `project-context-mcp` is configured:
 - `code_symbol` — deterministic source symbol search.
 - `spec_context` — OpenSpec current/change context.
 - `kb_validate` / `kb_refresh` — consistency and local index refresh.
+
+## Knowledge documents
+- [ADR 0031: Cross-language research tooling policy](adr/0031-cross-language-research-tooling-policy.md)
+- [Dependency research interfaces](interfaces/dependency-research.md)
+- [Dependency research service](modules/dependency-research.md)

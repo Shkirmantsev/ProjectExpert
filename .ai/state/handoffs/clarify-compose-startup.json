@@ -1,0 +1,54 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Container startup was not rerun for this documentation clarification"
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Explained OCI kit export and make-driven Docker Compose startup"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Use the updated quick start",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-28T19:34:59+00:00",
+    "id": "clarify-compose-startup",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-28T19:35:08+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Describe the temporary OCI exporter and make the normal Compose startup command explicit"
+    ],
+    "goal": "Clarify deployment kit export and make-driven Docker Compose startup in the README",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Documentation navigation and whitespace checks pass; Make help confirms platform-start"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "README.md",
+      "sha256": "e49dd5f38a746a3f721abd5698559da75af990df14d7c6553cb72e7b68465743"
+    }
+  ]
+}

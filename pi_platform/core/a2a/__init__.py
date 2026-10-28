@@ -178,6 +178,39 @@ class A2aInboundLimits:
     max_artifact_bytes: int = 16 * 1_048_576
 
 
+#: The allowlisted research operations of the A2A surface. An operation
+#: outside this list is rejected; it never succeeds as an
+#: acknowledgement.
+RESEARCH_OPERATIONS: tuple[str, ...] = (
+    "dependency.tree",
+    "dependency.search",
+    "dependency.read",
+    "dependency.acquire",
+)
+
+#: The schema version of the research envelope.
+RESEARCH_ENVELOPE_VERSION = 1
+
+
+def research_envelope(task) -> "Optional[Mapping[str, Any]]":
+    """Return the research envelope of a task, if it carries one.
+
+    An envelope is a *data* part with a ``schema_version`` and an
+    ``operation``. A task without one keeps the legacy behaviour.
+    """
+
+    for message in task.messages:
+        for part in message.parts:
+            if part.kind != "data":
+                continue
+            data = part.data or {}
+            if not isinstance(data, Mapping):
+                continue
+            if "operation" in data or "schema_version" in data:
+                return data
+    return None
+
+
 class A2aAdapterCore(A2aAdapterPort):
     """The default A2A dispatch core.
 
@@ -203,12 +236,16 @@ class A2aAdapterCore(A2aAdapterPort):
         redactor: Optional[SecretRedactor] = None,
         limits: Optional[A2aInboundLimits] = None,
         spec_version: A2aSpecVersion = A2A_SPEC_VERSION,
+        research: Optional[object] = None,
     ) -> None:
         self._policy_gate = policy_gate or self._default_policy_gate
         self._flag = flags_provider or (lambda name: False)
         self._redactor = redactor or SecretRedactor()
         self._limits = limits or A2aInboundLimits()
         self._spec_version = spec_version
+        #: The shared dependency research service. ``None`` means the
+        #: deployment does not offer research over A2A.
+        self._research = research
         self._inflight: dict[str, int] = {}
 
     # --- A2aAdapterPort ------------------------------------------------------
@@ -255,9 +292,14 @@ class A2aAdapterCore(A2aAdapterPort):
                 messages=redacted_messages,
                 metadata=self._redactor.redact_mapping(task.metadata),
             )
-            # 6. Hand off to application logic — for v1.0 the core
-            #    returns a deterministic acknowledgement artifact so
-            #    transports and tests stay meaningful.
+            # 6. A research envelope is dispatched to the shared
+            #    research service. An unknown operation is rejected: it
+            #    never succeeds as an acknowledgement.
+            envelope = research_envelope(safe_task)
+            if envelope is not None:
+                return self._research_result(safe_task, envelope)
+            # 7. Legacy behaviour: a deterministic acknowledgement
+            #    artifact keeps the transports and tests meaningful.
             return A2aTaskResult(
                 status=A2aTaskStatus.COMPLETED,
                 artifacts=(
@@ -272,6 +314,109 @@ class A2aAdapterCore(A2aAdapterPort):
             self._inflight[actor_id] = max(0, self._inflight.get(actor_id, 0) - 1)
 
     # --- Helpers ------------------------------------------------------------
+
+    def _research_result(self, task, envelope: Mapping[str, Any]) -> A2aTaskResult:
+        """Dispatch a research envelope to the shared service."""
+
+        import json
+
+        from pi_platform.core.research.records import (
+            ResearchDenied,
+            ResearchUnsupported,
+        )
+
+        version = envelope.get("schema_version")
+        if version != RESEARCH_ENVELOPE_VERSION:
+            raise A2aUnsupported(
+                f"unsupported research envelope version: {version!r}")
+        operation = envelope.get("operation")
+        if operation not in RESEARCH_OPERATIONS:
+            raise A2aUnsupported(
+                f"unknown research operation: {operation!r}; allowed: "
+                f"{list(RESEARCH_OPERATIONS)}")
+        if self._research is None or not hasattr(self._research, "tree"):
+            raise A2aUnsupported(
+                "dependency research is not enabled over A2A in this deployment")
+        arguments = envelope.get("arguments")
+        if arguments is None:
+            arguments = {}
+        if not isinstance(arguments, Mapping):
+            raise A2aUnsupported("the research arguments must be an object")
+
+        try:
+            payload = self._dispatch_research(str(operation), arguments)
+        except ResearchUnsupported as exc:
+            raise A2aUnsupported(str(exc)) from exc
+        except ResearchDenied as exc:
+            raise A2aForbidden(str(exc)) from exc
+        body = {"taskId": task.task_id, "operation": operation,
+                "result": payload}
+        return A2aTaskResult(
+            status=A2aTaskStatus.COMPLETED,
+            artifacts=(
+                A2aArtifact(
+                    name="research",
+                    mime_type="application/json",
+                    text=json.dumps(body, sort_keys=True),
+                ),
+            ),
+        )
+
+    def _dispatch_research(self, operation: str,
+                           arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Translate an envelope into a research request and call it."""
+
+        from pi_platform.core.research.policy import ResearchLimits
+        from pi_platform.ports.research.dependency_research import (
+            DependencyAcquireRequest,
+            DependencyReadRequest,
+            DependencySearchRequest,
+            DependencyTreeRequest,
+        )
+
+        if operation == "dependency.tree":
+            limits = ResearchLimits(
+                max_nodes=int(arguments.get("max_nodes", 100)),
+                max_depth=int(arguments.get("max_depth", 5)),
+            )
+            request = DependencyTreeRequest(
+                ecosystem=str(arguments.get("ecosystem", "")),
+                package=arguments.get("package"),
+                environment=str(arguments.get("environment", "default")),
+                scopes=tuple(arguments.get("scopes", ()) or ()),
+                limits=limits,
+                cursor=arguments.get("cursor"),
+            )
+            result = self._research.tree(request)
+        elif operation == "dependency.search":
+            request = DependencySearchRequest(
+                ecosystem=str(arguments.get("ecosystem", "")),
+                package_ref=str(arguments.get("package_ref", "")),
+                query=str(arguments.get("query", "")),
+                limit=int(arguments.get("limit", 20)),
+                cursor=arguments.get("cursor"),
+            )
+            result = self._research.search(request)
+        elif operation == "dependency.read":
+            request = DependencyReadRequest(
+                evidence_ref=str(arguments.get("evidence_ref", "")),
+                artifact=arguments.get("artifact"),
+                member=arguments.get("member"),
+                symbol=arguments.get("symbol"),
+                start_line=arguments.get("start_line"),
+                end_line=arguments.get("end_line"),
+                max_bytes=arguments.get("max_bytes"),
+            )
+            result = self._research.read(request)
+        else:
+            request = DependencyAcquireRequest(
+                ecosystem=str(arguments.get("ecosystem", "")),
+                name=str(arguments.get("name", "")),
+                version=str(arguments.get("version", "")),
+                source_id=str(arguments.get("source_id", "")),
+            )
+            result = self._research.acquire(request)
+        return result.as_dict()
 
     def _enforce_concurrency_limit(self, actor_id: str) -> None:
         current = self._inflight.get(actor_id, 0)

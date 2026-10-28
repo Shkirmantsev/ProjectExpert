@@ -38,6 +38,12 @@ def _family(path):
         return SourceContentFamily.MAVEN_POM
     if p.name in {'build.gradle', 'build.gradle.kts'}:
         return SourceContentFamily.GRADLE_BUILD
+    if p.name in {'uv.lock', 'poetry.lock'}:
+        return SourceContentFamily.PYTHON_LOCK
+    if p.name == 'package.json':
+        return SourceContentFamily.NODE_MANIFEST
+    if p.name in {'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock'}:
+        return SourceContentFamily.NODE_LOCK
     return SourceContentFamily.PLAIN_TEXT
 
 

@@ -80,6 +80,40 @@ Every request passes:
 6. **Redaction** — outgoing delegations run through the Phase 8
    `RedactionPipeline`.
 
+## Research dispatch — 2026-10-27
+
+A task may carry a **research envelope** in a data part:
+
+```json
+{"schema_version": 1, "operation": "dependency.tree",
+ "arguments": {"ecosystem": "python", "max_depth": 3}}
+```
+
+The allowlisted operations are `dependency.tree`,
+`dependency.search`, `dependency.read` and `dependency.acquire`.
+The dispatch calls the shared dependency research service and
+returns one `application/json` artifact named `research` with the
+same result schema as the MCP answer.
+
+Three rules matter:
+
+- An unknown operation, an unknown envelope version and a surface
+  without a wired research service are **rejected**. They never
+  succeed as a generic acknowledgement.
+- The legacy behaviour is unchanged: a task without an envelope
+  still returns the deterministic `ack` artifact.
+- The flag check, the policy gate, the actor capability check, the
+  secret redaction and the per-actor limits still apply to a
+  research request.
+
+The agent card only advertises the research skill when the
+research service is actually wired.
+
+## Related
+
+- [`interfaces.dependency-research`](dependency-research.md)
+- [`modules.dependency-research`](../modules/dependency-research.md)
+
 ## Related
 
 - `kb://modules.a2a`

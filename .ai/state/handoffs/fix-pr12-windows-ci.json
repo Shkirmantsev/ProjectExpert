@@ -1,0 +1,70 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "PR13 CI import-root and Make regression fixes committed locally at user request. No push performed; unrelated untracked files preserved."
+  ],
+  "decisions": [
+    "Confirmed failure is Unix decompiler stub; confirmed hang is deployment test invoking native startup with invalid Docker stub; fixes preserve accepted behavior"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Fixed CI temporary-script import root; added failing-before/passing-after regression; isolated Make failure test from PowerShell startup"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Push when requested and verify fresh CI",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-28T20:47:34+00:00",
+    "id": "fix-pr12-windows-ci",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-28T21:57:38+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Targeted regressions and harness check pass; native Windows limits documented"
+    ],
+    "goal": "Fix PR 12 Windows CI failures and hanging unit tests",
+    "openspec_change": "",
+    "status": "reviewing"
+  },
+  "verification": {
+    "passed": [
+      "PASS: 16 focused tests; sequential python3 harness.py check; artifact manifest 1370 files; git diff --check. Exact temporary CI script discovered 1684 tests with only two Docker collisions during concurrent verification; both passed in sequential harness."
+    ],
+    "pending": [
+      "NOT RUN: fresh GitHub CI for this patch, including native Windows"
+    ]
+  },
+  "working_set": [
+    {
+      "path": ".github/workflows/verify.yml",
+      "sha256": "cd8121194daec4d8eec5bd547a988d3961cab045965361ffc78214d293204034"
+    },
+    {
+      "path": "ARTIFACT_MANIFEST.sha256",
+      "sha256": "29e213dd0d823064918f655a33b204b3a625dc6aa00b92abc9d9d5274f92e733"
+    },
+    {
+      "path": "tests/test_portable_deployment.py",
+      "sha256": "f3c125a64d576c7586323e994f753f73a9fabbc3f15a876d19ed595d46ca423f"
+    },
+    {
+      "path": "tests/test_production_reliability.py",
+      "sha256": "d6b1bf5b37e118debb40586f2c79d66928986cd47c27ec916494f994a50db100"
+    }
+  ]
+}

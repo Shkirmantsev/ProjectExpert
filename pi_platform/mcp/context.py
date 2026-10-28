@@ -187,6 +187,7 @@ def build_default_tool_context(
     task_context_builder: "object | None" = None,
     capability_discovery: "object | None" = None,
     readiness: "object | None" = None,
+    dependency_research: "object | None" = None,
 ) -> ToolContext:
     """Build a production-default :class:`ToolContext`.
 
@@ -213,6 +214,10 @@ def build_default_tool_context(
         :mod:`pi_platform.adapters` so a bare
         ``build_default_tool_context()`` call yields a working
         server.
+    dependency_research:
+        The shared dependency research service. When it is ``None``
+        the dependency research tools report that the capability is
+        not enabled instead of answering with a placeholder.
     """
 
     effective_debug = (
@@ -249,6 +254,7 @@ def build_default_tool_context(
     if capability_discovery is None:
         capability_discovery = DefaultCapabilityDiscoveryAdapter(
             local_llm=StubLocalLLMAdapter(),
+            dependency_research=dependency_research,
         )
     if readiness is None:
         readiness = DefaultKnowledgeReadiness()
@@ -293,4 +299,5 @@ def build_default_tool_context(
         cache_root=cache_root,
         trace_store=trace_store,
         debug_mode=effective_debug,
+        dependency_research=dependency_research,
     )

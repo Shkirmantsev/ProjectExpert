@@ -103,13 +103,13 @@ With Docker installed and running, execute from the target repository.
 Linux (Docker Engine with Compose 2.20+):
 
 ```bash
-docker run --rm -v "$PWD:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev && bash .project-intelligence-deploy/start.sh
+docker run --pull=always --rm -v "$PWD:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev && bash .project-intelligence-deploy/start.sh
 ```
 
 Windows PowerShell 5.1 or 7 (Docker Desktop, WSL2, Linux containers):
 
 ```powershell
-docker run --rm -v "${PWD}:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev; if ($LASTEXITCODE -eq 0) { & .\.project-intelligence-deploy\start.ps1 }
+docker run --pull=always --rm -v "${PWD}:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev; if ($LASTEXITCODE -eq 0) { & .\.project-intelligence-deploy\start.ps1 }
 ```
 
 Windows execution policy must permit local scripts. No host Python, Git checkout
@@ -119,12 +119,15 @@ The publisher must configure package visibility/access in GitHub; CI does not
 silently change it.
 
 The kit exports `compose.yaml`, `deployment.env`, `Makefile`, `start.sh`,
-`start.ps1`, and `README.md` under `.project-intelligence-deploy`. Existing files
-are preserved. Run `make -C .project-intelligence-deploy platform-start` if GNU
-Make is available, or use its `platform-status`, `platform-logs`, `platform-stop`,
+`start.ps1`, `url.sh`, `url.ps1`, and `README.md` under
+`.project-intelligence-deploy`. Existing files are preserved. Run
+`make -C .project-intelligence-deploy platform-start` if GNU Make is
+available, or use its `platform-status`, `platform-logs`, `platform-stop`,
 `platform-models`, `platform-doctor`, `platform-reindex`, and `eval-*` targets.
-Edit `deployment.env` for a different repository, model or port. The repository
-must exist; Compose does not silently create a misspelled mount path.
+A bare `make` (or `make help`) only prints the command list: it starts
+nothing and needs neither Docker nor Python. Edit `deployment.env` for a
+different repository, model or port; the shell environment overrides it. The
+repository must exist; Compose does not silently create a misspelled mount path.
 
 The kit defaults to EmbeddingGemma 2 Q8_0 through a managed llama.cpp runtime,
 with pinned model and multimodal projector downloads on first startup. Weights and document-processing caches persist in a
@@ -133,6 +136,49 @@ liveness does not count as successful setup. `platform-stop` retains the cache.
 The UI binds to localhost by default. Export credentials through your shell;
 none are shipped in the kit. After an upgrade, compare the new kit in a separate
 directory and update the existing Compose image digest explicitly.
+
+### Ensure you receive the merged revision
+
+Wait for the merge commit's **Verify and publish production with deployment kit**
+job in `publish-oci-container` to finish successfully. The core image publishes
+independently and does not prove production publication has finished. A merge
+starts the workflow; the previous branch aliases remain available until the
+new production image passes its checks and is published.
+
+The setup commands above use `--pull=always`: without it, `docker run` can use an
+older locally cached `:dev` kit indefinitely. Inspect the registry without relying
+on the local image cache:
+
+```bash
+docker buildx imagetools inspect ghcr.io/shkirmantsev/project-intelligence:dev
+docker buildx imagetools inspect ghcr.io/shkirmantsev/project-intelligence-deployment:dev
+# Read the image reference shipped in the current kit without changing any files:
+docker run --pull=always --rm --entrypoint cat ghcr.io/shkirmantsev/project-intelligence-deployment:dev /bundle/compose.yaml
+```
+
+For an **existing** installation, pulling a new kit does not replace exported
+files. `Preserved compose.yaml` means the previous image pin is still in use.
+Export into a fresh staging directory from your target repository instead:
+
+```bash
+mkdir -p .project-intelligence-upgrade
+docker run --pull=always --rm -v "$PWD/.project-intelligence-upgrade:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev
+```
+
+Use a fresh staging directory for each upgrade. Compare its
+`.project-intelligence-deploy/` files with your installed kit. Adopt the new
+Compose image digest and relevant launcher/configuration changes while preserving
+local ports, target paths, accelerator settings and patches. An existing `PI_IMAGE`
+in `deployment.env` or your shell overrides the Compose image: update or remove
+that override deliberately. `PI_DEPLOY_IMAGE` is a kit **build argument**, not the
+runtime override.
+
+For an image-only upgrade, set `PI_IMAGE=ghcr.io/shkirmantsev/project-intelligence@sha256:<digest>`
+in your existing `deployment.env`, using the digest from the new kit. Then run
+`bash .project-intelligence-deploy/start.sh` (Windows: run its `start.ps1`).
+Compose recreates the service when its image changes and keeps the model cache.
+Keep your previous digest/configuration for rollback. Running `docker restart`
+alone does not change the image. Do not use `down -v` to upgrade.
 
 ### Hardware and model selection
 

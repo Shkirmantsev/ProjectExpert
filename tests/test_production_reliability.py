@@ -2,6 +2,7 @@ import importlib.util
 import os
 import pathlib
 import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -23,6 +24,34 @@ def load(name: str, path: pathlib.Path):
 
 
 class ProductionReliabilityTests(unittest.TestCase):
+    def test_ci_unit_discovery_imports_project_from_temporary_runner_script(self):
+        import yaml
+
+        workflow = yaml.safe_load((ROOT / ".github/workflows/verify.yml").read_text())
+        step = next(step for step in workflow["jobs"]["unit"]["steps"]
+                    if step.get("shell") == "python")
+        # Run the actual workflow body outside the checkout, as Actions does.
+        # Narrow discovery to one existing module that imports project packages.
+        script = (
+            "import unittest\n"
+            "original_main = unittest.main\n"
+            "def focused_main(*args, **kwargs):\n"
+            "    kwargs['argv'] += ['-p', 'test_dependency_artifacts.py']\n"
+            "    return original_main(*args, **kwargs)\n"
+            "unittest.main = focused_main\n"
+        ) + step["run"]
+        with tempfile.TemporaryDirectory() as raw:
+            runner = pathlib.Path(raw) / "runner.py"
+            runner.write_text(script)
+            env = dict(os.environ)
+            env.pop("PYTHONPATH", None)
+            result = subprocess.run(
+                [sys.executable, str(runner)], cwd=ROOT, env=env,
+                capture_output=True, text=True, timeout=60,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("test_an_allowlisted_decompiler", result.stderr)
+
     def test_atomic_secret_write_is_private_on_first_publish(self):
         common = load("common_reliability", ROOT / "scripts/common.py")
         with tempfile.TemporaryDirectory() as raw:

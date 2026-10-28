@@ -1,293 +1,194 @@
 # ProjectExpert
 
-A portable, version-aware project intelligence platform. It turns source, specs and documents into structured knowledge that any agent or UI can search, ask and trace. The deployment kit runs the application with a managed inference service; GPU inference uses a Linux sidecar or Windows native service.
+**Understand a project without reading every file.** ProjectExpert searches your
+project's code and documents so you and your coding assistant can find relevant
+information and its sources.
 
-## Production deployment
+You can ask where a feature is implemented, find a requirement, or investigate
+a library your project uses. ProjectExpert works with Java, Python, and
+JavaScript/Node.js projects, with [some limits](docs/DEPENDENCY_RESEARCH.md).
 
-Use the [production installation guide](docs/PRODUCTION_INSTALL.md) for the
-one-command GHCR deployment kit on Linux or Windows Docker Desktop. The kit
-contains Compose, ready-to-start defaults, a product-only Makefile and launchers.
-Startup automatically prepares the selected embedding model and Docling assets.
+**New here?** Follow [Start with Docker](#start-with-docker), then [ask your
+first question](#ask-your-first-question). Already installed? See [everyday
+commands](#everyday-commands).
 
-EmbeddingGemma 2 supports CPU and optional CUDA/Vulkan inference. The kit defaults
-to `PI_EMBEDDING_MODEL=gemma` and `PI_ACCELERATOR=auto`, selecting a measured usable
-backend or falling back to CPU. Native Python execution uses `gemma-torch`.
-See [kit operations](distribution/deployment/README.md) and
-[Python dependency/library analysis](docs/PYTHON_DEPENDENCY_ANALYSIS.md).
+## Start with Docker
 
-The workflow is configured to publish runtime and digest-bound kit artifacts on
-pushes/merges to `dev`, `development` and `main`. This checkout's changes are not
-proof of a published GHCR release. Linux CPU/model/OCR checks passed; physical GPU,
-Windows and remote publication checks remain pending in the
-[verification report](docs/PRODUCTION_RECONCILIATION_STATUS.md).
+You need Docker Desktop or Docker Engine with Compose, an internet connection,
+GNU Make, and enough disk space for the application and its model. Start Docker first.
+The first startup downloads files and can take a while.
 
-## What it does
-
-ProjectExpert binds to a target repository and operates on four layers:
-
-The canonical knowledge tree lives in `project-knowledge/`. It is Git-versioned, human-readable and stored as deterministic JSON or YAML. Source code, parsed structures, requirements, ADRs, OpenSpec changes and Wiki pages all land here.
-
-The runtime working store sits under `.project-intelligence-cache/`. It is gitignored and rebuilt from the canonical tree on demand. The store holds derived state: vector indexes, embedding caches, graph indices and the working-tree overlay.
-
-The local dynamic inbox lives at `tmp/local/source/`. It accepts confidential or short-lived input that must not be committed. The scanner applies the documented `LOCAL_ONLY`, `REFERENCE` and `SNAPSHOT` policies per file.
-
-The bidirectional round-trip links the two: `hydrate()` reads from Git and populates the runtime store; `materialise()` writes runtime changes back into the canonical tree under operator approval. A license gate blocks builds when a dependency lacks an SPDX identifier or lands in the review list.
-
-The platform is implementation-language-neutral at the boundary. The product source tree is Python 3.11 today; Java-specific parsing lives behind language-neutral ports as `pi_platform/adapters/java/`.
-
-## Use cases
-
-### 1. Onboarding a new agent to an unfamiliar code base
-
-```mermaid
-flowchart LR
-    A[New agent] --> Q1[project.search]
-    A --> Q2[project.get_requirement]
-    A --> Q3[project.trace_requirement]
-    Q1 --> K[Knowledge layer]
-    Q2 --> K
-    Q3 --> K
-    K --> P[Target project]
-```
-
-A coding agent asks: *"what is the contract of `OrderService.cancelOrder`?"* The answer comes back with the source file, the implementing requirement ID, the OpenSpec change that introduced the requirement and the design decision that fixed the contract. No manual code spelunking.
-
-### 2. Tracing a change back to its requirement
-
-```mermaid
-sequenceDiagram
-    actor U as Operator
-    participant KB as Knowledge graph
-    participant OS as OpenSpec change set
-    U->>KB: get_requirement(REQ-042)
-    KB-->>U: status, sources, history
-    U->>OS: trace_requirement(REQ-042)
-    OS-->>U: change id, ADR, commit, tests
-    U->>KB: get_stale_knowledge()
-    KB-->>U: facts pending re-verification
-```
-
-OpenSpec changes, ADRs, code and Git commits form one chain. The platform answers "REQ-042 changed in which change? which ADR justified the change? which tests cover it?" in a single query.
-
-### 3. Reviewing a dependency upgrade before merge
-
-```mermaid
-flowchart TD
-    P[pom.xml change] --> R[Re-ingest]
-    R --> D[Dependency graph update]
-    D --> L[License gate]
-    L -->|deny| X[Block build]
-    L -->|review| A[Operator approval]
-    L -->|allow| OK[Merge permitted]
-```
-
-A Maven or Gradle update re-ingests the dependency graph. Every new `Dependency` entity carries its SPDX identifier. The license gate runs against the dependency inventory and blocks the build on a missing or `deny`-class license before the change ships.
-
-### 4. Dumping a vendor doc into the inbox
-
-```mermaid
-flowchart LR
-    C[Vendor export] --> I[tmp/local/source/vendor-export/]
-    I --> P[Policy: LOCAL_ONLY]
-    P --> S[Scanner]
-    S --> K[Knowledge layer]
-    S -.->|never| GIT[Git tree]
-```
-
-Drop a vendor export into the inbox, mark it `LOCAL_ONLY`, and the parser ingests it locally without ever committing the source bytes. Useful for confidential or short-lived material.
-
-### 5. Auditing stale knowledge after a refactor
-
-A refactor invalidates derived entities (entities that pointed at now-renamed classes, tests that reference moved methods). The freshness tracker surfaces them as `KnowledgeState.STALE` so the operator knows what to re-verify. The platform never rewrites authoritative knowledge silently.
-
-### 6. Distributing the agent skill across editor hosts
-
-The same agent Skill artefact ships for Codex, Claude Code, OpenCode and generic agents. The agent calls the platform through the documented MCP tools and respects the documented retrieval-first policy: ask the knowledge layer first, do not broad-scan the source tree for every question.
-
-## Current architecture
-
-Phases 0-8 are shipped: plan, foundation, ingestion, storage, retrieval, orchestration, agent integration, control plane and enterprise security boundary. Phase 9 (distribution: REST UI surface, lightweight web UI, Open WebUI adapter, OKF wiki profile, one-click launchers, single-container image) is the next work item; Phase 10 (A2A and final quality gates) follows it.
-
-### Implementation repo, container, target project
-
-```mermaid
-flowchart TB
-    subgraph "Implementation repo (this)"
-        P[pi_platform/]
-        C[Containerfile + docker-compose.yml]
-        L[scripts/project-intelligence.sh<br/>scripts/Start-ProjectIntelligence.ps1]
-        D[distribution/]
-        O[openspec/]
-        W[.ai/wiki/]
-    end
-
-    subgraph "Container image (build artefact)"
-        I[Container runtime]
-    end
-
-    subgraph "Target project (bound at runtime)"
-        T[project-knowledge/]
-        R[.project-intelligence-cache/]
-        X[tmp/local/source/]
-    end
-
-    P --> I
-    C --> I
-    L --> I
-    I --> T
-    I --> R
-    I --> X
-    O -.documents.-> P
-    W -.explains.-> P
-```
-
-The container image binds to a target project at runtime. The implementation repo never owns the target's `project-knowledge/`, `.project-intelligence-cache/` or `tmp/local/source/`; those live inside the bound target.
-
-### Module map (Phases 1-8 implemented)
-
-```text
-pi_platform/
-├── core/                       # domain logic, value types, ports
-│   ├── canonical/              # value types, content addressing, manifest, OKF
-│   ├── git/                    # CLI adapter, version identity, working-tree overlay
-│   ├── sync/                   # hydrate / reconcile / materialise / WAL / lock
-│   ├── licensing/              # policy / gate / inventory / SBOM emitter
-│   ├── ingest/                 # source adapters, chunking, enrichment pipeline
-│   ├── runtime/                # runtime store, sharded graph, provenance, freshness
-│   ├── retrieval/              # hybrid / multi-stage retrieval, reranking, metadata filters
-│   ├── orchestration/          # query orchestrator, task context, capability discovery
-│   ├── agent_integration/      # MCP tool contracts, version handshake, packagers
-│   ├── control/                # registry, hooks, policy engine, secrets, audit, flags
-│   └── security/               # enterprise boundary, classification, redaction, egress
-├── ports/                      # abstract port interfaces (language-neutral)
-├── adapters/                   # fs, git, java, markdown, pdf, html, openapi, openspec,
-│                               # ingest, retrieval, runtime, orchestration,
-│                               # agent_integration, control, security, mcp
-├── runtime/                    # content-addressed filesystem cache
-├── mcp/                        # MCP server surface
-└── cli/                        # `python -m pi_platform.cli` entry point
-```
-
-The Python package name is `pi_platform` (not `platform`) because `platform` collides with the Python standard-library `platform` module. The `Containerfile` and the launchers both import `pi_platform.cli`.
-
-### Control plane and data plane
-
-```mermaid
-flowchart LR
-    subgraph "Control plane"
-        UI[UI / CLI]
-        POL[Policy engine]
-        REG[Feature / plugin registry]
-        AUD[Audit log]
-    end
-
-    subgraph "Data plane"
-        ING[Ingestion]
-        IDX[Indexes]
-        RET[Retrieval]
-        CTX[Context assembler]
-        MCP[MCP server]
-    end
-
-    UI --> POL
-    POL --> ING
-    ING --> IDX
-    RET --> IDX
-    CTX --> RET
-    MCP --> CTX
-    UI --> AUD
-```
-
-Both planes call the same policy engine for authorisation. The control plane configures and observes the data plane; it does not bypass the same rules that apply to agents and plugins. Phase 7 shipped the policy engine, control registry, hook runtime, secret provider, audit log, feature flags and UI extension registry under `pi_platform/core/control/`; Phase 8 added the enterprise security boundary and egress policy under `pi_platform/core/security/`.
-
-### Knowledge lifecycle
-
-```mermaid
-sequenceDiagram
-    participant Git as Git tree (canonical)
-    participant Hyd as hydrate()
-    participant Run as Runtime store
-    participant Src as Sources
-    participant Ing as Ingestion
-    participant Mat as materialise()
-    Git->>Hyd: read manifests
-    Hyd->>Run: populate cache
-    Src->>Ing: parse / chunk / enrich
-    Ing->>Run: write chunks
-    Run->>Mat: produce diff
-    Mat->>Git: write under approval
-```
-
-The canonical tree is the source of truth. The runtime cache is derived. `materialise()` is the only operation that writes back into Git, and only after operator approval.
-
-### Phase progression
-
-| Phase | Name | Status |
-|---|---|---|
-| 0 | Plan | complete |
-| 1 | Foundation (canonical, git, sync, licensing) | done |
-| 2 | Ingestion (parsers, content addressing, pipeline driver, chunking, enrichment) | complete |
-| 3 | Storage (runtime DB, sharded graph, provenance) | complete |
-| 4 | Retrieval (hybrid, multi-stage, reranking) | complete |
-| 5 | Orchestration (query, local LLM, task context) | complete |
-| 6 | Agent integration (MCP, skill, adapters) | complete |
-| 7 | Control plane (registry, hooks, capabilities, secrets) | complete |
-| 8 | Security (enterprise boundary) | complete |
-| 9 | Distribution (UI, container, OCI, one-click) | in progress |
-| 10 | A2A and final quality gates | planned |
-
-The full ordered task list lives in [`openspec/changes/plan-v0-8-platform-architecture/tasks.md`](openspec/changes/plan-v0-8-platform-architecture/tasks.md). The accepted capabilities of every shipped phase are listed in [current requirements](openspec/CURRENT.md). See [ingestion contracts](.ai/wiki/modules/ingest.md), [Phase 8 security boundary](.ai/wiki/modules/security.md) and the [resolved Phase 2 handoff](docs/handoff/phase-2-problem-statement.md).
-
-## Quick start
-
-### Standalone container / Docker Compose (end users)
-
-Every merge into `dev` / `development` publishes a self-contained OCI image to GitHub Container Registry (`ghcr.io/shkirmantsev/project-intelligence:dev`). Any user can start the platform against their own repository with Docker or Docker Compose without installing the development harness:
+Open a terminal in the folder of the project **you want to understand**. For
+example, if your project is in `~/projects/my-app`, enter:
 
 ```bash
-# Start with Docker Compose (default single-container headless or desktop-lite profile)
-PI_TARGET_REPO="$(pwd)" docker compose --profile core-headless up -d
-# Or with bundled local LLM sidecar:
-PI_TARGET_REPO="$(pwd)" docker compose --profile desktop-lite up -d
-
-# Or run the OCI container directly:
-docker run --rm -p 8765:8765 -v "$(pwd):/repo:rw" ghcr.io/shkirmantsev/project-intelligence:dev
+cd ~/projects/my-app
 ```
 
-Once started, the container automatically hydrates and reconciles `/repo` and exposes:
-- Web UI & Control Plane: `http://localhost:8765/`
-- REST API: `http://localhost:8765/api/v1/`
-- MCP JSON-RPC endpoint: `http://localhost:8765/mcp` (or stdio via `docker exec -i <container> python -m pi_platform.cli mcp-serve`)
-- Health & Readiness: `http://localhost:8765/health` and `http://localhost:8765/health/ready`
+Replace that path with your own. Run the next two commands in that same folder.
 
-### Development harness (contributors)
+**1. Set up ProjectExpert**
+
+This runs a short-lived container from the OCI registry. It copies the deployment
+kit, including the Makefile and Docker Compose files, into
+`.project-intelligence-deploy/` inside your project, then exits. You only need
+to do this once for that project.
 
 ```bash
-make init-mcp         # one-shot: .env, Wiki index, skills, MCP venv, client configs
-make wiki-init        # validate existing Wiki and (re)build its disposable index
-make check            # operator gate: config + Wiki + OpenSpec + tests + manifest
+docker run --pull=always --rm -v "$PWD:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev
 ```
 
-The portable `python` equivalents (`python harness.py <command>`) work on Linux, macOS and Windows without GNU Make. See [`docs/HARNESS_COMMANDS.md`](docs/HARNESS_COMMANDS.md) for the full setup and the manual MCP lifecycle (`run-mcp` / `stop-mcp` / `mcp-status` / `mcp-logs` / `mcp-clean` / `mcp-stdio`).
+**2. Start ProjectExpert**
 
-## Architectural baseline
+```bash
+make -C .project-intelligence-deploy platform-start
+```
 
-[`project-intelligence-platform-architecture-v0.8.md`](project-intelligence-platform-architecture-v0.8.md) is the agreed architecture baseline. The Wiki at [`.ai/wiki/INDEX.md`](.ai/wiki/INDEX.md) mirrors it and links into the implementation.
+Make calls the kit's Compose helper, which selects the runtime profile and
+starts the ProjectExpert services with Docker Compose. If Make is unavailable,
+run `bash .project-intelligence-deploy/start.sh` instead.
 
-## Where to find answers
+Wait for a message beginning with `Ready:`. Open the address shown there,
+usually **[http://localhost:8765/](http://localhost:8765/)**. Keep Docker
+running while you use ProjectExpert. The browser page may still be preparing
+its search index after the service starts; check
+[readiness](http://localhost:8765/health/ready) if your question cannot yet
+be answered.
 
-| Question | File |
+The `:dev` image is a development version. Setup preserves an existing kit and
+its image pins; to update an existing installation, follow the
+[upgrade instructions](docs/PRODUCTION_INSTALL.md). If startup fails, see
+[troubleshooting](docs/TROUBLESHOOTING.md). See the [installation guide](docs/PRODUCTION_INSTALL.md) for the tested
+platform matrix and release status.
+
+<details>
+<summary>Using Windows PowerShell?</summary>
+
+Open PowerShell in your project folder. With Docker Desktop running in WSL2
+and Linux container mode, use these commands:
+
+```powershell
+docker run --pull=always --rm -v "${PWD}:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev
+& .\.project-intelligence-deploy\start.ps1
+```
+
+Windows must allow local PowerShell scripts. See the
+[deployment kit guide](distribution/deployment/README.md) for its platform
+limits and stop instructions.
+
+</details>
+
+## Ask your first question
+
+1. Open the `Ready:` address in your browser.
+2. Find **1. Ask a project question**. Type a question and select **Ask**.
+3. Read the result and check the referenced project evidence. If the page is
+   still preparing, wait and try again.
+
+For example, ask **“Where is order validation implemented?”** Replace “order
+validation” with a feature in your project. You can also select **List sources**
+on the page to see what ProjectExpert found.
+
+| Your goal | Try asking |
 |---|---|
-| How to use the harness | [`docs/README.md`](docs/README.md), [`docs/QUICKSTART.md`](docs/QUICKSTART.md), [`docs/HARNESS_COMMANDS.md`](docs/HARNESS_COMMANDS.md) |
-| How to configure `.env` | [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) |
-| What a skill does | [`.agents/skills/<name>/SKILL.md`](.agents/skills/) or [`docs/SKILLS.md`](docs/SKILLS.md) |
-| How OpenSpec works | [`openspec/README.md`](openspec/README.md), [`openspec/CURRENT.md`](openspec/CURRENT.md) |
-| Coding and commit conventions | [`docs/conventions/README.md`](docs/conventions/README.md) |
-| Something broke | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) |
-| Security and secrets | [`docs/SECURITY.md`](docs/SECURITY.md) |
-| Directory layout | [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) |
-| OpenCode V1 vs V2 | [`docs/OPENCODE_COMPATIBILITY.md`](docs/OPENCODE_COMPATIBILITY.md) |
-| Platform architecture (Wiki) | [`.ai/wiki/architecture/platform-overview.md`](.ai/wiki/architecture/platform-overview.md) |
-| System overview (Wiki) | [`.ai/wiki/architecture/system-overview.md`](.ai/wiki/architecture/system-overview.md) |
-| Implementation phases (Wiki) | [`.ai/wiki/project/implementation-roadmap.md`](.ai/wiki/project/implementation-roadmap.md) |
-| Glossary | [`.ai/wiki/glossary/platform.md`](.ai/wiki/glossary/platform.md) |
+| Find where a feature lives | “Where is customer sign-in implemented?” |
+| Understand a change | “Which requirements describe the payment flow?” |
+| Prepare for a bug fix | “Where is an invalid order rejected?” |
+| Investigate a library | Ask a connected coding assistant: “Which version of this library does the project use, and where is it declared?” |
+
+Results depend on the files available and the selected interface and model.
+A result can contain retrieved evidence rather than a complete conversational
+answer. Check the cited material and ask a more specific question if needed.
+For deeper library research and examples, see
+[dependency research](docs/DEPENDENCY_RESEARCH.md).
+
+## Everyday commands
+
+Run these from the same project folder. These commands need GNU Make; the
+[kit guide](distribution/deployment/README.md) also describes script-based
+alternatives and Windows commands.
+
+| I want to… | Command |
+|---|---|
+| See available commands and descriptions | `make -C .project-intelligence-deploy` |
+| Start again | `make -C .project-intelligence-deploy platform-start` |
+| Check whether it is ready | `make -C .project-intelligence-deploy platform-status` |
+| See startup messages | `make -C .project-intelligence-deploy platform-logs` |
+| Refresh the search index after project changes | `make -C .project-intelligence-deploy platform-hydrate` |
+| Stop ProjectExpert | `make -C .project-intelligence-deploy platform-stop` |
+
+Press `Ctrl+C` to leave the live log view. Stopping keeps your downloaded model
+cache. To stop without Make, run `bash .project-intelligence-deploy/compose.sh down`.
+
+## Choose how to use it
+
+| I want to… | Where to go |
+|---|---|
+| Ask a question in a browser | Open [http://localhost:8765/](http://localhost:8765/) after startup. |
+| Give a coding assistant project context | Connect an MCP-compatible assistant to `http://localhost:8765/mcp`. See [MCP setup](docs/USER_GUIDE.md#mcp-for-coding-assistants). |
+| Use another chat application | Install it separately and configure the optional Open WebUI compatibility route. See [chat frontends](docs/USER_GUIDE.md#open-webui-and-other-chat-frontends). |
+| Connect software or another agent | See the [REST and A2A interfaces](docs/USER_GUIDE.md#choose-an-interface). |
+
+These addresses use the default port. If you change `PI_CONTROL_PORT`, use the
+new port instead. Access and authentication settings are explained in the
+[user guide](docs/USER_GUIDE.md).
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[Your project files] --> B[ProjectExpert builds a search index]
+    B --> C[You ask a question]
+    C --> D[Relevant evidence]
+    D --> E[Useful findings can be saved in the Wiki]
+    E --> B
+```
+
+ProjectExpert reads your project and builds a searchable index. It uses that
+index to find evidence for your questions. A coding assistant can save reviewed
+findings in the project Wiki; a later refresh makes them searchable. The
+[architecture guide](docs/ARCHITECTURE.md) explains the full process and where
+the data is stored.
+
+## Configuration
+
+Most people can start with the defaults. To change the port or choose a
+processor, edit `.project-intelligence-deploy/deployment.env` in your project
+after setup. For example, `PI_CONTROL_PORT=8765` controls the browser address.
+Shell environment variables take precedence over the file. Stop and start the
+service after changing the port. Keep credentials out of the kit files.
+
+See [configuration](docs/CONFIGURATION.md) and the
+[deployment kit guide](distribution/deployment/README.md) for available
+settings, including the project folder, model, and CPU/GPU options.
+
+## No Docker? Use Python
+
+This alternative requires a **ProjectExpert source checkout** and Python 3.11
+or newer. The locked requirements below target Python 3.11 on Linux x86_64. Run them in the ProjectExpert
+checkout, not in the project you want to analyze:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --require-hashes -r requirements-production-linux-x86_64.txt -r requirements-production-java-linux-x86_64.txt
+.venv/bin/python -m pip install --no-deps '.[production]'
+.venv/bin/python -m pip check
+```
+
+Then replace `/absolute/path/to/your-project` with the full path to your project:
+
+```bash
+.venv/bin/python -m pi_platform.cli start --target /absolute/path/to/your-project --model gemma-torch --device cpu --serve
+```
+
+Open [http://localhost:8765/](http://localhost:8765/). This process runs in the
+terminal; press `Ctrl+C` to stop it. For other systems and installation limits,
+see [install and launch](docs/PRODUCTION_INSTALL.md).
+
+## More help
+
+- [User guide](docs/USER_GUIDE.md): interfaces, examples, and detailed capability limits.
+- [Dependency research](docs/DEPENDENCY_RESEARCH.md): supported languages, library code, and Wiki reuse.
+- [Architecture](docs/ARCHITECTURE.md): the components, question flow, and data lifecycle.
+- [Troubleshooting](docs/TROUBLESHOOTING.md): startup, readiness, and missing evidence.
+- [Documentation map](docs/README.md): all project documentation and contributor guides.

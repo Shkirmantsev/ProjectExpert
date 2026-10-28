@@ -5,12 +5,44 @@ Alternatively run `make platform-start` (GNU Make required). Windows uses
 Docker Desktop with WSL2 and Linux containers. Docker Compose 2.30+ is required
 for the optional CUDA profile; the CPU profile needs Compose 2.20+.
 
+## Commands
+
+`make` and `make help` **only list the commands**. They need neither Docker,
+Python nor `deployment.env`, and they change nothing:
+
+```bash
+make            # prints the command list
+make help       # prints the same command list
+make platform-start
+```
+
+Startup is always explicit. Before this change a bare `make` started the
+deployment; it now prints the command list, so any script that relied on bare
+`make` must call `make platform-start` (or `bash start.sh`) instead.
+
+`make help` lists every public target with a one-line description: `help`,
+`platform-start`, `platform-stop`, `platform-status`, `platform-logs`,
+`platform-pull`, `platform-restart`, `platform-init`, `platform-hydrate`,
+`platform-materialise`, `platform-models`, `platform-model-pull`,
+`platform-reindex`, `platform-doctor`, `eval`, `eval-retrieval`,
+`eval-chunk-size-sweep`, `invariants` and `metrics-gate`.
+
 The target repository defaults to the parent directory. Set PI_TARGET_REPO in
 `deployment.env` to change it; use forward slashes for Windows paths. The target
 must already exist. First startup downloads the selected embedding model. The
 default EmbeddingGemma 2 artifact is ~310 MB and its multimodal projector is
 ~555 MB; PDF layout/table/OCR assets download only when PDFs are present.
 Allow network access; the launcher timeout is 30 minutes, not an expected startup duration. The launcher reports success only after retrieval readiness.
+
+## The reported address
+
+After readiness the launcher prints the effective address, for example
+`Ready: http://localhost:8765`. The port is resolved the same way Compose
+resolves it: the shell environment overrides `deployment.env`, `deployment.env`
+is read as plain text (it is never executed as shell code), and `8765` is the
+fallback. Set `PI_CONTROL_PORT` in `deployment.env` or export it in the shell
+before starting. A failed readiness never prints `Ready:` and always returns a
+nonzero exit code.
 
 ## Models and hardware
 
@@ -143,6 +175,20 @@ to http://localhost:8765, bound to loopback. Materialisation needs APPROVAL_TOKE
 Published kits pin the tested application image digest and pinned accelerator
 assets. To upgrade, export a new kit into a separate directory, compare files,
 then update your existing kit deliberately. Export never overwrites your files.
+Use `docker run --pull=always` when fetching a branch-tagged kit; otherwise
+Docker may reuse a cached older image. Wait for the production publication job
+for the desired merge, not just the independent core-image job. To inspect the
+current kit pin without exporting files:
+
+```bash
+docker run --pull=always --rm --entrypoint cat ghcr.io/shkirmantsev/project-intelligence-deployment:dev /bundle/compose.yaml
+```
+
+An existing `PI_IMAGE` in `deployment.env` or the shell overrides the Compose
+pin. Update that override to the new kit's digest for an image-only upgrade,
+then run `start.sh` / `start.ps1` to recreate the service. A container restart
+does not change its image. Preserve local configuration and any sidecar patches.
+
 SHA tags are retained without an automatic expiry/cleanup job. Registry owners
 can delete packages; keep a local archive if permanent independent retention
 is required. Files also live in Git under distribution/deployment/.
@@ -162,6 +208,33 @@ python -m pi_platform.cli inference status
 fit budget, every rejected candidate with its reason, the runtime argument
 vector and the Compose environment fragment. The launchers use the same
 command, so the Linux and Windows launchers cannot drift apart.
+
+### "Found orphan containers" during startup
+
+Compose reports a container as an orphan when the running container belongs to
+a service that the invoked Compose configuration does not declare. The launcher
+used to ask the inference plan and the benchmark with the base `compose.yaml`
+only, so the running `embeddings` and `model-setup` sidecars looked like
+orphans while the sidecar deployment was healthy.
+
+Every launcher invocation now uses the complete applicable topology: the
+production service, the `model-setup` one-shot and the `embeddings` sidecar
+are always declared together. The inference plan runs before the backend is
+known and therefore uses the provisional CPU overlay; it still starts only the
+production service (`--no-deps`).
+
+Consequences:
+
+* A repeated startup no longer reports the sidecars as orphans, and it never
+  deletes the sidecars, the downloaded model assets or the indexed data.
+* A genuinely unrelated container in the same Compose project is still
+  reported. Nothing is removed automatically: the launchers never pass
+  `--remove-orphans`, and `stop.ps1` stops the complete service topology
+  instead of deleting whatever it does not recognise.
+* Switching the embedding model or the backend between the sidecar and the
+  native Windows runtime changes the service set. Stop the deployment first
+  (`make platform-stop`, `powershell -File stop.ps1`) so the previous
+  containers are removed deliberately.
 
 ## Recovery and cache maintenance
 

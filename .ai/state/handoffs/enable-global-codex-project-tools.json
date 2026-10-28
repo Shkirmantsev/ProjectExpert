@@ -1,0 +1,51 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Product service on localhost:8765 is not running; repository catalog skills are scoped to this project"
+  ],
+  "decisions": [
+    "User selected project-context MCP only; leave product MCP and project skills unchanged"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Registered and verified project-context MCP globally for local Codex sessions"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Use project-context tools in new local Codex sessions",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-28T19:47:51+00:00",
+    "id": "enable-global-codex-project-tools",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-28T19:53:30+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Preserve existing configuration and verify global server registration and scope"
+    ],
+    "goal": "Make project-context MCP and reusable project tools available across Codex sessions",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Codex configuration from /tmp shows project_context enabled; stdio client lists 10 tools and Wiki search passes"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

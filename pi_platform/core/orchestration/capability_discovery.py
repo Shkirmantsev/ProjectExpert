@@ -140,6 +140,7 @@ class DefaultCapabilityDiscovery(CapabilityDiscoveryPort):
         materialisation: object = None,
         local_llm: object = None,
         a2a: object = None,
+        dependency_research: object = None,
         reverse_delegation_enabled: bool = False,
         supported_external_agents: tuple[str, ...] = (),
         a2a_protocols: tuple[str, ...] = ("tasks/send",),
@@ -155,6 +156,7 @@ class DefaultCapabilityDiscovery(CapabilityDiscoveryPort):
         self._materialisation = materialisation
         self._local_llm = local_llm
         self._a2a = a2a
+        self._dependency_research = dependency_research
         self._reverse_delegation_enabled = bool(reverse_delegation_enabled)
         self._supported_external_agents = tuple(supported_external_agents)
         self._a2a_protocols = tuple(a2a_protocols)
@@ -223,8 +225,11 @@ class DefaultCapabilityDiscovery(CapabilityDiscoveryPort):
         return descriptor
 
     def _build_extra_protocols(self) -> dict:
+        research_block = self._dependency_research_block()
         if self._a2a is None:
-            return {}
+            if research_block is None:
+                return {}
+            return {"protocols": {"dependencyResearch": research_block}}
         from pi_platform.core.a2a import A2A_SPEC_VERSION
         a2a_block: dict = {
             "enabled": True,
@@ -236,12 +241,47 @@ class DefaultCapabilityDiscovery(CapabilityDiscoveryPort):
             "enabled": self._reverse_delegation_enabled,
             "supportedAgents": list(self._supported_external_agents),
         }
+        protocols: dict = {
+            "mcp": {"version": self._mcp_api_version},
+            "a2a": a2a_block,
+        }
+        if research_block is not None:
+            protocols["dependencyResearch"] = research_block
         return {
-            "protocols": {
-                "mcp": {"version": self._mcp_api_version},
-                "a2a": a2a_block,
-            },
+            "protocols": protocols,
             "reverseDelegation": reverse_block,
+        }
+
+    def _dependency_research_block(self) -> dict | None:
+        """Describe the dependency research capability from the wiring.
+
+        The block is derived from the service that is actually wired,
+        so the discovery never advertises a capability the deployment
+        does not have.
+        """
+
+        service = self._dependency_research
+        if service is None or not hasattr(service, "capabilities"):
+            return None
+        try:
+            capabilities = service.capabilities()
+        except Exception:  # noqa: BLE001 - a broken service is not a capability
+            return None
+        ecosystems = capabilities.get("ecosystems") or {}
+        acquisition = capabilities.get("acquisition") or {}
+        return {
+            "enabled": True,
+            "ecosystems": sorted(ecosystems),
+            "acquisitionEnabled": bool(acquisition.get("enabled")),
+            "allowedSources": list(acquisition.get("allowedSources", ())),
+            "tools": {
+                name: {
+                    "parser": (block.get("parser") or {}).get("parser"),
+                    "available": (block.get("parser") or {}).get("available"),
+                }
+                for name, block in ecosystems.items()
+                if isinstance(block, Mapping) and block.get("parser")
+            },
         }
 
     def _local_llm_available(self) -> bool:
