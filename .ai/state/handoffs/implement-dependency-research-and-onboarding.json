@@ -1,0 +1,88 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Read the change handoff, evidence and design; preserve unrelated working-tree changes"
+  ],
+  "decisions": [
+    "The change was adopted and archived as 2026-10-28-improve-dependency-research-and-onboarding; the three new capabilities received the first-acceptance date 2026-10-28"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "All 36 tasks of improve-dependency-research-and-onboarding are implemented, verified and adopted"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Operator: publish the deployment kit image; run the Windows and real-image acceptance this host could not run",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-27T21:30:37+00:00",
+    "id": "implement-dependency-research-and-onboarding",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-28T07:15:29+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "All scenarios in improve-dependency-research-and-onboarding have explicit verification; help, real research, Wiki reuse and onboarding work end to end"
+    ],
+    "goal": "Implement the accepted dependency research and onboarding plan in verified slices",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Final harness.py check PASS; openspec validate --all --strict 92/0; artifact manifest PASS (1348)"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "README.md",
+      "sha256": "179591f21cf65975b261332e20a1b082741e1a3fddce83d4e1b2aefa2491646a"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "fb5457dd64a1ab47391cfe933689a6465972f0afc6350136ee560c8e94315816"
+    },
+    {
+      "path": "docs/DEPENDENCY_RESEARCH.md",
+      "sha256": "60d597ac5d73ab2f20d1798dd86ae0ff8cc57ff3c02a9729da583923a1fdffc7"
+    },
+    {
+      "path": "docs/USER_GUIDE.md",
+      "sha256": "3e1b3e8e8d40d98ecfcacc02ce5568280a904e46cbd13ac14ba01fac904baa7f"
+    },
+    {
+      "path": "openspec/CURRENT.md",
+      "sha256": "9ebe47a14a38e957d9744742d3f201f6126213b109f1b634c372091d4ce7a237"
+    },
+    {
+      "path": "openspec/changes/archive/2026-10-28-improve-dependency-research-and-onboarding/implementation-evidence.md",
+      "sha256": "cebb6fa829c617bff04225d15841c5d6d96f74e4c4d6d504e7959c73b4d664d7"
+    },
+    {
+      "path": "openspec/specs/2026-10-28-dependency-research/spec.md",
+      "sha256": "3da583285bc9f6181296530431360df4f14ed8726c54df5ee9d76de60667f95a"
+    },
+    {
+      "path": "openspec/specs/2026-10-28-javascript-dependency-intelligence/spec.md",
+      "sha256": "eba66f74a10709e40f85f0887b8aaba6a75a548528d60bdefe8ba3b02268413d"
+    },
+    {
+      "path": "openspec/specs/2026-10-28-user-onboarding/spec.md",
+      "sha256": "d97c6a670bb3864b8d018924ce88d2f905e5cdd47dd7f343d93a6e40128a8d97"
+    }
+  ]
+}
