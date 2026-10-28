@@ -2,7 +2,10 @@
 $ErrorActionPreference = 'Stop'
 Push-Location $PSScriptRoot
 try {
-    docker compose --env-file deployment.env -f compose.yaml down --remove-orphans
+    # The complete service topology is used so every service of the
+    # deployment is stopped. Orphans are never removed automatically: an
+    # unrelated container in the same project must stay visible.
+    & docker compose --env-file deployment.env -f compose.yaml -f compose.accelerator.yaml down
     if ($LASTEXITCODE -ne 0) { throw 'Could not stop application containers' }
     $cache = Join-Path $PSScriptRoot 'accelerator'
     $pidFile = Join-Path $cache 'runtime.pid'

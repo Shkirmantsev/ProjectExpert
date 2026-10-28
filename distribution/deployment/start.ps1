@@ -7,14 +7,14 @@ try {
     $timeout = 1800
     if ($env:PI_WAIT_TIMEOUT) { $timeout = [int]$env:PI_WAIT_TIMEOUT }
     & (Join-Path $PSScriptRoot 'compose.ps1') up -d --wait --wait-timeout $timeout
-    $port = $env:PI_CONTROL_PORT
-    if (-not $port) {
-        $line = Get-Content deployment.env | Where-Object { $_ -match '^PI_CONTROL_PORT=' } | Select-Object -Last 1
-        if ($line) { $port = $line.Split('=', 2)[1] } else { $port = '8765' }
+    # The readiness line is produced by the shared resolver, so the reported
+    # URL is the effective one (shell environment, then deployment.env, then
+    # default).
+    $ready = (& (Join-Path $PSScriptRoot 'url.ps1') | Out-String).Trim()
+    Write-Host $ready
+    if ($env:PI_OPEN_BROWSER -ne '0') {
+        try { Start-Process ($ready -replace '^Ready:\s*', '') } catch { Write-Host $ready }
     }
-    $url = "http://localhost:$port"
-    Write-Host "Ready: $url"
-    if ($env:PI_OPEN_BROWSER -ne '0') { try { Start-Process $url } catch { Write-Host $url } }
 } finally {
     Pop-Location
 }

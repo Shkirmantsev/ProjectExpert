@@ -119,12 +119,15 @@ The publisher must configure package visibility/access in GitHub; CI does not
 silently change it.
 
 The kit exports `compose.yaml`, `deployment.env`, `Makefile`, `start.sh`,
-`start.ps1`, and `README.md` under `.project-intelligence-deploy`. Existing files
-are preserved. Run `make -C .project-intelligence-deploy platform-start` if GNU
-Make is available, or use its `platform-status`, `platform-logs`, `platform-stop`,
+`start.ps1`, `url.sh`, `url.ps1`, and `README.md` under
+`.project-intelligence-deploy`. Existing files are preserved. Run
+`make -C .project-intelligence-deploy platform-start` if GNU Make is
+available, or use its `platform-status`, `platform-logs`, `platform-stop`,
 `platform-models`, `platform-doctor`, `platform-reindex`, and `eval-*` targets.
-Edit `deployment.env` for a different repository, model or port. The repository
-must exist; Compose does not silently create a misspelled mount path.
+A bare `make` (or `make help`) only prints the command list: it starts
+nothing and needs neither Docker nor Python. Edit `deployment.env` for a
+different repository, model or port; the shell environment overrides it. The
+repository must exist; Compose does not silently create a misspelled mount path.
 
 The kit defaults to EmbeddingGemma 2 Q8_0 through a managed llama.cpp runtime,
 with pinned model and multimodal projector downloads on first startup. Weights and document-processing caches persist in a

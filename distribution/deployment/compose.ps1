@@ -14,14 +14,12 @@ $ErrorActionPreference = 'Stop'
 $composeArgs = $args
 
 
-function Measure-Endpoint([string]$Endpoint) {
+function Measure-Endpoint([string]$Endpoint, [string[]]$Files) {
     # Measure the embedding latency of a running runtime. Returns the median
-    # in milliseconds, or $null when the runtime cannot be measured.
-    $benchmarkFiles = @('-f', 'compose.yaml')
-    if ($Endpoint -like '*host.docker.internal*') {
-        $benchmarkFiles += @('-f', 'compose.windows-gpu.yaml')
-    }
-    $raw = & docker compose --env-file deployment.env @benchmarkFiles `
+    # in milliseconds, or $null when the runtime cannot be measured. The
+    # caller supplies the complete applicable Compose topology: a reduced file
+    # set would make the running sidecars look like orphans to Compose.
+    $raw = & docker compose --env-file deployment.env @Files `
         run --rm --no-deps -T production `
         inference benchmark --endpoint $Endpoint --iterations 20 2>$null
     if ($LASTEXITCODE -ne 0 -or -not $raw) { return $null }
@@ -37,7 +35,7 @@ function Measure-CpuSidecar {
     & docker compose --env-file deployment.env @files up -d --wait --wait-timeout 1800 embeddings *> $null
     if ($LASTEXITCODE -ne 0) { return $null }
     try {
-        return Measure-Endpoint 'http://embeddings:8769'
+        return Measure-Endpoint 'http://embeddings:8769' $files
     } finally {
         & docker compose --env-file deployment.env @files stop embeddings *> $null
     }
@@ -58,7 +56,11 @@ function Resolve-PlanWithMeasurements($Plan, $Measurements) {
     }
     $json = $evidence | ConvertTo-Json -Depth 6 -Compress
     $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
+    # The decision is asked before the backend is known, so the provisional CPU
+    # overlay supplies the complete service topology. The plan only runs the
+    # production service (--no-deps).
     $raw = & docker compose --env-file deployment.env -f compose.yaml `
+        -f compose.accelerator.yaml -f compose.cpu.yaml `
         run --rm --no-deps -T production inference plan --evidence-b64 $encoded 2>$null
     if ($LASTEXITCODE -ne 0 -or -not $raw) { return $null }
     try {
@@ -135,7 +137,7 @@ try {
     if ($backend -eq 'auto' -and $plan -and $plan.backend -ne 'cpu') {
         # The GPU works. Measure it against the CPU baseline: a GPU that is
         # not measurably faster is not worth its complexity.
-        $gpuMedian = Measure-Endpoint 'http://host.docker.internal:8769'
+        $gpuMedian = Measure-Endpoint 'http://host.docker.internal:8769' @('-f','compose.yaml','-f','compose.windows-gpu.yaml')
         $cpuMedian = Measure-CpuSidecar
         if ($gpuMedian -and $cpuMedian) {
             $measurements = @{ cpu = [double]$cpuMedian; $plan.backend = [double]$gpuMedian }
