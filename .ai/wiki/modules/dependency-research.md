@@ -76,7 +76,11 @@ and idempotent.
 The representations are distinct on purpose: `source`, `stub`,
 `generated`, `mapped-source`, `disassembly` and `decompiled`. A
 disassembly is not recovered source. No decompiler is bundled and
-native binaries are never decompiled. See
+native binaries are never decompiled. The optional Java decompiler receives
+a read-only input copy in a disposable directory; cleanup also clears the
+Windows read-only attribute. Its invocation test uses the current Python
+interpreter as a portable stub, without requiring a shell or a bundled
+decompiler. See
 [`adr.0031-cross-language-research-tooling-policy`](../adr/0031-cross-language-research-tooling-policy.md).
 
 ## What the service does not do

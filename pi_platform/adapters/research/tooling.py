@@ -320,7 +320,8 @@ class JavaDecompiler:
                 ),
                 scope={"path": str(artifact)},
             )
-        workdir = Path(tempfile.mkdtemp(prefix="pi-decompile-"))
+        temporary = tempfile.TemporaryDirectory(prefix="pi-decompile-")
+        workdir = Path(temporary.name)
         try:
             source = workdir / "input.jar"
             shutil.copyfile(artifact, source)
@@ -387,4 +388,5 @@ class JavaDecompiler:
                 scope={"path": str(artifact)},
             )
         finally:
-            shutil.rmtree(workdir, ignore_errors=True)
+            # TemporaryDirectory also removes read-only inputs on Windows.
+            temporary.cleanup()

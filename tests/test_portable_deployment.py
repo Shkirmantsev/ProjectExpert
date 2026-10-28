@@ -263,8 +263,12 @@ def _kit_copy(root: Path) -> Path:
 def _fake_docker(directory: Path, exit_code: int = 0) -> Path:
     """A Docker stand-in that records every invocation."""
 
-    binary = directory / 'docker'
-    script = '#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALLS"\nexit ' + str(exit_code) + '\n'
+    if os.name == 'nt':
+        binary = directory / 'docker.cmd'
+        script = '@echo off\n>>"%CALLS%" echo %*\nexit /b ' + str(exit_code) + '\n'
+    else:
+        binary = directory / 'docker'
+        script = '#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALLS"\nexit ' + str(exit_code) + '\n'
     binary.write_text(script)
     binary.chmod(0o755)
     return binary
@@ -383,10 +387,13 @@ class DeploymentHelpTests(unittest.TestCase):
             _fake_docker(Path(raw), exit_code=7)
             env = {**os.environ,
                    'PATH': str(Path(raw)) + os.pathsep + os.environ['PATH'],
-                   'CALLS': str(calls)}
-            run = subprocess.run(['make', 'platform-start'], cwd=kit, env=env, capture_output=True, text=True)
+                   'CALLS': str(calls),
+                   # Exercise Compose failure without native GPU acquisition.
+                   'PI_EMBEDDING_MODEL': 'gemma-torch'}
+            run = subprocess.run(['make', 'platform-start'], cwd=kit, env=env, capture_output=True, text=True, timeout=30)
             self.assertNotEqual(run.returncode, 0)
             self.assertNotIn('Ready:', run.stdout)
+            self.assertIn('up -d --wait', calls.read_text())
 
 
 class DeploymentTopologyTests(unittest.TestCase):

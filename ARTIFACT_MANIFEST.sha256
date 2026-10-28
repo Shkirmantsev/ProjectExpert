@@ -250,7 +250,7 @@ df4e4ddd773d6740bb583b271c6ab602d8cba1402999e1e50ee3faf0943c6fb7  ./.ai/wiki/mod
 3583b08da7c2ae4b1d4d7eff01431fc20deff1041205956d3abef3c5e542bf3b  ./.ai/wiki/modules/agent-integration.md
 15d3eea73ba14505d98ee931f1cf7a231463c6fad2ccdb7c3fe3969be9f3e26e  ./.ai/wiki/modules/audit-log.md
 c05aa0534cb933ba33792b46fb5419485b30b90ddf54be93d4b795b16b2a64cc  ./.ai/wiki/modules/context-assembler.md
-6fb0133ca3d1755fbaa20f99f67b7c9a370b6c1f829c16ff86835e583da83838  ./.ai/wiki/modules/dependency-research.md
+257bcf45d0142bba4a6c063ce6d94ae391d97102b3de817370ed8771dbe25807  ./.ai/wiki/modules/dependency-research.md
 f777eba155c1b52d569c18ceb5935110b679e039410418678f97545bcbf0225d  ./.ai/wiki/modules/docling-binding.md
 7ddcee601d6327caa8bc7cab7389a17835617905d1ed82027f63d543fd5dc2b4  ./.ai/wiki/modules/embeddings.md
 0ad3ac5cb9415275f31f5046cc7cc84bb93d2ed35732276e612a4fb9a2ddd731  ./.ai/wiki/modules/eval.md
@@ -292,7 +292,7 @@ cd60e3a9811804e13d1212f1da1aa187839d155543acbcd2a8ac8bb52bb0b0c2  ./.gitattribut
 63ea4c86e47d8de249fd7a7d09fff92da8d09e3fa647b6e39ee1bccb16bf616b  ./.github/workflows/codeql.yml
 698f9f58135ab4233af0ddf9eee02229bed85885cc9a0f7c768bf4f9cf73951f  ./.github/workflows/publish-oci-container.yml
 411e41e8ca3a6b50bc9cbb7e3741696f2799ab24e6e27f5fe1ab0fffcef17445  ./.github/workflows/verify-production-runtime.yml
-0602019bf37d9795a9343d07dd3ddb7a936483a8c4509abb1442ff45a74e5c30  ./.github/workflows/verify.yml
+5cfa55fbc2547065cc6ccb0980430919852b76abdabf6b50b543a535b1fd1f14  ./.github/workflows/verify.yml
 dca07f3ee52a5083b43cfe495f2a9168ee9d6930682f19b5946a148944fd72d3  ./.gitignore
 147823b25c2caf0314fd5dea69320f4e4709e314562e1dca89ffec7d6189dead  ./.harness/runtime.json
 d8c58083d0075d277ce47c100b12b8deaaab1000eaff144057a0080ef61291a9  ./.opencode/.gitignore
@@ -914,7 +914,7 @@ e7e4f1e1385fe2b6135426d1f46995b0cabf22f4979e17af15d18971a5f0aacd  ./pi_platform/
 7cda5fdb969f8862297944ed6d60008d1f6b85220e934ebbd0091465c3746613  ./pi_platform/adapters/research/python_ecosystem.py
 4630fb1bcf0c52e367269c006c81b758eada57dfaa5559bc5902681cd60dd72e  ./pi_platform/adapters/research/python_locks.py
 d734657bcaad6e7d81b64c96a2287efce8ae665457008466358dbc6a4d7138dc  ./pi_platform/adapters/research/sources.py
-433df2e108165ae181d2deb95b707b34fa803c21711a2f407dab53fae7b99c29  ./pi_platform/adapters/research/tooling.py
+3d16e7978eeac9c2f090c9f820d65b3b095a659837c853eb6a179e8449146049  ./pi_platform/adapters/research/tooling.py
 d1957b91e46ade88a1bab67f134713ab93357fbd30a6bf2292b75ae785ddb6fb  ./pi_platform/adapters/retrieval/__init__.py
 2924ef22b54d62b8d682e75c70719fa6d423b3357399c3eb8f98dd16562136a1  ./pi_platform/adapters/retrieval/bm25_light_reranker.py
 8586f53efacf9edd3e7d179306449f78f3dd8868cf6a20240af5aabd874d0171  ./pi_platform/adapters/retrieval/colbert_style_reranker.py
@@ -1242,7 +1242,7 @@ c87cc69259cc2ad3a60dc171cebb56b35d24fbb32222c91a235d675cf576510a  ./tests/test_c
 ad2cdba0f5882aa72255f54821b971179d2b4c5926f487f135fd1a11ec41aec4  ./tests/test_context_assembler_selection.py
 62efb6c48a61da4034ab1db5751e460e59e3e4c973ed781212da9bc311ac6876  ./tests/test_context_runtime.py
 da76602c716686239a965c14478a138f988afa16737303da550b273057fe672f  ./tests/test_control_plane_v08_panels.py
-677c712f5589a45e977ca0dabd9608c4dbcc0412185426810840e5db73219925  ./tests/test_dependency_artifacts.py
+35ba9bf0d13f819874e28cfa46f63d0535cd3dc87daa823c6ec19400fcb4f19e  ./tests/test_dependency_artifacts.py
 513ed523d7506abe4cb58e490d1a673e3c486fdc3c139591d095b47fa692a740  ./tests/test_dependency_research_service.py
 68c51fef25f65d759df62ff7c8209c91590c5a34f9be917ac9cac51187154649  ./tests/test_distribution_skill_v08.py
 b3ecc419532c41d07b84b62b1e406361b711314503e58f2b65f8f3bba3ef1e81  ./tests/test_docling_pdf_adapter.py
@@ -1310,7 +1310,7 @@ fc35da877cf890199a998e20574ec2bd9d758be4a3e2276a4307f7567289a7a1  ./tests/test_p
 272b6c6197ac3c014b9b84fb169a6683b4b041f57d8cc1f3c88da12acff17585  ./tests/test_platform_phase2.py
 e421cd9fb1d0dfe1ae5a9d367b78e98fbd117e48136f1052489c15738404a3f7  ./tests/test_platform_phase3.py
 a80d89d9a8796b383c21875dad475b8cf415e71d2968a910171332ebb84f94e9  ./tests/test_platform_phase4.py
-1887983fbcc3fc52fda2c2d15023d863b573feb8ab7687dc3c0cf26e8376a81a  ./tests/test_portable_deployment.py
+4e0d999bab60006fe39f4086dc81a11c02cd23df547b5b3896e1d446512351e9  ./tests/test_portable_deployment.py
 de1452054b8947abd23354956e45464500ce480def341cc8f41cb2c23a28aa62  ./tests/test_production_capability_gate.py
 16130fef7991048ade2ebc35294075dd7678d18ecec215e1b7b3bebb51c9634d  ./tests/test_production_end_to_end.py
 27bf3fec5fe8b08505c04e79b7b5b5bcee9e22753a3cd15d89072cba2a1186d0  ./tests/test_production_packaging.py

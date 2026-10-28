@@ -11,11 +11,15 @@ from __future__ import annotations
 import io
 import json
 import os
+import stat
+import subprocess
+import sys
 import tarfile
 import threading
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 from pi_platform.adapters.research.acquisition import (
     AcquisitionError,
@@ -548,29 +552,69 @@ class ToolingTests(unittest.TestCase):
         decompiler.
         """
 
-        tool = self.root / "stub-decompiler"
+        tool = self.root / "stub-decompiler.py"
         tool.write_text(
-            "#!/bin/sh\n"
-            "out=\"\"\n"
-            "prev=\"\"\n"
-            "for arg in \"$@\"; do\n"
-            "  if [ \"$prev\" = \"--outputdir\" ]; then out=\"$arg\"; fi\n"
-            "  prev=\"$arg\"\n"
-            "done\n"
-            "mkdir -p \"$out\"\n"
-            "printf 'public class Demo { public int value() { return 1; } }\\n' "
-            "> \"$out/Demo.java\"\n"
+            "import pathlib, sys\n"
+            "source, flag, output = sys.argv[1:]\n"
+            "assert flag == '--outputdir'\n"
+            "assert pathlib.Path(source).read_bytes() == b'PK\\x03\\x04'\n"
+            "(pathlib.Path(output) / 'Demo.java').write_text(\n"
+            "    'public class Demo { public int value() { return 1; } }\\n')\n",
+            encoding="utf-8",
         )
-        tool.chmod(0o755)
         jar = self.root / "demo.jar"
         jar.write_bytes(b"PK\x03\x04")
         decompiler = JavaDecompiler(executable=tool,
-                                    allowed_tools=("stub-decompiler",))
+                                    allowed_tools=(tool.name,))
         self.assertTrue(decompiler.capabilities()["supported"])
-        result = decompiler.decompile(jar)
+        run = subprocess.run
+        workdirs = []
+
+        def run_python_fixture(argv, **kwargs):
+            # Windows does not execute shebang scripts. Use this interpreter
+            # at the process boundary while checking the adapter's real argv.
+            workdir = Path(kwargs["cwd"])
+            workdirs.append(workdir)
+            source = workdir / "input.jar"
+            self.assertEqual(argv, [str(tool), str(source), "--outputdir",
+                                    str(workdir / "out")])
+            self.assertFalse(source.stat().st_mode & stat.S_IWUSR)
+            self.assertEqual(kwargs["timeout"], decompiler.timeout_seconds)
+            return run([sys.executable, *argv], **kwargs)
+
+        with patch("pi_platform.adapters.research.tooling.subprocess.run",
+                   side_effect=run_python_fixture) as invoke:
+            result = decompiler.decompile(jar)
+        invoke.assert_called_once()
+        self.assertFalse(workdirs[0].exists(), "disposable input must be removed")
+        self.assertEqual(jar.read_bytes(), b"PK\x03\x04")
         self.assertEqual(result.status, ResearchStatus.COMPLETE)
         self.assertEqual(result.excerpts[0]["representation"], "decompiled")
         self.assertIn("public class Demo", result.excerpts[0]["text"])
+
+    def test_failed_decompiler_removes_its_read_only_input(self):
+        tool = self.root / "stub-decompiler"
+        tool.touch()
+        jar = self.root / "demo.jar"
+        jar.write_bytes(b"PK\x03\x04")
+        decompiler = JavaDecompiler(executable=tool, allowed_tools=(tool.name,))
+        for failure in (OSError("cannot launch"),
+                        subprocess.TimeoutExpired(str(tool), 30)):
+            with self.subTest(failure=type(failure).__name__):
+                workdirs = []
+
+                def fail(argv, **kwargs):
+                    workdir = Path(kwargs["cwd"])
+                    workdirs.append(workdir)
+                    self.assertFalse((workdir / "input.jar").stat().st_mode & stat.S_IWUSR)
+                    raise failure
+
+                with patch("pi_platform.adapters.research.tooling.subprocess.run",
+                           side_effect=fail):
+                    result = decompiler.decompile(jar)
+                self.assertEqual(result.status, ResearchStatus.FAILED)
+                self.assertFalse(workdirs[0].exists())
+                self.assertEqual(jar.read_bytes(), b"PK\x03\x04")
 
     def test_the_optional_node_parser_is_declared_as_an_extra(self):
         text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
