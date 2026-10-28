@@ -4,7 +4,7 @@
     "steps_used": 0
   },
   "context": [
-    "CI fixes committed locally at user request; no push performed. PR 12 remains closed; native Windows verification pending. Unrelated untracked files preserved."
+    "PR13 CI import-root and Make regression fixes committed locally at user request. No push performed; unrelated untracked files preserved."
   ],
   "decisions": [
     "Confirmed failure is Unix decompiler stub; confirmed hang is deployment test invoking native startup with invalid Docker stub; fixes preserve accepted behavior"
@@ -12,19 +12,18 @@
   "progress": {
     "blocked": [],
     "done": [
-      "Both Windows logs confirm Unix decompiler fixture failure and hang in failed Make startup; portable fixtures and read-only cleanup fixed",
-      "Added regression coverage, CI timeouts and stack diagnostics; updated Wiki/manifest; reviewed diff and preserved unrelated files"
+      "Fixed CI temporary-script import root; added failing-before/passing-after regression; isolated Make failure test from PowerShell startup"
     ],
     "todo": []
   },
   "resume": {
-    "next_action": "Push when requested and confirm fresh Windows CI",
+    "next_action": "Push when requested and verify fresh CI",
     "prerequisites": []
   },
   "runtime": {
     "last_failure_fingerprint": "",
-    "next_decision": "reflect",
-    "no_progress_windows": 1,
+    "next_decision": "continue",
+    "no_progress_windows": 0,
     "repeated_failure_count": 0
   },
   "schema_version": "1.0",
@@ -32,7 +31,7 @@
     "created_at": "2026-10-28T20:47:34+00:00",
     "id": "fix-pr12-windows-ci",
     "project": "ProjectExpert",
-    "updated_at": "2026-10-28T21:33:28+00:00"
+    "updated_at": "2026-10-28T21:57:38+00:00"
   },
   "task": {
     "acceptance": [
@@ -44,36 +43,28 @@
   },
   "verification": {
     "passed": [
-      "PASS: 44 focused tests; unittest discovery 1683 tests in 301.102s with 14 skips; python3 harness.py check; workflow validation; artifact manifest; git diff --check"
+      "PASS: 16 focused tests; sequential python3 harness.py check; artifact manifest 1370 files; git diff --check. Exact temporary CI script discovered 1684 tests with only two Docker collisions during concurrent verification; both passed in sequential harness."
     ],
     "pending": [
-      "NOT RUN: native Windows 3.11/3.13 after patch; Linux host only"
+      "NOT RUN: fresh GitHub CI for this patch, including native Windows"
     ]
   },
   "working_set": [
     {
-      "path": ".ai/wiki/modules/dependency-research.md",
-      "sha256": "257bcf45d0142bba4a6c063ce6d94ae391d97102b3de817370ed8771dbe25807"
-    },
-    {
       "path": ".github/workflows/verify.yml",
-      "sha256": "5cfa55fbc2547065cc6ccb0980430919852b76abdabf6b50b543a535b1fd1f14"
+      "sha256": "cd8121194daec4d8eec5bd547a988d3961cab045965361ffc78214d293204034"
     },
     {
       "path": "ARTIFACT_MANIFEST.sha256",
-      "sha256": "05f453bd47f1fe05a2c438fa7e86c409550c02d70701bb1425388d05b37c246f"
-    },
-    {
-      "path": "pi_platform/adapters/research/tooling.py",
-      "sha256": "3d16e7978eeac9c2f090c9f820d65b3b095a659837c853eb6a179e8449146049"
-    },
-    {
-      "path": "tests/test_dependency_artifacts.py",
-      "sha256": "35ba9bf0d13f819874e28cfa46f63d0535cd3dc87daa823c6ec19400fcb4f19e"
+      "sha256": "29e213dd0d823064918f655a33b204b3a625dc6aa00b92abc9d9d5274f92e733"
     },
     {
       "path": "tests/test_portable_deployment.py",
-      "sha256": "4e0d999bab60006fe39f4086dc81a11c02cd23df547b5b3896e1d446512351e9"
+      "sha256": "f3c125a64d576c7586323e994f753f73a9fabbc3f15a876d19ed595d46ca423f"
+    },
+    {
+      "path": "tests/test_production_reliability.py",
+      "sha256": "d6b1bf5b37e118debb40586f2c79d66928986cd47c27ec916494f994a50db100"
     }
   ]
 }

@@ -29,7 +29,8 @@ jobs:
           import faulthandler
           import unittest
           faulthandler.dump_traceback_later(120, repeat=True)
-          unittest.main(module=None, argv=["unittest", "discover", "-s", "tests", "-v"])
+          # Actions executes this script outside the checkout; set the import root.
+          unittest.main(module=None, argv=["unittest", "discover", "-s", "tests", "-t", ".", "-v"])
 
   full-linux:
     timeout-minutes: 20

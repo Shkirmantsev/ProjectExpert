@@ -6,7 +6,7 @@ Structured source: [handoffs/fix-pr12-windows-ci.json](handoffs/fix-pr12-windows
 
 Task: `fix-pr12-windows-ci`
 Status: `reviewing`
-Updated: `2026-10-28T21:33:28+00:00`
+Updated: `2026-10-28T21:57:38+00:00`
 Active OpenSpec change: none
 
 ## Objective
@@ -19,8 +19,7 @@ Fix PR 12 Windows CI failures and hanging unit tests
 
 ## Completed
 
-- Both Windows logs confirm Unix decompiler fixture failure and hang in failed Make startup; portable fixtures and read-only cleanup fixed
-- Added regression coverage, CI timeouts and stack diagnostics; updated Wiki/manifest; reviewed diff and preserved unrelated files
+- Fixed CI temporary-script import root; added failing-before/passing-after regression; isolated Make failure test from PowerShell startup
 
 ## Remaining
 
@@ -36,28 +35,26 @@ Fix PR 12 Windows CI failures and hanging unit tests
 
 ## Relevant context
 
-- `CI fixes committed locally at user request; no push performed. PR 12 remains closed; native Windows verification pending. Unrelated untracked files preserved.`
+- `PR13 CI import-root and Make regression fixes committed locally at user request. No push performed; unrelated untracked files preserved.`
 
 ## Working set
 
-- `.ai/wiki/modules/dependency-research.md`
 - `.github/workflows/verify.yml`
 - `ARTIFACT_MANIFEST.sha256`
-- `pi_platform/adapters/research/tooling.py`
-- `tests/test_dependency_artifacts.py`
 - `tests/test_portable_deployment.py`
+- `tests/test_production_reliability.py`
 
 ## Verification passed
 
-- PASS: 44 focused tests; unittest discovery 1683 tests in 301.102s with 14 skips; python3 harness.py check; workflow validation; artifact manifest; git diff --check
+- PASS: 16 focused tests; sequential python3 harness.py check; artifact manifest 1370 files; git diff --check. Exact temporary CI script discovered 1684 tests with only two Docker collisions during concurrent verification; both passed in sequential harness.
 
 ## Verification pending
 
-- NOT RUN: native Windows 3.11/3.13 after patch; Linux host only
+- NOT RUN: fresh GitHub CI for this patch, including native Windows
 
 ## Next action
 
-Push when requested and confirm fresh Windows CI
+Push when requested and verify fresh CI
 
 ## Prerequisites
 

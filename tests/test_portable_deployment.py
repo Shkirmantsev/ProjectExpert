@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -384,13 +385,18 @@ class DeploymentHelpTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             kit = _kit_copy(raw)
             calls = Path(raw) / 'calls'
-            _fake_docker(Path(raw), exit_code=7)
-            env = {**os.environ,
-                   'PATH': str(Path(raw)) + os.pathsep + os.environ['PATH'],
-                   'CALLS': str(calls),
-                   # Exercise Compose failure without native GPU acquisition.
-                   'PI_EMBEDDING_MODEL': 'gemma-torch'}
-            run = subprocess.run(['make', 'platform-start'], cwd=kit, env=env, capture_output=True, text=True, timeout=30)
+            # This contract belongs to Make: a failed Compose command must
+            # prevent the subsequent URL/Ready command. Launcher behavior has
+            # separate coverage; do not start PowerShell or probe GPUs here.
+            compose = Path(raw) / 'failing compose.py'
+            compose.write_text(
+                'import pathlib, sys\n'
+                f'pathlib.Path({str(calls)!r}).write_text(" ".join(sys.argv[1:]))\n'
+                'sys.exit(7)\n'
+            )
+            command = f'COMPOSE="{sys.executable}" "{compose}"'
+            run = subprocess.run(['make', 'platform-start', command], cwd=kit,
+                                 capture_output=True, text=True, timeout=30)
             self.assertNotEqual(run.returncode, 0)
             self.assertNotIn('Ready:', run.stdout)
             self.assertIn('up -d --wait', calls.read_text())
