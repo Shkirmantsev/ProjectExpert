@@ -1,297 +1,190 @@
 # ProjectExpert
 
-A portable, version-aware project intelligence platform. It turns source, specs and documents into structured knowledge that any agent or UI can search, ask and trace. The deployment kit runs the application with a managed inference service; GPU inference uses a Linux sidecar or Windows native service.
+## What it is
 
-## Production deployment
+ProjectExpert helps you understand a codebase and the libraries it uses. Run it
+beside your project, then ask questions in the browser or connect your coding
+assistant. Useful findings can be saved in a project Wiki for the next session.
 
-Use the [production installation guide](docs/PRODUCTION_INSTALL.md) for the
-one-command GHCR deployment kit on Linux or Windows Docker Desktop. The kit
-contains Compose, ready-to-start defaults, a product-only Makefile and launchers.
-Startup automatically prepares the selected embedding model and Docling assets.
-
-EmbeddingGemma 2 supports CPU and optional CUDA/Vulkan inference. The kit defaults
-to `PI_EMBEDDING_MODEL=gemma` and `PI_ACCELERATOR=auto`, selecting a measured usable
-backend or falling back to CPU. Native Python execution uses `gemma-torch`.
-See [kit operations](distribution/deployment/README.md) and
-[Python dependency/library analysis](docs/PYTHON_DEPENDENCY_ANALYSIS.md).
-
-The workflow is configured to publish runtime and digest-bound kit artifacts on
-pushes/merges to `dev`, `development` and `main`. This checkout's changes are not
-proof of a published GHCR release. Linux CPU/model/OCR checks passed; physical GPU,
-Windows and remote publication checks remain pending in the
-[verification report](docs/PRODUCTION_RECONCILIATION_STATUS.md).
-
-## What it does
-
-ProjectExpert binds to a target repository and operates on four layers:
-
-The canonical knowledge tree lives in `project-knowledge/`. It is Git-versioned, human-readable and stored as deterministic JSON or YAML. Source code, parsed structures, requirements, ADRs, OpenSpec changes and Wiki pages all land here.
-
-The runtime working store sits under `.project-intelligence-cache/`. It is gitignored and rebuilt from the canonical tree on demand. The store holds derived state: vector indexes, embedding caches, graph indices and the working-tree overlay.
-
-The local dynamic inbox lives at `tmp/local/source/`. It accepts confidential or short-lived input that must not be committed. The scanner applies the documented `LOCAL_ONLY`, `REFERENCE` and `SNAPSHOT` policies per file.
-
-The bidirectional round-trip links the two: `hydrate()` reads from Git and populates the runtime store; `materialise()` writes runtime changes back into the canonical tree under operator approval. A license gate blocks builds when a dependency lacks an SPDX identifier or lands in the review list.
-
-The platform is implementation-language-neutral at the boundary. The product source tree is Python 3.11 today; Java-specific parsing lives behind language-neutral ports as `pi_platform/adapters/java/`.
-
-## Use cases
-
-### 1. Onboarding a new agent to an unfamiliar code base
+A *dependency* is a library your project uses.
 
 ```mermaid
 flowchart LR
-    A[New agent] --> Q1[project.search]
-    A --> Q2[project.get_requirement]
-    A --> Q3[project.trace_requirement]
-    Q1 --> K[Knowledge layer]
-    Q2 --> K
-    Q3 --> K
-    K --> P[Target project]
+    P[Your code and documents] --> E[ProjectExpert]
+    E --> U[Browser or coding assistant]
+    U --> W[Project Wiki]
+    W --> E
 ```
 
-A coding agent asks: *"what is the contract of `OrderService.cancelOrder`?"* The answer comes back with the source file, the implementing requirement ID, the OpenSpec change that introduced the requirement and the design decision that fixed the contract. No manual code spelunking.
+Text alternative: ProjectExpert reads your project, supplies context to people
+and agents, and reuses curated Wiki explanations.
 
-### 2. Tracing a change back to its requirement
+## Start with Docker
 
-```mermaid
-sequenceDiagram
-    actor U as Operator
-    participant KB as Knowledge graph
-    participant OS as OpenSpec change set
-    U->>KB: get_requirement(REQ-042)
-    KB-->>U: status, sources, history
-    U->>OS: trace_requirement(REQ-042)
-    OS-->>U: change id, ADR, commit, tests
-    U->>KB: get_stale_knowledge()
-    KB-->>U: facts pending re-verification
+You need Docker with Compose, GHCR registry access and disk space for images
+and model assets — no host Python or GNU Make. The tested platform matrix and
+the first-start download expectation are in the
+[installation guide](docs/PRODUCTION_INSTALL.md).
+
+Run both commands **from the project you want to analyze**, not a checkout.
+
+**1. Set up** — exports the deployment kit into this project:
+
+```bash
+docker run --pull=always --rm -v "$PWD:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev
 ```
 
-OpenSpec changes, ADRs, code and Git commits form one chain. The platform answers "REQ-042 changed in which change? which ADR justified the change? which tests cover it?" in a single query.
+**2. Run** — starts the service and prepares its model:
 
-### 3. Reviewing a dependency upgrade before merge
-
-```mermaid
-flowchart TD
-    P[pom.xml change] --> R[Re-ingest]
-    R --> D[Dependency graph update]
-    D --> L[License gate]
-    L -->|deny| X[Block build]
-    L -->|review| A[Operator approval]
-    L -->|allow| OK[Merge permitted]
+```bash
+bash .project-intelligence-deploy/start.sh
 ```
 
-A Maven or Gradle update re-ingests the dependency graph. Every new `Dependency` entity carries its SPDX identifier. The license gate runs against the dependency inventory and blocks the build on a missing or `deny`-class license before the change ships.
+Then open `http://localhost:8765/` (or your configured port). The first start
+downloads model assets and builds the index, so it is much slower than later
+starts; the launcher prints `Ready: http://localhost:8765` when the service is
+up. If the page still says it is preparing data, check
+`http://localhost:8765/health/ready` — `/health` only proves the process is
+alive, `/health/ready` proves the index is usable. If the registry keeps asking
+for credentials, sign in once with `docker login ghcr`. When startup fails,
+start with [troubleshooting](docs/TROUBLESHOOTING.md).
 
-### 4. Dumping a vendor doc into the inbox
+Stop the deployment (this keeps the downloaded model cache):
 
-```mermaid
-flowchart LR
-    C[Vendor export] --> I[tmp/local/source/vendor-export/]
-    I --> P[Policy: LOCAL_ONLY]
-    P --> S[Scanner]
-    S --> K[Knowledge layer]
-    S -.->|never| GIT[Git tree]
+```bash
+make -C .project-intelligence-deploy platform-stop
 ```
 
-Drop a vendor export into the inbox, mark it `LOCAL_ONLY`, and the parser ingests it locally without ever committing the source bytes. Useful for confidential or short-lived material.
+Without GNU Make, stop it with `bash .project-intelligence-deploy/compose.sh down`.
+Windows uses the kit's `stop.ps1`.
 
-### 5. Auditing stale knowledge after a refactor
+Two cautions. The `:dev` tag is a development channel, not a stable release.
+Exporting a kit **preserves** your existing files and image pins, so fetching a
+newer kit alone does not upgrade an existing installation; follow the
+[upgrade steps](docs/PRODUCTION_INSTALL.md) instead.
 
-A refactor invalidates derived entities (entities that pointed at now-renamed classes, tests that reference moved methods). The freshness tracker surfaces them as `KnowledgeState.STALE` so the operator knows what to re-verify. The platform never rewrites authoritative knowledge silently.
+<details>
+<summary>Windows PowerShell</summary>
 
-### 6. Distributing the agent skill across editor hosts
-
-The same agent Skill artefact ships for Codex, Claude Code, OpenCode and generic agents. The agent calls the platform through the documented MCP tools and respects the documented retrieval-first policy: ask the knowledge layer first, do not broad-scan the source tree for every question.
-
-## Current architecture
-
-Phases 0-8 are shipped: plan, foundation, ingestion, storage, retrieval, orchestration, agent integration, control plane and enterprise security boundary. Phase 9 (distribution: REST UI surface, lightweight web UI, Open WebUI adapter, OKF wiki profile, one-click launchers, single-container image) is the next work item; Phase 10 (A2A and final quality gates) follows it.
-
-### Implementation repo, container, target project
-
-```mermaid
-flowchart TB
-    subgraph "Implementation repo (this)"
-        P[pi_platform/]
-        C[Containerfile + docker-compose.yml]
-        L[scripts/project-intelligence.sh<br/>scripts/Start-ProjectIntelligence.ps1]
-        D[distribution/]
-        O[openspec/]
-        W[.ai/wiki/]
-    end
-
-    subgraph "Container image (build artefact)"
-        I[Container runtime]
-    end
-
-    subgraph "Target project (bound at runtime)"
-        T[project-knowledge/]
-        R[.project-intelligence-cache/]
-        X[tmp/local/source/]
-    end
-
-    P --> I
-    C --> I
-    L --> I
-    I --> T
-    I --> R
-    I --> X
-    O -.documents.-> P
-    W -.explains.-> P
+```powershell
+docker run --pull=always --rm -v "${PWD}:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev
+& .\.project-intelligence-deploy\start.ps1
 ```
 
-The container image binds to a target project at runtime. The implementation repo never owns the target's `project-knowledge/`, `.project-intelligence-cache/` or `tmp/local/source/`; those live inside the bound target.
+The execution policy must permit local scripts, and Windows uses Docker Desktop
+with WSL2 and Linux containers. This path is **NOT RUN** in the current
+verification environment; the [kit guide](distribution/deployment/README.md)
+marks which configurations are verified and which are conditional.
 
-### Module map (Phases 1-8 implemented)
+</details>
 
-```text
-pi_platform/
-├── core/                       # domain logic, value types, ports
-│   ├── canonical/              # value types, content addressing, manifest, OKF
-│   ├── git/                    # CLI adapter, version identity, working-tree overlay
-│   ├── sync/                   # hydrate / reconcile / materialise / WAL / lock
-│   ├── licensing/              # policy / gate / inventory / SBOM emitter
-│   ├── ingest/                 # source adapters, chunking, enrichment pipeline
-│   ├── runtime/                # runtime store, sharded graph, provenance, freshness
-│   ├── retrieval/              # hybrid / multi-stage retrieval, reranking, metadata filters
-│   ├── orchestration/          # query orchestrator, task context, capability discovery
-│   ├── agent_integration/      # MCP tool contracts, version handshake, packagers
-│   ├── control/                # registry, hooks, policy engine, secrets, audit, flags
-│   └── security/               # enterprise boundary, classification, redaction, egress
-├── ports/                      # abstract port interfaces (language-neutral)
-├── adapters/                   # fs, git, java, markdown, pdf, html, openapi, openspec,
-│                               # ingest, retrieval, runtime, orchestration,
-│                               # agent_integration, control, security, mcp
-├── runtime/                    # content-addressed filesystem cache
-├── mcp/                        # MCP server surface
-└── cli/                        # `python -m pi_platform.cli` entry point
+## No Docker? Use Python
+
+From a ProjectExpert source checkout, with Python 3.11 or newer:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --require-hashes -r requirements-production-linux-x86_64.txt -r requirements-production-java-linux-x86_64.txt
+.venv/bin/python -m pip install --no-deps '.[production]'
+.venv/bin/python -m pip check
 ```
 
-The Python package name is `pi_platform` (not `platform`) because `platform` collides with the Python standard-library `platform` module. The `Containerfile` and the launchers both import `pi_platform.cli`.
+Start it against your project — the analyzed repository is passed separately:
 
-### Control plane and data plane
-
-```mermaid
-flowchart LR
-    subgraph "Control plane"
-        UI[UI / CLI]
-        POL[Policy engine]
-        REG[Feature / plugin registry]
-        AUD[Audit log]
-    end
-
-    subgraph "Data plane"
-        ING[Ingestion]
-        IDX[Indexes]
-        RET[Retrieval]
-        CTX[Context assembler]
-        MCP[MCP server]
-    end
-
-    UI --> POL
-    POL --> ING
-    ING --> IDX
-    RET --> IDX
-    CTX --> RET
-    MCP --> CTX
-    UI --> AUD
+```bash
+.venv/bin/python -m pi_platform.cli start --target /absolute/path/to/your-project --model gemma-torch --device cpu --serve
 ```
 
-Both planes call the same policy engine for authorisation. The control plane configures and observes the data plane; it does not bypass the same rules that apply to agents and plugins. Phase 7 shipped the policy engine, control registry, hook runtime, secret provider, audit log, feature flags and UI extension registry under `pi_platform/core/control/`; Phase 8 added the enterprise security boundary and egress policy under `pi_platform/core/security/`.
+The server runs in the foreground; stop it with `Ctrl+C`. The hash-locked
+requirements cover Linux x86_64 only; other hosts use the less strictly locked
+fallback, with its verification duties, in the
+[full installation guide](docs/PRODUCTION_INSTALL.md). This path does not
+depend on the optional harness integrations.
 
-### Knowledge lifecycle
+## What can I do?
 
-```mermaid
-sequenceDiagram
-    participant Git as Git tree (canonical)
-    participant Hyd as hydrate()
-    participant Run as Runtime store
-    participant Src as Sources
-    participant Ing as Ingestion
-    participant Mat as materialise()
-    Git->>Hyd: read manifests
-    Hyd->>Run: populate cache
-    Src->>Ing: parse / chunk / enrich
-    Ing->>Run: write chunks
-    Run->>Mat: produce diff
-    Mat->>Git: write under approval
-```
+Every answer cites the evidence it came from, so you can check a claim instead
+of trusting it. Start with one concrete question about your own project:
 
-The canonical tree is the source of truth. The runtime cache is derived. `materialise()` is the only operation that writes back into Git, and only after operator approval.
-
-### Phase progression
-
-| Phase | Name | Status |
+| What I want | How I use it | Example |
 |---|---|---|
-| 0 | Plan | complete |
-| 1 | Foundation (canonical, git, sync, licensing) | done |
-| 2 | Ingestion (parsers, content addressing, pipeline driver, chunking, enrichment) | complete |
-| 3 | Storage (runtime DB, sharded graph, provenance) | complete |
-| 4 | Retrieval (hybrid, multi-stage, reranking) | complete |
-| 5 | Orchestration (query, local LLM, task context) | complete |
-| 6 | Agent integration (MCP, skill, adapters) | complete |
-| 7 | Control plane (registry, hooks, capabilities, secrets) | complete |
-| 8 | Security (enterprise boundary) | complete |
-| 9 | Distribution (UI, container, OCI, one-click) | in progress |
-| 10 | A2A and final quality gates | planned |
+| Understand an unfamiliar project | Built-in web UI | “Where is order validation implemented?” |
+| Give a coding assistant project context | MCP client connected to ProjectExpert | Search requirements, source and curated explanations |
+| Investigate a library | Dependency research tools | “Why is this version used, and what does this method do?” |
+| Reuse an explanation next time | Wiki tools | Add a cited finding to the existing topic page |
+| Use a separate chat frontend | Optional Open WebUI integration — a compatibility route, not a bundled frontend | Configure its backend against the enabled compatibility route |
+| Request research from another agent | Optional A2A | Send the documented dependency task envelope |
 
-The full ordered task list lives in [`openspec/changes/plan-v0-8-platform-architecture/tasks.md`](openspec/changes/plan-v0-8-platform-architecture/tasks.md). The accepted capabilities of every shipped phase are listed in [current requirements](openspec/CURRENT.md). See [ingestion contracts](.ai/wiki/modules/ingest.md), [Phase 8 security boundary](.ai/wiki/modules/security.md) and the [resolved Phase 2 handoff](docs/handoff/phase-2-problem-statement.md).
+Practical first queries, interface setup and authentication are in the
+[user guide](docs/USER_GUIDE.md).
 
-## Quick start
+## Connect your tools
 
-### Standalone container / Docker Compose (end users)
+Every surface below shares the product port (`PI_CONTROL_PORT`, default `8765`).
+Pick the row that matches how you want to work:
 
-After its production checks succeed, each merge into `dev` / `development` publishes a self-contained OCI image to GitHub Container Registry under the corresponding branch tag (`:dev` / `:development`). Any user can start the platform against their own repository with Docker or Docker Compose without installing the development harness:
+| Surface | Address/port | Conditions |
+|---|---|---|
+| Built-in HTML UI | `http://localhost:8765/` | Default interface; honor `PI_CONTROL_PORT` |
+| REST API | `http://localhost:8765/api/v1/` | Query, retrieve, graph, wiki, status and materialisation routes; an operator-configured bearer token is required when one is set |
+| MCP over Streamable HTTP | `http://localhost:8765/mcp` | POST only (GET returns 405); initialize and `tools/list` use POST. This is **not** the harness project-context MCP |
+| Health | `/health` and `/health/ready` on the product port | Live process versus usable index |
+| Embedded A2A | `/a2a/v1/tasks:send` and `/.well-known/agent-card.json` on the product port | Only when `PI_A2A_INBOUND` is `1`, `true`, `yes` or `on` |
+| Standalone A2A | `python3 -m pi_platform.cli a2a-serve`, default port 8766 | Separate optional process; pass `--target` at the project directory; not needed alongside embedded A2A |
+| Open WebUI compatibility | `POST /v1/chat/completions` on the product port | Controlled by `PI_OPEN_WEBUI_ADAPTER`; a compatibility route only — the frontend is installed separately, and no service listens on 8767 |
+| Embedding service | Internal service port 8769 | Internal only; not a browser or chat interface |
 
-```bash
-# Start with Docker Compose (default single-container headless or desktop-lite profile)
-PI_TARGET_REPO="$(pwd)" docker compose --profile core-headless up -d
-# Or with bundled local LLM sidecar:
-PI_TARGET_REPO="$(pwd)" docker compose --profile desktop-lite up -d
+From another container, `localhost` means that container, not your host. The
+[user guide](docs/USER_GUIDE.md) explains each surface, its enabling condition
+and how clients connect.
 
-# Or run the OCI container directly:
-docker run --pull=always --rm -p 8765:8765 -v "$(pwd):/repo:rw" ghcr.io/shkirmantsev/project-intelligence:dev
-```
+## Capabilities and limits
 
-For the container-only setup kit and existing-install upgrades, follow the
-[installation guide](docs/PRODUCTION_INSTALL.md#ensure-you-receive-the-merged-revision).
-Fetching the latest kit preserves existing exported files and their image pin.
-
-Once started, the container automatically hydrates and reconciles `/repo` and exposes:
-- Web UI & Control Plane: `http://localhost:8765/`
-- REST API: `http://localhost:8765/api/v1/`
-- MCP JSON-RPC endpoint: `http://localhost:8765/mcp` (or stdio via `docker exec -i <container> python -m pi_platform.cli mcp-serve`)
-- Health & Readiness: `http://localhost:8765/health` and `http://localhost:8765/health/ready`
-
-### Development harness (contributors)
-
-```bash
-make init-mcp         # one-shot: .env, Wiki index, skills, MCP venv, client configs
-make wiki-init        # validate existing Wiki and (re)build its disposable index
-make check            # operator gate: config + Wiki + OpenSpec + tests + manifest
-```
-
-The portable `python` equivalents (`python harness.py <command>`) work on Linux, macOS and Windows without GNU Make. See [`docs/HARNESS_COMMANDS.md`](docs/HARNESS_COMMANDS.md) for the full setup and the manual MCP lifecycle (`run-mcp` / `stop-mcp` / `mcp-status` / `mcp-logs` / `mcp-clean` / `mcp-stdio`).
-
-## Architectural baseline
-
-[`project-intelligence-platform-architecture-v0.8.md`](project-intelligence-platform-architecture-v0.8.md) is the agreed architecture baseline. The Wiki at [`.ai/wiki/INDEX.md`](.ai/wiki/INDEX.md) mirrors it and links into the implementation.
-
-## Where to find answers
-
-| Question | File |
+| Area | Current support and limits |
 |---|---|
-| How to use the harness | [`docs/README.md`](docs/README.md), [`docs/QUICKSTART.md`](docs/QUICKSTART.md), [`docs/HARNESS_COMMANDS.md`](docs/HARNESS_COMMANDS.md) |
-| How to configure `.env` | [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) |
-| What a skill does | [`.agents/skills/<name>/SKILL.md`](.agents/skills/) or [`docs/SKILLS.md`](docs/SKILLS.md) |
-| How OpenSpec works | [`openspec/README.md`](openspec/README.md), [`openspec/CURRENT.md`](openspec/CURRENT.md) |
-| Coding and commit conventions | [`docs/conventions/README.md`](docs/conventions/README.md) |
-| Something broke | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) |
-| Security and secrets | [`docs/SECURITY.md`](docs/SECURITY.md) |
-| Directory layout | [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) |
-| OpenCode V1 vs V2 | [`docs/OPENCODE_COMPATIBILITY.md`](docs/OPENCODE_COMPATIBILITY.md) |
-| Platform architecture (Wiki) | [`.ai/wiki/architecture/platform-overview.md`](.ai/wiki/architecture/platform-overview.md) |
-| System overview (Wiki) | [`.ai/wiki/architecture/system-overview.md`](.ai/wiki/architecture/system-overview.md) |
-| Implementation phases (Wiki) | [`.ai/wiki/project/implementation-roadmap.md`](.ai/wiki/project/implementation-roadmap.md) |
-| Glossary | [`.ai/wiki/glossary/platform.md`](.ai/wiki/glossary/platform.md) |
+| Java (Maven/Gradle) | Declared dependencies are read from `pom.xml` / `build.gradle`. The transitive closure is **not** resolved automatically, because a dependency-tree command executes project code; an explicitly selected local Maven repository supplies installed versions. |
+| Python | `uv.lock` (lockfile version 1) and `poetry.lock` (lock versions 1.1, 2.0, 2.1) are read; `pyproject.toml` and `requirements*.txt` give the declared constraints; an explicitly selected environment's dist-info metadata gives installed versions. A declaration is never reported as a resolution. |
+| Node/JavaScript/TypeScript | `package.json`, `package-lock.json` (npm lockfile versions 1, 2, 3), `pnpm-lock.yaml` (lockfile versions 6.0 and 9.0) and `yarn.lock` (Yarn classic v1 and Yarn berry lockfile v2–v8) are read. Source symbols come from the tree-sitter JavaScript/TypeScript grammars, which are **optional**: without them the Node source evidence is partial and the capability report says so. |
+| Dependency research tools over MCP | `project.dependency_tree`, `project.dependency_search`, `project.dependency_read`, `project.dependency_acquire`. `project.get_dependency` keeps its original Maven argument shape (group, artifact, version) and answers from the real dependency graph. |
+| Over A2A | The same research is available through a versioned envelope `{"schema_version":1,"operation":"dependency.tree","arguments":{...}}` with the allowlisted operations `dependency.tree`, `dependency.search`, `dependency.read`, `dependency.acquire`. An unknown operation is rejected; it never succeeds as an acknowledgement. |
+| Artifact acquisition | Downloads an exact name+version from an **approved source only**, verifies the digest, refuses a redirect that leaves the approved hosts, and never runs package code. It is disabled unless the operator names approved sources (`PI_RESEARCH_SOURCES`, comma separated, e.g. `pypi,npm,maven-central`). |
+| Reconstructed code | A disassembly is not recovered source and is labelled as such; a decompilation is a reconstruction. No decompiler is bundled. Native binaries are never decompiled. |
+| Curated Wiki | `project.wiki_search`, `project.wiki_read_page`, `project.wiki_write_page`, `project.wiki_validate`. A write presents the revision it read (`expected_revision`); a changed page yields a conflict instead of an overwrite. A page becomes part of the searchable corpus on the next project refresh. |
+
+Language-by-language examples, provenance and Wiki reuse are in
+[dependency research](docs/DEPENDENCY_RESEARCH.md).
+
+## Configuration
+
+Container users edit `.project-intelligence-deploy/deployment.env` inside the
+exported kit. Shell environment variables override that file, and changing the
+port requires a stop and start.
+
+| Setting | Default | Effect |
+|---|---|---|
+| `PI_CONTROL_PORT` | `8765` | The product port; a restart is required |
+| `PI_TARGET_REPO` | `..` | The repository that is mounted and analyzed |
+| `PI_ACCELERATOR` | `auto` | `auto` / `cpu` / `vulkan` / `cuda`; a GPU is an optimisation and degrades to the validated CPU profile |
+| `PI_EMBEDDING_MODEL` | `gemma` | `gemma` (pinned EmbeddingGemma 2 Q8_0 through the managed llama.cpp runtime) or `gemma-torch` (native binding, text and image only) |
+| `PI_BIND_HOST` | `127.0.0.1` | Interface the product port is published on |
+
+The [configuration reference](docs/CONFIGURATION.md) covers settings precedence
+and client configuration, and the [kit guide](distribution/deployment/README.md)
+covers model, hardware and maintenance commands. Never put credentials or
+tokens in these files.
+
+Your analyzed project holds the data: `project-knowledge/` is the readable,
+versioned knowledge tree, while `.project-intelligence-cache/` is a derived
+index that can be rebuilt. Stopping the deployment keeps both, together with
+the model cache volume.
+
+## Learn more
+
+- [Architecture](docs/ARCHITECTURE.md) — big picture, user workflow and data process.
+- [Dependency research](docs/DEPENDENCY_RESEARCH.md) — language support, source limits, examples and Wiki reuse.
+- [User guide](docs/USER_GUIDE.md) — use cases, interfaces, ports, authentication and first queries.
+- [Installation and upgrades](docs/PRODUCTION_INSTALL.md) — prerequisites, platform matrix, model assets, rollback.
+- [Deployment kit reference](distribution/deployment/README.md) — exported kit commands and operations.
+- [Configuration](docs/CONFIGURATION.md) — settings, defaults and precedence.
+- [Troubleshooting](docs/TROUBLESHOOTING.md) — readiness, ports and missing evidence.
+- [Documentation map](docs/README.md) — contributor and harness material.
