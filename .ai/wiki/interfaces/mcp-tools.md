@@ -50,6 +50,40 @@ knowledge is not in a consistent state.
 | `project.get_stale_knowledge` | `staleness_map`. |
 | `project.build_task_context` | Bounded task-context bundle. |
 
+## Dependency research tools — 2026-10-27
+
+The server exposes four additional tools that call the shared
+dependency research service:
+
+| Tool | Arguments | Result |
+|---|---|---|
+| `project.dependency_tree` | `ecosystem` (required), `package`, `environment`, `scopes`, `max_depth`, `max_nodes`, `cursor` | the evidence-backed graph, the why-paths, the effective limits and the truncation state |
+| `project.dependency_search` | `ecosystem`, `package_ref`, `query` (required), `limit`, `cursor` | symbol cards with their evidence reference and representation |
+| `project.dependency_read` | `evidence_ref`, `artifact`, `member`, `symbol`, `start_line`, `end_line`, `max_bytes` | a bounded excerpt with its line range, digest and representation |
+| `project.dependency_acquire` | `ecosystem`, `name`, `version`, `source_id` (required) | the cached artifact, its digest and its members |
+
+`project.get_dependency` keeps its historical Maven argument shape
+(`group`, `artifact`, `version`) and now answers from the real
+dependency graph: the declared and resolved versions of the
+coordinate, the matching instances and the evidence behind them. A
+coordinate the graph does not contain is reported as `unavailable`
+with the reason. The tool never answers with a placeholder.
+
+A research answer is `{ok, research, status, completeness,
+warnings, truncated, cursor}`. A failure is a typed status
+(`denied`, `unsupported`, `stale`, `failed`), not an empty success.
+
+The Wiki tools gained two optional arguments for the same workflow:
+`project.wiki_read_page` accepts `inputs` and reports the recorded
+evidence that is stale, and `project.wiki_write_page` accepts
+`expected_revision` (the precondition of a compare-and-write) and
+`dependency_notes` (the provenance of the research).
+
+## Related
+
+- [`interfaces.dependency-research`](dependency-research.md)
+- [`modules.dependency-research`](../modules/dependency-research.md)
+
 ## Write / materialisation tools
 
 Both tools require an `approval_id` issued by

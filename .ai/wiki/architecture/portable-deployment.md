@@ -54,6 +54,34 @@ Windows firewall access should be limited to Docker/WSL. Credentials are runtime
 inputs, never shipped in the image. Existing exported kit files are preserved;
 upgrade explicitly using a separately exported kit and its tested image digest.
 
+## Help-first commands and the effective address — 2026-10-27
+
+- The exported kit's Makefile is **help-first**: bare `make` and
+  `make help` print the command list and change nothing. They need
+  neither Docker, nor Python, nor `deployment.env`. Startup is
+  explicit: `make platform-start` (or `start.sh` / `start.ps1`).
+- The reported address is the *effective* one. The control port is
+  resolved the way Compose resolves it: the shell environment
+  overrides `deployment.env`, `deployment.env` is read as plain
+  text (never executed), and `8765` is the fallback. A failed
+  readiness never prints `Ready:` and always returns a nonzero exit
+  code.
+- Every launcher invocation uses the **complete applicable Compose
+  topology**: the production service, the one-shot `model-setup`
+  and the `embeddings` sidecar are declared together, also for the
+  inference-plan and benchmark helpers. A reduced configuration
+  made Compose report the healthy sidecars as orphans. The plan
+  before the backend is known uses the provisional CPU overlay and
+  still starts only the production service (`--no-deps`).
+- Nothing is deleted automatically. The launchers never pass
+  `--remove-orphans`; a genuinely unrelated container in the same
+  project stays visible and stays running.
+
+## Related
+
+- [`adr.0029-portable-model-runtime-and-oci-kit`](../adr/0029-portable-model-runtime-and-oci-kit.md)
+- `distribution/deployment/README.md`
+
 ## Delivery and evidence
 
 The publication workflow builds and tests PRs without publishing. Pushes to dev,

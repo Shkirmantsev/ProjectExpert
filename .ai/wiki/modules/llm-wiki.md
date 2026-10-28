@@ -91,6 +91,44 @@ consistency gate. The two Wikis stay separate: the LLM Wiki
 belongs to the target repository's OKF bundle, the harness Wiki
 to this development harness.
 
+## Research enrichment — 2026-10-27
+
+The Wiki is also the place where a dependency research finding
+becomes durable, reusable knowledge. The write contract is
+extended additively:
+
+- Every page carries a **revision**: the content address of its
+  body. `project.wiki_read_page` returns it.
+- A write may present the revision it read as `expected_revision`.
+  Inside the per-page lock the current revision is compared: a
+  changed page produces a **conflict** (with the current revision)
+  instead of a silent overwrite. The caller re-reads and merges.
+- A write may carry `dependency_notes`: the provenance of the
+  research the page explains (package, ecosystem, version, artifact
+  hash, evidence references, repository revision, tool version and
+  a `fact`/`inference` label). The notes are stored in the
+  frontmatter, so a later reader can tell which evidence the text
+  is based on.
+- `project.wiki_read_page` accepts `inputs`: the current state of
+  the dependencies the page explains. The answer then reports the
+  recorded evidence that is **stale** (a changed version or a
+  changed artifact hash). A stale note does not rewrite the curated
+  explanation; it marks it for renewal.
+- The write result separates the **stored** state from the
+  **indexed** state: `stored`, `index_state` (the navigation index
+  of the Wiki) and `retrieval_index_state` (the retrieval index of
+  the project, `pending` until the next refresh). The navigation
+  refresh is idempotent, so a failed refresh can be retried
+  without changing the page.
+
+The curated pages reach the searchable corpus through the existing
+retrieval path; no second indexer was added.
+
+## Related
+
+- [`modules.dependency-research`](../modules/dependency-research.md)
+- [`interfaces.dependency-research`](../interfaces/dependency-research.md)
+
 ## Related
 
 - [`adr.0030-llm-wiki-as-curated-knowledge`](../adr/0030-llm-wiki-as-curated-knowledge.md)
