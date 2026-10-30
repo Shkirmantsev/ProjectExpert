@@ -504,12 +504,21 @@ class DoclingPdfAdapter(SourceAdapterPort):
         # rich document graph.
         from pi_platform.core.ingest.records import make_chunk
         source_path = getattr(source.metadata, "sourcePath", None)
+        source_metadata = source.metadata
         if isinstance(source.metadata, Mapping):
             source_path = source.metadata.get("sourcePath", source_path)
+            source_metadata = Metadata(
+                documentId=source.id, version=revision.strategy_version,
+                language=revision.language or "und",
+            )
+            source_metadata = replace(source_metadata, **{
+                k: v for k, v in source.metadata.items() if k in Metadata.__dataclass_fields__
+            })
         document = Document(
             id=revision.revision_id, title=getattr(source, "name", None) or revision.source_id,
-            metadata=Metadata(documentId=revision.revision_id, version=revision.strategy_version,
-                              language=revision.language or "und", sourcePath=source_path or source.uri),
+            metadata=replace(source_metadata, documentId=revision.revision_id,
+                             version=revision.strategy_version, language=revision.language or "und",
+                             sourcePath=source_path or source.uri, contentHash=source.contentHash),
         )
         sections = []
         for element in self._graph_store.list_elements(revision.revision_id):

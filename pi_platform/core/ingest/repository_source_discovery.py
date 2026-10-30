@@ -24,6 +24,7 @@ import fnmatch
 import hashlib
 import json
 import os
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Mapping, Optional, Sequence
@@ -78,6 +79,12 @@ DEFAULT_EXCLUDE_PATTERNS: tuple[str, ...] = (
     "vendor/**", "third_party/**", "generated/**", ".generated/**",
     # Local scratch
     "tmp/local/**", "*.pyc", "*.class", "*.o", "*.so",
+)
+
+LOCAL_INPUT_EXCLUDED_DIRECTORIES = (
+    ".git", ".hg", ".svn", ".project-intelligence-cache", ".project-intelligence-deploy",
+    "node_modules", ".venv", "venv", "__pycache__", "target", "build", "dist", "out",
+    ".next", "vendor", "third_party", "generated", ".generated",
 )
 
 
@@ -196,6 +203,7 @@ class SourceInventoryEntry:
     parser_version: str
     retrieval_text_hash: str = ""
     discovered_at: str = ""
+    policy: str = ""
 
     def as_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
@@ -282,22 +290,37 @@ class RepositorySourceDiscovery:
             raise RepositorySourceDiscoveryError(
                 f"repository root {repo_root!r} is not a directory"
             )
+        inbox, inbox_sources = self.discover_inbox(repo_root)
+        tmp_sources = self.discover_tmp(repo_root)
+        tracked_tmp = set()
+        if (repo_root / "tmp").is_dir() and (repo_root / ".git").exists():
+            tracked = subprocess.run(["git", "-C", str(repo_root), "ls-files", "-z", "--", "tmp/"],
+                                     capture_output=True, check=True, timeout=10)
+            tracked_tmp = {p.decode() for p in tracked.stdout.split(b"\0") if p}
         entries: list[SourceInventoryEntry] = []
         for dirpath, dirnames, filenames in os.walk(repo_root):
             # Apply excludes to directory pruning so we never
             # descend into `.git/`, `target/`, etc.
             original_dirnames = tuple(dirnames)
             for d in original_dirnames:
+                if (Path(dirpath) / d).is_symlink():
+                    dirnames.remove(d)
+                    continue
                 rel = self._relative_posix(
                     repo_root, Path(dirpath) / d,
                 )
-                if (Path(dirpath) / d).is_symlink() or self._is_excluded(rel + "/") or self._is_excluded(d + "/"):
+                if (Path(dirpath) / d == inbox
+                        or self._is_excluded(rel + "/") or self._is_excluded(d + "/")):
                     dirnames.remove(d)
             for filename in filenames:
                 file_path = Path(dirpath) / filename
                 if file_path.is_symlink():
                     continue
                 rel = self._relative_posix(repo_root, file_path)
+                # Untracked tmp inputs are admitted only by the document
+                # scanner, so generic discovery cannot bypass its size/policy.
+                if rel.startswith("tmp/") and rel not in tracked_tmp:
+                    continue
                 if self._is_excluded(rel):
                     continue
                 if not self._is_included(rel):
@@ -322,12 +345,67 @@ class RepositorySourceDiscovery:
                         discovered_at=self._now(),
                     ),
                 )
-        entries.sort(key=lambda e: e.path)
+        # The inbox is an explicit input, not runtime scratch. Its scanner owns
+        # confinement, promotion policy and the larger document byte limit.
+        entries_by_path = {entry.path: entry for entry in entries}
+        for source in (*tmp_sources, *inbox_sources):
+            rel = Path(source.uri).relative_to(repo_root).as_posix()
+            if rel in tracked_tmp:
+                continue
+            entries_by_path[rel] = SourceInventoryEntry(
+                path=rel, source_family=classify_source_family(rel),
+                content_hash=source.contentHash, parser_version=self._parser_version,
+                discovered_at=self._now(), policy=source.metadata.policy,
+            )
+        entries = sorted(entries_by_path.values(), key=lambda e: e.path)
         return SourceInventory(
             entries=tuple(entries),
             captured_at=self._now(),
             schema_version=self._parser_version,
         )
+
+    @staticmethod
+    def discover_tmp(repo_root):
+        """Private target tmp documents; generated local runtime is not input."""
+        from pi_platform.core.ingest.config import load_ingest_config
+        from pi_platform.core.ingest.local_source_inbox_scanner import LocalSourceInboxScanner
+        from pi_platform.ports.ingest.local_source_inbox_scanner import LocalSourceInboxContext
+
+        root = repo_root / "tmp"
+        if not root.is_dir() or root.is_symlink():
+            return ()
+        config = load_ingest_config(repo_root / "project-knowledge/project-context.yaml")
+        maximum = config.get("sources", {}).get("localInbox", {}).get("maxSourceBytes", 256 * 1024 * 1024)
+        return LocalSourceInboxScanner().scan(LocalSourceInboxContext(
+            project_root=root,
+            extra={"repository_root": repo_root, "max_source_bytes": maximum,
+                   "exclude_patterns": ("local/**",), "include_prefixes": ("local/source/",),
+                   "excluded_directories": LOCAL_INPUT_EXCLUDED_DIRECTORIES},
+        )).registered_sources
+
+    @staticmethod
+    def discover_inbox(repo_root):
+        from pi_platform.core.ingest.config import load_ingest_config
+        from pi_platform.core.ingest.local_source_inbox_scanner import LocalSourceInboxScanner
+        from pi_platform.ports.ingest.local_source_inbox_scanner import LocalSourceInboxContext
+
+        config = load_ingest_config(repo_root / "project-knowledge/project-context.yaml")
+        inbox_config = config.get("sources", {}).get("localInbox", {})
+        inbox = Path(inbox_config.get("path", "tmp/local/source"))
+        if not inbox.is_absolute():
+            inbox = repo_root / inbox
+        if inbox.resolve() == repo_root or not inbox.is_relative_to(repo_root) or any(
+            p.is_symlink() for p in (inbox, *inbox.parents) if p != repo_root
+        ) or not inbox.resolve().is_relative_to(repo_root):
+            raise RepositorySourceDiscoveryError("Local inbox must stay inside the target repository without symlinks")
+        if not inbox.is_dir():
+            return inbox, ()
+        return inbox, LocalSourceInboxScanner().scan(LocalSourceInboxContext(
+            project_root=inbox, override_map=inbox_config.get("policies", {}),
+            extra={"repository_root": repo_root,
+                   "excluded_directories": LOCAL_INPUT_EXCLUDED_DIRECTORIES,
+                   "max_source_bytes": inbox_config.get("maxSourceBytes", 256 * 1024 * 1024)},
+        )).registered_sources
 
     def incremental_reuse(
         self,
@@ -365,6 +443,7 @@ class RepositorySourceDiscovery:
                 prev is not None
                 and prev.content_hash == entry.content_hash
                 and prev.parser_version == entry.parser_version
+                and prev.policy == entry.policy
             ):
                 # Carry the retrieval_text_hash forward so the
                 # ingestion pipeline can decide whether to reparse.
@@ -375,6 +454,7 @@ class RepositorySourceDiscovery:
                     parser_version=entry.parser_version,
                     retrieval_text_hash=prev.retrieval_text_hash,
                     discovered_at=entry.discovered_at,
+                    policy=entry.policy,
                 )
                 merged.append(carried)
                 unchanged.append(carried)
