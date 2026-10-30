@@ -102,8 +102,10 @@ Atomic settings writes apply mode 0600 only on POSIX; Windows uses the runtime
 volume's inherited ACLs. Permission setup runs inside the file context so failures
 close the descriptor before removing the temporary file and preserve the previous
 settings. Portability regressions cover saving without the POSIX permission API
-and descriptor cleanup after a permission failure. Source-path tests compare
-native paths rather than assuming forward-slash separators.
+and descriptor cleanup after a permission failure. Source-path tests resolve both
+paths before comparison: native path syntax alone does not equate Windows 8.3
+temporary directory aliases with their full names. The alias regression uses a
+noncanonical repository path on every OS without requiring symlink privileges.
 
 `execution_status.py` reports the native model's loaded device or the managed
 backend chosen by the deployment overlay. Auto is kept distinct from active

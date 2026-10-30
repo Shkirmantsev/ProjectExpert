@@ -255,7 +255,7 @@ f777eba155c1b52d569c18ceb5935110b679e039410418678f97545bcbf0225d  ./.ai/wiki/mod
 7ddcee601d6327caa8bc7cab7389a17835617905d1ed82027f63d543fd5dc2b4  ./.ai/wiki/modules/embeddings.md
 0ad3ac5cb9415275f31f5046cc7cc84bb93d2ed35732276e612a4fb9a2ddd731  ./.ai/wiki/modules/eval.md
 f616c0166928d683645645044650b283cf2916fa435de8a5696f1f114587bd88  ./.ai/wiki/modules/feature-flags.md
-4f1ee8ace0695316153f3d77970540434e250407da13bcbf6d98cd76b163403e  ./.ai/wiki/modules/graph.md
+4c2fa85c9248fb70ff90dc55446bbe01edd9ff33dd2dc70216c836fc12a11d06  ./.ai/wiki/modules/graph.md
 6a776f5dc6d8160cc929a25a507066a20c868785a5f6b7e81a6836e50241b181  ./.ai/wiki/modules/hooks.md
 df9f2dc4ea1d0503d5514ae85efd0769e796ebfb2307c4d308c6997e86a163a5  ./.ai/wiki/modules/host-embedding-accelerator.md
 a981e95e31dd5859e30b65f96cb3ee288f1eaac93a49806a88c7a9410b4b86d7  ./.ai/wiki/modules/inference-runtime.md
@@ -276,7 +276,7 @@ ad362157070b22781a6a1c65b4bdc14fa9b2893fc776d2e75f1f8330aff946a6  ./.ai/wiki/mod
 70164a988bf6216f5e624d1eb42e187ec5da192a49cca0fcd963565bf190939b  ./.ai/wiki/modules/security.md
 57c60a34e2e4f77cdc227d654699eaee3a06a865f370eed88d72afcb718045fe  ./.ai/wiki/modules/task-context.md
 5ba00dc22fd3bf758633981ab80b835a4cc4e5222def3b559779a9d8b5321fec  ./.ai/wiki/modules/ui-extensions.md
-8b0cdb6777a31d059d8e4bf6e4946bfa5b094975a4f1feb84eacc3530b39dc6e  ./.ai/wiki/modules/ui.md
+753e6ac766e15f246981aa626e9f034393e0b7309506f0a3d3d3ae9883f3f860  ./.ai/wiki/modules/ui.md
 21aa7f323a7dd9d02b1c0955d3de0544e46ae99ef51465a859b035adb2333a64  ./.ai/wiki/project/deployment-profiles.md
 5e75da438d6516cd636e8a59d0d05cd3d1ad7b8823f2fba03b33668efb5409d6  ./.ai/wiki/project/distribution-vendors.md
 09a2028eea23a3be197213a5a2376f9d3f64a56887a9089fb6fb934ab6751039  ./.ai/wiki/project/harness-command-lifecycle.md
@@ -292,7 +292,7 @@ cd60e3a9811804e13d1212f1da1aa187839d155543acbcd2a8ac8bb52bb0b0c2  ./.gitattribut
 63ea4c86e47d8de249fd7a7d09fff92da8d09e3fa647b6e39ee1bccb16bf616b  ./.github/workflows/codeql.yml
 698f9f58135ab4233af0ddf9eee02229bed85885cc9a0f7c768bf4f9cf73951f  ./.github/workflows/publish-oci-container.yml
 411e41e8ca3a6b50bc9cbb7e3741696f2799ab24e6e27f5fe1ab0fffcef17445  ./.github/workflows/verify-production-runtime.yml
-cd8121194daec4d8eec5bd547a988d3961cab045965361ffc78214d293204034  ./.github/workflows/verify.yml
+0781c1743d8584b52365cb4b152b4cbbac34d6fca0163707cb12a57e772fef9a  ./.github/workflows/verify.yml
 dca07f3ee52a5083b43cfe495f2a9168ee9d6930682f19b5946a148944fd72d3  ./.gitignore
 147823b25c2caf0314fd5dea69320f4e4709e314562e1dca89ffec7d6189dead  ./.harness/runtime.json
 d8c58083d0075d277ce47c100b12b8deaaab1000eaff144057a0080ef61291a9  ./.opencode/.gitignore
@@ -1263,7 +1263,7 @@ a07cee5d74b316059237b17c13a10e92d81cae6b4231fdc5ff65fc3cd89b28fc  ./tests/test_c
 fe3e1794e91faa86ca4bea1bcaf33cdcfd29591661cbef2315a4b9ce7bfc666f  ./tests/test_clean_install_q4_runtime.py
 48802a6e3550fef73360ecf6ec2c6421125251e9d803a396d78fdd68272c7b1f  ./tests/test_clean_install_regressions.py
 5c50b5a54b49b089b40ab9a91afced5e20f915bdf06c431bfc3fa993dadbb4a9  ./tests/test_clients_and_skills.py
-e9f55e36bc0632fce3fa6d71ae9f25dde5090088b3a3540ae03d1110831ca75b  ./tests/test_container_search_ui.py
+e79e0fb3637741b5579839323b9ad32c4ec1a205cb16bb507673102fa1cf3d7a  ./tests/test_container_search_ui.py
 c87cc69259cc2ad3a60dc171cebb56b35d24fbb32222c91a235d675cf576510a  ./tests/test_content_address_cross_branch.py
 ad2cdba0f5882aa72255f54821b971179d2b4c5926f487f135fd1a11ec41aec4  ./tests/test_context_assembler_selection.py
 62efb6c48a61da4034ab1db5751e460e59e3e4c973ed781212da9bc311ac6876  ./tests/test_context_runtime.py
@@ -1284,7 +1284,7 @@ f463019a4a40b5f4ddf88c13bf99f2c27c62253c79464241395ff62fba12941b  ./tests/test_e
 1b9651d88017879226b779f54f9ac774458c6a55e2ca2cdc574d0bd9f18583a1  ./tests/test_evaluation_quality_gates.py
 87910879187013e5c1be20b06acfdae348a40af052f6555ef8c07e37cf774828  ./tests/test_first_start_wizard.py
 883c673c13f293dbc16984a96482ff037a0d983f68916cb1dbec757ebebe186d  ./tests/test_gguf_runtime.py
-0f95079b55eb5ee28466a7d505e9d23fffe7631b2c1d3b21922bc844c6433aab  ./tests/test_graph_50k.py
+34bc097ac5969302b84ea33fe22b472f88a1e8205b780054b866c77a9777e422  ./tests/test_graph_50k.py
 8ae0e2fc531459d605c3368165983730d007b5561f8d49f336994c02a0326622  ./tests/test_harness_commands.py
 e4c5c6c3599d006208297c0e4073f4695081781f55bd8f066c94562cf89c9cdf  ./tests/test_harness_init.py
 6dc0d1b4b0498b8f11f98e6b450bc07795c8ea5f42864cfa32893ac3852234af  ./tests/test_hashing_embedding_fallback.py

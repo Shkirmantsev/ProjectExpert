@@ -29,6 +29,12 @@ class ContainerSearchTests(unittest.TestCase):
         self.addCleanup(self.env.stop)
         self.actor = UiActor('human','test','viewer')
 
+    def test_local_inbox_under_aliased_repository_root(self):
+        # Exercise canonical vs alias spellings on every OS without requiring
+        # Windows symlink privileges. Native Windows also has 8.3 temp aliases.
+        self.root = self.root / '..' / self.root.name
+        self.test_published_sources_and_local_inbox_follow_search_generation()
+
     def test_published_sources_and_local_inbox_follow_search_generation(self):
         (self.root/'README.md').write_text('# Project\nTrade analysis and portfolio reports.')
         inbox = self.root/'tmp/local/source/customer'
@@ -40,8 +46,8 @@ class ContainerSearchTests(unittest.TestCase):
         _bootstrap_and_index_target(self.root,service=service,readiness=ready)
         self.assertTrue(ready.is_ready())
         hits = service.retrieve(self.actor,RetrieveRequest('Quasar')).results
-        local = [h for h in hits if Path(h.metadata.sourcePath) == note]
-        self.assertTrue(local)
+        local = [h for h in hits if Path(h.metadata.sourcePath).resolve() == note.resolve()]
+        self.assertTrue(local, [h.metadata.sourcePath for h in hits])
         self.assertEqual(local[0].metadata.policy,'LOCAL_ONLY')
         catalog = service.sources(self.actor).sources
         self.assertIn('repo:README.md',{s.id for s in catalog})
