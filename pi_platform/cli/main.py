@@ -72,6 +72,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="v0.8 Project Intelligence Platform — Phase 1 foundation CLI.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
+    from .chat import register_chat_parser
+    register_chat_parser(sub)
 
     init = sub.add_parser("init-project", help="scaffold a target repository")
     init.add_argument("--target", type=Path, default=Path("."),
@@ -1126,9 +1128,16 @@ def _cmd_serve(args: argparse.Namespace) -> int:
 
     def execute_admin_job(kind, details):
         if kind == "reindex":
-            _bootstrap_and_index_target(
-                target, service=service, readiness=readiness, cache_root=cache_root,
-            )
+            try:
+                _bootstrap_and_index_target(
+                    target, service=service, readiness=readiness, cache_root=cache_root,
+                )
+            except Exception:
+                # A manual retry can fail with no source edit. Ask the serving
+                # monitor to retry rather than leaving a stable tree unready.
+                if server.refresh_requested is not None:
+                    server.refresh_requested()
+                raise
         elif kind == "models.pull":
             result = _cmd_models_pull(argparse.Namespace(target=target, alias=details["alias"]))
             if result:
@@ -2759,6 +2768,11 @@ def _cmd_models(args: argparse.Namespace) -> int:
     return handler(args)
 
 
+def _cmd_chat(args: argparse.Namespace) -> int:
+    from .chat import run_chat_command
+    return run_chat_command(args)
+
+
 def _cmd_inference(args: argparse.Namespace) -> int:
     """Dispatch the ``inference`` command group (plan/doctor/status)."""
 
@@ -2772,6 +2786,7 @@ _DISPATCH.update(
         "start": _cmd_start,
         "models": _cmd_models,
         "inference": _cmd_inference,
+        "chat": _cmd_chat,
         "reindex": _cmd_reindex,
         "doctor": _cmd_doctor,
     }

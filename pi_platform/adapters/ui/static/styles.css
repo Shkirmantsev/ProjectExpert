@@ -73,6 +73,13 @@ button {
 }
 
 button:hover { filter: brightness(1.08); }
+button:disabled { opacity: 0.55; cursor: wait; }
+[hidden] { display: none; }
+[aria-busy="true"] { border-color: var(--accent); }
+[aria-busy="true"]::before {
+  content: "⏳ Indexing in progress…\A";
+  color: var(--accent);
+}
 
 .output {
   margin: 0.8rem 0 0;
@@ -90,3 +97,6 @@ button:hover { filter: brightness(1.08); }
 .hint { margin: 0.6rem 0 0; color: var(--muted); font-size: 0.86rem; }
 code { font-family: ui-monospace, Menlo, monospace; }
 footer { margin-top: 2rem; color: var(--muted); font-size: 0.86rem; }
+
+.mode-badge { display: inline-block; padding: 0.4rem 0.8rem; border: 1px solid var(--accent); border-radius: 7px; font-weight: 600; }
+#chat-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.65rem; }

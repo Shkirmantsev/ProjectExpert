@@ -4,6 +4,7 @@
 Define the accepted Phase 2 local source inbox behavior.
 
 ## Requirements
+
 ### Requirement: LocalSourceInboxScanner
 
 The platform MUST expose a `LocalSourceInboxScanner` that recursively
@@ -144,3 +145,29 @@ Then the scanner records `s-1` as deleted
 And the three derived chunks transition to `KnowledgeState.STALE`
 in the runtime cache
 And the operational log records the transition.
+
+### Requirement: Automatic runtime inbox inclusion
+Automatic indexing and source-version monitoring SHALL include the configured local inbox recursively, even when Git ignores it, using its scanner size limit and policy. The default remains tmp/local/source. Other tmp/local runtime artifacts SHALL remain excluded. Paths outside the target and symlinked trees SHALL be rejected or skipped. Inbox chunks SHALL retain promotion policy and SHALL NOT automatically become canonical Wiki pages.
+
+#### Scenario: Local PDF and nested notes
+Given ignored PDF and Markdown files in tmp/local/source and unrelated cache files in tmp/local
+When indexing runs
+Then the inbox documents are parsed by their supported adapters, searchable with LOCAL_ONLY provenance and visible in sources; unrelated cache files remain excluded.
+
+#### Scenario: Inbox changes invalidate the generation
+Given an indexed inbox file
+When it is edited or removed
+Then source-version monitoring changes and the next generation updates or removes its evidence.
+
+### Requirement: Target tmp document input
+The target project's tmp directory SHALL also provide recursively discovered local document inputs with LOCAL_ONLY policy and the configured inbox document byte limit. Existing tmp/local/source support SHALL remain. Runtime tmp/local scratch outside a source inbox, cache/build/vendor trees, unsupported formats and symlink escapes SHALL remain excluded. Hydration SHALL add /tmp/ to local Git exclusions without untracking existing files. Eligible document edits and removals SHALL affect version identity and the next search generation.
+
+#### Scenario: Large private PDF in nested tmp
+Given an untracked PDF larger than the repository scan limit but below the local document limit in tmp/reports/nested
+When automatic discovery runs
+Then it is an eligible LOCAL_ONLY source despite Git ignoring tmp and without ingesting runtime scratch caches.
+
+#### Scenario: Existing tracked temporary source
+Given a tmp file already tracked by Git
+When source discovery runs
+Then it remains eligible under normal repository rules and is not reclassified as an untracked private inbox file.

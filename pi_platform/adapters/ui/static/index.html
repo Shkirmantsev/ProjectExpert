@@ -13,30 +13,33 @@
   </header>
 
   <main>
+    <section class="panel">
+      <label for="access-token">API access token (only if configured by your operator)</label>
+      <input id="access-token" type="password" autocomplete="off" placeholder="PI_UI_TOKEN; kept in memory" />
+    </section>
     <section class="panel" id="wizard-panel">
       <h2>0. First-start wizard &amp; semantic search model</h2>
       <p class="hint">
-        Select the production embedding model (EmbeddingGemma 2 512d or Qwen3-Embedding-0.6B 1024d),
-        execution device, and Docling document processing. Switching models reuses canonical Git knowledge.
+        Search and ranking use EmbeddingGemma 2; no chat LLM or API key is required.
+        Select the execution device and PDF processing. Private document inputs: tmp/ and its subfolders. Keep generated caches under tmp/local/; tmp/local/source/ remains an explicit source inbox.
       </p>
+      <p id="active-mode" class="mode-badge" role="status" aria-live="polite">Active mode: checking…</p>
+      <p id="active-mode-detail" class="hint">This shows embedding inference, independently of an optional chat model.</p>
       <form id="wizard-form">
         <label for="embedding-model-select">Embedding model</label>
         <select id="embedding-model-select">
-          <option value="gemma">EmbeddingGemma 2 (google/embeddinggemma-2 · 512d)</option>
-          <option value="gemma-gguf">Gemma2 GGUF text/image (configured GPU/CPU runtime)</option>
-          <option value="qwen-gguf">Qwen GGUF (configured Vulkan/CUDA runtime)</option>
-          <option value="qwen">Qwen3 Embedding 0.6B (Qwen/Qwen3-Embedding-0.6B · 1024d)</option>
+          <option value="gemma">EmbeddingGemma 2 (Q8_0, managed embedding runtime)</option>
         </select>
         <label for="embedding-device-select">Execution device</label>
         <select id="embedding-device-select">
           <option value="auto">Auto (GPU if available, else CPU)</option>
-          <option value="cpu">CPU (float32)</option>
+          <option value="cpu">CPU</option>
           <option value="vulkan">GPU / Vulkan (GGUF runtime)</option>
-          <option value="cuda">GPU / CUDA (bfloat16)</option>
+          <option value="cuda">GPU / CUDA</option>
         </select>
         <label>
           <input id="docling-enabled-checkbox" type="checkbox" checked />
-          Enable Docling PDF &amp; document processing
+          Enable Docling PDF processing
         </label>
         <button id="wizard-submit-button" type="submit">Initialise and build search index</button>
         <button id="admin-reindex-button" type="button">Trigger reindex</button>
@@ -46,12 +49,13 @@
     </section>
 
     <section class="panel">
-      <h2>1. Ask a project question</h2>
+      <h2>1. Ask about your project</h2>
+      <p class="hint">Search works immediately with embeddings. Enable the optional chat LLM below to also generate an answer grounded in these sources.</p>
       <form id="query-form">
         <input id="query-text" type="text" placeholder="What is the contract of OrderService.cancel?" autocomplete="off" />
-        <button type="submit">Ask</button>
+        <button type="submit">Ask / Search</button>
       </form>
-      <pre id="query-result" class="output">Retrieval → context assembly → answer.</pre>
+      <pre id="query-result" class="output">Enter a question or identifier to find evidence.</pre>
     </section>
 
     <section class="panel">
@@ -77,6 +81,7 @@
 
     <section class="panel">
       <h2>5. Browse the Wiki</h2>
+      <p class="hint">Searches curated Markdown under project-knowledge/wiki/. A new project may contain only templates. Embeddings do not write Wiki articles; ask your connected agent to curate them from retrieved sources.</p>
       <form id="wiki-form">
         <input id="wiki-query" type="text" placeholder="Wiki query" autocomplete="off" />
         <button type="submit">Search</button>
@@ -104,44 +109,51 @@
 
     <section class="panel">
       <h2>9. Materialise approved knowledge</h2>
-      <form id="materialize-form">
+      <form id="materialize-form" hidden>
         <input id="approval-token" type="password" placeholder="Approval token" autocomplete="off" />
         <button type="submit">Materialise</button>
       </form>
-      <p class="hint">Materialisation is approval-controlled and fails closed without a valid token.</p>
+      <p class="hint">Advanced canonical write operation, not needed for indexing or search. This retrieval UI does not issue approval tokens. It requires an operator-configured signing key, administrator policy and a signed, scoped token; an API key or arbitrary password is not an approval. Use your approved administrative workflow.</p>
       <pre id="materialize-result" class="output">—</pre>
     </section>
 
     <section class="panel">
       <h2>10. Delegate a complex task</h2>
-      <form id="delegation-form">
+      <form id="delegation-form" hidden>
         <input id="delegation-task" type="text" placeholder="Task for the orchestrator" autocomplete="off" />
         <input id="delegation-target" type="text" placeholder="Optional egress target" autocomplete="off" />
         <button type="submit">Delegate</button>
       </form>
-      <p class="hint">Delegation is refused unless an egress decision allows it.</p>
+      <p class="hint">No coding-agent delegation is configured. Optional chat generates text from evidence; send complex tasks to Claude Code, Codex or another connected MCP client to use agent tools.</p>
       <pre id="delegation-result" class="output">—</pre>
     </section>
 
     <section class="panel">
-      <h2>11. Model settings</h2>
-      <p class="hint">
-        A local model ships with <code>desktop-lite</code> for out-of-the-box text
-        retrieval. Point the platform at any other OpenAI-compatible endpoint
-        (remote LLM, larger local model, your team's gateway) without
-        rebuilding the container.
-      </p>
-      <form id="model-form">
-        <label for="model-base-url">Model endpoint URL</label>
-        <input id="model-base-url" type="url"
-               placeholder="http://local-llm:8767/v1" autocomplete="off" />
-        <label for="model-name">Model name</label>
-        <input id="model-name" type="text"
-               placeholder="project-intelligence" autocomplete="off" />
-        <button type="submit">Save</button>
-        <button id="model-reset" type="button">Reset to bundled local model</button>
+      <h2>11. Optional chat LLM — answers from project evidence</h2>
+      <p class="hint">Embeddings find and rank your sources. A separate chat LLM can explain, summarize and compare the retrieved evidence. Search and reindexing still work when chat is disabled or unavailable.</p>
+      <form id="chat-form">
+        <label><input id="chat-enabled" type="checkbox" /> Enable generated answers</label>
+        <label for="chat-provider">API type</label>
+        <select id="chat-provider">
+          <option value="openai">OpenAI-compatible (LM Studio, local server or hosted API)</option>
+          <option value="anthropic">Anthropic Messages API</option>
+        </select>
+        <label for="chat-base-url">Chat API base URL (reachable from the ProjectExpert container)</label>
+        <input id="chat-base-url" type="url" placeholder="http://host.docker.internal:1234/v1" autocomplete="off" />
+        <label for="chat-model">Chat model identifier</label>
+        <input id="chat-model" type="text" placeholder="Exact identifier shown by your model server" autocomplete="off" />
+        <label for="chat-key">Provider API key (optional for servers without authentication)</label>
+        <input id="chat-key" type="password" placeholder="Leave blank to retain a saved key" autocomplete="off" />
+        <label><input id="chat-clear-key" type="checkbox" /> Clear the saved provider key</label>
+        <label><input id="chat-share-context" type="checkbox" /> Allow sending retrieved project excerpts to this endpoint</label>
+        <button id="chat-save" type="submit">Save and apply</button>
+        <button id="chat-test" type="button">Test saved connection</button>
       </form>
-      <pre id="model-status" class="output">—</pre>
+      <p id="chat-help" class="hint">LM Studio: start its server and load a chat model; use http://host.docker.internal:1234/v1 from Docker, not 127.0.0.1. On Linux, the deployment kit adds the host-gateway mapping. The model name must match the loaded chat model. An embedding model is not a chat model.</p>
+      <p class="hint">The URL and model configured before startup through Make appear in these same fields and can be edited here.</p>
+      <p class="hint">Saved on this ProjectExpert server and applied immediately to Ask and Open WebUI through ProjectExpert. The provider key is stored in ignored private runtime settings; it is never returned to the browser. To stop generated answers, uncheck Enable and save. This connection generates answers; it does not execute agent tools or edit the Wiki.</p>
+      <pre id="chat-status" class="output" aria-live="polite">Chat is optional. Loading server configuration…</pre>
+      <p class="hint">Open WebUI on the same Docker network: http://production:8765/v1, model project-intelligence. This route uses the settings above. A separate direct Open WebUI → LM Studio connection does not automatically retrieve ProjectExpert context.</p>
     </section>
   </main>
 

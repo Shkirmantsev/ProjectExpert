@@ -4,6 +4,7 @@ import hashlib
 import logging
 import fnmatch
 import subprocess
+import os
 from dataclasses import replace
 from pathlib import Path
 from pi_platform.core.canonical.content_address import content_address
@@ -45,6 +46,9 @@ class LocalSourceInboxScanner(LocalSourceInboxScannerPort):
         ".yml",
         ".json",
         ".properties",
+        ".rst", ".adoc", ".py", ".pyi", ".whl", ".kt", ".scala", ".go", ".rs",
+        ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs",
+        ".png", ".jpg", ".jpeg", ".webp", ".proto", ".graphql", ".sql",
     }
 
     def __init__(self, cache=None):
@@ -83,7 +87,25 @@ class LocalSourceInboxScanner(LocalSourceInboxScannerPort):
         except (OSError, subprocess.SubprocessError):
             pass
         sources, skipped, scanned, current = [], [], [], {}
-        iterator = root.rglob("*") if context.recursive else root.glob("*")
+        blocked = set(context.extra.get("excluded_directories", ()))
+        patterns = tuple(context.extra.get("exclude_patterns", ()))
+        prefixes = tuple(context.extra.get("include_prefixes", ()))
+
+        def recursive_paths():
+            # Broad tmp inputs can contain large generated caches. Prune them
+            # before traversal, retaining ancestors of explicit source inboxes.
+            for folder, dirs, names in os.walk(root):
+                for name in tuple(dirs):
+                    directory = Path(folder) / name
+                    rel = directory.relative_to(root).as_posix() + "/"
+                    excluded = any(fnmatch.fnmatch(rel, pattern) for pattern in patterns)
+                    keep = any(rel.startswith(prefix) or prefix.startswith(rel) for prefix in prefixes)
+                    if directory.is_symlink() or name in blocked or (excluded and not keep):
+                        dirs.remove(name)
+                for name in names:
+                    yield Path(folder) / name
+
+        iterator = recursive_paths() if context.recursive else root.glob("*")
         for path in sorted(iterator, key=lambda p: p.relative_to(root).as_posix()):
             if not path.is_file():
                 continue
@@ -94,8 +116,15 @@ class LocalSourceInboxScanner(LocalSourceInboxScannerPort):
                 skipped.append(path)
                 continue
             relative = path.relative_to(root)
+            excluded = any(fnmatch.fnmatch(relative.as_posix(), pattern)
+                           for pattern in patterns)
+            exception = any(relative.as_posix().startswith(prefix)
+                            for prefix in prefixes)
+            if blocked.intersection(relative.parts[:-1]) or (excluded and not exception):
+                skipped.append(path)
+                continue
             if (
-                path.is_symlink()
+                any(p.is_symlink() for p in (path, *path.parents) if p != root)
                 or str(path.resolve()) in tracked
                 or relative.as_posix() in tracked
                 or path.stat().st_size > maximum

@@ -12,6 +12,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -25,6 +26,7 @@ class GraphSharding50KTests(unittest.TestCase):
         if os.environ.get("PHASE3_SKIP_50K") == "1":
             self.skipTest("PHASE3_SKIP_50K=1")
         temp = tempfile.TemporaryDirectory()
+        started = time.monotonic()
         try:
             root = Path(temp.name)
             graph = LocalShardedGraph(root / "graph")
@@ -42,6 +44,9 @@ class GraphSharding50KTests(unittest.TestCase):
                         metadata=metadata,
                     )
                 )
+                if (i + 1) % 10_000 == 0:
+                    print(f'\n50k graph: wrote {i + 1}/50000 entities '
+                          f'({time.monotonic() - started:.1f}s)', file=sys.stderr, flush=True)
             manifest: GraphManifest = graph.rebuild_manifest()
             self.assertGreaterEqual(len(manifest.shards), 1)
             self.assertLessEqual(len(manifest.shards), 256)
@@ -65,7 +70,11 @@ class GraphSharding50KTests(unittest.TestCase):
                         f"shard file {jsonl_gz} exceeds the 32 MiB cap",
                     )
         finally:
+            print('\n50k graph: removing temporary graph and content-addressed objects',
+                  file=sys.stderr, flush=True)
             temp.cleanup()
+            print(f'50k graph: cleanup finished ({time.monotonic() - started:.1f}s total)',
+                  file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":

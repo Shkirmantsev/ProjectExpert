@@ -1,0 +1,5 @@
+# Design
+
+Use a bounded stdlib HTTP chat adapter, explicit context-sharing opt-in, existing egress policy and audit, no redirects. Save settings atomically with owner-only permissions in ignored runtime cache, never return keys. The query orchestrator retrieves first, sends bounded evidence only when enabled, and keeps evidence with an explanation on failure. Deterministic retrieval never calls chat. Both UI and Open WebUI reuse query orchestration. A server admin route provides redacted GET, validated PUT and explicit connection test. UI distinguishes embeddings from chat and shows generated answers with evidence.
+
+Actual native device comes from the loaded embedding adapter. Managed device comes from the deployment-selected backend, separately forwarded from user requests; CPU-only profiles report CPU, GPU profiles with the forced CPU projector report Hybrid. Unconfigured remote runtime reports Unknown instead of guessing Auto=GPU. The managed label describes the deployment profile, not an invented measured offload-layer count. Show explanation and optional selected GPU device.

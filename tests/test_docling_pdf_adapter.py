@@ -302,6 +302,19 @@ class DoclingPdfAdapterSmokeTests(unittest.TestCase):
             family=SourceContentFamily.PDF,
         )
 
+    def test_pdf_projection_preserves_local_policy_on_first_and_cached_parse(self):
+        from dataclasses import replace
+        from pi_platform.core.canonical.value_types import Metadata
+        for metadata in ({'policy':'LOCAL_ONLY','securityClassification':'PRIVATE'},
+                         Metadata(documentId='source',version='v1',language='en',policy='LOCAL_ONLY',securityClassification='PRIVATE')):
+            source=replace(self._source(),metadata=metadata)
+            for _ in range(2):
+                result=self._adapter.parse(source)
+                self.assertEqual(result.document.metadata.policy,'LOCAL_ONLY')
+                self.assertEqual(result.document.metadata.securityClassification,'PRIVATE')
+                self.assertTrue(result.sections)
+                self.assertTrue(all(c.metadata.policy=='LOCAL_ONLY' for section in result.sections for c in section.chunks))
+
     def test_family_is_pdf(self) -> None:
         self.assertEqual(self._adapter.family, SourceContentFamily.PDF)
 

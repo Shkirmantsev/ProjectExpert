@@ -1,0 +1,49 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [
+    "Answer is no: kit ships deployment.env with working defaults; shell env only overrides"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "README documents that no env vars are required; optional deployment.env settings and HF_TOKEN guidance added"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-28T23:01:08+00:00",
+    "id": "doc-readme-env-vars",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-28T23:13:32+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "README explains defaults work without env vars; optional settings documented accurately"
+    ],
+    "goal": "Document that ProjectExpert needs no environment variables and list optional settings in README",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "python3 harness.py check -> Harness core checks: PASS; artifact manifest regenerated and PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

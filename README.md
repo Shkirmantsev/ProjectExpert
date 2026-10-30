@@ -152,15 +152,56 @@ the data is stored.
 
 ## Configuration
 
-Most people can start with the defaults. To change the port or choose a
-processor, edit `.project-intelligence-deploy/deployment.env` in your project
-after setup. For example, `PI_CONTROL_PORT=8765` controls the browser address.
-Shell environment variables take precedence over the file. Stop and start the
-service after changing the port. Keep credentials out of the kit files.
+### Do I need to set environment variables?
 
-See [configuration](docs/CONFIGURATION.md) and the
-[deployment kit guide](distribution/deployment/README.md) for available
-settings, including the project folder, model, and CPU/GPU options.
+Short answer: **no.** The deployment kit ships a `deployment.env` file with
+working defaults, so `make platform-start` works on a clean installation
+without touching your shell at all. You only need environment variables if you
+want to override a default for one run.
+
+It helps to keep two things apart:
+
+- **Settings** live in `.project-intelligence-deploy/deployment.env` inside your
+  project. It is a plain text file that the kit reads; it is never executed as
+  shell code.
+- **Environment variables** are optional overrides. A variable exported in your
+  shell wins over the file, and the file wins over the built-in default.
+
+### Settings you may want to change
+
+Edit `.project-intelligence-deploy/deployment.env` in your project, or export the
+same name in your shell for a single run:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `PI_TARGET_REPO` | `..` | Which folder gets analysed. The kit sits in `.project-intelligence-deploy/`, so `..` is your project root. Use forward slashes on Windows. |
+| `PI_CONTROL_PORT` | `8765` | The port you open in the browser. |
+| `PI_BIND_HOST` | `127.0.0.1` | The interface the service listens on. Keep it on loopback unless you really mean to expose it. |
+| `PI_EMBEDDING_MODEL` | `gemma` | `gemma` (the default; the model is downloaded on first start) or `gemma-torch` (native PyTorch, text and image only). |
+| `PI_ACCELERATOR` | `auto` | `auto`, `cpu`, `vulkan` or `cuda`. `auto` picks the fastest backend it can prove works, and falls back to CPU when the GPU is missing, unusable or slower. |
+| `PI_GPU_DEVICE` | auto-detected | Pins one device, for example `Vulkan1`. It is honoured only when the runtime actually reports that device. |
+| `PI_DOCLING_ENABLED` | `1` | PDF, table and OCR parsing. Set it to `0` to skip that work. |
+| `PI_IMAGE` | published production image | Pins the application image. Change it only when you upgrade deliberately. |
+
+Stop and start the service after changing the port or the model.
+
+The only setting that can be a secret is `HF_TOKEN`, and you need it only when
+you select a gated Hugging Face model. Export it in your shell rather than
+writing it into the kit:
+
+```bash
+export HF_TOKEN=hf_...
+```
+
+Keep secrets out of `deployment.env`: it lives in your project folder and can
+end up in Git.
+
+See the [deployment kit guide](distribution/deployment/README.md) for the full
+list of settings, the model and accelerator details, and the upgrade steps.
+
+Working on ProjectExpert itself rather than using it? The repository has its
+own `.env` for the development harness; see
+[configuration](docs/CONFIGURATION.md).
 
 ## No Docker? Use Python
 
@@ -184,6 +225,11 @@ Then replace `/absolute/path/to/your-project` with the full path to your project
 Open [http://localhost:8765/](http://localhost:8765/). This process runs in the
 terminal; press `Ctrl+C` to stop it. For other systems and installation limits,
 see [install and launch](docs/PRODUCTION_INSTALL.md).
+
+In this mode the settings above are command-line flags (`--target`, `--model`,
+`--device`, `--port`), so no environment variables are needed either. The
+embedding model is downloaded into your local Hugging Face cache; set
+`HF_HOME` if you want it somewhere else.
 
 ## More help
 

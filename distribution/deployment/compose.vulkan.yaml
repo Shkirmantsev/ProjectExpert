@@ -5,6 +5,8 @@ services:
   production:
     environment:
       PI_EMBEDDING_DEVICE: vulkan
+      PI_INFERENCE_BACKEND: vulkan
+      PI_GPU_DEVICE: ${PI_GPU_DEVICE:-Vulkan0}
   embeddings:
     image: ghcr.io/ggml-org/llama.cpp:server-vulkan-b11515@sha256:b7ac2b757dd43ab04fdc236b9e96a0020ba8566d0b8c33839add482e93c80f3b
     devices:

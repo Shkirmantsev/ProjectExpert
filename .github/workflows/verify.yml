@@ -28,9 +28,18 @@ jobs:
         run: |
           import faulthandler
           import unittest
-          faulthandler.dump_traceback_later(120, repeat=True)
+          class StallResult(unittest.TextTestResult):
+              def startTest(self, test):
+                  super().startTest(test)
+                  faulthandler.dump_traceback_later(120, repeat=True)
+              def stopTest(self, test):
+                  faulthandler.cancel_dump_traceback_later()
+                  super().stopTest(test)
+          class StallRunner(unittest.TextTestRunner):
+              resultclass = StallResult
           # Actions executes this script outside the checkout; set the import root.
-          unittest.main(module=None, argv=["unittest", "discover", "-s", "tests", "-t", ".", "-v"])
+          # Only a single slow test emits a stack sample; suite age is irrelevant.
+          unittest.main(module=None, testRunner=StallRunner, argv=["unittest", "discover", "-s", "tests", "-t", ".", "-v"])
 
   full-linux:
     timeout-minutes: 20

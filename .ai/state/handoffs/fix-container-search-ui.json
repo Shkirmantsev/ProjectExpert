@@ -1,0 +1,66 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Original ProjectExpert checkout updated; no image publication or trade-analyzer/Open WebUI mutation. Upgrade guide: docs/CONTAINER_SEARCH_REPAIR.md"
+  ],
+  "decisions": [
+    "Keep readiness fail-closed; no chat LLM required; index local inbox with preserved policy"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Implemented and verified container search/UI/inbox repair; adopted and archived fix-container-search-ui; documented trade-analyzer upgrade"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-30T20:15:53+00:00",
+    "id": "fix-container-search-ui",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-30T20:33:12+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Search and ranking work without chat LLM; UI reports progress and available models; local inbox searchable; focused regression tests and harness check pass"
+    ],
+    "goal": "Repair container retrieval UI, indexing readiness, source discovery and local document inbox; document target deployment upgrade",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full python3 harness.py check PASS; final strict OpenSpec PASS; Wiki validation 131 docs PASS; artifact manifest 1380 files PASS; diff check PASS",
+      "148 focused tests PASS (3 optional skips at run), 47 final inbox/PDF tests PASS (1 host opt-in skip), Node UI flow PASS, 36 production-dependency tests PASS",
+      "Actual PDF->Docling->managed Gemma->USearch PASS including LOCAL_ONLY provenance; live deployment observed read-only"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "pi_platform/adapters/pdf/docling_pdf_adapter.py",
+      "sha256": "0ba87d49c6310355809bf46952d7505b4eab8b8849a6dcdba879d6e6f6fd2367"
+    },
+    {
+      "path": "pi_platform/adapters/ui/static/app.js",
+      "sha256": "d766bdff5e0c64de82ba230693d36cea1410aa7b12f28e67bb3083cb6a2148aa"
+    },
+    {
+      "path": "pi_platform/core/ingest/repository_source_discovery.py",
+      "sha256": "4beaa4e8a1f92bb9a2911e2fcec36830032643ab15026d476541faa99ef1d655"
+    }
+  ]
+}

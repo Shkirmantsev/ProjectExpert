@@ -199,7 +199,7 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
             source = Source(
                 id='repo:' + entry.path, uri=str(target / entry.path),
                 family=_family(entry.path).value, contentHash=entry.content_hash,
-                metadata=Metadata(documentId='repo:' + entry.path, version='0.1.0', language='und', sourcePath=entry.path),
+                metadata=Metadata(documentId='repo:' + entry.path, version='0.1.0', language='und', sourcePath=entry.path, policy=entry.policy or None),
             )
             report = driver.run(source, target)
             if not report.ok:
@@ -263,6 +263,7 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         text = 'Image: ' + entry.path
         meta = {'sourcePath': entry.path, 'documentId': 'repo:' + entry.path,
                 'version': entry.content_hash, 'language': 'und',
+                'policy': entry.policy or None,
                 # The media marker lets the reranker know that this
                 # candidate was embedded together with its pixels, so a
                 # text-only reranker does not demote it for having no

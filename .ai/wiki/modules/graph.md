@@ -55,6 +55,13 @@ uncompressed budget. The `tests/test_graph_50k.py` property test
 asserts both the shard count distribution and the 32 MiB cap with a
 50 000-entity fixture.
 
+The test writes 50 000 content-addressed objects and then removes them; both
+phases can be slow on Windows filesystems. It reports progress every 10 000
+entities and identifies cleanup explicitly. CI stack diagnostics are armed per
+test, rather than once for the whole suite, so an old suite does not produce
+misleading timeout samples during otherwise short tests. These samples report
+where execution is spending time; they do not themselves fail or stop a test.
+
 ## Content-addressed entity bodies
 
 Every entity body is stored by its SHA-256 content address under

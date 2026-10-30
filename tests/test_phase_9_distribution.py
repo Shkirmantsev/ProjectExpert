@@ -334,13 +334,13 @@ class OpenWebUiProfileTests(unittest.TestCase):
         self.assertEqual(body["object"], "list")
         self.assertEqual(len(body["data"]), 1)
 
-    def test_streaming_is_refused(self) -> None:
+    def test_streaming_is_accepted_for_http_framing(self) -> None:
         shim = OpenAiCompatShim(lambda p: None, flag=lambda: True)
         status, _ = shim.handle(
             "/v1/chat/completions",
             {"stream": True, "messages": [{"role": "user", "content": "x"}]},
         )
-        self.assertEqual(status, 400)
+        self.assertEqual(status, 200)
 
     def test_no_admin_or_upload_surface_exists(self) -> None:
         shim = OpenAiCompatShim(lambda p: None, flag=lambda: True)

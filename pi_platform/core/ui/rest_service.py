@@ -391,6 +391,10 @@ class RestService(RestApiPort):
             )
         if self._orchestrator is None:
             return AgentDelegationResult(status="unavailable", reason="no orchestrator")
+        if getattr(self._orchestrator, "supports_delegation", True) is False:
+            return AgentDelegationResult(
+                status="unavailable", reason="This deployment provides retrieval only. Use a connected coding agent through MCP for complex tasks.",
+            )
         result = self._orchestrator.orchestrate(request.task, level=2)
         return AgentDelegationResult(
             status="delegated",

@@ -1,34 +1,15 @@
 # Phase 9 docker-compose for the v0.8 Project Intelligence Platform.
 #
-# Profiles (per plan-v0-8-platform-architecture/tasks.md task 19 + design.md §45):
-#   - core-headless      : the core container only — REST + UI served by the
-#                          same image. Default for headless / CI usage.
-#                          No model is started; ``query`` returns the
-#                          retrieval-only result. The UI exposes a "Model
-#                          settings" panel for operators who want to wire
-#                          a remote model in.
-#   - desktop-lite       : core + bundled local model sidecar. This is the
-#                          §58 "download → start → open browser" default.
-#                          The local model handles text retrieval and the
-#                          OpenAI-compatible chat shim points at it by
-#                          default. The UI settings panel may override.
-#   - desktop-local-ai   : desktop-lite + a heavier local model (operator
-#                          picks the runtime and the weights).
-#   - open-webui         : desktop-lite + Open WebUI sidecar (pinned to
-#                          0.6.5 from the SPDX inventory). The operator
-#                          configures the model Open WebUI talks to.
-#   - enterprise         : core + an OCI distribution sidecar placeholder.
-#
-# Phase 1 had a `desktop-ui` sidecar in the `desktop-lite` profile. Phase 9
-# collapses that sidecar: the lightweight static UI is served by the core
-# container itself, removing a redundant process and a duplicate image
-# reference. This is documented as a Phase 1 contract reversal in
-# design.md (§"Phase 1 contract reversal").
-#
-# Local model by default (ADR 0020): ``desktop-lite`` starts a small local
-# model sidecar so the platform answers queries out of the box. The UI
-# exposes a "Model settings" panel so operators can swap the endpoint to
-# any OpenAI-compatible service without rebuilding the container.
+# Profiles:
+#   core-headless: model-free development retrieval and the static UI.
+#   desktop-lite / desktop-local-ai: legacy opt-in chat sidecar profiles;
+#     operators must supply weights. No chat model is wired into search.
+#   open-webui: core retrieval adapter plus the optional chat-style frontend.
+#     Search requires no chat LLM. Configure Open WebUI with core:8765/v1
+#     and the project-intelligence model when using this topology.
+#   production: native Gemma semantic retrieval. The exported deployment kit
+#     manages a separate Gemma embedding sidecar instead.
+#   enterprise: core and an optional distribution sidecar.
 
 name: project-intelligence
 
@@ -45,6 +26,8 @@ services:
       context: .
       dockerfile: Containerfile
       target: core
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     profiles: ["core-headless", "desktop-lite", "desktop-local-ai", "open-webui", "enterprise"]
     ports:
       - "${PI_BIND_HOST:-127.0.0.1}:${PI_CONTROL_PORT:-8765}:8765"
@@ -61,12 +44,8 @@ services:
       PI_DOCLING_ENABLED: ${PI_DOCLING_ENABLED:-0}
       PI_MODEL_CACHE: ${PI_MODEL_CACHE:-/models/huggingface}
       HF_HOME: ${PI_MODEL_CACHE:-/models/huggingface}
-      # ``PI_OPENAI_BASE_URL`` is the URL the OpenAI-compatible shim uses
-      # when the operator has not yet overridden it from the UI. The
-      # default points at the bundled local-llm sidecar in
-      # ``desktop-lite`` and friends; ``core-headless`` overrides it to
-      # the empty string to disable the chat path.
-      PI_OPENAI_BASE_URL: ${PI_OPENAI_BASE_URL:-http://local-llm:8767/v1}
+      # Legacy adapter metadata only; this does not connect an upstream LLM.
+      PI_OPENAI_BASE_URL: ${PI_OPENAI_BASE_URL:-http://core:8765/v1}
       PI_OPENAI_MODEL: ${PI_OPENAI_MODEL:-project-intelligence}
     restart: unless-stopped
 
@@ -95,13 +74,13 @@ services:
       PI_OPENAI_MODEL: ${PI_OPENAI_MODEL:-project-intelligence}
 
   local-llm:
-    # Bundled local model sidecar (default). The image and the model file
+    # Legacy opt-in chat sidecar; not required by the open-webui profile. The image and the model file
     # are chosen by the operator via ``PI_LOCAL_LLM_IMAGE`` and
     # ``PI_LOCAL_LLM_MODEL``; ProjectExpert ships a stable llama.cpp
     # release tag and a placeholder model path that operators are expected
     # to override for their hardware and licence policy.
     image: ${PI_LOCAL_LLM_IMAGE:-ghcr.io/ggml-org/llama.cpp:b3855}
-    profiles: ["desktop-lite", "desktop-local-ai", "open-webui"]
+    profiles: ["desktop-lite", "desktop-local-ai"]
     ports:
       - "${PI_LOCAL_LLM_PORT:-8767}:8767"
     volumes:

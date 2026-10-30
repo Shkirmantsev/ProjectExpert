@@ -3,6 +3,8 @@ services:
   production:
     image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:production}
     platform: linux/amd64
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${PI_BIND_HOST:-127.0.0.1}:${PI_CONTROL_PORT:-8765}:8765"
     volumes:
