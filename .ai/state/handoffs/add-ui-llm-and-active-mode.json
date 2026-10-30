@@ -1,0 +1,52 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "New image not built/published/deployed; user must redeploy application. Guide: docs/OPTIONAL_CHAT_AND_EXECUTION_MODE.md. Provider transport used HTTP fixtures, not real account credentials; managed Hybrid describes selected backend plus CPU projector."
+  ],
+  "decisions": [
+    "Saved operator consent grants short-lived endpoint-scoped egress approval; sensitive external classifications remain denied. Managed mode describes selected backend/projector profile, not GPU layer telemetry."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Added functional optional LLM settings and grounded answers across custom UI/Open WebUI; added evidence-based CPU/GPU/Hybrid status; documented and adopted OpenSpec change"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-30T20:55:35+00:00",
+    "id": "add-ui-llm-and-active-mode",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-30T21:08:28+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Saved server-side chat configuration enables grounded LLM answers through UI and Open WebUI while retrieval works independently; status reflects measured execution rather than Auto request"
+    ],
+    "goal": "Provide functional optional external LLM settings and clear effective CPU/GPU/Hybrid indicator in container UI",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full python3 harness.py check PASS; 9 chat/provider/device regressions PASS; 131 focused compatibility tests PASS (2 optional skips); final targeted suites PASS; Node UI PASS",
+      "Compose CPU/CUDA/Vulkan status/host-gateway matrix PASS; adopted strict OpenSpec PASS; Wiki 131 documents PASS; artifact manifest 1390 files PASS; diff check PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

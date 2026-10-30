@@ -1,0 +1,51 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Existing deployments need updated application image and deployment Makefile; no trade-analyzer deployment or running services modified"
+  ],
+  "decisions": [
+    "Make forwards provider values by environment name; omitted LLM preserves UI settings. tmp is private document input; tmp/local scratch remains excluded except source."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Implemented pre-run external chat binding with shared editable UI settings and private target tmp document indexing; adopted and archived OpenSpec change"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-30T21:13:19+00:00",
+    "id": "add-prerun-chat-and-tmp-input",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-30T21:27:55+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Container can configure chat before serving via Make, optional startup flag preserves default behavior, credentials not exposed; target tmp documents recursively indexed with LOCAL_ONLY and Git exclusion while runtime scratch remains excluded"
+    ],
+    "goal": "Add pre-run Make chat binding and optional platform-start flag; verify/fix private target tmp document indexing",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full harness check PASS; focused ingestion, CLI, Make and UI checks PASS; strict OpenSpec, Wiki, manifest and diff validation PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

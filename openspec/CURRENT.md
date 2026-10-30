@@ -240,3 +240,65 @@ guides describe the current behaviour. The completed change is
 archived as `2026-10-28-improve-dependency-research-and-onboarding`;
 its evidence, the scenario-to-test table and the environment
 limitations are retained there.
+
+
+## Container search UI and local inbox repair — 2026-10-30
+
+The browser now exposes observable initialization/reindex work, current Gemma
+bindings, readable evidence/Wiki results and truthful retrieval-only capability
+explanations. Source listings follow the published search generation; readiness
+refusals preserve the diagnostic. Open WebUI can receive finite SSE retrieval
+completions without a generative chat model.
+
+Automatic discovery and version monitoring include the configured local inbox
+(default `tmp/local/source/`) using its promotion policy and document size limit.
+Hydration excludes the inbox from Git; PDF projections preserve source policy
+and classification on fresh and cached parses. Raw documents and runtime chunks
+do not automatically become curated Wiki pages.
+
+Existing capability identities are retained. The verified change is archived as
+`2026-10-30-fix-container-search-ui`; its evidence includes an actual PDF → Docling
+→ Gemma → USearch run, focused browser/runtime tests and the full harness gate.
+Deployment requires a rebuilt/published image; the trade-analyzer instance was
+observed read-only and was not upgraded by this change.
+
+
+## Optional UI chat and active embedding mode — 2026-10-30
+
+The optional chat form now persists a real OpenAI-compatible or Anthropic
+connection on the server, supports a synthetic connection test, and adds grounded
+answers after retrieval when explicitly enabled. Disabled/unavailable chat keeps
+search usable. Provider keys remain private; endpoint-scoped operator consent,
+egress classification, bounded requests and generation-readiness checks govern
+context sharing. Both the custom UI and Open WebUI use this behavior.
+
+The active embedding mode is separate from a requested Auto setting. Native
+adapters report their loaded device; managed deployment overlays report their
+selected CPU or GPU-plus-CPU-projector profile. The latter is labelled Hybrid,
+with source and scope explained; unverified remote hardware is Unknown.
+
+The verified change is archived as `2026-10-30-add-ui-llm-and-active-mode`.
+External-provider transport was verified with local HTTP fixtures; no hosted
+provider account, user LM Studio instance or new physical GPU was certified.
+
+
+## Pre-run chat binding and target tmp inputs — 2026-10-30
+
+The deployment kit now provides pre-run chat configure/status/test/disable Make
+commands. `platform-start LLM=1` configures before startup, `LLM=0` disables before
+startup, and an omitted flag preserves saved UI settings. CLI and UI share one
+private file, so pre-run URL/model values remain visible and editable in the UI.
+Keys are forwarded by environment name, redacted from output and Git-ignored even
+before first hydration. Invalid configuration prevents the requested startup.
+
+Untracked supported target `tmp/` documents now use LOCAL_ONLY and the local
+source byte limit, recursively, alongside the existing configured inbox. Generic
+scanning cannot bypass that limit. Generated `tmp/local/` state and known cache,
+build/vendor and symlink trees remain excluded except explicit source inboxes.
+Hydration locally excludes `/tmp/` from future Git additions without untracking
+existing files; eligible input changes participate in version monitoring.
+
+The verified change is archived as `2026-10-30-add-prerun-chat-and-tmp-input`.
+Pre-run/UI round trips, Make order/failure/secret handling, private tmp search,
+large-PDF discovery, limits and the full harness gate passed. No new real-model
+or physical hardware acceptance is claimed by this change.

@@ -4,6 +4,10 @@
 
 ## Setup and daily work
 
+- [Optional chat and active mode](OPTIONAL_CHAT_AND_EXECUTION_MODE.md): working LLM connections and effective CPU/GPU/Hybrid status.
+
+- [Container search repair](CONTAINER_SEARCH_REPAIR.md): UI behavior, local document inbox and trade-analyzer upgrade.
+
 - [Quick start](QUICKSTART.md): initialize, install MCP, and validate.
 - [Production reconciliation status](PRODUCTION_RECONCILIATION_STATUS.md): executed acceptance evidence and remaining release limits.
 - [Production install](PRODUCTION_INSTALL.md): locked semantic dependencies and production/core container targets.

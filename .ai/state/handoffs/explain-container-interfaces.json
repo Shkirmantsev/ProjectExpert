@@ -1,0 +1,49 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Ports 8766 and 8768; LM Studio"
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Inspected deployment, UI, runtime configuration and official LM Studio documentation"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-29T22:05:26+00:00",
+    "id": "explain-container-interfaces",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-29T22:05:57+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Explain Open WebUI setup and interface controls and embedding model differences based on evidence"
+    ],
+    "goal": "Explain containerized ProjectExpert interfaces in Ukrainian",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Static source inspection; both local ports unreachable in this environment"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

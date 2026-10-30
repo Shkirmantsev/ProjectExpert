@@ -1,0 +1,5 @@
+# Design
+
+Reuse ChatConnection for CLI persistence, redaction, validation and test. Make exports configuration variables by name to a no-dependency, non-TTY one-shot production container; it never interpolates credential values into shell text. The default start remains unchanged; explicit LLM=1 configures before up, LLM=0 disables before up. A failed preconfiguration prevents startup. No host Python or embedding runtime is needed for configuration.
+
+Discovery adds a target tmp scanner input using LOCAL_ONLY and the inbox document limit, merges it with the configured inbox, and admits untracked tmp inputs only through the document scanner so generic scanning cannot bypass its limit. It excludes tmp/local runtime scratch except the source inbox, plus known cache/build/symlink trees. Git-tracked tmp files remain repository sources rather than private inbox inputs. Hydration ignores /tmp/ for future Git adds; existing tracked files are unaffected. Version monitoring fingerprints only eligible inputs.

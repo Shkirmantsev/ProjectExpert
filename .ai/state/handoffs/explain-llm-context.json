@@ -1,0 +1,47 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Traced retrieval-only UI, shim, source discovery, approval boundary and MCP protocol"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-10-29T22:46:12+00:00",
+    "id": "explain-llm-context",
+    "project": "ProjectExpert",
+    "updated_at": "2026-10-29T22:46:42+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Answer ten questions based on implementation and identify limitations"
+    ],
+    "goal": "Explain LLM integration, indexed files, approvals and MCP capabilities in Ukrainian",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Reviewed source and official Claude Code documentation; live service not accessible"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

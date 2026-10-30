@@ -67,3 +67,33 @@ when no previous inventory exists.
 See [source adapters](../interfaces/source-adapters.md), [chunking](../interfaces/chunker.md),
 [enrichment](../interfaces/enrichment.md), [parser ADR](../adr/0006-phase-2-parser-selection.md)
 and [inbox policy ADR](../adr/0007-phase-2-inbox-policy-default.md).
+
+
+## Automatic local inbox
+
+Automatic repository indexing now merges the configured local inbox into its
+inventory using `LocalSourceInboxScanner`. The default `tmp/local/source/` is
+an explicit input, while other runtime scratch remains excluded. The scanner
+owns recursive eligibility, Git-tracked-file skipping, the 256 MiB default
+limit and promotion policy. Custom inboxes must stay inside the target without
+symlink escapes. Source policy is part of reuse identity and propagates into
+runtime chunk metadata. Hydration adds the inbox to `.git/info/exclude`.
+The version monitor fingerprints these documents, including edits/deletions.
+
+PDFs use the existing Docling adapter; chunks/vectors remain in local runtime
+storage. This does not automatically create curated Wiki articles or promote
+LOCAL_ONLY source bytes. Wiki synthesis remains an explicit calling-agent task.
+
+
+## Private target tmp documents
+
+`RepositorySourceDiscovery.discover_tmp` supplements the configured inbox with
+untracked target `tmp/` documents. Their metadata is LOCAL_ONLY and the configured
+inbox byte limit applies. Generic repository scanning cannot bypass that limit;
+Git-tracked tmp documents retain ordinary repository eligibility. Version
+monitoring includes eligible additions/edits/deletions. Hydration locally excludes
+`/tmp/` from future Git additions without untracking existing files.
+
+Generated `tmp/local/` state remains excluded except the source inbox. Known cache,
+build and vendor trees and symlinks are not document inputs. Runtime image
+metadata now also preserves the source policy for private tmp image inputs.

@@ -259,3 +259,73 @@ distinct vector profile from the retired model; upgrading rebuilds the vectors
 once. Existing kits preserve their configuration on export: copy the updated
 launcher/Compose files and deliberately set `PI_EMBEDDING_MODEL=gemma` when
 upgrading.
+
+## Search UI and private document inbox
+
+Search and ranking require the managed Gemma embedding runtime, not a generative
+chat LLM. The UI initialization action waits for readiness; reindex shows its
+queued/running/completed/failed job. HTTP 503 during a refresh protects against
+serving stale evidence; the status panel and logs expose the actual reason.
+
+Put private Markdown/text/HTML/PDF sources below `tmp/local/source/` in the
+**target repository**, including subfolders. Automatic indexing includes this
+inbox and preserves LOCAL_ONLY policy. Hydration adds its path to
+`.git/info/exclude`; confirm with `git check-ignore` before adding private files.
+Other local runtime scratch remains excluded. PDF conversion uses Docling and
+may provision its pinned assets on first use. Extracted chunks remain local;
+curated `project-knowledge/wiki/` articles require an explicit calling-agent
+write and review.
+
+The optional chat section now saves a real server-side OpenAI-compatible or
+Anthropic connection: enter its /v1 base URL, exact chat model and provider key,
+allow context sharing, enable generated answers, Save and Test. Search remains
+independent. PI_OPENAI_BASE_URL is legacy adapter metadata; the new settings are
+in private ignored runtime state. The kit includes a Linux host-gateway mapping
+for LM Studio on the Docker host. Active mode reports effective embedding
+CPU/GPU/Hybrid separately from requested Auto, with evidence and limitations. Open WebUI, when separately installed on the same Compose network,
+can use `http://production:8765/v1`, model `project-intelligence`, to display cited
+search evidence (plus the optional generated answer) through JSON or finite SSE. Its connection settings persist
+independently and may need updating. API authentication and signed materialisation
+approval are separate credentials; normal search needs no materialisation token.
+Complex tasks belong in a connected MCP agent with its own LLM.
+
+### Optional LLM binding before startup
+
+Configure without a running service:
+
+```bash
+make platform-llm-configure LLM_PROVIDER=openai LLM_URL=http://host.docker.internal:1234/v1 LLM_MODEL=your-chat-model LLM_SHARE_CONTEXT=1
+make platform-start
+```
+
+Or combine both steps:
+
+```bash
+make platform-start LLM=1 LLM_PROVIDER=openai LLM_URL=http://host.docker.internal:1234/v1 LLM_MODEL=your-chat-model LLM_SHARE_CONTEXT=1
+```
+
+`LLM=1` configures/enables before starting; omitted `LLM` preserves saved settings;
+`LLM=0` disables chat before startup. Invalid configuration prevents startup.
+Use `LLM_PROVIDER=anthropic` and `LLM_URL=https://api.anthropic.com/v1` for an
+Anthropic API account. Export `LLM_API_KEY` in the environment if authentication
+is required; never put the key value in Make arguments. The one-shot container
+receives variables by name and prints redacted settings. Fresh enablement
+requires explicit `LLM_SHARE_CONTEXT=1`.
+
+`platform-llm-status`, `platform-llm-test` and `platform-llm-disable` are also
+available before startup. They require the updated application image. The URL
+and model are the same fields shown and edited in UI section 11; later UI edits
+apply immediately and persist across restarts.
+
+### Target tmp documents
+
+Untracked supported documents under the target's `tmp/` are private recursive
+inputs too, for example `tmp/reports/2026/portfolio.pdf` and `tmp/notes/brief.md`.
+They use LOCAL_ONLY policy and the local inbox byte limit (default 256 MiB),
+including when Git ignores tmp. Hydration/start adds `/tmp/` to `.git/info/exclude`;
+verify with `git check-ignore tmp/notes/brief.md` before adding private files.
+Existing tracked files remain tracked and use normal repository eligibility.
+Runtime/cache/build/vendor trees remain excluded. `tmp/local/` remains reserved
+for generated local state, except `tmp/local/source/` (or an explicitly configured
+source inbox), which stays searchable. PDF extraction is automatic; synthesis of
+curated Wiki pages remains an explicit agent task.
