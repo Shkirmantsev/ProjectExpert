@@ -144,6 +144,7 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
         # profile for tests only.
         self._profile = profile
         from pi_platform.adapters.config.runtime_device import select_device
+        self._requested_device = device
         selection = select_device(device)
         self._device = selection.device
         self.device_selection_reason = selection.reason
@@ -354,6 +355,9 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
         return {
             "calls": self._calls,
             "tokens": self._tokens,
+            "effective_device": self._device,
+            "requested_device": self._requested_device,
+            "device_selection_reason": self.device_selection_reason,
             "errors": self._errors,
             "backend": ADAPTER_NAME,
             "real_binding": "1" if self._model is not None else "0",

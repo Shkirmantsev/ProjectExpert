@@ -5,6 +5,8 @@ services:
   production:
     environment:
       PI_EMBEDDING_DEVICE: cuda
+      PI_INFERENCE_BACKEND: cuda
+      PI_GPU_DEVICE: ${PI_GPU_DEVICE:-CUDA0}
   embeddings:
     image: ghcr.io/ggml-org/llama.cpp:server-cuda-b11515@sha256:ccfd96bb2aba4ef77e3df656d713ce85bf3c6a886d7974243127c5ad66ca6d2a
     gpus: all

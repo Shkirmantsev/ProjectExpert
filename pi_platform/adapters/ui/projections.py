@@ -24,6 +24,26 @@ __all__ = ["build_read_projections", "FilesystemSourceCatalog",
            "FilesystemWikiRead", "EmptyConflicts"]
 
 
+class PublishedSourceCatalog(SourceCatalogPort):
+    """Sources in the same published generation used by retrieval."""
+
+    def __init__(self, runtime):
+        self._runtime = runtime
+
+    def list_sources(self):
+        failures = {f["path"]: f for f in self._runtime.extra.get("source_failures", ())}
+        inventory = self._runtime.extra.get("source_inventory")
+        return tuple(SourceRecord(
+            id="repo:" + entry.path, uri=entry.path,
+            kind=entry.source_family, content_hash=entry.content_hash,
+            freshness="failed" if entry.path in failures else "current",
+            policy=entry.policy or "REFERENCE",
+            metadata={"path": entry.path,
+                      "status": "failed" if entry.path in failures else "discovered",
+                      "failure": failures.get(entry.path)},
+        ) for entry in getattr(inventory, "entries", ()))
+
+
 class FilesystemSourceCatalog(SourceCatalogPort):
     """Source catalog backed by ``cfg/sources.yaml`` and the local inbox."""
 
@@ -48,7 +68,7 @@ class FilesystemSourceCatalog(SourceCatalogPort):
                     SourceRecord(
                         id=f"local:{path.relative_to(self._repo_root).as_posix()}",
                         uri=path.absolute().as_uri(),
-                        family=_family_from_suffix(path.suffix),
+                        kind=_family_from_suffix(path.suffix), freshness="unindexed",
                         content_hash="",
                         policy="LOCAL_ONLY",
                         metadata={},
@@ -130,7 +150,7 @@ def _to_source_record(raw: dict) -> SourceRecord:
     return SourceRecord(
         id=str(raw.get("id", "")),
         uri=str(raw.get("uri", "")),
-        family=str(raw.get("family", "markdown")),
+        kind=str(raw.get("family", "markdown")), freshness="unindexed",
         content_hash=str(raw.get("content_hash", "")),
         policy=str(raw.get("policy", "REFERENCE")),
         metadata=dict(raw.get("metadata", {})),

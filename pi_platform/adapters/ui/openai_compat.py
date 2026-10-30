@@ -1,18 +1,9 @@
-"""Minimal OpenAI-compatible shim for the Open WebUI profile (§44.2).
+"""OpenAI-compatible retrieval adapter, including finite SSE at HTTP transport.
 
-The shim exposes ``GET /v1/models`` and a non-streaming
-``POST /v1/chat/completions`` so the platform can act as an OpenAI-compatible
-backend for Open WebUI or any other client that speaks the OpenAI HTTP API.
-
-The shim is enabled by default so the local model bundled in
-``desktop-lite`` is wired up out of the box. Operators can:
-
-- disable the shim entirely by exporting ``PI_OPENAI_SHIM=0``;
-- override the advertised model id via ``PI_OPENAI_MODEL``;
-- swap the upstream model endpoint via ``PI_OPENAI_BASE_URL`` (the URL
-  the UI itself talks to when answering ``/v1/chat/completions``).
-
-No streaming, no file upload, no administration surface is exposed.
+The shim delegates to query orchestration, which may call an explicitly saved
+optional chat provider. PI_OPENAI_MODEL names the advertised retrieval
+adapter; PI_OPENAI_BASE_URL is legacy configuration metadata only. The HTTP
+server frames a computed completion as SSE when requested by Open WebUI.
 """
 
 from __future__ import annotations
@@ -29,7 +20,7 @@ DEFAULT_BASE_URL = "http://localhost:8767/v1"
 
 
 def env_base_url() -> str:
-    """Read the upstream model endpoint from ``PI_OPENAI_BASE_URL``.
+    """Read legacy endpoint metadata from ``PI_OPENAI_BASE_URL``.
 
     Returns an empty string when the operator explicitly disables the
     chat path (``PI_OPENAI_SHIM=0``).
@@ -47,10 +38,8 @@ def env_model_name() -> str:
 class OpenAiCompatShim:
     """Translate the minimal OpenAI chat surface onto the query orchestrator.
 
-    ``base_url`` is the upstream the UI panel advertises so the operator
-    can see where chat-completion traffic is being routed. The shim does
-    not itself call the upstream; the UI does. ``base_url`` is empty
-    when the operator disabled the chat path.
+    ``base_url`` is retained for configuration compatibility. Neither this
+    adapter nor the browser calls it. An empty URL disables the legacy shim.
     """
 
     def __init__(
@@ -110,17 +99,7 @@ class OpenAiCompatShim:
                     }
                 ],
                 "pi_base_url": self._base_url,
-            }
-            return 200, {
-                "object": "list",
-                "data": [
-                    {
-                        "id": self._model,
-                        "object": "model",
-                        "created": int(time.time()),
-                        "owned_by": "project-intelligence",
-                    }
-                ],
+                "pi_mode": "retrieval-with-optional-chat",
             }
         if path == "/v1/chat/completions":
             messages = (payload or {}).get("messages") or []
@@ -132,18 +111,21 @@ class OpenAiCompatShim:
                 ),
                 "",
             )
-            if (payload or {}).get("stream"):
-                return 400, {
-                    "error": {"message": "streaming is not supported by this profile"}
-                }
             if not prompt:
                 return 400, {"error": {"message": "no user message supplied"}}
             result = self._query(prompt)
             content = getattr(result, "answer", None)
             if content is None:
                 results = getattr(result, "results", ()) or ()
-                content = results[0] if results else ""
-                content = str(content)
+                evidence = []
+                for index, hit in enumerate(results[:10], 1):
+                    meta = getattr(hit, "metadata", None)
+                    path = getattr(meta, "sourcePath", None) or getattr(meta, "documentId", None) or "unknown source"
+                    evidence.append(f"[{index}] {path}\n{getattr(hit, 'snippet', str(hit))}")
+                content = "Retrieved project evidence (no generated answer):\n\n" + "\n\n".join(evidence) if evidence else "No matching project evidence found. Try a specific term or identifier."
+                diagnostics = tuple(getattr(result, "explanations", ()) or ())
+                if diagnostics:
+                    content += "\n\n" + "\n".join(diagnostics)
             return 200, {
                 "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
                 "object": "chat.completion",

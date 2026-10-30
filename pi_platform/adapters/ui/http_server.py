@@ -312,11 +312,34 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 if not self._authorised():
                     self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
                     return
+                if self.headers.get("X-ProjectExpert-Chat"):
+                    self._send(HTTPStatus.BAD_REQUEST, {"error": {"message": "Chat endpoint points back to ProjectExpert. Use a chat model server."}})
+                    return
                 if not server._readiness():
                     self._send(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "runtime-not-ready"})
                     return
-                status, body = server.openai_compat.handle(path, self._body())
-                self._send(HTTPStatus(status), body)
+                payload = self._body()
+                try:
+                    status, body = server.openai_compat.handle(path, payload)
+                except RuntimeNotReadyError as exc:
+                    self._send(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "runtime-not-ready", "detail": str(exc)})
+                    return
+                except Exception as exc:
+                    self._send(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": {"message": str(exc)}})
+                    return
+                if status == 200 and path == "/v1/chat/completions" and payload.get("stream"):
+                    # Retrieval is computed once; SSE frames transport the result.
+                    events = []
+                    for delta, finish in (({"role": "assistant"}, None),
+                                          ({"content": body["choices"][0]["message"]["content"]}, None),
+                                          ({}, "stop")):
+                        chunk = {"id": body["id"], "object": "chat.completion.chunk",
+                                 "created": body["created"], "model": body["model"],
+                                 "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]}
+                        events.append("data: " + json.dumps(chunk) + "\n\n")
+                    self._send(HTTPStatus.OK, ("".join(events) + "data: [DONE]\n\n").encode(), content_type="text/event-stream")
+                else:
+                    self._send(HTTPStatus(status), body)
                 return
             if path in ("/mcp", "/mcp/") and server.mcp_server is not None:
                 if not self._authorised():
@@ -367,6 +390,27 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
             return "administrator"
 
         def _try_admin_or_wizard(self, method: str, path: str, body: Any) -> bool:
+            if path in ("/api/v1/admin/chat", "/api/v1/admin/chat/test"):
+                if self._resolve_caller_capability() != "administrator":
+                    self._send(HTTPStatus.FORBIDDEN, {"error": "Administrator access is required to configure a chat provider."})
+                    return True
+                connection = getattr(server.service, "_chat_connection", None)
+                if connection is None:
+                    self._send(HTTPStatus.NOT_FOUND, {"error": "Chat configuration is unavailable in this service."})
+                    return True
+                from pi_platform.adapters.orchestration.chat_connection import ChatConnectionError
+                try:
+                    if method == "GET" and path == "/api/v1/admin/chat":
+                        self._send(HTTPStatus.OK, connection.public_settings())
+                    elif method == "PUT" and path == "/api/v1/admin/chat":
+                        self._send(HTTPStatus.OK, connection.save(body or {}))
+                    elif method == "POST" and path.endswith("/test"):
+                        self._send(HTTPStatus.OK, connection.test())
+                    else:
+                        self._send(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "Method not allowed"})
+                except (ValueError, ChatConnectionError) as exc:
+                    self._send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return True
             if path == "/api/v1/wizard":
                 from pi_platform.core.control.retrieval_settings import (
                     save_retrieval_settings,
@@ -453,7 +497,8 @@ def _post_route(
 ) -> Any:
     actor = server.actor
     if path in ("/api/v1/query", "/api/v1/retrieve", "/api/v1/graph", "/api/v1/wiki") and not server._readiness():
-        raise RuntimeNotReadyError(ReadinessSnapshot(consistent=False, reason="Project is refreshing or bootstrap failed"))
+        readiness = getattr(server.service, "_readiness", None)
+        raise RuntimeNotReadyError(readiness.snapshot() if readiness is not None else ReadinessSnapshot(consistent=False, reason="Project is refreshing or bootstrap failed"))
     if path == "/api/v1/query":
         return server.service.query(
             actor,

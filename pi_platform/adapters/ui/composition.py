@@ -410,10 +410,18 @@ def hydrate_and_reconcile_target(
                         if git_exclude.is_file()
                         else ""
                     )
-                    if ".project-intelligence-cache" not in existing_excl:
+                    from pi_platform.core.ingest.config import load_ingest_config
+                    config = load_ingest_config(repo_root / "project-knowledge/project-context.yaml")
+                    inbox_path = str(config.get("sources", {}).get("localInbox", {}).get("path", "tmp/local/source")).rstrip("/")
+                    inbox = (repo_root / inbox_path).resolve()
+                    excludes = ["/.project-intelligence-cache/", "/tmp/"]
+                    if inbox.is_relative_to(repo_root) and inbox != repo_root:
+                        excludes.append("/" + inbox.relative_to(repo_root).as_posix() + "/")
+                    missing = [item for item in excludes if item not in existing_excl.splitlines()]
+                    if missing:
                         prefix = "" if (not existing_excl or existing_excl.endswith("\n")) else "\n"
                         git_exclude.write_text(
-                            existing_excl + prefix + ".project-intelligence-cache/\n",
+                            existing_excl + prefix + "\n".join(missing) + "\n",
                             encoding="utf-8",
                         )
                 except OSError:
@@ -490,12 +498,15 @@ def hydrate_and_reconcile_target(
 class RetrievalOnlyOrchestrator(QueryOrchestratorPort):
     """Deterministic orchestration: retrieval plus context assembly only.
 
-    Escalation to a local or external model is intentionally not wired here.
-    ``agent-delegation`` remains available through the UI API when an egress
-    decision allows it.
+    Retrieval always runs first. An explicitly configured chat connection can
+    add a grounded answer; disabled/unavailable chat preserves evidence.
+    Agent delegation remains unsupported by this deployment.
     """
 
-    def __init__(self, retrieval: Any) -> None:
+    supports_delegation = False
+
+    def __init__(self, retrieval: Any, chat_connection=None) -> None:
+        self._chat_connection = chat_connection
         self._retrieval = retrieval
         self._calls = 0
 
@@ -509,10 +520,11 @@ class RetrievalOnlyOrchestrator(QueryOrchestratorPort):
         project_version: object = None,
     ) -> OrchestrationResult:
         self._calls += 1
+        generation = getattr(self._retrieval, "runtime", None)
         result = self._retrieval.retrieve(
             RetrievalQuery(text=query, filters=filters, projectVersion=project_version)
         )
-        return OrchestrationResult(
+        orchestration = OrchestrationResult(
             level=OrchestrationLevel.RETRIEVAL
             if hasattr(OrchestrationLevel, "RETRIEVAL")
             else list(OrchestrationLevel)[0],
@@ -521,6 +533,17 @@ class RetrievalOnlyOrchestrator(QueryOrchestratorPort):
             explanations=("retrieval-only orchestration",),
             budgetUsed=int(getattr(result, "budgetUsed", 0) or 0),
         )
+
+        enhanced = self._chat_connection.enhance(orchestration) if self._chat_connection is not None else orchestration
+        if generation is not None:
+            from pi_platform.core.sync.readiness import assert_ready
+            assert_ready(self._retrieval.readiness)
+            if generation is not self._retrieval.runtime:
+                from dataclasses import replace
+                from pi_platform.ports import RuntimeNotReadyError
+                raise RuntimeNotReadyError(replace(self._retrieval.readiness.snapshot(), consistent=False,
+                                                   reason="Retrieval generation changed while generating the answer; retry the question"))
+        return enhanced
 
     def escalate(self, orchestration: OrchestrationResult, *, reason: str) -> OrchestrationResult:
         raise NotImplementedError(
@@ -543,8 +566,8 @@ def _approval_boundary() -> Any:
 def build_flag_registry() -> DefaultFeatureFlagRegistry:
     """Register the Phase 9 feature flags.
 
-    The OpenAI-compatible shim is enabled by default so the local model
-    bundled in ``desktop-lite`` is wired up out of the box. Operators
+    The retrieval-compatible shim is enabled by default in the implementation.
+    It does not connect or require a chat model. Operators
     disable it per deployment profile by overriding the registry. The
     ``PI_OPEN_WEBUI_ADAPTER`` env var lets operators flip the flag
     without code changes.
@@ -603,7 +626,9 @@ class PublishedRetrieval:
     def stats(self):
         if self.runtime is None:
             return {}
-        return {**self.runtime.multi_stage_retrieval.stats(), **self.runtime.stage_report(),
+        from pi_platform.adapters.ui.execution_status import embedding_execution_status
+        return {"execution": embedding_execution_status(self.runtime.embedding_model),
+                **self.runtime.multi_stage_retrieval.stats(), **self.runtime.stage_report(),
                 "source_failures": list(self.runtime.extra.get("source_failures", ())),
                 "active_chunks": len(self.runtime.extra.get("chunk_ids", ())),
                 "active_sources": len(getattr(self.runtime.extra.get("source_inventory"), "entries", ())),
@@ -614,6 +639,8 @@ class PublishedRetrieval:
 def publish_runtime(service, runtime):
     service._retrieval.runtime = runtime
     service._graph = runtime.graph_expansion
+    from pi_platform.adapters.ui.projections import PublishedSourceCatalog
+    service._sources = PublishedSourceCatalog(runtime)
 
 
 def build_ui_service(
@@ -656,7 +683,9 @@ def build_ui_service(
     from pi_platform.adapters.ui.projections import build_read_projections
     projections = build_read_projections(repo_root=repo_root, cache_root=cache_root, git=git)
     retrieval = PublishedRetrieval(readiness)
-    orchestrator = RetrievalOnlyOrchestrator(retrieval)
+    from pi_platform.adapters.orchestration.chat_connection import ChatConnection
+    chat_connection = ChatConnection(cache_root)
+    orchestrator = RetrievalOnlyOrchestrator(retrieval, chat_connection)
     try:
         from pi_platform.adapters.orchestration.capability_discovery import (
             DefaultCapabilityDiscoveryAdapter,
@@ -690,6 +719,7 @@ def build_ui_service(
         conflicts=projections.get("conflicts"),
         context=context or UiContext(repo_root=repo_root),
     )
+    service._chat_connection = chat_connection
     if defer_runtime:
         readiness.begin_refresh()
     elif hydrate_on_start and readiness.is_ready():

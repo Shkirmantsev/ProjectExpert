@@ -100,6 +100,9 @@ class SourceRecord:
     kind: str
     policy: str
     freshness: str
+    uri: str = ""
+    content_hash: str = ""
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

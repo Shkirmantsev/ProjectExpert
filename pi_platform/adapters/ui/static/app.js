@@ -36,10 +36,30 @@ function call(method, path, body) {
   });
 }
 
+function formatResult(targetId, result) {
+  if (targetId === "wiki-result" && result.documents) {
+    return result.documents.length ? result.documents.map(function (doc) {
+      return doc.path + "\n\n" + doc.text;
+    }).join("\n\n────────────────\n\n") : "No matching curated Wiki pages. Ask your MCP agent to create reviewed pages from project evidence.";
+  }
+  if ((targetId === "query-result" || targetId === "retrieve-result") && result.results) {
+    var evidence = result.results.length ? result.results.slice(0, 10).map(function (hit, i) {
+      var meta = hit.metadata || {};
+      return "[" + (i + 1) + "] " + (meta.sourcePath || meta.documentId || hit.chunkId) +
+        (meta.page ? " · page " + meta.page : "") +
+        " · score " + hit.score + "\n" + (hit.snippet || "");
+    }).join("\n\n") : "No matching evidence. Check indexing status or try a more specific question.";
+    var answer = result.answer ? "Answer (generated from retrieved evidence):\n" + result.answer + "\n\nSources:\n" : "";
+    var explanation = result.explanations ? "\n\n" + result.explanations.join("\n") : "";
+    return answer + evidence + explanation;
+  }
+  return result;
+}
+
 function run(targetId, action) {
   show(targetId, "working…");
   return action().then(function (result) {
-    show(targetId, result);
+    show(targetId, formatResult(targetId, result));
   }).catch(function (error) {
     show(targetId, error.message);
   });
@@ -62,7 +82,7 @@ function bindButton(buttonId, targetId, action) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  var tokenField = document.getElementById("approval-token");
+  var tokenField = document.getElementById("access-token");
   if (tokenField) {
     tokenField.addEventListener("change", function () { accessToken = tokenField.value.trim(); });
   }
@@ -120,77 +140,15 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  // ---- Model settings panel -------------------------------------------
-  // The platform ships with a local model endpoint so chat-completions work
-  // out of the box. The user can point the UI at any other OpenAI-compatible
-  // endpoint; the change is persisted in localStorage and re-applied on
-  // every page load. The shim re-reads ``PI_OPENAI_BASE_URL`` and
-  // ``PI_OPENAI_MODEL`` only at process start, so changes here are a
-  // client-side hint until the operator restarts the platform with the
-  // matching environment variables — surfaced clearly in the status box.
-  var MODEL_STORAGE_KEY = "pi_model_settings_v1";
-  var DEFAULT_BASE_URL = "http://local-llm:8767/v1";
-  var DEFAULT_MODEL = "project-intelligence";
-
-  function loadModelSettings() {
-    try {
-      var raw = window.localStorage.getItem(MODEL_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : { base_url: DEFAULT_BASE_URL, model: DEFAULT_MODEL };
-    } catch (err) {
-      return { base_url: DEFAULT_BASE_URL, model: DEFAULT_MODEL };
-    }
-  }
-
-  function saveModelSettings(baseUrl, model) {
-    var payload = {
-      base_url: (baseUrl || DEFAULT_BASE_URL).trim(),
-      model: (model || DEFAULT_MODEL).trim(),
-    };
-    window.localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(payload));
-    return payload;
-  }
-
-  function describeConfiguration(settings) {
-    return [
-      "active model:    " + settings.model,
-      "active endpoint: " + settings.base_url,
-      "",
-      "Persisted in this browser only. To apply across all clients, set",
-      "PI_OPENAI_BASE_URL and PI_OPENAI_MODEL in the platform environment",
-      "and restart the container."
-    ].join("\n");
-  }
-
-  var modelForm = document.getElementById("model-form");
-  if (modelForm) {
-    var current = loadModelSettings();
-    document.getElementById("model-base-url").value = current.base_url;
-    document.getElementById("model-name").value = current.model;
-    show("model-status", describeConfiguration(current));
-
-    modelForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-      var saved = saveModelSettings(
-        document.getElementById("model-base-url").value,
-        document.getElementById("model-name").value,
-      );
-      show("model-status", describeConfiguration(saved));
-    });
-
-    var resetButton = document.getElementById("model-reset");
-    if (resetButton) {
-      resetButton.addEventListener("click", function () {
-        document.getElementById("model-base-url").value = DEFAULT_BASE_URL;
-        document.getElementById("model-name").value = DEFAULT_MODEL;
-        var saved = saveModelSettings(DEFAULT_BASE_URL, DEFAULT_MODEL);
-        show("model-status", describeConfiguration(saved));
-      });
-    }
-  }
-
   function refreshBootstrapStatus() {
     call("GET", API + "/indexing-status").then(function (status) {
       show("bootstrap-status", status);
+      var retrieval = status.indexes && status.indexes.retrieval;
+      var execution = retrieval && retrieval.execution;
+      show("active-mode", "Active mode: " + (execution ? execution.mode : "not ready"));
+      show("active-mode-detail", execution ? ("Backend: " + execution.backend + " · " +
+        (execution.device ? "Device: " + execution.device + " · " : "") +
+        execution.reason + " Source: " + execution.source + ". Scope: embedding inference; chat model hardware is managed by its provider.") : "Waiting for an embedding runtime. Auto is a request, not a device.");
     }).catch(function (error) {
       show("bootstrap-status", String(error));
     });
@@ -198,37 +156,118 @@ document.addEventListener("DOMContentLoaded", function () {
   refreshBootstrapStatus();
   window.setInterval(refreshBootstrapStatus, 3000);
 
-  // ---- First-start wizard & semantic model administration ---------------
+  // ---- Optional server-side chat connection ----------------------------
+  var chatForm = document.getElementById("chat-form");
+  if (chatForm) {
+    function chatHelp() {
+      show("chat-help", document.getElementById("chat-provider").value === "anthropic" ?
+        "Anthropic: use https://api.anthropic.com/v1, an available Claude model ID and an Anthropic API key. A Claude Code login/subscription is not an API endpoint or API key." :
+        "LM Studio: start its server and load a chat model. From Docker use http://host.docker.internal:1234/v1 and the exact loaded model ID. The server must accept connections from Docker. For another server enter its OpenAI-compatible /v1 base URL. This is a chat model, separate from Gemma embeddings.");
+    }
+    function fillChat(settings) {
+      document.getElementById("chat-enabled").checked = settings.enabled;
+      document.getElementById("chat-provider").value = settings.provider;
+      document.getElementById("chat-base-url").value = settings.base_url;
+      document.getElementById("chat-model").value = settings.model;
+      document.getElementById("chat-share-context").checked = settings.share_context;
+      document.getElementById("chat-key").value = "";
+      document.getElementById("chat-clear-key").checked = false;
+      show("chat-status", (settings.enabled ? "Generated answers enabled" : "Search only; chat disabled") +
+        ". Saved on server; no restart required. Provider key: " + (settings.api_key_set ? "saved (hidden)" : "not set") +
+        ". Test the saved connection to verify availability.");
+      chatHelp();
+    }
+    call("GET", API + "/admin/chat").then(fillChat).catch(function (error) { show("chat-status", error.message); });
+    document.getElementById("chat-provider").addEventListener("change", chatHelp);
+    chatForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var saveButton = document.getElementById("chat-save");
+      saveButton.disabled = true;
+      show("chat-status", "Saving server configuration…");
+      call("PUT", API + "/admin/chat", {
+        enabled: Boolean(document.getElementById("chat-enabled").checked),
+        provider: document.getElementById("chat-provider").value,
+        base_url: document.getElementById("chat-base-url").value,
+        model: document.getElementById("chat-model").value,
+        api_key: document.getElementById("chat-key").value,
+        clear_api_key: Boolean(document.getElementById("chat-clear-key").checked),
+        share_context: Boolean(document.getElementById("chat-share-context").checked)
+      }).then(fillChat).catch(function (error) {
+        show("chat-status", error.message);
+      }).then(function () { saveButton.disabled = false; });
+    });
+    document.getElementById("chat-test").addEventListener("click", function () {
+      var button = document.getElementById("chat-test");
+      button.disabled = true;
+      run("chat-status", function () { return call("POST", API + "/admin/chat/test", {}); }).then(function () { button.disabled = false; });
+    });
+  }
+
+  // ---- First-start wizard and observable indexing jobs -----------------
+  function pause() { return new Promise(function (resolve) { window.setTimeout(resolve, 1000); }); }
+  function waitForIndex(deadline) {
+    return call("GET", API + "/indexing-status").then(function (status) {
+      show("bootstrap-status", status);
+      if (status.ready) { return { status: "completed", message: "Search index ready", indexes: status.indexes }; }
+      if (!status.hydration.in_progress) { throw new Error(status.hydration.reason || "Indexing failed; inspect container logs."); }
+      if (Date.now() > deadline) { throw new Error("Indexing still running. Check indexing status and container logs."); }
+      return pause().then(function () { return waitForIndex(deadline); });
+    });
+  }
+  function waitForJob(jobId, deadline) {
+    return call("GET", API + "/admin/jobs/" + encodeURIComponent(jobId)).then(function (job) {
+      show("wizard-result", job);
+      if (job.status === "failed") { throw new Error(job.message); }
+      if (job.status === "completed") { return job; }
+      if (Date.now() > deadline) { throw new Error("Job still running. Check indexing status and container logs."); }
+      return pause().then(function () { return waitForJob(jobId, deadline); });
+    });
+  }
+  function indexAction(action) {
+    var buttons = [document.getElementById("wizard-submit-button"), document.getElementById("admin-reindex-button")];
+    var output = document.getElementById("wizard-result");
+    buttons.forEach(function (button) { button.disabled = true; });
+    output.setAttribute("aria-busy", "true");
+    return run("wizard-result", action).then(function () {
+      output.setAttribute("aria-busy", "false");
+      buttons.forEach(function (button) { button.disabled = false; });
+      refreshBootstrapStatus();
+    });
+  }
   var wizardForm = document.getElementById("wizard-form");
   if (wizardForm) {
     call("GET", API + "/admin/retrieval").then(function (settings) {
-      if (settings && settings.embedding_model_alias) {
-        document.getElementById("embedding-model-select").value = settings.embedding_model_alias;
+      var select = document.getElementById("embedding-model-select");
+      // Two bindings of one checkpoint; native is an explicit operator opt-in.
+      // A managed deployment never offers unconfigured alternative models.
+      if (settings.embedding_model_alias === "gemma-torch") {
+        select.add(new Option("EmbeddingGemma 2 (configured native Transformers binding)", "gemma-torch"));
       }
-      if (settings && settings.device) {
-        document.getElementById("embedding-device-select").value = settings.device;
-      }
-      if (settings && typeof settings.document_processing_enabled === "boolean") {
-        document.getElementById("docling-enabled-checkbox").checked = settings.document_processing_enabled;
-      }
+      select.value = settings.embedding_model_alias;
+      document.getElementById("embedding-device-select").value = settings.device;
+      document.getElementById("docling-enabled-checkbox").checked = settings.document_processing_enabled;
       show("wizard-result", settings);
-    }).catch(function () { /* keep default message */ });
+    }).catch(function (error) { show("wizard-result", error.message); });
 
     wizardForm.addEventListener("submit", function (event) {
       event.preventDefault();
       var payload = {
         embedding_model_alias: document.getElementById("embedding-model-select").value,
         device: document.getElementById("embedding-device-select").value,
-        document_processing_enabled: Boolean(document.getElementById("docling-enabled-checkbox").checked),
-        bootstrap_state: "not-started"
+        document_processing_enabled: Boolean(document.getElementById("docling-enabled-checkbox").checked)
       };
-      run("wizard-result", function () {
-        return call("POST", API + "/wizard", payload);
+      indexAction(function () {
+        return call("POST", API + "/wizard", payload).then(function () {
+          return waitForIndex(Date.now() + 30 * 60 * 1000);
+        });
       });
     });
-
-    bindButton("admin-reindex-button", "wizard-result", function () {
-      return call("POST", API + "/admin/reindex", {});
+    document.getElementById("admin-reindex-button").addEventListener("click", function () {
+      indexAction(function () {
+        return call("POST", API + "/admin/reindex", {}).then(function (job) {
+          return waitForJob(job.job_id, Date.now() + 30 * 60 * 1000);
+        });
+      });
     });
   }
 });
