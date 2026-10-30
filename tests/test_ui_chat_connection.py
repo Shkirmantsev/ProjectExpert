@@ -11,6 +11,43 @@ from unittest.mock import patch
 import urllib.request
 
 
+class ChatSettingsPortabilityTests(unittest.TestCase):
+    def test_save_without_posix_permission_api(self):
+        from pi_platform.adapters.orchestration import chat_connection as module
+        with tempfile.TemporaryDirectory() as raw:
+            connection = module.ChatConnection(raw)
+            # Windows 3.11 has no fchmod; Windows modes are not POSIX ACLs.
+            windows_os = SimpleNamespace(name='nt', fdopen=os.fdopen,
+                replace=os.replace, path=os.path, unlink=os.unlink)
+            with patch.object(module, 'os', windows_os):
+                result = connection.save({'model': 'portable-model'})
+            self.assertEqual(result['model'], 'portable-model')
+            self.assertEqual(module.ChatConnection(raw).public_settings()['model'], 'portable-model')
+            self.assertEqual(list(Path(raw).glob('.chat-settings-*')), [])
+
+    @unittest.skipUnless(os.name == 'posix', 'POSIX permission failure regression')
+    def test_permission_failure_closes_tempfile_and_preserves_saved_settings(self):
+        from pi_platform.adapters.orchestration import chat_connection as module
+        with tempfile.TemporaryDirectory() as raw:
+            connection = module.ChatConnection(raw)
+            connection.save({'model': 'original'})
+            original = connection.path.read_bytes()
+            created = []
+            mkstemp = tempfile.mkstemp
+            def capture_tempfile(*args, **kwargs):
+                result = mkstemp(*args, **kwargs)
+                created.append(result)
+                return result
+            with patch.object(module.tempfile, 'mkstemp', side_effect=capture_tempfile), \
+                 patch.object(module.os, 'fchmod', side_effect=PermissionError('fixture denial')):
+                with self.assertRaises(PermissionError):
+                    connection.save({'model': 'replacement'})
+            self.assertEqual(connection.path.read_bytes(), original)
+            self.assertEqual(list(Path(raw).glob('.chat-settings-*')), [])
+            with self.assertRaises(OSError):
+                os.fstat(created[0][0])
+
+
 class ChatConnectionTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
@@ -42,7 +79,8 @@ class ChatConnectionTests(unittest.TestCase):
         c=self.connection();public=c.save(self.settings())
         self.assertNotIn('secret-fixture',json.dumps(public));self.assertTrue(public['api_key_set'])
         self.assertEqual(self.connection().public_settings()['model'],'fixture')
-        self.assertEqual((c.path.stat().st_mode & 0o777),0o600)
+        if os.name == 'posix':
+            self.assertEqual((c.path.stat().st_mode & 0o777),0o600)
         c.save({'model':'updated','api_key':''})
         self.assertTrue(c.public_settings()['api_key_set'])
         c.save({'clear_api_key':True});self.assertFalse(c.public_settings()['api_key_set'])

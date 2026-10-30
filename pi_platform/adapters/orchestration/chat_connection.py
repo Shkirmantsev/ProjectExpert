@@ -95,8 +95,12 @@ class ChatConnection:
                 ignore.write_text(existing + ('' if not existing or existing.endswith('\n') else '\n') + '\n'.join(missing) + '\n')
             fd, name = tempfile.mkstemp(prefix='.chat-settings-', dir=self.path.parent)
             try:
-                os.fchmod(fd, 0o600)
                 with os.fdopen(fd, 'w') as stream:
+                    # Windows uses inherited ACLs, not POSIX mode bits. Put
+                    # permission setup inside the owner of the descriptor so
+                    # failures close it before tempfile cleanup (WinError 32).
+                    if os.name == 'posix':
+                        os.fchmod(stream.fileno(), 0o600)
                     json.dump(settings, stream)
                 os.replace(name, self.path)
             finally:

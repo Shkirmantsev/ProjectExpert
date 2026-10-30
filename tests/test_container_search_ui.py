@@ -40,7 +40,7 @@ class ContainerSearchTests(unittest.TestCase):
         _bootstrap_and_index_target(self.root,service=service,readiness=ready)
         self.assertTrue(ready.is_ready())
         hits = service.retrieve(self.actor,RetrieveRequest('Quasar')).results
-        local = [h for h in hits if h.metadata.sourcePath.endswith('/tmp/local/source/customer/brief.md')]
+        local = [h for h in hits if Path(h.metadata.sourcePath) == note]
         self.assertTrue(local)
         self.assertEqual(local[0].metadata.policy,'LOCAL_ONLY')
         catalog = service.sources(self.actor).sources

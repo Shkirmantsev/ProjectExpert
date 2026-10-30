@@ -26,7 +26,8 @@ class PreRunChatTests(unittest.TestCase):
             saved=Path(raw)/'.project-intelligence-cache/chat-settings.json'
             data=json.loads(saved.read_text());self.assertTrue(data['enabled']);self.assertTrue(data['share_context'])
             self.assertEqual(data['api_key'],'fixture-secret')
-            self.assertEqual(saved.stat().st_mode & 0o777,0o600)
+            if os.name == 'posix':
+                self.assertEqual(saved.stat().st_mode & 0o777,0o600)
             with patch.dict(os.environ,{'LLM_PROVIDER':'','LLM_URL':'','LLM_MODEL':'','LLM_API_KEY':'','LLM_SHARE_CONTEXT':''}):
                 with contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(main(['chat','configure','--from-env','--target',raw]),0)

@@ -98,6 +98,13 @@ The deterministic retrieval operation never calls chat. Open WebUI reuses the
 same query behavior. Provider configuration is an admin operation; API keys
 are not returned to the browser, and self-recursive endpoints are refused.
 
+Atomic settings writes apply mode 0600 only on POSIX; Windows uses the runtime
+volume's inherited ACLs. Permission setup runs inside the file context so failures
+close the descriptor before removing the temporary file and preserve the previous
+settings. Portability regressions cover saving without the POSIX permission API
+and descriptor cleanup after a permission failure. Source-path tests compare
+native paths rather than assuming forward-slash separators.
+
 `execution_status.py` reports the native model's loaded device or the managed
 backend chosen by the deployment overlay. Auto is kept distinct from active
 CPU/GPU/Hybrid. Managed GPU + CPU projector is labelled Hybrid as a deployment
