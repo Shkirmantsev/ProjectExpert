@@ -101,9 +101,12 @@ report the overlay's effective `PI_EMBEDDING_DEVICE` as legacy evidence, even wh
 the UI's later requested device is Auto. Arbitrary remote servers are not inferred
 from that setting.
 
-Changing a UI device request does not recreate an external embedding sidecar.
-Use the deployment launcher to select/change the managed hardware profile. Its
-measured auto-selection and safe CPU fallback remain in effect.
+The upgraded managed kit now applies UI device choices to its embedding child
+process and reports live controller evidence. Press **Apply model & device and
+build index** after selecting a choice. Auto uses the measured CPU/GPU policy.
+Legacy remote endpoints/native Windows GPU services still require host-side
+hardware configuration; the UI explains their capability limit. See
+[UI runtime control](UI_EMBEDDING_RUNTIME_CONTROL.md) for upgrade and token details.
 
 ## Upgrade an existing target
 

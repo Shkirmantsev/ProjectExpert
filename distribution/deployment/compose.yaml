@@ -16,6 +16,7 @@ services:
       - model-cache:/models
     environment:
       PI_TARGET_ROOT: /repo
+      PI_UI_TOKEN: ${PI_UI_TOKEN:-}
       PI_STARTUP_PROFILE: production
       PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-gemma}
       PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-cpu}

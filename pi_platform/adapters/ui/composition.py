@@ -627,7 +627,9 @@ class PublishedRetrieval:
         if self.runtime is None:
             return {}
         from pi_platform.adapters.ui.execution_status import embedding_execution_status
-        return {"execution": embedding_execution_status(self.runtime.embedding_model),
+        from pi_platform.adapters.orchestration.managed_runtime import observed_execution
+        saved = self.runtime.extra.get("managed_execution")
+        return {"execution": observed_execution(saved) if saved else embedding_execution_status(self.runtime.embedding_model),
                 **self.runtime.multi_stage_retrieval.stats(), **self.runtime.stage_report(),
                 "source_failures": list(self.runtime.extra.get("source_failures", ())),
                 "active_chunks": len(self.runtime.extra.get("chunk_ids", ())),

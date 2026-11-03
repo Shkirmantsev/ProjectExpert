@@ -106,6 +106,8 @@ def main():
     parser.add_argument("--cache", type=Path, default=Path("/models"))
     parser.add_argument("--model", default="gemma")
     args = parser.parse_args()
+    from pi_platform.cli.runtime_python import bundle_python
+    bundle_python(args.cache)
     print(f"Verified GGUF model: {prepare(args.cache, args.model)}")
 
 

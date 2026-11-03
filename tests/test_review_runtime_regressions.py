@@ -80,6 +80,20 @@ class WikiBoundaryTests(unittest.TestCase):
             self.assertEqual(outside.read_text(), 'unchanged')
 
 class AcceptedVersionTests(unittest.TestCase):
+    def test_explicit_job_refresh_accepts_snapshot_without_followup_refresh(self):
+        from pi_platform.core.sync.version_monitor import PollingProjectVersionMonitor, ProjectVersionState
+        before=ProjectVersionState('head','main','cpu-settings')
+        after=ProjectVersionState('head','main','gpu-settings')
+        current=[before];calls=[]
+        def refresh(_):
+            calls.append(current[0]);return current[0]
+        monitor=PollingProjectVersionMonitor(Path('.'),on_change=refresh,state_reader=lambda:current[0])
+        monitor.poll_once()
+        current[0]=after
+        monitor.request_refresh();monitor.poll_once()
+        self.assertIsNone(monitor.poll_once())
+        self.assertEqual(calls,[before,after])
+
     def test_published_version_avoids_bootstrap_refresh_but_keeps_later_edits(self):
         from pi_platform.core.sync.version_monitor import PollingProjectVersionMonitor, ProjectVersionState
         initial = ProjectVersionState('head', 'main', 'before-settings')
@@ -125,7 +139,10 @@ elif 'up' in args and 'embeddings' in args:
             result = subprocess.run(['bash', str(root / 'kit/compose.sh'), 'up', '-d'], env=env, capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('Selected inference backend: cpu', result.stdout)
-            self.assertIn('compose.cpu.yaml up -d', (root / 'calls').read_text())
+            final = (root / 'calls').read_text().splitlines()[-1].split()
+            self.assertEqual(final[0], 'device=none')
+            self.assertIn('compose.cpu.yaml', final)
+            self.assertEqual(final[-2:], ['up', '-d'])
             self.assertTrue(any(line.startswith('device=CUDA2 ') and 'up -d --wait' in line for line in (root / 'calls').read_text().splitlines()))
 
 class BenchmarkValidationTests(unittest.TestCase):

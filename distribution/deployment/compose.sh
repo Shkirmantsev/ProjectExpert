@@ -168,6 +168,9 @@ if [ "$is_up" != 1 ]; then
   backend="$requested"
   if [ "$backend" = auto ]; then backend=cpu; fi
   files+=(-f "compose.$backend.yaml")
+  if [ "$backend" = cpu ] && [ -d /dev/dri ]; then
+    files+=(-f compose.ui-vulkan.yaml)
+  fi
   if [ "$backend" = cpu ]; then
     apply_decision cpu none "${PI_FIT_TARGET:-192}"
   else
@@ -359,4 +362,7 @@ fi
 
 apply_decision "$decision_backend" "${decision_device:-none}" "${decision_fit:-192}"
 files+=(-f "compose.$decision_backend.yaml")
+if [ "$decision_backend" = cpu ] && [ -d /dev/dri ]; then
+  files+=(-f compose.ui-vulkan.yaml)
+fi
 exec docker compose --env-file deployment.env "${files[@]}" "$@"

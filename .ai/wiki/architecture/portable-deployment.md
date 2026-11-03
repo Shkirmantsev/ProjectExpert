@@ -50,6 +50,23 @@ so startup-generated configuration does not immediately invalidate readiness;
 subsequent user edits still trigger refresh.
 
 The UI binds to loopback. GGUF HTTP uses a bearer key and checks model identity.
+The upgraded managed kit mounts a stdlib child supervisor read-only and exposes
+its authenticated controller only inside the Compose network. UI selections
+use a stdlib-only Python bundle prepared from the application image in the model
+volume, avoiding a system-Python assumption in CUDA/Vulkan runtime images. Choices
+persist as explicit ignored operator overrides, apply before indexing and follow
+an observable job. On Linux, available `/dev/dri` access is also exposed when
+starting on CPU, enabling later UI Vulkan selection. Image changes, CUDA device
+provisioning and native Windows service control remain host deployment actions.
+Current mode is read from the child controller; a cached deployment profile is
+not treated as live device evidence. No Docker socket is mounted.
+
+Optional `PI_UI_TOKEN` protects the product API, separate from the internal
+embedding key and optional chat credentials. The default local installation
+does not configure this operator-defined password. Public authentication
+metadata reveals only whether a token is required, and the UI explains the
+empty field when unconfigured. The exported Compose forwards an operator's
+private `PI_UI_TOKEN`; matching bearer credentials must be configured in clients.
 Windows firewall access should be limited to Docker/WSL. Credentials are runtime
 inputs, never shipped in the image. Existing exported kit files are preserved;
 upgrade explicitly using a separately exported kit and its tested image digest.

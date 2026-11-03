@@ -10,6 +10,8 @@ sourceRefs:
   - pi_platform/core/inference/profile.py
   - pi_platform/core/inference/launch.py
   - pi_platform/cli/inference.py
+  - pi_platform/adapters/orchestration/managed_runtime.py
+  - distribution/deployment/runtime_supervisor.py
   - openspec/changes/consolidate-embeddinggemma2-and-autoconfigure-inference/specs/portable-inference-runtime/spec.md
 maintenance:
   mode: authored
@@ -49,6 +51,14 @@ apply the decision produced here.
   Compose environment fragment for the decided profile.
 
 ## CLI
+
+The managed Linux sidecar also exposes an internal authenticated child controller.
+UI apply reuses `select_profile`, the fixed benchmark corpus and the 1.10x Auto
+policy. Only device/fit flags are mutable; failed startup rolls back the child.
+Current mode comes from the live controller, not the initial Compose profile.
+Explicit UI GPU unavailability fails actionably; startup retains CPU downgrade.
+The UI's model binding selection is persisted in ignored target cache state and
+passed through the existing embedding factory before index publication.
 
 `python -m pi_platform.cli inference` (`pi_platform/cli/inference.py`)
 exposes three subcommands:

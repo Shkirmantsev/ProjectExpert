@@ -71,14 +71,7 @@ __all__ = [
 #: The fixed corpus the benchmark uses. It is deliberately short and
 #: technical so the measurement reflects a realistic retrieval query
 #: rather than a single trivial token.
-BENCHMARK_TEXTS = (
-    "warehouse pallet packing process for the genesys line",
-    "TCP retry implementation in the order service",
-    "how does the refund approval workflow work",
-    "database migration script for the billing schema",
-    "kubernetes deployment of the packaging service",
-    "HTTP client timeouts and circuit breaker configuration",
-)
+from pi_platform.core.inference.benchmark import BENCHMARK_TEXTS
 
 
 DEFAULT_CACHE_ROOT = Path("/models")

@@ -7,6 +7,7 @@ services:
       PI_EMBEDDING_MODEL: gemma
       PI_EMBEDDING_DEVICE: ${PI_ACCELERATOR:-vulkan}
       PI_LLAMA_ENDPOINT: http://host.docker.internal:8769
+      PI_RUNTIME_CONTROL_URL: ""
       PI_LLAMA_API_KEY_FILE: /accelerator/llama-api-key
       PI_GGUF_CACHE: /accelerator
     volumes:

@@ -102,6 +102,11 @@ class UiHttpServer:
         self.target_repo = Path(
             getattr(service, "_repo_root", None) or Path.cwd()
         ).resolve()
+        from pi_platform.adapters.orchestration.managed_runtime import load_json, selection_path
+        persisted = load_json(selection_path(self.target_repo))
+        self.service._runtime_overrides = {
+            **persisted, **getattr(self.service, "_runtime_overrides", {}),
+        }
         from pi_platform.adapters.ui.retrieval_admin_routes import (
             RetrievalAdminRoutes,
         )
@@ -116,7 +121,7 @@ class UiHttpServer:
         self._httpd: Optional[ThreadingHTTPServer] = None
         self._thread: Optional[threading.Thread] = None
 
-    def apply_runtime_settings(self, settings, changed_fields) -> None:
+    def apply_runtime_settings(self, settings, changed_fields, *, request_refresh=True) -> None:
         """An explicit operator action is a command override for this process.
 
         Environment defaults apply at startup; later operator choices persist
@@ -134,10 +139,12 @@ class UiHttpServer:
             if set(changed_fields) & {"document_processing_enabled", "docling_enabled"}:
                 overrides["docling_enabled"] = settings.document_processing_enabled
             self.service._runtime_overrides = overrides
+            from pi_platform.adapters.orchestration.managed_runtime import save_json, selection_path
+            save_json(selection_path(self.target_repo), overrides)
             if readiness is not None:
                 readiness.configuration_epoch += 1
                 readiness.begin_refresh()
-            if self.refresh_requested is not None:
+            if request_refresh and self.refresh_requested is not None:
                 self.refresh_requested()
 
     # -- lifecycle -----------------------------------------------------
@@ -238,6 +245,9 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
         # -- routes -----------------------------------------------------
         def do_GET(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
+            if path == "/api/v1/auth-status":
+                self._send(HTTPStatus.OK, {"token_required": bool(server.token)})
+                return
             if path.startswith("/v1/") and server.openai_compat is not None:
                 # The OpenAI-compatible shim is auth-gated by the same
                 # bearer token as ``/api/v1/*`` when a token is configured.
@@ -390,6 +400,14 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
             return "administrator"
 
         def _try_admin_or_wizard(self, method: str, path: str, body: Any) -> bool:
+            if path == "/api/v1/admin/runtime":
+                if self._resolve_caller_capability() != "administrator":
+                    self._send(HTTPStatus.FORBIDDEN, {"error": "Administrator access required"})
+                    return True
+                from pi_platform.adapters.orchestration.managed_runtime import capabilities
+                self._send(HTTPStatus.OK if method == "GET" else HTTPStatus.METHOD_NOT_ALLOWED,
+                           capabilities() if method == "GET" else {"error": "Use GET"})
+                return True
             if path in ("/api/v1/admin/chat", "/api/v1/admin/chat/test"):
                 if self._resolve_caller_capability() != "administrator":
                     self._send(HTTPStatus.FORBIDDEN, {"error": "Administrator access is required to configure a chat provider."})
@@ -423,14 +441,34 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                     self._send(HTTPStatus.OK, server.wizard.render(server.target_repo))
                     return True
                 if method == "POST":
+                    if self._resolve_caller_capability() != "administrator":
+                        self._send(HTTPStatus.FORBIDDEN, {"error": "Administrator access required to change the embedding runtime"})
+                        return True
                     try:
                         submitted = server.wizard.submit(body or {})
+                        # A remote host cannot be reconfigured by changing a local preference.
+                        # Fail before saving an unsupported request.
+                        from pi_platform.adapters.orchestration.managed_runtime import capabilities
+                        caps = capabilities()
+                        if submitted.embedding_model_alias not in {m['value'] for m in caps['models']}:
+                            raise WizardValidationError("Selected embedding binding is not installed")
+                        if submitted.device not in caps['devices'][submitted.embedding_model_alias]:
+                            raise WizardValidationError("Selected device is unavailable for this embedding binding")
+                        if (submitted.embedding_model_alias == 'gemma' and not caps['managed_control']
+                                and os.environ.get('PI_LLAMA_ENDPOINT')
+                                and submitted.device != os.environ.get('PI_EMBEDDING_DEVICE', 'cpu')):
+                            raise WizardValidationError(caps['message'])
                         ready_settings = dataclasses.replace(
                             submitted, bootstrap_state="not-started"
                         )
                         save_retrieval_settings(ready_settings, server.target_repo)
-                        server.apply_runtime_settings(ready_settings, body or {})
-                        self._send(HTTPStatus.OK, ready_settings.as_dict())
+                        has_executor = server.admin_routes.job_executor is not None
+                        server.apply_runtime_settings(ready_settings, body or {}, request_refresh=not has_executor)
+                        if has_executor:
+                            job_id = server.admin_routes.enqueue_job("reindex")
+                            self._send(HTTPStatus.ACCEPTED, {**ready_settings.as_dict(), "job_id": job_id})
+                        else:
+                            self._send(HTTPStatus.OK, ready_settings.as_dict())
                     except WizardValidationError as exc:
                         self._send(
                             HTTPStatus.BAD_REQUEST,

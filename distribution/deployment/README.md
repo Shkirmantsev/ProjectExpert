@@ -360,3 +360,58 @@ After fixing an embedding service, use the UI's Trigger reindex or stop/start
 bootstrap to recover. Do not delete the runtime cache: it contains reusable
 vectors and saved chat settings. See the source repository's
 `docs/PORTABLE_DEPLOYMENT_RUNTIME_REPAIR.md` for a complete trade-analyzer upgrade.
+
+## Change embedding execution in the UI
+
+With the updated application **and kit**, select the embedding binding and
+Execution device, then press **Apply model & device and build index**. This
+persists an explicit operator override in the target's ignored
+`.project-intelligence-cache/runtime-selection.json`, applies it before indexing
+and survives application/container restart. The page follows a background job;
+failure stays visible. Selecting a dropdown alone does not apply a change.
+
+Gemma is one checkpoint with two bindings: managed GGUF Q8_0 and native
+Transformers. Native is offered when its libraries are installed and may download
+separate weights. Its available hardware depends on the installed PyTorch build;
+the standard production image contains CPU PyTorch. A native-only deployment
+without a configured GGUF endpoint does not offer the unavailable GGUF binding.
+
+The managed sidecar now runs an authenticated child-process controller on
+internal port 8770, using the existing embedding API key. It changes only
+the fixed child process. Setup provisions its stdlib-only Python from the pinned
+application into the model volume; sidecars need no system Python or network
+package install. Device probes still work before setup on an empty cache.
+The controller changes only
+llama-server device/fit flags, validates health and restores the previous child
+on failure. It has no Docker socket and no published control port. Linux exposes
+an existing `/dev/dri` tree even for CPU-first startup so Vulkan can later be
+selected in the UI. CUDA still needs the CUDA image and NVIDIA passthrough at
+startup (`PI_ACCELERATOR=cuda`); UI cannot add hardware or replace container images.
+GPU failure at launch retains the existing CPU fallback policy; an unavailable
+explicit UI GPU selection reports a failure instead of claiming success.
+
+Auto compares CPU/GPU median latency using the launcher's fixed query corpus,
+keeping GPU only at >=1.10x speedup. A later refresh reuses this result while the
+controller generation is unchanged. **Active mode** reads the current process:
+CPU, or Hybrid for a GPU backend with CPU projector. It does not promise a measured
+GPU layer count. Legacy remote endpoints and native Windows GPU services have no
+live child controller; the page explains that their hardware must be configured
+on their host. Native in-process bindings apply supported device choices directly.
+
+## What PI_UI_TOKEN means
+
+`PI_UI_TOKEN` is an optional operator-chosen bearer password protecting
+ProjectExpert's REST/MCP/OpenAI-compatible API, including settings changes. It is
+not an embedding requirement, provider API key or knowledge approval token. It
+is unset by default for a loopback-only local installation: there is no generated
+token to find, and the UI disables the empty token field with an explanation.
+
+To enable it, generate a random secret privately, set `PI_UI_TOKEN` in the shell
+environment used by Compose and recreate production with `make platform-start`.
+For example, in Bash: `export PI_UI_TOKEN="$(openssl rand -hex 32)"`. Store the
+value in your password manager/ignored private environment, never Git. Obtain an
+existing configured value from that private environment or its operator; the UI
+cannot reveal it. Paste it into the page when requested (kept in tab memory).
+Configure the same bearer value privately in MCP clients and Open WebUI
+(`PI_OPEN_WEBUI_API_KEY`). Public `/api/v1/auth-status` reveals only whether it is
+required, never its value. No authentication is silently enabled by this upgrade.

@@ -1129,9 +1129,11 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     def execute_admin_job(kind, details):
         if kind == "reindex":
             try:
-                _bootstrap_and_index_target(
-                    target, service=service, readiness=readiness, cache_root=cache_root,
-                )
+                # Use the monitor's serialized refresh/publication path. A direct
+                # bootstrap here left its baseline stale and scheduled another
+                # refresh immediately after the UI job reported completion.
+                monitor.request_refresh()
+                monitor.poll_once()
             except Exception:
                 # A manual retry can fail with no source edit. Ask the serving
                 # monitor to retry rather than leaving a stable tree unready.
@@ -2312,11 +2314,16 @@ def _bootstrap_and_index_target_locked(
     wizard = FirstStartWizard()
     wizard_schema = wizard.render(target)
     from ..adapters.config.runtime_configuration_resolver import RuntimeConfigurationResolver
+    from ..adapters.orchestration.managed_runtime import load_json, selection_path
+    operator_overrides = {
+        **load_json(selection_path(target)),
+        **(getattr(service, "_runtime_overrides", {}) if service is not None else {}),
+    }
     from ..core.control.retrieval_settings import PRODUCTION_ALIASES
     initial_config = RuntimeConfigurationResolver(
         local_settings_path=target / ".project-intelligence-cache" / "settings.json",
         cli_overrides={
-            **(getattr(service, "_runtime_overrides", {}) if service is not None else {}),
+            **operator_overrides,
             **({"embedding_model": model_alias} if model_alias else {}),
             **({"embedding_device": device} if device else {}),
         },
@@ -2342,6 +2349,9 @@ def _bootstrap_and_index_target_locked(
     settings = _dc_replace(settings, bootstrap_state="hydrating")
     save_retrieval_settings(settings, target)
 
+    from ..adapters.orchestration.managed_runtime import apply_selection
+    managed_execution = apply_selection(cache_root, initial_config.embedding_model, initial_config.embedding_device)
+
     before = read_project_version(target)
     transient_readiness = DefaultKnowledgeReadiness()
     hydrate_report = hydrate_and_reconcile_target(
@@ -2365,11 +2375,13 @@ def _bootstrap_and_index_target_locked(
         target=target, cache_root=cache_root, inventory=merged_inv,
         previous_inventory=prev_inv, settings=settings,
         cli_overrides={
-            **(getattr(service, "_runtime_overrides", {}) if service is not None else {}),
+            **operator_overrides,
             **({"embedding_model": model_alias} if model_alias else {}),
             **({"embedding_device": device} if device else {}),
         },
     )
+    if managed_execution is not None:
+        runtime.extra["managed_execution"] = managed_execution
     merged_inv = runtime.extra.get("source_inventory", merged_inv)
     after = read_project_version(target)
     if after != before:

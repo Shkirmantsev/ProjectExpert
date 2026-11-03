@@ -1,0 +1,6 @@
+- [x] Add failing control/persistence/auth/capability regressions
+- [x] Implement bounded child supervisor and authenticated client with policy reuse
+- [x] Wire UI apply jobs, settings persistence and observed mode
+- [x] Ship supervisor/capability wiring in kit and explain API token
+- [x] Run focused/real runtime/full checks and update documentation
+- [x] Adopt verified specifications and archive

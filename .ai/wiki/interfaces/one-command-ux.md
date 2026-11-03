@@ -89,13 +89,25 @@ and reports the spec lag rather than hiding it.
 `pi_platform/core/retrieval/first_start_wizard.py` —
 `FirstStartWizard.render/should_render/submit`. The wizard
 ONLY renders when `bootstrap_state == 'not-started'`; it
-offers EmbeddingGemma 2 + Qwen3-Embedding-0.6B, the
-`auto` / `cpu` / `cuda` device choice, the Docling toggle and
+offers the available bindings of EmbeddingGemma 2 (the former Qwen choice is
+retired), binding-specific devices, the Docling toggle and
 the single `initialise_and_build_index` action. `submit()`
 validates the form and returns a `RetrievalSettings`. HTTP submission persists
-`not-started`, never `ready`; the serving monitor picks up model/device changes.
+`not-started`, never `ready`; the serving worker applies model/device changes.
 The UI polls `/api/v1/indexing-status` every three seconds. Model failures leave
 HTTP and setup accessible while retrieval returns 503; failed builds retry.
+
+The persistent control form also switches bindings/devices after initial setup.
+Apply returns an observable reindex job; its explicit choices persist separately
+from startup defaults in ignored `runtime-selection.json`. Managed Docker device
+changes use an internal authenticated child controller; no Docker socket is
+exposed. Unsupported remote/device choices fail with guidance. Active mode reads
+current process state, independently of the requested Auto preference. See the
+kit README for native Windows limits and model-download behavior.
+
+`GET /api/v1/auth-status` is public and returns only `token_required`. The page
+explains optional `PI_UI_TOKEN` API protection and disables the field when unset;
+configured values stay private and are never returned by that endpoint.
 
 ## Administrative REST routes
 
