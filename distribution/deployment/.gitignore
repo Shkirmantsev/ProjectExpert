@@ -1,2 +1,4 @@
 accelerator/
 *.partial
+.kit-backups/
+.kit-upgrade-*

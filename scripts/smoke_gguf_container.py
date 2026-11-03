@@ -16,6 +16,7 @@ from pi_platform.cli.gguf_setup import prepare
 from pi_platform.adapters.retrieval.gguf_artifacts import GEMMA_MODEL_ALIAS, GEMMA_PROJECTOR_FILENAME
 from pi_platform.adapters.retrieval.llama_cpp_embedding_model import LlamaCppEmbeddingModel
 from pi_platform.ports.retrieval.embedding_model import EmbeddingRequest, EmbeddingRole, EmbeddingModelError
+from pi_platform.core.inference.launch import build_server_argv
 
 
 def main():
@@ -37,13 +38,11 @@ def main():
     name = args.name or f'pi-gguf-smoke-{os.getpid()}'
     succeeded = False
     try:
+        argv = build_server_argv(model_path=f'/models/{model.name}',
+            projector_path='/models/' + GEMMA_PROJECTOR_FILENAME, alias=GEMMA_MODEL_ALIAS,
+            backend='cpu', host='0.0.0.0', api_key_file='/models/llama-api-key')
         subprocess.run(['docker','run','-d','--name',name,'-p',f'127.0.0.1:{port}:8769',
-            '-v',f'{model.parent}:/models:ro',image,'--model',f'/models/{model.name}',
-            '--alias',GEMMA_MODEL_ALIAS,'--embeddings','--pooling','mean' if gemma else 'last','--ctx-size','8192',
-            '--batch-size','8192','--ubatch-size','8192','--parallel','1',
-            '--device','none','--n-gpu-layers','0','--host','0.0.0.0','--port','8769',
-            '--api-key-file','/models/llama-api-key',
-            *(['--mmproj','/models/'+GEMMA_PROJECTOR_FILENAME,'--no-mmproj-offload'] if gemma else [])],check=True,stdout=subprocess.DEVNULL)
+            '-v',f'{model.parent}:/models:ro',image,*argv],check=True,stdout=subprocess.DEVNULL)
         adapter = LlamaCppEmbeddingModel(endpoint=f'http://127.0.0.1:{port}',
             key_file=str(model.parent/'llama-api-key'), timeout=120, model_alias=GEMMA_MODEL_ALIAS)
         deadline = time.monotonic()+240
@@ -56,6 +55,13 @@ def main():
                 if time.monotonic() >= deadline: raise
                 time.sleep(2)
         assert all(len(v)==adapter.dimension() and math.isclose(sum(x*x for x in v),1,abs_tol=1e-5) for v in vectors)
+        wide = 'ledger ' * 1500
+        from pi_platform.adapters.retrieval.embeddinggemma2_embedding_model import _format_document_text
+        tokens = adapter._request('/tokenize', {'content': _format_document_text(wide, None)})['tokens']
+        assert 1049 < len(tokens) < 4096, 'Wide-input fixture must exercise the former batch limit'
+        vector = adapter.embed_request(EmbeddingRequest(wide, EmbeddingRole.DOCUMENT))
+        assert len(vector) == adapter.dimension() and math.isclose(sum(x*x for x in vector), 1, abs_tol=1e-5)
+        print(f'PASS: {len(tokens)}-token document with shipped runtime capacity defaults')
         if gemma:
             # A real PNG fixture without adding host Pillow as a prerequisite.
             import struct, zlib

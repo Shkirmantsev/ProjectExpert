@@ -124,3 +124,12 @@ variables by name; no key value appears in its command or redacted output.
 Pre-run and UI edits share one settings file, so the pre-run URL/model are visible
 and editable in the browser. A cache-local ignore rule protects credentials even
 when configuration happens before initial hydration/Git exclusion setup.
+
+## Exported optional frontend
+
+The portable kit contains an `open-webui` profile with the internal
+`http://production:8765/v1` adapter endpoint, loopback port 8768 and a Python JSON
+health probe. Enable via `COMPOSE_PROFILES=open-webui` in the preserved operator
+environment; plain platform-start remains sufficient. Kit --upgrade replaces
+managed templates with backups but preserves deployment.env. See
+[portable deployment repair](../../../docs/PORTABLE_DEPLOYMENT_RUNTIME_REPAIR.md).

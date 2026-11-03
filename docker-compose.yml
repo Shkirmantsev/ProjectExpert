@@ -93,15 +93,24 @@ services:
     # Optional Open WebUI sidecar. Pinned to 0.6.5 — the exact version
     # recorded in distribution/licenses/dependency-inventory.json (Block C3).
     # Re-verify the SPDX entry on every version bump before redistribution.
-    # The model endpoint Open WebUI talks to is operator-supplied; teams
-    # set ``OPENAI_API_BASE_URL`` in a project-local override file when
-    # they want Open WebUI to use a specific model.
+    # Use the project-aware adapter; optional upstream chat is configured
+    # through ProjectExpert's own UI and shared server-side settings.
     image: ghcr.io/open-webui/open-webui:0.6.5
     profiles: ["open-webui"]
     ports:
-      - "${PI_OPEN_WEBUI_PORT:-8768}:8080"
+      - "${PI_BIND_HOST:-127.0.0.1}:${PI_OPEN_WEBUI_PORT:-8768}:8080"
+    environment:
+      OPENAI_API_BASE_URL: http://core:8765/v1
+      OPENAI_API_KEY: ${PI_OPEN_WEBUI_API_KEY:-project-intelligence}
+      ENABLE_OLLAMA_API: "false"
     volumes:
       - open-webui-data:/app/backend/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json, urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=4); assert json.load(r).get('status') is True"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 12
     restart: unless-stopped
 
   enterprise-sidecar:

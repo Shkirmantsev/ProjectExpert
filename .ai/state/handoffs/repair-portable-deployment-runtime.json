@@ -1,0 +1,51 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Branch codex/repair-portable-deployment-runtime. Target installation untouched; no new OCI artifacts published. Real-model and native GPU/Windows verification NOT RUN locally."
+  ],
+  "decisions": [
+    "Confirmed insufficient batch capacity and missing exported frontend; use explicit upgrade preserving env. Test readiness retry before altering its already-clearing logic."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Completed portable runtime defaults, optional frontend, backed-up kit upgrade and trade-analyzer runbook with accepted OpenSpec adoption"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-03T12:51:31+00:00",
+    "id": "repair-portable-deployment-runtime",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-03T13:11:00+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Embedding runtime handles shipped chunk budget; readiness recovers after successful retry; deployment supports Open WebUI without manual health override; operator settings survive documented upgrade; focused and full checks pass"
+    ],
+    "goal": "Repair confirmed portable deployment defects and document safe trade-analyzer upgrade",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full harness PASS; focused deployment and inference checks PASS; recovery and merged Compose checks PASS; strict adopted specs, manifest and diff checks PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
