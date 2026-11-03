@@ -349,6 +349,8 @@ For the optional chat frontend, add `COMPOSE_PROFILES=open-webui` to
 `deployment.env` and use ordinary `make platform-start`. Its default loopback
 port is 8768 (`PI_OPEN_WEBUI_PORT` overrides it); the frontend connects internally
 to `http://production:8765/v1` and exposes model `project-intelligence`.
+Set `PI_WEBUI_NAME` in `deployment.env` for a custom frontend name; the managed
+template maps it to `WEBUI_NAME`, so future kit upgrades retain the choice.
 `PI_OPEN_WEBUI_API_KEY` is needed only when the ProjectExpert adapter requires
 an API bearer key. ProjectExpert search does not require a chat LLM. Existing
 Open WebUI databases may retain Admin Connections settings; update the endpoint

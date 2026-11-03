@@ -1,0 +1,51 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Accepted one-click-distribution and portable-inference-runtime contracts followed; no ADR needed. Target scoring/domain code untouched; authenticated browser account flow not exercised. Malformed Python source remains isolated; GitLab fetch not retested."
+  ],
+  "decisions": [
+    "No restart needed: resolved operator name and embedding arguments already match healthy running services. Docs distinguish local repaired kit from original GHCR kit."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Completed upstream fix, live deployment verification, safe kit re-export and target runbook corrections; preserved operator data and target Git index"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-03T22:06:59+00:00",
+    "id": "verify-agent-deployment-upgrade",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-03T22:18:51+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Identify actual agent changes and runtime state, fix confirmed defects safely, preserve target staged work and credentials, verify both interfaces and document limits"
+    ],
+    "goal": "Audit and repair the attempted ProjectExpert deployment upgrade in both repositories",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "ProjectExpert full harness PASS; 6 deployment tests PASS; live readiness/query/retrieve/SSE/MCP/UI checks PASS; actual 1507-token Gemma inference PASS; target staged-diff preservation PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

@@ -133,3 +133,8 @@ health probe. Enable via `COMPOSE_PROFILES=open-webui` in the preserved operator
 environment; plain platform-start remains sufficient. Kit --upgrade replaces
 managed templates with backups but preserves deployment.env. See
 [portable deployment repair](../../../docs/PORTABLE_DEPLOYMENT_RUNTIME_REPAIR.md).
+
+Operator branding belongs in `PI_WEBUI_NAME` in deployment.env; the template maps
+it to Open WebUI's `WEBUI_NAME`, rather than requiring a local Compose patch.
+The trade-analyzer follow-up verified the internal frontend connection, streaming
+adapter and real 1507-token Gemma inference without an external chat model.
