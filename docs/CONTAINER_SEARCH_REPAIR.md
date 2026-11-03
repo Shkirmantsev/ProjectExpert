@@ -158,3 +158,12 @@ A separate direct Open WebUI-to-LM Studio chat connection typically uses its rea
 configured). It has no automatic ProjectExpert context. To combine an LLM with
 project tools, use an agent/MCP integration; merely entering an LLM URL cannot
 supply that integration.
+
+## Sidecar capacity and kit upgrade follow-up (2026-11-03)
+
+The immutable October 30 kit still shipped 1024-token batches and no Open WebUI
+service. The [portable runtime repair](PORTABLE_DEPLOYMENT_RUNTIME_REPAIR.md)
+provides an explicit backed-up kit upgrade, 4096-token runtime capacity, the
+optional frontend profile and exact trade-analyzer commands. It also replaces
+cache-deletion recovery advice with a verified same-cache retry. Source fixes
+need an updated kit export; an old immutable kit cannot acquire new templates.

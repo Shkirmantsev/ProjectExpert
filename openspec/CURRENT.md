@@ -302,3 +302,14 @@ The verified change is archived as `2026-10-30-add-prerun-chat-and-tmp-input`.
 Pre-run/UI round trips, Make order/failure/secret handling, private tmp search,
 large-PDF discovery, limits and the full harness gate passed. No new real-model
 or physical hardware acceptance is claimed by this change.
+
+## Portable deployment runtime repair — 2026-11-03
+
+The accepted portable-inference-runtime capability now requires equivalent
+4096-token context/batch/microbatch defaults across native and managed launch
+paths. The one-click-distribution capability adds an optional exported Open WebUI
+profile and an explicit backed-up kit upgrade that preserves operator environment
+settings. Adoption is archived as `2026-11-03-repair-portable-deployment-runtime`.
+Same-cache embedding-failure retry is regression-verified; no cache deletion is
+required for normal recovery. Real-model wide-input smoke and native hardware
+execution remain release verification, not claimed local results of this task.

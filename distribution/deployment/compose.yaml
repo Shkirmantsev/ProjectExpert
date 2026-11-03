@@ -34,5 +34,27 @@ services:
       start_period: 30m
       retries: 3
     restart: unless-stopped
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:0.6.5
+    profiles: ["open-webui"]
+    ports:
+      - "${PI_BIND_HOST:-127.0.0.1}:${PI_OPEN_WEBUI_PORT:-8768}:8080"
+    environment:
+      OPENAI_API_BASE_URL: http://production:8765/v1
+      OPENAI_API_KEY: ${PI_OPEN_WEBUI_API_KEY:-project-intelligence}
+      ENABLE_OLLAMA_API: "false"
+    volumes:
+      - open-webui-data:/app/backend/data
+    depends_on:
+      production:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json, urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=4); assert json.load(r).get('status') is True"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 12
+    restart: unless-stopped
 volumes:
   model-cache:
+  open-webui-data:

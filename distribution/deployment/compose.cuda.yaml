@@ -23,11 +23,11 @@ services:
       - --embd-normalize
       - "2"
       - --ctx-size
-      - "2048"
+      - "4096"
       - --batch-size
-      - "1024"
+      - "4096"
       - --ubatch-size
-      - "1024"
+      - "4096"
       - --parallel
       - "1"
       - --host

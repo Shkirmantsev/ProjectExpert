@@ -329,3 +329,32 @@ Runtime/cache/build/vendor trees remain excluded. `tmp/local/` remains reserved
 for generated local state, except `tmp/local/source/` (or an explicitly configured
 source inbox), which stays searchable. PDF extraction is automatic; synthesis of
 curated Wiki pages remains an explicit agent task.
+
+## Upgrade, embedding capacity and optional Open WebUI
+
+The exporter preserves existing files by default. To update an installed kit,
+pass `--upgrade` to the **new** kit image. Managed templates are replaced with
+backups under `.kit-backups/`; operator `deployment.env` and unrelated files are
+preserved. Review old Compose customizations in those backups. Set the supported
+operator choices in `deployment.env`, rather than patching generated arguments.
+The published kit embeds its matching application digest; a `PI_IMAGE` override
+still takes precedence.
+
+Native and managed embedding defaults now use 4096 for context, batch and
+microbatch with one parallel slot. The former 1024 batch setting could reject
+1049-token project chunks. Oversized arbitrary inputs remain bounded by the
+model/runtime; these defaults are not an unlimited-input promise.
+
+For the optional chat frontend, add `COMPOSE_PROFILES=open-webui` to
+`deployment.env` and use ordinary `make platform-start`. Its default loopback
+port is 8768 (`PI_OPEN_WEBUI_PORT` overrides it); the frontend connects internally
+to `http://production:8765/v1` and exposes model `project-intelligence`.
+`PI_OPEN_WEBUI_API_KEY` is needed only when the ProjectExpert adapter requires
+an API bearer key. ProjectExpert search does not require a chat LLM. Existing
+Open WebUI databases may retain Admin Connections settings; update the endpoint
+there if needed. The kit overrides the pinned image's jq probe with Python.
+
+After fixing an embedding service, use the UI's Trigger reindex or stop/start
+bootstrap to recover. Do not delete the runtime cache: it contains reusable
+vectors and saved chat settings. See the source repository's
+`docs/PORTABLE_DEPLOYMENT_RUNTIME_REPAIR.md` for a complete trade-analyzer upgrade.

@@ -4,6 +4,8 @@
 
 ## Setup and daily work
 
+- [Portable deployment runtime repair](PORTABLE_DEPLOYMENT_RUNTIME_REPAIR.md): embedding limits, safe kit upgrades, optional Open WebUI and cache-preserving trade-analyzer recovery.
+
 - [Optional chat and active mode](OPTIONAL_CHAT_AND_EXECUTION_MODE.md): working LLM connections and effective CPU/GPU/Hybrid status.
 
 - [Container search repair](CONTAINER_SEARCH_REPAIR.md): UI behavior, local document inbox and trade-analyzer upgrade.

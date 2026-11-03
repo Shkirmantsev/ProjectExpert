@@ -67,3 +67,12 @@ Status exposes the published semantic `cache_entries` (active chunks),
 `canonical_cache_entries` separately, `active_sources`, `semantic_backend`, and
 retrieval statistics. Project version reports the readiness fingerprint and
 published model revision. Failure/readiness remain visible while a refresh runs.
+
+## Embedding failure recovery
+
+The deployment regression injects an embedding error and retries bootstrap with
+unchanged sources, the same service and cache. Successful publication clears
+both the in-memory reason and persisted readiness reason, retaining chat settings.
+A sticky first-error state was not reproduced. Prefer in-process UI reindex or
+service restart after fixing the embedding runtime; canonical-only hydrate is
+not a serving semantic-index rebuild. Do not erase the cache as routine recovery.
