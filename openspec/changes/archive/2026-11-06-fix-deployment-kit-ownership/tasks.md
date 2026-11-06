@@ -1,0 +1,4 @@
+- [x] Reproduce existing root-owned kit failure with real Docker root/user identities
+- [x] Implement bounded metadata repair and preserve safety/contents
+- [x] Verify ordinary user edit/removal, upgrade backups and link boundaries
+- [x] Update docs/specs, run harness and commit

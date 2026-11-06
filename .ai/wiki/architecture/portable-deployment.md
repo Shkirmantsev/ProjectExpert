@@ -71,6 +71,21 @@ Windows firewall access should be limited to Docker/WSL. Credentials are runtime
 inputs, never shipped in the image. Existing exported kit files are preserved;
 upgrade explicitly using a separately exported kit and its tested image digest.
 
+On POSIX, a root-run exporter inherits the project parent's UID/GID for a new or
+root-owned kit. Re-export repairs root-owned managed files (including preserved
+operator environment files) and generated backups; it retains an explicit existing
+non-root kit owner. Repair is bounded to exporter-owned entries, skips link targets
+and unrelated files, and does not recursively change target-project ownership.
+
+Application images enable project-owner CLI execution. On POSIX startup as root,
+the CLI repairs the private project cache and known HF/XDG model-cache paths,
+preserves access to the internal model key, sets a private cache HOME, clears
+supplementary groups and drops GID/UID to the non-root project owner before
+dispatching writers. Subsequent indexing, UI jobs and CLI writes inherit that
+identity. This prevents new root-owned cache entries rather than repeatedly
+repairing them after writes. Host/non-root execution is unchanged; source-tree
+ownership and external link targets are not recursively modified.
+
 ## Help-first commands and the effective address — 2026-10-27
 
 - The exported kit's Makefile is **help-first**: bare `make` and

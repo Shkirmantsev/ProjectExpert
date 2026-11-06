@@ -321,3 +321,20 @@ mode reporting and clear optional API authentication are accepted. Managed Linux
 control is limited to the fixed embedding child and exposed devices; no Docker
 socket is granted. Native Windows host process control remains an explicit limit.
 The change is archived as `2026-11-04-enable-ui-embedding-runtime-control`.
+
+## Deployment kit ownership repair — 2026-11-06
+
+Root-run POSIX export now repairs root-owned kit directories, managed regular
+files and generated backups using the target project owner, while retaining an
+explicit non-root kit owner. Operator contents, unrelated entries and linked
+external ownership are preserved. The verified change is archived as
+`2026-11-06-fix-deployment-kit-ownership`.
+
+## Container cache ownership — 2026-11-06
+
+Application containers targeting a POSIX project owned by a non-root user repair
+the private cache at startup and run cache writers with the project UID/GID.
+New files remain user-owned across indexing, administrative jobs and restart;
+private model-key/cache access is retained. Host CLI behavior and canonical source
+ownership remain unchanged. This needs the updated application image, not only
+the exporter. Adopted as `2026-11-06-fix-container-cache-ownership`.

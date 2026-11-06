@@ -59,7 +59,8 @@ RUN pip install --no-cache-dir . \
 
 # The core target is deliberately model-free. Production below installs the
 # complete dependency closure and enables fail-closed semantic startup.
-ENV PI_STARTUP_PROFILE=minimal \
+ENV PI_RUN_AS_PROJECT_OWNER=1 \
+    PI_STARTUP_PROFILE=minimal \
     PI_EMBEDDING_MODEL=hashing \
     PI_DENSE_INDEX=flat \
     PI_DOCLING_ENABLED=0

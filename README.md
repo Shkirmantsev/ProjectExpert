@@ -34,6 +34,13 @@ kit, including the Makefile and Docker Compose files, into
 `.project-intelligence-deploy/` inside your project, then exits. You only need
 to do this once for that project.
 
+On Linux, the updated exporter assigns the kit to your project-directory owner,
+even when the container runs as root. Re-export repairs an existing root-owned
+kit while preserving its settings. Use a user-owned project directory.
+The updated application also runs cache writers as that user, so
+`.project-intelligence-cache/` and new runtime files remain user-owned after
+indexing and restarts. This requires the new application image as well as the kit.
+
 ```bash
 docker run --pull=always --rm -v "$PWD:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev
 ```

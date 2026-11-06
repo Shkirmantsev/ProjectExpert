@@ -1770,6 +1770,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         print(json.dumps({"error": f"unknown command {args.command!r}"}), file=sys.stderr)
         return 2
     try:
+        from ..adapters.fs.container_identity import prepare_project_user
+        prepare_project_user(getattr(args, "target", None) or os.environ.get("PI_TARGET_ROOT"))
         return handler(args)
     except Exception as exc:  # noqa: BLE001
         print(json.dumps({"error": str(exc)}), file=sys.stderr)

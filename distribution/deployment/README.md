@@ -330,6 +330,36 @@ for generated local state, except `tmp/local/source/` (or an explicitly configur
 source inbox), which stays searchable. PDF extraction is automatic; synthesis of
 curated Wiki pages remains an explicit agent task.
 
+## Linux file ownership
+
+The exporter may run as root inside its short-lived container, but on POSIX
+filesystems the exported `.project-intelligence-deploy/` and managed files are
+assigned to the mounted project's owner. Re-export also repairs an existing
+root-owned kit, including preserved `deployment.env` and generated backups,
+without replacing operator settings. Existing non-root kit ownership is retained.
+It does not recursively chown your project or follow symlinks/hardlinks to change
+external ownership. Export into an existing user-owned project directory; if the
+project parent itself belongs to root, repair that parent separately first.
+
+The updated **application image** also repairs existing root-owned
+`.project-intelligence-cache/` entries before running CLI handlers as the project
+UID/GID. Indexing, UI jobs and later CLI writes then create user-owned files,
+including after restart. Startup preserves cache contents and prepares access to
+the dedicated model cache and internal embedding key. The repository itself is
+not recursively reassigned. No operator UID/GID variables are required. The host
+CLI is unchanged. Custom external cache paths must already be writable by that
+user; external inputs and credentials must be readable by the application user.
+Cache HOME is kept under `.project-intelligence-cache/home/`.
+
+This persistent cache fix requires recreating the service with the new application
+image. A repaired exporter alone cannot change an old running application's UID.
+Model-setup and embedding sidecars keep their existing execution identities.
+
+For an older kit that created root-owned entries, re-run export with the updated
+deployment-kit image; `--upgrade` is optional for ownership repair and replaces
+templates only when explicitly supplied. A locally rebuilt image must be used
+until this fix is published; pulling an older registry image cannot apply it.
+
 ## Upgrade, embedding capacity and optional Open WebUI
 
 The exporter preserves existing files by default. To update an installed kit,

@@ -1,0 +1,58 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Local kit projectexpert-deployment:ownership-fix = sha256:b67766721236aef579675d1d32671fb4acfd7d44aed7772821b77de3d808f126. Ownership repair backported onto cached kit sha256:e75e8b78fbdfb04193316d10853d9008a14b3e20afa8f1c30f3ca5c2c8dcbb81 with original payload and application pin retained; recognizes current managed ownership names too. Not published to GHCR. No user target project files/settings or running services were changed; tested isolated fixtures only."
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Fixed exporter ownership for pre-existing root-owned kits and managed files/backups with bounded link-safe repair; documented/adopted requirement and real Docker UID/GID edit/removal proof. Local ownership-only kit verified without changing cached payload/application pin. Final local diff review found no blocker."
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-06T21:50:55+00:00",
+    "id": "fix-deployment-kit-ownership",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-06T22:01:33+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Fresh and repeated/upgrade exports leave managed kit editable/removable by project user; preserve contents and never follow symlinks or change unrelated project ownership"
+    ],
+    "goal": "Keep root-run container kit export owned and editable by the target project owner, including existing root-owned kit entries",
+    "openspec_change": "fix-deployment-kit-ownership",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full harness PASS; 39 focused deployment/navigation regressions PASS; final root Docker ownership/hardlink/non-root-owner regression PASS; actual local repair image host-user edit/removal PASS; OpenSpec/Wiki/manifest validation PASS"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "distribution/deployment/export.py",
+      "sha256": "dafe101fec3c54cc1779e3a09674edf39abc3baedeb9e8f17a6fd715a312008b"
+    },
+    {
+      "path": "tests/test_deployment_ownership.py",
+      "sha256": "9558a154523a354cdd0bce4647df9d0e79eed88a1f0dc206d612cd1fe31385f7"
+    }
+  ]
+}

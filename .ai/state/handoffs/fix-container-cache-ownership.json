@@ -1,0 +1,70 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Cache persistence fix requires updated application image with PI_RUN_AS_PROJECT_OWNER=1 enabled by default and updated kit/exporter for deploy ownership. No required operator UID/GID values. Source and tests only; no production application image was rebuilt or published in this task. Previously prepared local projectexpert-deployment:ownership-fix repairs deployment-kit metadata only and cannot change an old running application UID."
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Completed both ownership fixes: bounded kit export repair and container project-user cache writers, with preserved model/key access, actual CLI across two starts, docs and accepted archived specs. Final local diff review found no blocker."
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-06T22:06:40+00:00",
+    "id": "fix-container-cache-ownership",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-06T22:19:14+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Repair existing root-owned project cache safely at container startup and run application/cache writers as project UID/GID; preserve model access, settings and source/link boundaries without required operator UID variables"
+    ],
+    "goal": "Ensure ProjectExpert container cache and newly written files belong to the target project user, alongside the completed deployment-kit ownership fix",
+    "openspec_change": "fix-container-cache-ownership",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full combined harness PASS (1748 tests); 51 focused ownership/search/UI/navigation tests PASS (1 opt-in skip); final 3 identity tests PASS including actual root-container CLI twice; exporter/root-user removal proof PASS; final OpenSpec/Wiki/manifest checks PASS"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "Containerfile",
+      "sha256": "5e62fa54009768c10e95dc6c55989c6a056124bbef78dd562b1b8d249b6d9a2c"
+    },
+    {
+      "path": "distribution/deployment/export.py",
+      "sha256": "dafe101fec3c54cc1779e3a09674edf39abc3baedeb9e8f17a6fd715a312008b"
+    },
+    {
+      "path": "pi_platform/adapters/fs/container_identity.py",
+      "sha256": "68232052f70b5558fafa8ec1fe1fd1a13cfbd625bb226bdb9ac586c1bba4e5a0"
+    },
+    {
+      "path": "tests/test_container_cache_ownership.py",
+      "sha256": "5374a1f574d4e47fd4de965b1c2c65d91761a594c46918a6e9b6f21e5fbc5f71"
+    },
+    {
+      "path": "tests/test_deployment_ownership.py",
+      "sha256": "9558a154523a354cdd0bce4647df9d0e79eed88a1f0dc206d612cd1fe31385f7"
+    }
+  ]
+}
