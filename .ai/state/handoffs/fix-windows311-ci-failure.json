@@ -1,0 +1,56 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Native Windows crash attribution is inferred from120s timing, partial dump and passing full-windows3.11 without native watchdog; local Windows reproduction unavailable. Related CPython frame-dump races: python/cpython issue116008."
+  ],
+  "decisions": [
+    "Replace asynchronous native stack sampling with Python watchdog holding frame references; preserve120s repeated per-test diagnostics and20minute CI job timeout"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Removed native asynchronous faulthandler sampler implicated by Windows3.11 access violation; replaced with Python frame-reference watchdog and regression coverage"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-06T23:27:57+00:00",
+    "id": "fix-windows311-ci-failure",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-06T23:36:21+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Identify exact failing check and reproduce or establish cause; apply narrow fix; run focused checks and required harness"
+    ],
+    "goal": "Diagnose and fix remaining Windows3.11 PR17 CI failure",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "python3 harness.py check PASS; Python3.11 actual-workflow50k stress PASS with75 dumps;10 reliability tests PASS; manifest/diff checks PASS"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "tests/test_production_reliability.py",
+      "sha256": "2af9381a09d51a34c4d7836d8ae9976b0717f1d66d913a880e12ef513880d850"
+    }
+  ]
+}

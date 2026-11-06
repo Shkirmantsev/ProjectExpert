@@ -24,6 +24,56 @@ def load(name: str, path: pathlib.Path):
 
 
 class ProductionReliabilityTests(unittest.TestCase):
+    def _ci_stall_runner(self):
+        import yaml
+        workflow = yaml.safe_load((ROOT / ".github/workflows/verify.yml").read_text())
+        step = next(step for step in workflow["jobs"]["unit"]["steps"]
+                    if step.get("shell") == "python")
+        namespace = {}
+        with mock.patch("unittest.main"):
+            exec(compile(step["run"], "<ci-unit-step>", "exec"), namespace)
+        return namespace["StallRunner"], namespace["StallResult"]
+
+    def test_ci_stall_diagnostics_repeat_without_native_stack_sampling(self):
+        import io
+        import threading
+        runner, result_type = self._ci_stall_runner()
+        repeated = threading.Event()
+        class Stream(io.StringIO):
+            reports = 0
+            def write(self, text):
+                written = super().write(text)
+                if "Slow test:" in text:
+                    self.reports += 1
+                    if self.reports >= 2:
+                        repeated.set()
+                return written
+        class SlowCase(unittest.TestCase):
+            def test_waits_for_diagnostics(self):
+                self.assertTrue(repeated.wait(5), "watchdog did not report the active test")
+        stream = Stream()
+        with mock.patch.object(result_type, "stall_interval", 0.01, create=True), \
+             mock.patch("faulthandler.dump_traceback_later", side_effect=AssertionError("unsafe native sampler")):
+            result = runner(stream=stream).run(unittest.defaultTestLoader.loadTestsFromTestCase(SlowCase))
+        self.assertTrue(result.wasSuccessful(), stream.getvalue())
+        self.assertGreaterEqual(stream.reports, 2)
+        self.assertIn("threading.py", stream.getvalue())
+        self.assertFalse(result._watchdog.is_alive())
+
+    def test_ci_stall_watchdog_stops_and_preserves_test_failures(self):
+        import io
+        runner, _ = self._ci_stall_runner()
+        class FailingCase(unittest.TestCase):
+            def test_failure(self):
+                self.fail("fixture failure remains visible")
+        stream = io.StringIO()
+        with mock.patch("faulthandler.dump_traceback_later", side_effect=AssertionError("unsafe native sampler")):
+            result = runner(stream=stream).run(unittest.defaultTestLoader.loadTestsFromTestCase(FailingCase))
+        self.assertEqual(len(result.failures), 1)
+        self.assertIn("fixture failure remains visible", stream.getvalue())
+        self.assertNotIn("Slow test:", stream.getvalue())
+        self.assertFalse(result._watchdog.is_alive())
+
     def test_ci_unit_discovery_imports_project_from_temporary_runner_script(self):
         import yaml
 
