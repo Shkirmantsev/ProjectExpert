@@ -557,7 +557,7 @@ def _cmd_hydrate(args: argparse.Namespace) -> int:
     target = args.target.resolve()
     cache_root = _resolve_cache_root(args)
     fs = LocalFilesystemAdapter(target, cache_root=cache_root)
-    with ProjectLock(_project_id(target)).acquire():
+    with ProjectLock(_project_id(target), root=cache_root / "locks").acquire():
         service = HydrateService(filesystem=fs)
         report = service.restore_runtime(target, cache_root=cache_root)
         previous_head = report.project_version.gitHead
@@ -596,7 +596,7 @@ def _cmd_hydrate(args: argparse.Namespace) -> int:
 def _cmd_materialise(args: argparse.Namespace) -> int:
     target = args.target.resolve()
     cache_root = _resolve_cache_root(args)
-    with ProjectLock(_project_id(target)).acquire():
+    with ProjectLock(_project_id(target), root=cache_root / "locks").acquire():
         service = MaterialiseService(
             filesystem=LocalFilesystemAdapter(target, cache_root=cache_root),
             wal=WriteAheadLog(cache_root),
@@ -761,7 +761,7 @@ def _cmd_ingest_sources(args: argparse.Namespace) -> int:
     cache = InMemoryRuntimeCache()
     cache_root = _resolve_cache_root(args)
     state_path = cache_root / "ingestion.json"
-    with ProjectLock(_project_id(target)).acquire():
+    with ProjectLock(_project_id(target), root=cache_root / "locks").acquire():
         if state_path.exists():
             saved = json.loads(state_path.read_text())
             cache._store = {k: v.encode() for k, v in saved.get("records", {}).items()}

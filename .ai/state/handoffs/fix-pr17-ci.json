@@ -1,0 +1,68 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "A broader 72-test product-image trial had only a harness make executable error; make is intentionally absent from product images; reran 65 affected tests without that unrelated Makefile suite"
+  ],
+  "decisions": [
+    "Restore existing cache-ownership contract; no new behavior or OpenSpec change needed"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Fixed PR17 CI causes: cache-scoped application and CLI locks plus dependency-independent HTTP fixtures, preserving installed-binding validation"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-06T22:36:17+00:00",
+    "id": "fix-pr17-ci",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-06T22:44:50+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Diagnose logs, add targeted regression proof, pass relevant tests and harness"
+    ],
+    "goal": "Fix PR17 failing OCI Linux and Windows CI checks",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "python3 harness.py check PASS; OpenSpec 92 items, Wiki 131 documents, artifact manifest 1435 files PASS"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "pi_platform/adapters/runtime/sqlite_runtime_store.py",
+      "sha256": "e53057e6b88a639420500009c5e96e8879d38d36c14970f1a6afc031a1bc32ef"
+    },
+    {
+      "path": "tests/test_one_command_production_ux.py",
+      "sha256": "83fd016979db2b5b5a3534ae367290574705b89664ddc192c54ab04094b09490"
+    },
+    {
+      "path": "tests/test_platform_phase3.py",
+      "sha256": "5d2ad719f5ed3a22a1ad1bcb8089298413363804d87561c8943775a4a2874703"
+    },
+    {
+      "path": "tests/test_runtime_version_lifecycle.py",
+      "sha256": "1fb2a18277f98e78d52379671ccf8ea3ca1d44a57cc06a108b90cfa05d37e2e6"
+    }
+  ]
+}

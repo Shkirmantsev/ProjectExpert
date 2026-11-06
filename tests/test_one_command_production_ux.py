@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -325,6 +326,7 @@ class HttpServerAdminAndWizardIntegrationTests(unittest.TestCase):
         self.addCleanup(self.server.stop)
         self.base = self.server.address
 
+    @patch.dict(os.environ, {"PI_LLAMA_ENDPOINT": "http://embeddings.invalid:8769"})
     def test_wizard_get_and_post_over_http(self) -> None:
         status, wizard_schema = _http_request(f"{self.base}/api/v1/wizard")
         self.assertEqual(status, 200)
@@ -335,19 +337,31 @@ class HttpServerAdminAndWizardIntegrationTests(unittest.TestCase):
             f"{self.base}/api/v1/wizard",
             method="POST",
             payload={
-                "model": "gemma-torch",
+                "model": "gemma",
                 "device": "cpu",
                 "document_processing_enabled": True,
             },
         )
-        self.assertEqual(status, 200)
-        self.assertEqual(submitted["embedding_model_alias"], "gemma-torch")
+        self.assertEqual(status, 200, submitted)
+        self.assertEqual(submitted["embedding_model_alias"], "gemma")
         self.assertEqual(submitted["bootstrap_state"], "not-started")
 
         # Setup submission schedules bootstrap; it cannot claim runtime readiness.
         status, wizard_after = _http_request(f"{self.base}/api/v1/wizard")
         self.assertEqual(status, 200)
         self.assertTrue(wizard_after["visible"])
+
+    @patch("pi_platform.adapters.orchestration.managed_runtime.importlib.util.find_spec", return_value=None)
+    def test_wizard_rejects_uninstalled_native_binding_without_saving(self, _find_spec):
+        settings_path = self.repo / ".project-intelligence-cache/retrieval-settings.json"
+        before = settings_path.read_bytes() if settings_path.exists() else None
+        status, body = _http_request(
+            f"{self.base}/api/v1/wizard", method="POST",
+            payload={"model": "gemma-torch", "device": "cpu"},
+        )
+        self.assertEqual(status, 400, body)
+        self.assertEqual(body["code"], "wizard-validation-error")
+        self.assertEqual(settings_path.read_bytes() if settings_path.exists() else None, before)
 
     def test_admin_retrieval_get_put_and_coding_agent_rejection_over_http(self) -> None:
         # Administrator PUT succeeds

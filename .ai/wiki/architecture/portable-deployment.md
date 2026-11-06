@@ -83,7 +83,10 @@ preserves access to the internal model key, sets a private cache HOME, clears
 supplementary groups and drops GID/UID to the non-root project owner before
 dispatching writers. Subsequent indexing, UI jobs and CLI writes inherit that
 identity. This prevents new root-owned cache entries rather than repeatedly
-repairing them after writes. Host/non-root execution is unchanged; source-tree
+repairing them after writes. Runtime-store and CLI hydration, materialisation and
+ingestion locks live under the selected cache's `locks/` directory, so a read-only
+application working directory needs no writable `tmp/` directory.
+Host/non-root execution is unchanged; source-tree
 ownership and external link targets are not recursively modified.
 
 ## Help-first commands and the effective address — 2026-10-27

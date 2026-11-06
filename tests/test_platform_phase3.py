@@ -10,6 +10,7 @@ implementations behind the documented ports; no mocks are used.
 from __future__ import annotations
 
 import dataclasses
+import contextlib
 import math
 import os
 import sqlite3
@@ -113,6 +114,17 @@ class Fixture(unittest.TestCase):
 
 
 class RuntimeStoreTests(Fixture):
+    def test_store_writes_only_under_its_cache_not_the_working_directory(self):
+        working = self.root / "application"
+        working.mkdir()
+        cache = self.root / "project" / ".project-intelligence-cache"
+        with contextlib.chdir(working):
+            store = SqliteRuntimeStore(cache_root=cache, version=self.version)
+            address = store.put("chunk", {"text": "project-owned state"})
+            self.assertEqual(store.get(address).body["text"], "project-owned state")
+        self.assertEqual(list(working.iterdir()), [])
+        self.assertTrue(list(cache.rglob("*.lock")))
+
     def test_put_and_get_round_trip(self):
         store = SqliteRuntimeStore(cache_root=self.root / "cache", version=self.version)
         body = {"id": "x", "text": "hello"}

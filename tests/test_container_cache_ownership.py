@@ -67,13 +67,20 @@ assert Path('/models/huggingface/cached-weights').read_text()=='reuse weights'
 Path('/models/huggingface/new-weights').write_text('new download')
 assert Path(os.environ['HOME']).is_relative_to(cache)
 assert os.getgroups()==[]
+# Runtime-store writes must also work from the read-only application directory.
+from pi_platform.adapters.runtime.sqlite_runtime_store import SqliteRuntimeStore
+from pi_platform.core.canonical.value_types import ProjectVersion
+store=SqliteRuntimeStore(cache,version=ProjectVersion('fixture','','0.1.0','hashing','0.1.0'))
+address=store.put('chunk',{'text':'user-owned runtime state'})
+assert store.get(address).body['text']=='user-owned runtime state'
 """
 try:
     for _ in range(2):
         subprocess.run([sys.executable,'-m','pi_platform.cli','init-project','--target','/repo'],
                        env={**os.environ,'PYTHONPATH':'/source','PI_RUN_AS_PROJECT_OWNER':'1'},
                        cwd='/source',check=True)
-        subprocess.run([sys.executable,'-c',code],env={**os.environ,'PI_RUN_AS_PROJECT_OWNER':'1'},check=True)
+        subprocess.run([sys.executable,'-c',code],env={**os.environ,'PYTHONPATH':'/source',
+                       'PI_RUN_AS_PROJECT_OWNER':'1'},cwd='/source',check=True)
     assert all(p.lstat().st_uid==owner.st_uid for p in [cache,*cache.rglob('*')])
     assert outside.stat().st_uid==0 and outside.read_text()=='unrelated root file'
     subprocess.run([sys.executable,'-c',"import shutil; shutil.rmtree('/repo/.project-intelligence-cache')"],

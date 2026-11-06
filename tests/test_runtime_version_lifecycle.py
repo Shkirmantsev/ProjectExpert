@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -133,6 +135,7 @@ class VersionMonitorTests(unittest.TestCase):
 
 
 class BootstrapHttpTests(unittest.TestCase):
+    @patch.dict(os.environ, {"PI_LLAMA_ENDPOINT": "http://embeddings.invalid:8769"})
     def test_http_stays_live_and_retrieval_fails_closed_before_and_after_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
             # A service stand-in deliberately fails if retrieval reaches it.
@@ -154,8 +157,8 @@ class BootstrapHttpTests(unittest.TestCase):
             self.assertEqual(request("/api/v1/wizard")[0], 200)
             for route in ("query", "retrieve", "graph", "wiki"):
                 self.assertEqual(request("/api/v1/" + route, {"text": "evidence"})[0], 503)
-            code, body = request("/api/v1/wizard", {"model": "gemma-torch", "device": "cpu"})
-            self.assertEqual(code, 200)
+            code, body = request("/api/v1/wizard", {"model": "gemma", "device": "cpu"})
+            self.assertEqual(code, 200, body)
             self.assertEqual(json.loads(body)["bootstrap_state"], "not-started")
             self.assertEqual(request("/health/ready")[0], 503)
 
