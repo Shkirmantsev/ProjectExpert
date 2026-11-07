@@ -1,0 +1,4 @@
+- [x] Reproduce cache ownership with root container and restart/new writes
+- [x] Implement bounded preparation and project-user CLI execution
+- [x] Verify key/model access, link safety, host compatibility and application wiring
+- [x] Run required checks, adopt specs and commit ownership fixes

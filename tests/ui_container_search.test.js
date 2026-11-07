@@ -24,6 +24,9 @@ function browser(options = {}) {
       let body = {};
       let status = 200;
       if (path.endsWith('/admin/retrieval')) body = {embedding_model_alias:'gemma',device:'cpu',document_processing_enabled:true};
+      else if (path.endsWith('/admin/runtime')) body = {models:[{value:'gemma',label:'Managed Gemma'},{value:'gemma-torch',label:'Native Gemma'}],devices:{gemma:['auto','cpu','vulkan'], 'gemma-torch':['auto','cpu']},message:'Applies runtime changes'};
+      else if (path.endsWith('/auth-status')) body = {token_required:options.auth || false};
+      else if (path.endsWith('/wizard')) {body = {job_id:'apply-123'}; status=202;}
       else if (path.endsWith('/indexing-status')) body = {ready: ++readyChecks > 2, hydration:{in_progress:true}, indexes:{active_sources:3,retrieval:{execution:{mode:options.mode || 'CPU',backend:'cpu',reason:'Verified deployment CPU profile',source:'selected deployment profile'}}}};
       else if (path.endsWith('/admin/chat')) body = init.method === 'PUT' ? {...JSON.parse(init.body), api_key:undefined,api_key_set:true} : {enabled:false,provider:'openai',base_url:'',model:'',share_context:false,api_key_set:false};
       else if (path.endsWith('/admin/chat/test')) body = {ok:true,message:'Connection successful'};
@@ -41,6 +44,11 @@ async function flush() { for (let i=0;i<12;i++) await Promise.resolve(); }
 async function main() {
   const b = browser(); await flush();
   assert.equal(b.node('embedding-model-select').value, 'gemma');
+  assert.equal(b.node('access-token').disabled,true);
+  assert.match(b.node('access-token-help').textContent,/No API token required/);
+  const secured=browser({auth:true});await flush();
+  assert.equal(secured.node('access-token').disabled,false);
+  assert.match(secured.node('access-token-help').textContent,/not an LLM key/);
   assert.equal(b.node('active-mode').textContent,'Active mode: CPU');
   const hybrid=browser({mode:'Hybrid'}); await flush();
   assert.equal(hybrid.node('active-mode').textContent,'Active mode: Hybrid');
@@ -69,7 +77,8 @@ async function main() {
   assert.equal(b.node('wizard-submit-button').disabled,true);
   await flush(); await flush();
   assert.equal(b.node('wizard-submit-button').disabled,false);
-  assert.match(b.node('wizard-result').textContent,/Search index ready/);
+  assert.match(b.node('wizard-result').textContent,/completed/);
+  assert.ok(b.requests.some(r=>r.path.endsWith('/admin/jobs/apply-123')));
   const failed = browser({fail:true}); await flush();
   failed.node('admin-reindex-button').listeners.click(); await flush(); await flush();
   assert.match(failed.node('wizard-result').textContent,/Embedding server unreachable/);

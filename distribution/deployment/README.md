@@ -330,6 +330,36 @@ for generated local state, except `tmp/local/source/` (or an explicitly configur
 source inbox), which stays searchable. PDF extraction is automatic; synthesis of
 curated Wiki pages remains an explicit agent task.
 
+## Linux file ownership
+
+The exporter may run as root inside its short-lived container, but on POSIX
+filesystems the exported `.project-intelligence-deploy/` and managed files are
+assigned to the mounted project's owner. Re-export also repairs an existing
+root-owned kit, including preserved `deployment.env` and generated backups,
+without replacing operator settings. Existing non-root kit ownership is retained.
+It does not recursively chown your project or follow symlinks/hardlinks to change
+external ownership. Export into an existing user-owned project directory; if the
+project parent itself belongs to root, repair that parent separately first.
+
+The updated **application image** also repairs existing root-owned
+`.project-intelligence-cache/` entries before running CLI handlers as the project
+UID/GID. Indexing, UI jobs and later CLI writes then create user-owned files,
+including after restart. Startup preserves cache contents and prepares access to
+the dedicated model cache and internal embedding key. The repository itself is
+not recursively reassigned. No operator UID/GID variables are required. The host
+CLI is unchanged. Custom external cache paths must already be writable by that
+user; external inputs and credentials must be readable by the application user.
+Cache HOME is kept under `.project-intelligence-cache/home/`.
+
+This persistent cache fix requires recreating the service with the new application
+image. A repaired exporter alone cannot change an old running application's UID.
+Model-setup and embedding sidecars keep their existing execution identities.
+
+For an older kit that created root-owned entries, re-run export with the updated
+deployment-kit image; `--upgrade` is optional for ownership repair and replaces
+templates only when explicitly supplied. A locally rebuilt image must be used
+until this fix is published; pulling an older registry image cannot apply it.
+
 ## Upgrade, embedding capacity and optional Open WebUI
 
 The exporter preserves existing files by default. To update an installed kit,
@@ -349,6 +379,8 @@ For the optional chat frontend, add `COMPOSE_PROFILES=open-webui` to
 `deployment.env` and use ordinary `make platform-start`. Its default loopback
 port is 8768 (`PI_OPEN_WEBUI_PORT` overrides it); the frontend connects internally
 to `http://production:8765/v1` and exposes model `project-intelligence`.
+Set `PI_WEBUI_NAME` in `deployment.env` for a custom frontend name; the managed
+template maps it to `WEBUI_NAME`, so future kit upgrades retain the choice.
 `PI_OPEN_WEBUI_API_KEY` is needed only when the ProjectExpert adapter requires
 an API bearer key. ProjectExpert search does not require a chat LLM. Existing
 Open WebUI databases may retain Admin Connections settings; update the endpoint
@@ -358,3 +390,58 @@ After fixing an embedding service, use the UI's Trigger reindex or stop/start
 bootstrap to recover. Do not delete the runtime cache: it contains reusable
 vectors and saved chat settings. See the source repository's
 `docs/PORTABLE_DEPLOYMENT_RUNTIME_REPAIR.md` for a complete trade-analyzer upgrade.
+
+## Change embedding execution in the UI
+
+With the updated application **and kit**, select the embedding binding and
+Execution device, then press **Apply model & device and build index**. This
+persists an explicit operator override in the target's ignored
+`.project-intelligence-cache/runtime-selection.json`, applies it before indexing
+and survives application/container restart. The page follows a background job;
+failure stays visible. Selecting a dropdown alone does not apply a change.
+
+Gemma is one checkpoint with two bindings: managed GGUF Q8_0 and native
+Transformers. Native is offered when its libraries are installed and may download
+separate weights. Its available hardware depends on the installed PyTorch build;
+the standard production image contains CPU PyTorch. A native-only deployment
+without a configured GGUF endpoint does not offer the unavailable GGUF binding.
+
+The managed sidecar now runs an authenticated child-process controller on
+internal port 8770, using the existing embedding API key. It changes only
+the fixed child process. Setup provisions its stdlib-only Python from the pinned
+application into the model volume; sidecars need no system Python or network
+package install. Device probes still work before setup on an empty cache.
+The controller changes only
+llama-server device/fit flags, validates health and restores the previous child
+on failure. It has no Docker socket and no published control port. Linux exposes
+an existing `/dev/dri` tree even for CPU-first startup so Vulkan can later be
+selected in the UI. CUDA still needs the CUDA image and NVIDIA passthrough at
+startup (`PI_ACCELERATOR=cuda`); UI cannot add hardware or replace container images.
+GPU failure at launch retains the existing CPU fallback policy; an unavailable
+explicit UI GPU selection reports a failure instead of claiming success.
+
+Auto compares CPU/GPU median latency using the launcher's fixed query corpus,
+keeping GPU only at >=1.10x speedup. A later refresh reuses this result while the
+controller generation is unchanged. **Active mode** reads the current process:
+CPU, or Hybrid for a GPU backend with CPU projector. It does not promise a measured
+GPU layer count. Legacy remote endpoints and native Windows GPU services have no
+live child controller; the page explains that their hardware must be configured
+on their host. Native in-process bindings apply supported device choices directly.
+
+## What PI_UI_TOKEN means
+
+`PI_UI_TOKEN` is an optional operator-chosen bearer password protecting
+ProjectExpert's REST/MCP/OpenAI-compatible API, including settings changes. It is
+not an embedding requirement, provider API key or knowledge approval token. It
+is unset by default for a loopback-only local installation: there is no generated
+token to find, and the UI disables the empty token field with an explanation.
+
+To enable it, generate a random secret privately, set `PI_UI_TOKEN` in the shell
+environment used by Compose and recreate production with `make platform-start`.
+For example, in Bash: `export PI_UI_TOKEN="$(openssl rand -hex 32)"`. Store the
+value in your password manager/ignored private environment, never Git. Obtain an
+existing configured value from that private environment or its operator; the UI
+cannot reveal it. Paste it into the page when requested (kept in tab memory).
+Configure the same bearer value privately in MCP clients and Open WebUI
+(`PI_OPEN_WEBUI_API_KEY`). Public `/api/v1/auth-status` reveals only whether it is
+required, never its value. No authentication is silently enabled by this upgrade.

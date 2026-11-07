@@ -26,19 +26,38 @@ jobs:
       - name: Run unit tests with stall diagnostics
         shell: python
         run: |
-          import faulthandler
+          import sys
+          import threading
+          import traceback
           import unittest
           class StallResult(unittest.TextTestResult):
+              stall_interval = 120
               def startTest(self, test):
                   super().startTest(test)
-                  faulthandler.dump_traceback_later(120, repeat=True)
+                  self._stop_watchdog = threading.Event()
+                  self._watchdog = threading.Thread(
+                      target=self._report_stall,
+                      args=(test.id(), threading.get_ident()), daemon=True)
+                  self._watchdog.start()
+              def _report_stall(self, test_id, thread_id):
+                  while not self._stop_watchdog.wait(self.stall_interval):
+                      print(f"\nSlow test: {test_id}", file=self.stream, flush=True)
+                      # Hold Python frame references while formatting. Native
+                      # asynchronous faulthandler dumps crashed Windows 3.11.
+                      frame = sys._current_frames().get(thread_id)
+                      if frame is not None:
+                          traceback.print_stack(frame, file=self.stream)
+                      self.stream.flush()
+                      del frame
               def stopTest(self, test):
-                  faulthandler.cancel_dump_traceback_later()
+                  self._stop_watchdog.set()
+                  self._watchdog.join()
                   super().stopTest(test)
           class StallRunner(unittest.TextTestRunner):
               resultclass = StallResult
           # Actions executes this script outside the checkout; set the import root.
-          # Only a single slow test emits a stack sample; suite age is irrelevant.
+          # Only the active slow test emits a stack sample; suite age is irrelevant.
+          # The Actions job timeout still bounds stalls that hold the GIL.
           unittest.main(module=None, testRunner=StallRunner, argv=["unittest", "discover", "-s", "tests", "-t", ".", "-v"])
 
   full-linux:

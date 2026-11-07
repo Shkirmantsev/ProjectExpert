@@ -312,3 +312,19 @@ Default export SHALL preserve existing operator files. Explicit upgrade SHALL re
 - **GIVEN** an installed kit with a custom control port and CPU selection
 - **WHEN** the operator explicitly upgrades managed templates
 - **THEN** deployment.env retains those settings and changed templates are recoverable from a backup
+
+### Requirement: User-owned exported deployment kit
+On POSIX filesystems, root-run export SHALL assign a new or existing root-owned kit directory to its target project parent's UID/GID and repair root-owned managed regular files and generated backups. Existing non-root kit ownership SHALL be retained. Ordinary users SHALL be able to edit the kit and remove it after export. Repair SHALL preserve operator contents, skip link targets and unrelated entries, and SHALL NOT recursively change project ownership.
+
+#### Scenario: Root-owned kit exists before setup
+- **GIVEN** a user-owned target project with an existing root-owned deployment kit
+- **WHEN** the root-run container exports or upgrades the kit
+- **THEN** the project user can edit preserved deployment.env and remove the kit, while unrelated files and link targets retain ownership and content
+
+### Requirement: Project-user container cache writers
+For a POSIX target owned by a non-root user, the application image SHALL automatically repair root-owned private project-cache entries at startup and execute application writers as the target UID/GID. New cache files across indexing, administrative actions and restarts SHALL be owned by that user. Settings, indexes, model access and private internal credentials SHALL be preserved. Source-tree ownership and external link targets SHALL not be recursively changed. Host CLI behavior SHALL be unchanged and operator UID/GID variables SHALL not be mandatory.
+
+#### Scenario: Existing cache and new runtime writes
+- **GIVEN** a user-owned target with root-owned cache files and internal model credentials
+- **WHEN** the updated container starts and subsequently restarts or indexes
+- **THEN** existing state remains usable, new cache files belong to the project user and the user can remove the cache without root privileges

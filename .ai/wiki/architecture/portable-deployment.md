@@ -50,9 +50,44 @@ so startup-generated configuration does not immediately invalidate readiness;
 subsequent user edits still trigger refresh.
 
 The UI binds to loopback. GGUF HTTP uses a bearer key and checks model identity.
+The upgraded managed kit mounts a stdlib child supervisor read-only and exposes
+its authenticated controller only inside the Compose network. UI selections
+use a stdlib-only Python bundle prepared from the application image in the model
+volume, avoiding a system-Python assumption in CUDA/Vulkan runtime images. Choices
+persist as explicit ignored operator overrides, apply before indexing and follow
+an observable job. On Linux, available `/dev/dri` access is also exposed when
+starting on CPU, enabling later UI Vulkan selection. Image changes, CUDA device
+provisioning and native Windows service control remain host deployment actions.
+Current mode is read from the child controller; a cached deployment profile is
+not treated as live device evidence. No Docker socket is mounted.
+
+Optional `PI_UI_TOKEN` protects the product API, separate from the internal
+embedding key and optional chat credentials. The default local installation
+does not configure this operator-defined password. Public authentication
+metadata reveals only whether a token is required, and the UI explains the
+empty field when unconfigured. The exported Compose forwards an operator's
+private `PI_UI_TOKEN`; matching bearer credentials must be configured in clients.
 Windows firewall access should be limited to Docker/WSL. Credentials are runtime
 inputs, never shipped in the image. Existing exported kit files are preserved;
 upgrade explicitly using a separately exported kit and its tested image digest.
+
+On POSIX, a root-run exporter inherits the project parent's UID/GID for a new or
+root-owned kit. Re-export repairs root-owned managed files (including preserved
+operator environment files) and generated backups; it retains an explicit existing
+non-root kit owner. Repair is bounded to exporter-owned entries, skips link targets
+and unrelated files, and does not recursively change target-project ownership.
+
+Application images enable project-owner CLI execution. On POSIX startup as root,
+the CLI repairs the private project cache and known HF/XDG model-cache paths,
+preserves access to the internal model key, sets a private cache HOME, clears
+supplementary groups and drops GID/UID to the non-root project owner before
+dispatching writers. Subsequent indexing, UI jobs and CLI writes inherit that
+identity. This prevents new root-owned cache entries rather than repeatedly
+repairing them after writes. Runtime-store and CLI hydration, materialisation and
+ingestion locks live under the selected cache's `locks/` directory, so a read-only
+application working directory needs no writable `tmp/` directory.
+Host/non-root execution is unchanged; source-tree
+ownership and external link targets are not recursively modified.
 
 ## Help-first commands and the effective address — 2026-10-27
 

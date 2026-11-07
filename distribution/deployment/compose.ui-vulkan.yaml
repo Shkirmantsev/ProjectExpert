@@ -1,0 +1,6 @@
+# Optional access for later UI device switching, including CPU-first startup.
+# Applied only on Linux hosts with a real /dev/dri tree. No host port/socket.
+services:
+  embeddings:
+    devices:
+      - /dev/dri:/dev/dri

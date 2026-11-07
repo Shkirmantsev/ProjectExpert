@@ -16,6 +16,7 @@ services:
       - model-cache:/models
     environment:
       PI_TARGET_ROOT: /repo
+      PI_UI_TOKEN: ${PI_UI_TOKEN:-}
       PI_STARTUP_PROFILE: production
       PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-gemma}
       PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-cpu}
@@ -43,6 +44,7 @@ services:
       OPENAI_API_BASE_URL: http://production:8765/v1
       OPENAI_API_KEY: ${PI_OPEN_WEBUI_API_KEY:-project-intelligence}
       ENABLE_OLLAMA_API: "false"
+      WEBUI_NAME: ${PI_WEBUI_NAME:-Open WebUI}
     volumes:
       - open-webui-data:/app/backend/data
     depends_on:

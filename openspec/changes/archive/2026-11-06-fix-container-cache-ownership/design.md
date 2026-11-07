@@ -1,0 +1,5 @@
+# Design
+
+The application image enables project-owner execution by default. Before a root CLI handler runs, use the target directory UID/GID, repair root-owned private cache entries and prepare a private cache HOME. Repair only the dedicated model volume root, known Hugging Face/XDG cache subtrees and internal key so the unprivileged application retains its existing model access. Do not recursively chown the repository or follow external symlinks/hardlinks. Clear supplementary groups and drop GID/UID before handlers/background threads/subprocesses write state. Non-root execution and host CLI are unchanged. A root-owned target cannot identify a non-root owner and must be corrected by its operator.
+
+Prefer running the writers as the project user over repeated post-write chown, which leaves ongoing root-owned files. Embedding/model-setup sidecars retain their existing execution identities. This needs a new application image; the completed deployment-export ownership repair alone cannot change a running old application's UID.

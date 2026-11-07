@@ -9,4 +9,5 @@ services:
       PI_INFERENCE_BACKEND: cpu
       PI_GPU_DEVICE: ${PI_GPU_DEVICE:-none}
   embeddings:
-    entrypoint: ["/app/llama-server", "--device", "none"]
+    environment:
+      PI_RUNTIME_INITIAL_DEVICE: none

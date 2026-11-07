@@ -102,7 +102,9 @@ class DeploymentTests(unittest.TestCase):
                     self.assertIn('mean', command)
                     if backend == 'cpu':
                         self.assertEqual(services['embeddings']['entrypoint'],
-                                         ['/app/llama-server', '--device', 'none'])
+                                         ['/bin/sh', '/control/runtime-entrypoint.sh'])
+                        self.assertEqual(services['embeddings']['environment']['PI_RUNTIME_INITIAL_DEVICE'], 'none')
+                        self.assertEqual(app['PI_RUNTIME_CONTROL_URL'], 'http://embeddings:8770')
                     else:
                         self.assertIn('--fit', command)
                         self.assertIn('on', command)

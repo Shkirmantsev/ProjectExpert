@@ -82,7 +82,7 @@ project product.
 | [UI Extension Registry](specs/2026-10-08-ui-extension/spec.md) |
 | [Capabilities](specs/2026-10-08-capabilities/spec.md) |
 | [Enterprise Security Boundary](specs/2026-10-11-enterprise-security-boundary/spec.md) |
-| [Human interface web UI](specs/2026-10-11-human-interface-web-ui/spec.md) |
+| [Human interface web UI, including applied embedding controls and optional API authentication](specs/2026-10-11-human-interface-web-ui/spec.md) |
 | [OKF wiki profile distribution](specs/2026-10-11-okf-wiki-profile-distribution/spec.md) |
 | [One-click distribution](specs/2026-10-11-one-click-distribution/spec.md) |
 | [A2A adapter](specs/2026-10-12-a2a-adapter/spec.md) |
@@ -90,7 +90,7 @@ project product.
 | [External coding agent integration](specs/2026-10-12-external-coding-agent-integration/spec.md) |
 | [Integration quality gates](specs/2026-10-12-integration-quality-gates/spec.md) |
 | [Retrieval candidate selection](specs/2026-10-16-retrieval-candidate-selection/spec.md) |
-| [Portable inference runtime](specs/2026-10-25-portable-inference-runtime/spec.md) |
+| [Portable inference runtime and bounded managed child control](specs/2026-10-25-portable-inference-runtime/spec.md) |
 | [LLM Wiki curated knowledge](specs/2026-10-25-llm-wiki-curated-knowledge/spec.md) |
 | [Retrieval trace](specs/2026-10-16-retrieval-trace/spec.md) |
 | [Embedding execution profile](specs/2026-10-16-embedding-execution-profile/spec.md) |
@@ -313,3 +313,28 @@ settings. Adoption is archived as `2026-11-03-repair-portable-deployment-runtime
 Same-cache embedding-failure retry is regression-verified; no cache deletion is
 required for normal recovery. Real-model wide-input smoke and native hardware
 execution remain release verification, not claimed local results of this task.
+
+## UI runtime control adoption — 2026-11-04
+
+Applied embedding binding/device selection, persistent operator overrides, live
+mode reporting and clear optional API authentication are accepted. Managed Linux
+control is limited to the fixed embedding child and exposed devices; no Docker
+socket is granted. Native Windows host process control remains an explicit limit.
+The change is archived as `2026-11-04-enable-ui-embedding-runtime-control`.
+
+## Deployment kit ownership repair — 2026-11-06
+
+Root-run POSIX export now repairs root-owned kit directories, managed regular
+files and generated backups using the target project owner, while retaining an
+explicit non-root kit owner. Operator contents, unrelated entries and linked
+external ownership are preserved. The verified change is archived as
+`2026-11-06-fix-deployment-kit-ownership`.
+
+## Container cache ownership — 2026-11-06
+
+Application containers targeting a POSIX project owned by a non-root user repair
+the private cache at startup and run cache writers with the project UID/GID.
+New files remain user-owned across indexing, administrative jobs and restart;
+private model-key/cache access is retained. Host CLI behavior and canonical source
+ownership remain unchanged. This needs the updated application image, not only
+the exporter. Adopted as `2026-11-06-fix-container-cache-ownership`.

@@ -82,9 +82,19 @@ function bindButton(buttonId, targetId, action) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+  var reloadProtected = [];
   var tokenField = document.getElementById("access-token");
   if (tokenField) {
-    tokenField.addEventListener("change", function () { accessToken = tokenField.value.trim(); });
+    tokenField.addEventListener("change", function () {
+      accessToken = tokenField.value.trim();
+      reloadProtected.forEach(function (reload) { reload(); });
+    });
+    call("GET", API + "/auth-status").then(function (auth) {
+      tokenField.disabled = !auth.token_required;
+      show("access-token-help", auth.token_required ?
+        "API authentication is enabled. Enter PI_UI_TOKEN provided by the operator, from the private deployment environment. It protects ProjectExpert API access; it is not an LLM key or an approval token. Kept only in this tab's memory." :
+        "No API token required: PI_UI_TOKEN is not configured. Leave this field empty. This optional password protects ProjectExpert API access; it is not needed for local embedding search. The operator can enable it in the private deployment environment.");
+    }).catch(function (error) { show("access-token-help", error.message); });
   }
 
   bindButton("sources-button", "sources-result", function () { return call("GET", API + "/sources"); });
@@ -147,13 +157,17 @@ document.addEventListener("DOMContentLoaded", function () {
       var execution = retrieval && retrieval.execution;
       show("active-mode", "Active mode: " + (execution ? execution.mode : "not ready"));
       show("active-mode-detail", execution ? ("Backend: " + execution.backend + " · " +
+        (!status.ready ? "Index refresh in progress or failed; details below. " : "") +
         (execution.device ? "Device: " + execution.device + " · " : "") +
-        execution.reason + " Source: " + execution.source + ". Scope: embedding inference; chat model hardware is managed by its provider.") : "Waiting for an embedding runtime. Auto is a request, not a device.");
+        execution.reason +
+        (execution.requested_device === "auto" ? " Requested: Auto. " + (execution.rejected || []).map(function (item) { return item.backend + ": " + item.reason; }).join("; ") : "") +
+        " Source: " + execution.source + ". Scope: embedding inference; chat model hardware is managed by its provider.") : "Waiting for an embedding runtime. Auto is a request, not a device.");
     }).catch(function (error) {
       show("bootstrap-status", String(error));
     });
   }
   refreshBootstrapStatus();
+  reloadProtected.push(refreshBootstrapStatus);
   window.setInterval(refreshBootstrapStatus, 3000);
 
   // ---- Optional server-side chat connection ----------------------------
@@ -177,7 +191,11 @@ document.addEventListener("DOMContentLoaded", function () {
         ". Test the saved connection to verify availability.");
       chatHelp();
     }
-    call("GET", API + "/admin/chat").then(fillChat).catch(function (error) { show("chat-status", error.message); });
+    function loadChat() {
+      return call("GET", API + "/admin/chat").then(fillChat).catch(function (error) { show("chat-status", error.message); });
+    }
+    loadChat();
+    reloadProtected.push(loadChat);
     document.getElementById("chat-provider").addEventListener("change", chatHelp);
     chatForm.addEventListener("submit", function (event) {
       event.preventDefault();
@@ -236,18 +254,39 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   var wizardForm = document.getElementById("wizard-form");
   if (wizardForm) {
-    call("GET", API + "/admin/retrieval").then(function (settings) {
+    var runtimeCaps = null;
+    function fillDevices(selected) {
+      if (!runtimeCaps || !runtimeCaps.devices) { return; }
+      var model = document.getElementById("embedding-model-select").value;
+      var devices = runtimeCaps.devices[model] || ["auto", "cpu"];
+      var select = document.getElementById("embedding-device-select");
+      select.innerHTML = "";
+      var labels = {auto:"Auto (measure CPU/GPU; select faster)",cpu:"CPU",vulkan:"GPU / Vulkan",cuda:"GPU / CUDA",mps:"GPU / Apple Metal"};
+      devices.forEach(function (device) { select.add(new Option(labels[device], device)); });
+      select.value = devices.indexOf(selected) >= 0 ? selected : "auto";
+    }
+    document.getElementById("embedding-model-select").addEventListener("change", function () { fillDevices("auto"); });
+    function loadRuntimeSettings() {
+      return call("GET", API + "/admin/runtime").then(function (caps) {
+        runtimeCaps = caps;
+        var select = document.getElementById("embedding-model-select");
+        if (caps.models) {
+          select.innerHTML = "";
+          caps.models.forEach(function (model) { select.add(new Option(model.label, model.value)); });
+        }
+        show("runtime-help", caps.message || "Apply saves server settings and rebuilds the index.");
+        return call("GET", API + "/admin/retrieval");
+      }).then(function (settings) {
       var select = document.getElementById("embedding-model-select");
-      // Two bindings of one checkpoint; native is an explicit operator opt-in.
-      // A managed deployment never offers unconfigured alternative models.
-      if (settings.embedding_model_alias === "gemma-torch") {
-        select.add(new Option("EmbeddingGemma 2 (configured native Transformers binding)", "gemma-torch"));
-      }
       select.value = settings.embedding_model_alias;
+      fillDevices(settings.device);
       document.getElementById("embedding-device-select").value = settings.device;
       document.getElementById("docling-enabled-checkbox").checked = settings.document_processing_enabled;
       show("wizard-result", settings);
-    }).catch(function (error) { show("wizard-result", error.message); });
+      }).catch(function (error) { show("wizard-result", error.message); });
+    }
+    loadRuntimeSettings();
+    reloadProtected.push(loadRuntimeSettings);
 
     wizardForm.addEventListener("submit", function (event) {
       event.preventDefault();
@@ -257,8 +296,9 @@ document.addEventListener("DOMContentLoaded", function () {
         document_processing_enabled: Boolean(document.getElementById("docling-enabled-checkbox").checked)
       };
       indexAction(function () {
-        return call("POST", API + "/wizard", payload).then(function () {
-          return waitForIndex(Date.now() + 30 * 60 * 1000);
+        return call("POST", API + "/wizard", payload).then(function (job) {
+          return job.job_id ? waitForJob(job.job_id, Date.now() + 30 * 60 * 1000) :
+            waitForIndex(Date.now() + 30 * 60 * 1000);
         });
       });
     });

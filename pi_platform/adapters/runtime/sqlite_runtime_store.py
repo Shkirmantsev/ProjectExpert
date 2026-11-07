@@ -76,7 +76,7 @@ class SqliteRuntimeStore(RuntimeStorePort):
         lock_id = "phase3-runtime-store-" + content_address_bytes(
             str(cache_root.resolve()).encode("utf-8")
         )[:16]
-        self._lock = ProjectLock(lock_id)
+        self._lock = ProjectLock(lock_id, root=self.cache_root / "locks")
         self._init_db()
 
     def _init_db(self) -> None:

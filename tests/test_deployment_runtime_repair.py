@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -25,6 +26,38 @@ def exporter():
 
 
 class DeploymentRuntimeRepairTests(unittest.TestCase):
+    def test_operator_frontend_name_survives_template_upgrade(self):
+        # Export/upgrade is a portable filesystem contract, independent of the
+        # host Docker installation or Windows Docker CLI plugin startup.
+        with tempfile.TemporaryDirectory() as raw:
+            dest = Path(raw) / 'kit'
+            self._export_branded_kit(dest)
+            self.assertIn('PI_WEBUI_NAME=ProjectExpert - regression',
+                          (dest / 'deployment.env').read_text())
+            ui = yaml.safe_load((dest / 'compose.yaml').read_text())['services']['open-webui']
+            self.assertRegex(ui['environment']['WEBUI_NAME'], r'^\$\{PI_WEBUI_NAME(?::-.*?)?\}$')
+
+    @staticmethod
+    def _export_branded_kit(dest):
+        module = exporter()
+        module.export(BUNDLE, dest)
+        with (dest / 'deployment.env').open('a') as stream:
+            stream.write('\nPI_WEBUI_NAME=ProjectExpert - regression\n')
+        module.export(BUNDLE, dest, upgrade=True)
+
+    @unittest.skipUnless(os.name != 'nt' and shutil.which('docker'),
+                         'Linux Compose integration; portable upgrade is tested separately')
+    def test_compose_uses_operator_frontend_name_after_upgrade(self):
+        with tempfile.TemporaryDirectory() as raw:
+            dest = Path(raw) / 'kit'
+            self._export_branded_kit(dest)
+            result = subprocess.run(['docker', 'compose', '--env-file', str(dest / 'deployment.env'),
+                '-f', str(dest / 'compose.yaml'), '--profile', 'open-webui', 'config', '--format', 'json'],
+                env={k: v for k, v in os.environ.items() if k != 'PI_WEBUI_NAME'},
+                capture_output=True, text=True, check=True, timeout=30)
+            ui = json.loads(result.stdout)['services']['open-webui']
+            self.assertEqual(ui['environment']['WEBUI_NAME'], 'ProjectExpert - regression')
+
     def test_native_and_managed_capacity_admit_wider_chunks(self):
         from pi_platform.core.inference.launch import build_server_argv
         native = build_server_argv(model_path='model', projector_path='projector', alias='gemma')

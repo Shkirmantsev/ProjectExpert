@@ -10,6 +10,7 @@ services:
       PI_EMBEDDING_MODEL: gemma
       PI_LLAMA_ENDPOINT: http://embeddings:8769
       PI_LLAMA_API_KEY_FILE: /models/llama-api-key
+      PI_RUNTIME_CONTROL_URL: http://embeddings:8770
     depends_on:
       model-setup:
         condition: service_completed_successfully
@@ -24,6 +25,9 @@ services:
       - model-cache:/models
     restart: "no"
   embeddings:
+    entrypoint: ["/bin/sh", "/control/runtime-entrypoint.sh"]
+    environment:
+      PI_RUNTIME_BACKEND: vulkan
     # The always-present CPU runtime. The Vulkan overlay keeps this image and
     # adds the device passthrough; the CUDA overlay replaces it with the
     # CUDA build. The CPU overlay disables GPU device use entirely.
@@ -31,6 +35,8 @@ services:
     platform: linux/amd64
     volumes:
       - model-cache:/models:ro
+      - ./runtime_supervisor.py:/control/runtime_supervisor.py:ro
+      - ./runtime-entrypoint.sh:/control/runtime-entrypoint.sh:ro
     depends_on:
       model-setup:
         condition: service_completed_successfully

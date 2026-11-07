@@ -78,7 +78,8 @@ Do not replace the whole environment file with this excerpt. If it contains a
 pin; retain or change it deliberately. For an authenticated ProjectExpert API,
 set `PI_OPEN_WEBUI_API_KEY` to the operator's API bearer key privately. Otherwise
 the default adapter placeholder key is sufficient. Review any other customized
-settings from the backed-up Compose file (for example a cosmetic `WEBUI_NAME`).
+settings from the backed-up Compose file. Move a cosmetic `WEBUI_NAME` to
+`PI_WEBUI_NAME` in `deployment.env`; the kit maps it to the frontend environment.
 
 Now restart once to apply the templates and retry bootstrap in the serving
 process while retaining all data:
@@ -139,3 +140,21 @@ Existing `project-knowledge/project-context.yaml` is retained. Search can index 
 project without automatically authoring Wiki articles. For a new project,
 `make platform-init` is the explicit scaffolding action; review its changes.
 PDF ingestion/chunking and curated Wiki authorship are separate operations.
+
+## Follow-up verification on 2026-11-03
+
+The attempted local upgrade was audited against the running trade-analyzer
+installation. CPU runtime arguments are 4096/4096/4096; the application remains
+pinned to the immutable digest above. Both HTTP health endpoints, REST search,
+the OpenAI adapter and 27-tool MCP discovery passed. From inside Open WebUI,
+model discovery and streaming completion through the internal adapter passed.
+No external chat provider was enabled. A synthetic document was tokenized by
+the actual running sidecar to 1507 tokens and embedded to a normalized 512d
+vector successfully. This supplies real runtime evidence for the earlier
+locally-unexecuted wide-input smoke, without changing its historical record.
+
+The remaining operator-only Compose name mapping is now supported upstream as
+`PI_WEBUI_NAME`. The target runbook/report must distinguish the original GHCR
+kit from the locally rebuilt repair kit and must not retain obsolete destructive
+cache-recovery or mandatory-chat-model instructions. The source parse failure
+and host GitLab authentication issue remain separate target concerns.

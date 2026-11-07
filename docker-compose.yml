@@ -103,6 +103,7 @@ services:
       OPENAI_API_BASE_URL: http://core:8765/v1
       OPENAI_API_KEY: ${PI_OPEN_WEBUI_API_KEY:-project-intelligence}
       ENABLE_OLLAMA_API: "false"
+      WEBUI_NAME: ${PI_WEBUI_NAME:-Open WebUI}
     volumes:
       - open-webui-data:/app/backend/data
     healthcheck:
