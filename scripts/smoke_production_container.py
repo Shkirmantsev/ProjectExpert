@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import stat
 import subprocess
 import tempfile
 import time
@@ -101,6 +102,16 @@ def main():
             tools = request(base, '/mcp', {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list'})
             assert 'project.search' in json.dumps(tools), tools
             run(*compose, 'exec', '-T', 'production', 'python', '-m', 'pip', 'check', env=env)
+            request(base, '/mcp', {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call',
+                'params': {'name': 'project.wiki_write_page', 'arguments': {
+                    'path': 'invoice-overview.md', 'title': 'Invoice overview',
+                    'body': 'The billing service reconciles invoices. Source: README.md.'}}})
+            page = repo / 'project-knowledge/wiki/invoice-overview.md'
+            assert page.is_file(), 'MCP Wiki write did not create its page'
+            assert 'The billing service reconciles invoices.' in page.read_text()
+            if os.name == 'posix':
+                assert page.stat().st_uid == repo.stat().st_uid
+                assert stat.S_IMODE(page.stat().st_mode) == 0o644
             run(*compose, 'restart', env=env)
             # A fresh healthcheck after restart must establish readiness again.
             deadline = time.monotonic() + args.timeout
@@ -114,6 +125,22 @@ def main():
             else:
                 raise RuntimeError('Restart did not reach readiness')
             assert request(base, '/api/v1/query', {'text': 'invoice billing'}).get('results')
+            if os.name == 'posix':
+                cache = repo / '.project-intelligence-cache'
+                for path in [cache, *cache.rglob('*')]:
+                    try:
+                        owner = path.lstat().st_uid
+                    except FileNotFoundError:  # transient SQLite journal
+                        continue
+                    assert owner == repo.stat().st_uid, f'Cache owner differs: {path}'
+                # Exercise another atomic update after restart as well.
+                request(base, '/mcp', {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call',
+                    'params': {'name': 'project.wiki_write_page', 'arguments': {
+                        'path': 'invoice-overview.md', 'title': 'Invoice overview',
+                        'body': 'Updated invoice explanation. Source: README.md.'}}})
+                assert 'Updated invoice explanation.' in page.read_text()
+                assert page.stat().st_uid == repo.stat().st_uid
+                assert stat.S_IMODE(page.stat().st_mode) == 0o644
             profile = 'minimal core only' if args.minimal else 'real model setup'
             print(f'PASS: {profile}, readiness, query, UI, MCP, dependency check and restart')
         finally:

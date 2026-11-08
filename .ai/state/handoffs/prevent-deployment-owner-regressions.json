@@ -1,0 +1,64 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Changes are source and local test artifacts only. No updated production application or kit published to GHCR, and no live trade-analyzer templates or image were changed by this task. Existing deployments must adopt new kit/image when released; existing intentional private Wiki modes are preserved."
+  ],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Full harness PASS1756 executions; final added supported-image command regression also passed in focused22 suite, real root Compose and final fd-based MCP smoke. OpenSpec CLI adopted two requirements and archived2026-11-08 change. Updated CURRENT/docs/Wiki and manifest."
+    ],
+    "todo": [
+      "Specify bounded change; write failing tests; implement guard and Wiki modes; run focused and real Docker checks; adopt specs and run harness; commit"
+    ]
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-08T12:44:19+00:00",
+    "id": "prevent-deployment-owner-regressions",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-08T12:57:56+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Quick start remains parameter-free; deployment refuses images without ownership bootstrap before target writes; Wiki atomic writes create0644 and preserve existing access modes; published kit pin and real image smoke enforce contract"
+    ],
+    "goal": "Prevent legacy-image root writers and unreadable atomic Wiki files across reusable container deployments",
+    "openspec_change": "prevent-deployment-owner-regressions",
+    "status": "reviewing"
+  },
+  "verification": {
+    "passed": [
+      "Full harness PASS; latest22focused and69adjacent tests PASS; real old-image refusal/no writes PASS; kit fallback without env PASS; root Compose force-preparation PASS; rebuilt final core MCP Wiki create/update/restart/modes/cache ownership PASS; final spec/Wiki/manifest checks executed"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": ".github/workflows/publish-oci-container.yml",
+      "sha256": "fbac22d34a8a5513d02b1f17872ca616971c75bb584c3d6a3ad18cf8bf9c2a58"
+    },
+    {
+      "path": "scripts/smoke_production_container.py",
+      "sha256": "b4b84f0e6c8646a9ff2251af24d7e91340a9fca7414de4878bb66255ee8b24db"
+    },
+    {
+      "path": "tests/test_deployment_image_compatibility.py",
+      "sha256": "02a504e3deba05d23814dfb11084419fc0a342387ef8faa3f189ca103c42a169"
+    }
+  ]
+}

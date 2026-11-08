@@ -186,7 +186,7 @@ a8063e1f1523a395a15a20c1508e6e127f8dc2d8cff3e31748a5fe0136bbc801  ./.ai/wiki/adr
 998ca2ca732c8f438d0ea161a94c9781a41909e6a840064ed9d17c62962f3107  ./.ai/wiki/adr/0031-cross-language-research-tooling-policy.md
 ed006694a7ef0637162b2730c2c2e21b412fa30eefdfd1757881267ce545a6ec  ./.ai/wiki/architecture/embedding-profile-identity.md
 b721c1e17149f490c9ec99d9e277dfafcb3db750a453b4bee1a3de9dbfa710f9  ./.ai/wiki/architecture/platform-overview.md
-35cf804f2de81810bc3395622c7c1b1e55fa5d2a149dd27a9f042c7e07332b2c  ./.ai/wiki/architecture/portable-deployment.md
+6dc71e10ad1b8e5e54766227fc195304132182f26cd1b698ec4e87521aa04177  ./.ai/wiki/architecture/portable-deployment.md
 2184f13b8c7c080caddecfaee3b82a2e81a2e1e9b65010d7f4a8bad3c9817b85  ./.ai/wiki/architecture/retrieval-candidate-selection.md
 67d4adb93b0730d7a8d934c79f18131d51f861ec446cec855cf2ae0f14bf04fc  ./.ai/wiki/architecture/rich-document-graph.md
 bad4654d03b153ae827cf5526f728b085f7d2fc7a5fb916077666e454d1a27e3  ./.ai/wiki/architecture/system-overview.md
@@ -290,7 +290,7 @@ e5fb88f2260d0c742bf00c9347b73ed39018cf6f39b4663c93f55866fe3b1979  ./.ai/wiki/pro
 80e8a91e904a6a05fb88154916ce072dc69c34569f20bd4a080a518f61409aa3  ./.env.example
 cd60e3a9811804e13d1212f1da1aa187839d155543acbcd2a8ac8bb52bb0b0c2  ./.gitattributes
 63ea4c86e47d8de249fd7a7d09fff92da8d09e3fa647b6e39ee1bccb16bf616b  ./.github/workflows/codeql.yml
-698f9f58135ab4233af0ddf9eee02229bed85885cc9a0f7c768bf4f9cf73951f  ./.github/workflows/publish-oci-container.yml
+fbac22d34a8a5513d02b1f17872ca616971c75bb584c3d6a3ad18cf8bf9c2a58  ./.github/workflows/publish-oci-container.yml
 411e41e8ca3a6b50bc9cbb7e3741696f2799ab24e6e27f5fe1ab0fffcef17445  ./.github/workflows/verify-production-runtime.yml
 e5308988e7bf5814f599cda91db1161391733ec8cdcb810098b69ed71da2db47  ./.github/workflows/verify.yml
 dca07f3ee52a5083b43cfe495f2a9168ee9d6930682f19b5946a148944fd72d3  ./.gitignore
@@ -318,7 +318,7 @@ e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution/codex/.gitkeep
 8872a59e69b0c8ca86f0fd4ee6b2f8c3cf9214996eacfc3cf1f0be31767e1e9f  ./distribution/deployment/.gitignore
 645f645af4a45840b5363d57abd77d8612a739495fe0824e051bd612a901bb00  ./distribution/deployment/Makefile
-8f0fd642b9f700b3341a7f524acb603471f4c55c1530fa831793eb5b9a2ebc66  ./distribution/deployment/README.md
+1bbe17f298b8bb7c018c3ac56985fbef36026b3d09bced134380e3e039d4b518  ./distribution/deployment/README.md
 6a7a568641fc706e97264a162705ceffae8b6d0e212e23a4724032d633deb5a6  ./distribution/deployment/accelerator-lock.json
 b8263cc1d5f2ddb97ad99844ac041ed2c01526a889547619a6c90ba09ca25014  ./distribution/deployment/compose.accelerator.yaml
 b7af53e2aaa9ccee67205edfbc14f32ddb05bcefd23119b6787c6fbdb701ea19  ./distribution/deployment/compose.cpu.yaml
@@ -328,7 +328,7 @@ a962dd9a354144c8364071d6f0a78d83636dff269ef11c54db1b54e3c1665498  ./distribution
 e7478994ab1f9537b261765751aca1e5aba65943fe6ef4c8e6b14b0893990eee  ./distribution/deployment/compose.ui-vulkan.yaml
 bf30e9d53702b230b522a4126ab37ee38f31bd11f0646d18d4b79f256c4b7534  ./distribution/deployment/compose.vulkan.yaml
 38976a298bd0e13c87a148cdf0bbf76e7c203caf7fbf1f01efe448dffcd8e549  ./distribution/deployment/compose.windows-gpu.yaml
-bf9c3f900933fe2ddbeda29fab9dd261b8e374e6d6e384fae8e38af02deac19e  ./distribution/deployment/compose.yaml
+04fd3896fb97400c0a8d39a169649c07c168b20e7726859e6d988810babe4b65  ./distribution/deployment/compose.yaml
 f6a09bee6ed24b0d39b59924d7d2b371cea3ea2fecfd3c3e260aad62c791aae5  ./distribution/deployment/deployment.env
 dafe101fec3c54cc1779e3a09674edf39abc3baedeb9e8f17a6fd715a312008b  ./distribution/deployment/export.py
 3bbbe102cf9746e3716658e3c3eafa63e151ac0a064dbfadcf1ae5df87d845b9  ./distribution/deployment/runtime-entrypoint.sh
@@ -364,7 +364,7 @@ dfd94e0e5bfb427d87aa5fb412884ffafd9bc1f3536dd0ae169f2bed4e1cb362  ./distribution
 6343653e786bbb711c0f519406c5c2f143f7ddc52e1a60f9be30aaa9b56157d7  ./distribution/skills/project-intelligence/references/RETRIEVAL-POLICY.md
 241f1b723aab43bf44d55c12d955e74adb557fa7f4ede9e551b81ee16ee9e6f7  ./distribution/skills/project-intelligence/references/SECURITY.md
 4d47d54987a8cc3c7d7b1c58464e6ba56bbb5fa655a81e8d7d2b8387b7079695  ./distribution/skills/project-intelligence/references/VERSIONING.md
-29fb9abdaf6e666ba823825ae3c8159a255945b6257fea4138042d85d60b24db  ./docker-compose.yml
+acf32647b693cd880a163253813188c8e004bac8889e898b95148b228a0f0222  ./docker-compose.yml
 fb5457dd64a1ab47391cfe933689a6465972f0afc6350136ee560c8e94315816  ./docs/ARCHITECTURE.md
 d65ee06372237610b0ce03b33586f464903982fbc0b1dce4a0b28e92b3a87c4a  ./docs/CONFIGURATION.md
 e71e75e5a88f659b83e5a2c9eaa0bf0bf0734186c4dd085a01428c16ff0c2d7c  ./docs/CONTAINER_SEARCH_REPAIR.md
@@ -430,7 +430,7 @@ d8ab9aa0be1fe2824cdf4694f0a918b7ec23af9a490634cbda15ac060e8d0120  ./infra/litell
 d995eafe4d90252de4ad561e76de5b87590fb586d2db2b284320693b6770f4b6  ./infra/searxng-mcp/requirements.txt
 051282d6cfdbc19e463a699c2ee0155788014ab875387161002d2c0162f61599  ./infra/searxng-mcp/server.py
 eeccab0de13fdda203c936da0d7a3718b78086bd4f09c563cfa9cb112372ec87  ./infra/searxng/settings.yml
-c9fd3978033ebd2da59c0c679c8a25ea24dfb84a4d10ddee5d424c5681bb3bb1  ./openspec/CURRENT.md
+a806c3fd20e390a47367fb7680d067fb3e327f395835ac6e23e64967c6291f26  ./openspec/CURRENT.md
 a4a212c2d380e833b380830d1621541d501bddc8430ecff90e6f7fc286595605  ./openspec/README.md
 0f309eb2a73eeb1b4293d513a0f5a78181e4f348fad6425b72665b3a02a01de3  ./openspec/changes/archive/2026-10-04-implement-phase-1-foundation/context-impact.md
 54499624e60c11ae08cbb9419d3f27ca498a2beb2a9f09a5c48cc67468b97b67  ./openspec/changes/archive/2026-10-04-implement-phase-1-foundation/design.md
@@ -759,6 +759,12 @@ e55402bd9cfd96924fdad6277470416e22e95b22a475e217e67c92636c21af7d  ./openspec/cha
 5f4eef00c09ce08149a86d3ec12d16e92a6ef7266079d466e81fce5713cc3b99  ./openspec/changes/archive/2026-11-06-fix-deployment-kit-ownership/proposal.md
 e0afccbb10ed9d87a5325de3634e84779362e3c2b7d758dedf4241648593b0d1  ./openspec/changes/archive/2026-11-06-fix-deployment-kit-ownership/specs/2026-10-11-one-click-distribution/spec.md
 29be0dadfcb335447efd3d807322fa77b479218306a862aa9c92b6d89371d186  ./openspec/changes/archive/2026-11-06-fix-deployment-kit-ownership/tasks.md
+d7d8a7d88214f82f782e9f25ae50e6c97e1a5bd786fe2521236ac5d2cfcac67b  ./openspec/changes/archive/2026-11-08-prevent-deployment-owner-regressions/context-impact.md
+c12001e0609a2d0119d3deacc3d717ba816c2214eee2cc33297c0f5180be0538  ./openspec/changes/archive/2026-11-08-prevent-deployment-owner-regressions/design.md
+7e5c859b89dcd166a564080a07ff6000fe5e3dba9ef638f2f1c2e4d85e038a96  ./openspec/changes/archive/2026-11-08-prevent-deployment-owner-regressions/proposal.md
+e9ee63822a165a6de1519ba4561ecb96c415cd4d68b2b18f89625cb016f74769  ./openspec/changes/archive/2026-11-08-prevent-deployment-owner-regressions/specs/2026-10-11-one-click-distribution/spec.md
+107b89dca9f11ab1fa14d928100982e450ded34057aa8e6af5bfbb60584a3dc2  ./openspec/changes/archive/2026-11-08-prevent-deployment-owner-regressions/specs/2026-10-25-llm-wiki-curated-knowledge/spec.md
+dc989c155f08992905bcc8653b4678c73a9cd22649e7b24308ae56f4fbdbc84b  ./openspec/changes/archive/2026-11-08-prevent-deployment-owner-regressions/tasks.md
 22899bd18db889fd1d6de4bef366cd53fc8841b230805257b30cfb61e69f65d8  ./openspec/changes/plan-v0-8-platform-architecture/context-impact.md
 b3b35a00cd497f5eb3d44ff842ce93d160f21d5b4f9ce9ad438358f969d1ab48  ./openspec/changes/plan-v0-8-platform-architecture/design.md
 09d7612b85c18d79481be51a4e4fc91b5677d5a0f92495fbdbf7d672dc528627  ./openspec/changes/plan-v0-8-platform-architecture/proposal.md
@@ -865,7 +871,7 @@ d96ac017044f96ee06ecba6d729833032ddaf0ede29cd6b136d394ebfd6da134  ./openspec/spe
 33471382ae6ca452cfe0acdc62a9f9fc1c12ea72b829507c39017f12ca1109c0  ./openspec/specs/2026-10-11-enterprise-security-boundary/spec.md
 9e2b1e54171da0eee93600e43351c0b0b45f30c4948668be2cf6c9326e0c8451  ./openspec/specs/2026-10-11-human-interface-web-ui/spec.md
 fff01106c73f745d9c213ac0113e167380059aed94ba76e1fd61fb60c214999d  ./openspec/specs/2026-10-11-okf-wiki-profile-distribution/spec.md
-2f0556b8353daffa77ab351735be8fe2e4996c8a331b31eb68c5b038e487070c  ./openspec/specs/2026-10-11-one-click-distribution/spec.md
+7b63bbf24eed59e35dcfe135d334103761efdd360b1961be95cf80a00a7ed329  ./openspec/specs/2026-10-11-one-click-distribution/spec.md
 356512d51e16ac24a40876f3003caaa6803bc50bd0d24d24ef1d9234446a2222  ./openspec/specs/2026-10-12-a2a-adapter/spec.md
 206774f172c61f668d4fe2aa46dc30dccd821baf4c77a8ff0b30ab565aed961f  ./openspec/specs/2026-10-12-external-coding-agent-integration/spec.md
 22990eea057e3241b292928f23da9397920ca1f6d53bf37d12bbe47142c68e07  ./openspec/specs/2026-10-12-integration-quality-gates/spec.md
@@ -885,7 +891,7 @@ d8680674a8a536634e30d3dcf7631e1e5d043192aff8d44e8207b7d789ba3189  ./openspec/spe
 333bff4f647734ed840a58c77a67d73b8cb82ea327b6f8152ecfb7967949338b  ./openspec/specs/2026-10-18-repository-source-discovery-incremental/spec.md
 c8ec8c6226f06190ff090611affe99ae276a7b24c7b34b372f04c0154dcf46d9  ./openspec/specs/2026-10-18-semantic-index-service/spec.md
 2f707cf85da619c12f256af8a55c150d7e098a6a032d7cb50c2ac0ed4c28b732  ./openspec/specs/2026-10-18-unified-production-retrieval-composition/spec.md
-c518e97ad308d26ea264a776dbde892a63bda877a22b78a92fed72c39be27c8f  ./openspec/specs/2026-10-25-llm-wiki-curated-knowledge/spec.md
+13d1e71fe65fc179956d301a7caa556546724d342dc462ccb905a0fb8de5f3c5  ./openspec/specs/2026-10-25-llm-wiki-curated-knowledge/spec.md
 052067a8d61930848c7ccf9f1f65d55f7a7c9942e7ba8741004f2f20ffe9eb03  ./openspec/specs/2026-10-25-portable-inference-runtime/spec.md
 8e4f2b3918437ef1a9edee7efd3c728599cef6b0250af711cfa64786a3053ddb  ./openspec/specs/2026-10-26-python-dependency-intelligence/spec.md
 3da583285bc9f6181296530431360df4f14ed8726c54df5ee9d76de60667f95a  ./openspec/specs/2026-10-28-dependency-research/spec.md
@@ -1140,7 +1146,7 @@ e1dd4fc4775eaa6948463a96fd1be6d8b436a3aecb39a553b3aa183886213fa1  ./pi_platform/
 d774c3a0f1993c50b4345c7ed0cef151ccd748979d61be28924bf57dbc8079ae  ./pi_platform/core/ui/__init__.py
 d831b8e90e53d48a22fb30cb352cbed29277619687b497da10b5dd48bd933bc0  ./pi_platform/core/ui/rest_service.py
 bee9ec1b0da92bf73c71671b3e30cc796d35336b411d4d96ee181fac65201d65  ./pi_platform/core/wiki/__init__.py
-2bafecde451f30b5f263b700a84d1a56db880bbc7c7be246096ad8bd0ad8717d  ./pi_platform/core/wiki/llm_wiki.py
+b1e5f1d6a0d14f0d35dfe9794513b819ef00cdb9fdacbcf5fcc1c830dccf7d33  ./pi_platform/core/wiki/llm_wiki.py
 018e82700fa28b3b71c5968d2c4918ad3b3d8a83a0b88c185ac793be77fb9178  ./pi_platform/host_accelerator/__init__.py
 7392c7c81d6a00072b4539919ff0db4c18da81f02799653ee92ffe2ce0c1c382  ./pi_platform/host_accelerator/audit.py
 1ac9ea9f52fb9671c568a3b37a8f2bf5dd5d7f829aa102a27ea28ebefca8bf0e  ./pi_platform/host_accelerator/bootstrap.py
@@ -1279,7 +1285,7 @@ a8ae787cf018a774a7cace462eb8789b4d0c365555b6dd852dc5e8b66bb786d9  ./scripts/reca
 2528eeac5da8ac661cb2b8d7bdb180303a49abb5020e494cab5c31742b53fbae  ./scripts/session_state.py
 9eb32f7594922eceee7b0ee9a7fd6e7e951c142e938837a85de5b34d56ca8adf  ./scripts/skill_router.py
 536bec9a4ceb529149113b7e6cfe2d0cedf3e00a18f3afb73f95b9b2981855e2  ./scripts/smoke_gguf_container.py
-c8f74f6a81ddb5db0dd1065a8e9f15ee9925fff9f9016f98ae0c51f87545f78d  ./scripts/smoke_production_container.py
+90ac798cb2499622a2c4d80e98ed330cfd321ea49f2390de7c9d8978d7e24ae3  ./scripts/smoke_production_container.py
 df292f50759e3e8c75b024aa21abc96bc3cf034115f07669149a8d75b4586156  ./scripts/stack.py
 4ae3ac877c12f9bf00cf1d0e048a238fc3aa1ad3c7bda1090e975d127d4983a1  ./scripts/sync_skills.py
 1c037ce4a1df5d3d823c9e1783b232f706da63604c2f24a4c8e8f880ef09d0be  ./scripts/test_deployment_launchers.ps1
@@ -1303,6 +1309,7 @@ ad2cdba0f5882aa72255f54821b971179d2b4c5926f487f135fd1a11ec41aec4  ./tests/test_c
 da76602c716686239a965c14478a138f988afa16737303da550b273057fe672f  ./tests/test_control_plane_v08_panels.py
 35ba9bf0d13f819874e28cfa46f63d0535cd3dc87daa823c6ec19400fcb4f19e  ./tests/test_dependency_artifacts.py
 513ed523d7506abe4cb58e490d1a673e3c486fdc3c139591d095b47fa692a740  ./tests/test_dependency_research_service.py
+b431b504f034d06d7ebb0e29468ed35153f76b47df8b892dc9a068db3058869c  ./tests/test_deployment_image_compatibility.py
 9558a154523a354cdd0bce4647df9d0e79eed88a1f0dc206d612cd1fe31385f7  ./tests/test_deployment_ownership.py
 4058b46dc3c0fa50cad2580a72067c978d94af5dcffffaad5f5511ae63ef4c1e  ./tests/test_deployment_runtime_repair.py
 68c51fef25f65d759df62ff7c8209c91590c5a34f9be917ac9cac51187154649  ./tests/test_distribution_skill_v08.py
@@ -1331,7 +1338,7 @@ e4c5c6c3599d006208297c0e4073f4695081781f55bd8f066c94562cf89c9cdf  ./tests/test_h
 d9ea1eb65ca0678c82d30ff1d239c3389b2ad2571e1f758bc0a74dba53009756  ./tests/test_ingestion_job_store.py
 60d5db56ac9bdccdaedba7b0484e798ca01d4dd4bd28189c85af6574aeaf2b00  ./tests/test_learning_runtime.py
 0115fca1e051f9c42231a1543002934c1f2857b338495f48ddfb019d44d2f693  ./tests/test_litellm.py
-ce407296949f50c3a23261a3ce132d031da554dc3ac467dc9177bb0acb9b1418  ./tests/test_llm_wiki.py
+a48fdfeeea3b2aebac6fd0f5778b0e4842f914c93e76dca79edea7f46900b1ad  ./tests/test_llm_wiki.py
 f67985aba7098e254982cc0c025e37095158e9b2046f130786b3132e14797187  ./tests/test_local_contextualizer.py
 9433909bd93477aebf969d84c715b1611921643918b8b56f22d15fd6e5277d87  ./tests/test_managed_runtime_control.py
 3443af7fec517de1350a7d6dae9ab4d6ef169fd2fbee324b7a63aa9459970e94  ./tests/test_mcp_context_factory.py

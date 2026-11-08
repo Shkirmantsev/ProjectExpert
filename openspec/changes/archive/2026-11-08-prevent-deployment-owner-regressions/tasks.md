@@ -1,0 +1,5 @@
+- [x] Reproduce unsafe legacy startup and Wiki mode reset with focused tests
+- [x] Implement Compose preflight and POSIX atomic Wiki permissions
+- [x] Strengthen exported-kit and published-image smoke coverage
+- [x] Verify focused, real Docker and full harness checks
+- [x] Adopt specs, update Wiki/docs and commit

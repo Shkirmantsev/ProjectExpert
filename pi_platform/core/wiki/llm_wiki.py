@@ -30,6 +30,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import tempfile
 import threading
 from functools import wraps
@@ -606,10 +607,19 @@ class LlmWiki:
     def _atomic_write(path: Path, text: str) -> None:
         temporary = None
         try:
+            access_mode = stat.S_IMODE(path.stat().st_mode) & 0o777
+        except FileNotFoundError:
+            access_mode = 0o644
+        try:
             with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8",
                                              dir=path.parent, prefix=".wiki-", delete=False) as stream:
                 temporary = Path(stream.name)
                 stream.write(text)
+                stream.flush()
+                if os.name == "posix":
+                    # Keep content private while writing; use the open fd so a
+                    # path swap cannot redirect chmod to a symlink target.
+                    os.fchmod(stream.fileno(), access_mode)
             os.replace(temporary, path)
         finally:
             if temporary is not None:
