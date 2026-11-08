@@ -304,6 +304,12 @@ independently and may need updating. API authentication and signed materialisati
 approval are separate credentials; normal search needs no materialisation token.
 Complex tasks belong in a connected MCP agent with its own LLM.
 
+`Test saved connection` sends a public prompt without project excerpts and allows
+up to 512 output tokens, since reasoning can consume the same budget as the
+final answer. If that budget is exhausted before any final text, the diagnostic
+reports the output limit rather than incorrectly identifying the model as an
+embedding model. Generated project answers retain their separate response budget.
+
 ### Optional LLM binding before startup
 
 Configure without a running service:

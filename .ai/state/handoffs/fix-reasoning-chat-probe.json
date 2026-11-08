@@ -1,0 +1,64 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Live image projectexpert:local-chat-wiki-fix-20261108 is a local-only overlay (ID6164ae71253c) on immutable87056a743; includes previously approved Wiki fd/mode fix and current chat probe patch. Target deployment.env/compose.yaml/compose.accelerator.yaml reference it and current base Compose includes ownership guard. No GHCR publication or target Git commit. Operator must adopt a future published release for other hosts."
+  ],
+  "decisions": [
+    "Bugfix within existing optional chat contract; no new OpenSpec behavior required. Apply minimal patched production overlay rather than editing a running container or replacing dependency closure."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Source regression fix verified and deployed in trade-analyzer via local image6164ae71, based on published87056a743 with chat/Wiki module hashes verified. Current target fallback pins and ownership guard aligned; real saved Gemma test succeeds."
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-08T13:53:20+00:00",
+    "id": "fix-reasoning-chat-probe",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-08T14:03:01+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Regression test reproduces token-exhaustion false negative; bounded test budget returns final text and diagnostics identify actual truncation; live saved Gemma connection test succeeds without sending project context; preserve deployment and credentials"
+    ],
+    "goal": "Fix false chat connection test failure for reasoning models and apply verified fix to live ProjectExpert",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full harness PASS1759 test executions;13chat tests PASS including reasoning success and OpenAI/Anthropic truncation diagnostics. Live saved test200 ok=true; readiness healthy345sources3393chunks; chat-settings bytes unchanged; cache6103 entries UID/GID1000; target tracked staging/work preserved. Patched-image Wiki0644 UID1000 fixture PASS."
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "distribution/deployment/README.md",
+      "sha256": "5e9cdbac35b641a4576675bbf681b2da602a9af2b94cd9040f1123b719ee0235"
+    },
+    {
+      "path": "pi_platform/adapters/orchestration/chat_connection.py",
+      "sha256": "812c80b49cb80c171a5315fb601699678b090739b5c47b42a83210565a54552d"
+    },
+    {
+      "path": "tests/test_ui_chat_connection.py",
+      "sha256": "9e10ce6ad26972d51f94a480c378744d77e04efbd32760cc6af3fab356a10b22"
+    }
+  ]
+}
