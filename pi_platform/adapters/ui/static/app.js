@@ -51,13 +51,16 @@ function formatResult(targetId, result) {
     }).join("\n\n") : "No matching evidence. Check indexing status or try a more specific question.";
     var answer = result.answer ? "Answer (generated from retrieved evidence):\n" + result.answer + "\n\nSources:\n" : "";
     var explanation = result.explanations ? "\n\n" + result.explanations.join("\n") : "";
+    if (targetId === "query-result" && !result.answer) {
+      return "No generated answer. Search evidence is available below." + explanation + "\n\nRetrieved sources:\n" + evidence;
+    }
     return answer + evidence + explanation;
   }
   return result;
 }
 
 function run(targetId, action) {
-  show(targetId, "working…");
+  show(targetId, targetId === "query-result" ? "Searching project evidence… If chat is enabled, a local model can take several minutes to generate an answer (up to 10 minutes)." : "working…");
   return action().then(function (result) {
     show(targetId, formatResult(targetId, result));
   }).catch(function (error) {

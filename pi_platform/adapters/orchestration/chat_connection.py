@@ -108,7 +108,7 @@ class ChatConnection:
                     os.unlink(name)
         return self.public_settings()
 
-    def _complete(self, settings, prompt, *, classification='INTERNAL', max_tokens=1024):
+    def _complete(self, settings, prompt, *, classification='INTERNAL', max_tokens=4096, timeout=600):
         url = settings['base_url'] + ('/messages' if settings['provider'] == 'anthropic' else '/chat/completions')
         # The operator explicitly delegated bounded context sharing to this
         # saved endpoint. The normal policy still rejects restricted egress.
@@ -133,7 +133,7 @@ class ChatConnection:
             headers['Authorization'] = 'Bearer ' + settings['api_key']
         try:
             req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers=headers)
-            with urllib.request.build_opener(_NoRedirect).open(req, timeout=30) as response:
+            with urllib.request.build_opener(_NoRedirect).open(req, timeout=timeout) as response:
                 raw = response.read(1024 * 1024 + 1)
             if len(raw) > 1024 * 1024:
                 raise ChatConnectionError('Provider response exceeded the size limit.')
@@ -149,6 +149,10 @@ class ChatConnection:
             return text[:16000]
         except urllib.error.HTTPError as exc:
             raise ChatConnectionError(f'Chat provider returned HTTP {exc.code}. Check endpoint, model and credentials.') from None
+        except (TimeoutError, urllib.error.URLError) as exc:
+            if isinstance(exc, TimeoutError) or isinstance(exc.reason, TimeoutError):
+                raise ChatConnectionError(f'Chat provider timed out after {timeout} seconds. Local reasoning models may need more time; reduce reasoning or use a faster model. Retrieved evidence remains available.') from None
+            raise ChatConnectionError('Chat provider unreachable. Check the URL from inside the application container.') from None
         except (OSError, ValueError, KeyError, IndexError, TypeError):
             raise ChatConnectionError('Chat provider unreachable or response invalid. Check the URL from inside the application container.') from None
 
@@ -159,7 +163,7 @@ class ChatConnection:
             return {'ok': False, 'message': 'Save an endpoint and a model first.'}
         try:
             # Reasoning tokens may share the output budget with the final answer.
-            self._complete(settings, 'Reply briefly: connection test successful.', classification='PUBLIC', max_tokens=512)
+            self._complete(settings, 'Reply briefly: connection test successful.', classification='PUBLIC', max_tokens=512, timeout=30)
             return {'ok': True, 'message': 'Connection successful: the selected model generated text. No project context was sent.'}
         except ChatConnectionError as exc:
             return {'ok': False, 'message': str(exc)}

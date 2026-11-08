@@ -1,0 +1,62 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Live deployment uses local-grounded-chat-fix-20261108; no upstream image published"
+  ],
+  "decisions": [
+    "Retain bounded non-streaming generation with a separate 600-second/4096-token budget; public connection probe remains 30 seconds/512 tokens; expose fallback reason before sources"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Direct Gemma request succeeded in 230.3 seconds with 1543 output tokens, including 1319 reasoning tokens; deployed local image preserving saved configuration"
+    ],
+    "todo": [
+      "Reproduce provider failure; add regressions; fix and verify source/UI; deploy and test exact question; run harness and commit"
+    ]
+  },
+  "resume": {
+    "next_action": "Wait for generated answer from exact live API question, then record result and commit",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-08T14:09:14+00:00",
+    "id": "fix-grounded-answer-fallback",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-08T14:22:33+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Identify live generation failure for exact question; fix bounded generation timeout/budget as evidence requires; show fallback reason above sources; test and deploy while preserving settings and owner identity"
+    ],
+    "goal": "Make the saved Gemma connection produce grounded project answers and explain fallback before evidence",
+    "openspec_change": "",
+    "status": "verifying"
+  },
+  "verification": {
+    "passed": [
+      "PASS: full python3 harness.py check; manifest verification; live UI assets and Open WebUI HTTP 200; PID1 uid/gid 1000; no root-owned cache entries; saved credentials unchanged"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "pi_platform/adapters/orchestration/chat_connection.py",
+      "sha256": "98bc20e8d249522a9fbd9203dd3b65d8887d66fde1acb566ce3ae1874c9aa128"
+    },
+    {
+      "path": "pi_platform/adapters/ui/static/app.js",
+      "sha256": "19cf0fe508458020a66b0b0b58aa853374298c5540b24b629bd5107bc5a94463"
+    }
+  ]
+}

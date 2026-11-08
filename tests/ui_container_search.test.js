@@ -66,6 +66,16 @@ async function main() {
   b.node('chat-test').listeners.click();await flush();
   assert.match(b.node('chat-status').textContent,/Connection successful/);
   assert.match(b.context.formatResult('query-result',{answer:'Generated answer [1]',results:[],explanations:['provider failed']}),/Generated answer/);
+  const fallback = b.context.formatResult('query-result', {
+    answer: null,
+    results: [{metadata:{sourcePath:'brief.md'},snippet:'Evidence',score:0.5}],
+    explanations: ['Chat unavailable: timed out waiting for the local model.'],
+  });
+  assert.match(fallback, /^No generated answer/);
+  assert.ok(fallback.indexOf('timed out') < fallback.indexOf('brief.md'));
+  assert.doesNotMatch(b.context.formatResult('retrieve-result', {
+    results: [{metadata:{sourcePath:'brief.md'},snippet:'Evidence',score:0.5}],
+  }), /No generated answer/);
   b.node('admin-reindex-button').listeners.click();
   assert.equal(b.node('admin-reindex-button').disabled,true);
   assert.equal(b.node('wizard-result').attrs['aria-busy'],'true');
