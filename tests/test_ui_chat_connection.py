@@ -62,6 +62,11 @@ class ChatConnectionTests(unittest.TestCase):
                 if data['model']=='bad':
                     self.send_error(401,'sensitive provider detail');return
                 body=({'content':[{'type':'text','text':'Grounded answer [1]'}]} if self.path.endswith('/messages') else {'choices':[{'message':{'content':'Grounded answer [1]'}}]})
+                if (data['model'] == 'reasoning' and data['max_tokens'] < 180) or data['model'] == 'always-truncated':
+                    body = ({'content': [{'type': 'thinking', 'thinking': 'private reasoning'}],
+                             'stop_reason': 'max_tokens'} if self.path.endswith('/messages') else
+                            {'choices': [{'message': {'content': '', 'reasoning_content': 'private reasoning'},
+                                          'finish_reason': 'length'}]})
                 self.send_response(200);self.end_headers();self.wfile.write(json.dumps(body).encode())
         self.provider=ThreadingHTTPServer(('127.0.0.1',0),Provider)
         threading.Thread(target=self.provider.serve_forever,daemon=True).start()
@@ -92,9 +97,53 @@ class ChatConnectionTests(unittest.TestCase):
             path,payload,headers=self.seen[-1]
             self.assertEqual(payload['model'],'fixture');self.assertFalse(payload.get('stream',False))
             self.assertEqual(path,'/v1/messages' if provider=='anthropic' else '/v1/chat/completions')
-            self.assertEqual(payload['max_tokens'],32)
+            self.assertGreaterEqual(payload['max_tokens'],180)
+            self.assertLessEqual(payload['max_tokens'],1024)
         c.save({'model':'bad'})
         result=c.test();self.assertFalse(result['ok']);self.assertNotIn('secret-fixture',json.dumps(result));self.assertIn('401',result['message'])
+
+    def test_reasoning_model_connection_has_budget_for_a_final_answer(self):
+        c = self.connection()
+        settings = self.settings(); settings['model'] = 'reasoning'
+        c.save(settings)
+        result = c.test()
+        self.assertTrue(result['ok'], result)
+        payload = self.seen[-1][1]
+        self.assertEqual(len(payload['messages']), 1)
+        self.assertIn('connection test', payload['messages'][0]['content'])
+        self.assertNotIn('private reasoning', json.dumps(result))
+
+    def test_grounded_generation_allows_slow_local_reasoning_but_probe_stays_short(self):
+        c = self.connection()
+        c.save(self.settings())
+        opener = urllib.request.build_opener()
+        with patch('urllib.request.build_opener', return_value=opener), \
+             patch.object(opener, 'open', wraps=opener.open) as send:
+            c._complete(c._settings(), 'project evidence')
+            self.assertEqual(send.call_args.kwargs['timeout'], 600)
+            self.assertEqual(self.seen[-1][1]['max_tokens'], 4096)
+            self.assertTrue(c.test()['ok'])
+            self.assertEqual(send.call_args.kwargs['timeout'], 30)
+            self.assertEqual(self.seen[-1][1]['max_tokens'], 512)
+
+    def test_timeout_is_distinguished_from_unreachable_provider(self):
+        from pi_platform.adapters.orchestration.chat_connection import ChatConnectionError
+        c = self.connection()
+        for error in (TimeoutError(), urllib.error.URLError(TimeoutError())):
+            with patch('urllib.request.OpenerDirector.open', side_effect=error):
+                with self.assertRaisesRegex(ChatConnectionError, 'timed out.*600'):
+                    c._complete(self.settings(), 'private evidence')
+
+    def test_truncated_response_reports_output_budget_not_wrong_model(self):
+        for provider in ('openai', 'anthropic'):
+            with self.subTest(provider=provider):
+                c = self.connection()
+                settings = self.settings(); settings.update(model='always-truncated', provider=provider)
+                c.save(settings)
+                result = c.test()
+                self.assertFalse(result['ok'])
+                self.assertIn('output-token limit', result['message'])
+                self.assertNotIn('private reasoning', json.dumps(result))
 
     def test_optional_grounded_query_and_fallback_keep_retrieval_independent(self):
         from pi_platform.adapters.ui.composition import build_ui_service
