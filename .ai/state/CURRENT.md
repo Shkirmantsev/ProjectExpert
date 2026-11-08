@@ -5,8 +5,8 @@
 Structured source: [handoffs/fix-grounded-answer-fallback.json](handoffs/fix-grounded-answer-fallback.json)
 
 Task: `fix-grounded-answer-fallback`
-Status: `verifying`
-Updated: `2026-11-08T14:22:33+00:00`
+Status: `complete`
+Updated: `2026-11-08T14:24:24+00:00`
 Active OpenSpec change: none
 
 ## Objective
@@ -19,11 +19,11 @@ Make the saved Gemma connection produce grounded project answers and explain fal
 
 ## Completed
 
-- Direct Gemma request succeeded in 230.3 seconds with 1543 output tokens, including 1319 reasoning tokens; deployed local image preserving saved configuration
+- Original ProjectExpert source fix committed as c2d8e4b; exact deployed API query returned a cited L1_RETRIEVAL_PLUS_LLM answer in 140.7 seconds
 
 ## Remaining
 
-- Reproduce provider failure; add regressions; fix and verify source/UI; deploy and test exact question; run harness and commit
+- none
 
 ## Blocked
 
@@ -44,7 +44,7 @@ Make the saved Gemma connection produce grounded project answers and explain fal
 
 ## Verification passed
 
-- PASS: full python3 harness.py check; manifest verification; live UI assets and Open WebUI HTTP 200; PID1 uid/gid 1000; no root-owned cache entries; saved credentials unchanged
+- PASS: original repository contains adapter and UI regressions; full harness passed; live generated answer verified
 
 ## Verification pending
 
@@ -52,7 +52,7 @@ Make the saved Gemma connection produce grounded project answers and explain fal
 
 ## Next action
 
-Wait for generated answer from exact live API question, then record result and commit
+No remaining implementation work; upstream image publication is separate
 
 ## Prerequisites
 
