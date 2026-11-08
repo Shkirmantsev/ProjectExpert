@@ -250,11 +250,21 @@ jobs:
           python scripts/smoke_gguf_container.py
       - name: Build and test deployment kit export
         run: |
-          docker build -f Containerfile --target deployment-kit -t deployment-kit:test .
+          docker build -f Containerfile --target deployment-kit -t deployment-kit:test \
+            --build-arg 'PI_DEPLOY_IMAGE=${{ steps.names.outputs.image }}:candidate-${{ github.sha }}' .
           destination="$(mktemp -d)"
           docker run --rm -v "$destination:/deployment" deployment-kit:test
           test -f "$destination/.project-intelligence-deploy/Makefile"
           docker compose --env-file "$destination/.project-intelligence-deploy/deployment.env" -f "$destination/.project-intelligence-deploy/compose.yaml" config -q
+          # Test embedded fallback pins without deployment.env or a shell override.
+          env -u PI_IMAGE docker compose -f "$destination/.project-intelligence-deploy/compose.yaml" \
+            -f "$destination/.project-intelligence-deploy/compose.accelerator.yaml" config --format json > "$destination/config.json"
+          python - "$destination/config.json" '${{ steps.names.outputs.image }}:candidate-${{ github.sha }}' <<'PY'
+          import json, sys
+          services = json.load(open(sys.argv[1]))['services']
+          assert services['production']['image'] == sys.argv[2]
+          assert services['model-setup']['image'] == sys.argv[2]
+          PY
       - uses: docker/login-action@v3
         if: github.event_name != 'pull_request' && (github.ref_name == 'dev' || github.ref_name == 'development' || github.ref_name == 'main')
         with:

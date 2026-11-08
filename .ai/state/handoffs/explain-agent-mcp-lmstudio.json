@@ -1,0 +1,49 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [
+    "Two independent connections: agent to LLM provider and agent to MCP tools; optional ProjectExpert UI chat connection does not author Wiki or populate entity graph automatically."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Confirmed OpenCode1.19.4 V1 config, live MCP27tools and actual opencode --pure mcp list connected using temporary config; no user config written. LM Studio1234 refused connection. Checked official OpenCode, Claude and LM Studio docs."
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-07T15:39:37+00:00",
+    "id": "explain-agent-mcp-lmstudio",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-07T15:40:11+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Verify live MCP client connection, installed OpenCode schema and local model server status; distinguish Wiki agent tools from optional UI chat"
+    ],
+    "goal": "Give verified OpenCode/agent MCP and optional LM Studio setup instructions",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Installed OpenCode remote MCP connection PASS with project-expert connected; live HTTP tools/list200; LM Studio server absent. Documentation-only instructions; no code/library or target configuration edits."
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

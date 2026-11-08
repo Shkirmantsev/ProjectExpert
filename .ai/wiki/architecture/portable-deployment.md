@@ -89,6 +89,19 @@ application working directory needs no writable `tmp/` directory.
 Host/non-root execution is unchanged; source-tree
 ownership and external link targets are not recursively modified.
 
+Compose application entrypoints explicitly prepare project-user execution before
+CLI dispatch. Images without that preparation module fail before writing target
+files, including image overrides and invocation without `deployment.env`. The
+matching default image remains embedded in published kits, so quick start needs
+no manual image or UID configuration. Old exported templates must be upgraded to
+gain this guard; restarting an old pinned image cannot install source fixes.
+
+Wiki atomic writes keep temporary content private, then apply the existing
+destination's ordinary access bits before replacement. New pages default to
+`0644` on POSIX; existing restrictive modes remain restrictive. This prevents
+navigation/page updates from silently resetting a reviewed access policy to
+`NamedTemporaryFile`'s `0600`. It does not broaden private runtime credentials.
+
 ## Help-first commands and the effective address — 2026-10-27
 
 - The exported kit's Makefile is **help-first**: bare `make` and

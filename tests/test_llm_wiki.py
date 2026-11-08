@@ -8,6 +8,8 @@ log.
 """
 
 import asyncio
+import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -37,6 +39,25 @@ class LlmWikiTests(unittest.TestCase):
         self.repo = Path(self._tmp.name)
         self.wiki = LlmWiki(self.repo)
         self.wiki.ensure_scaffold()
+
+    @unittest.skipUnless(os.name == "posix", "POSIX access modes")
+    def test_new_page_and_updated_navigation_are_project_readable(self):
+        (self.wiki.root / "index.md").chmod(0o644)
+        self.wiki.write_page(relative_path="readable", title="Readable", body="Evidence.")
+        for name in ("readable.md", "index.md"):
+            with self.subTest(path=name):
+                self.assertEqual(stat.S_IMODE((self.wiki.root / name).stat().st_mode), 0o644)
+
+    @unittest.skipUnless(os.name == "posix", "POSIX access modes")
+    def test_atomic_update_preserves_existing_access_modes(self):
+        self.wiki.write_page(relative_path="existing", title="Existing", body="Before.")
+        page = self.wiki.root / "existing.md"
+        for mode in (0o644, 0o640, 0o600):
+            with self.subTest(mode=oct(mode)):
+                page.chmod(mode)
+                self.wiki.write_page(relative_path="existing", title="Existing", body="After.")
+                self.assertEqual(stat.S_IMODE(page.stat().st_mode), mode)
+                self.assertIn("After.", page.read_text())
 
     def test_the_scaffold_creates_the_reserved_files(self):
         root = wiki_root_for(self.repo)

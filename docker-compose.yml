@@ -26,6 +26,21 @@ services:
       context: .
       dockerfile: Containerfile
       target: core
+    entrypoint:
+      - python
+      - -c
+      - |
+        import os
+        try:
+            from pi_platform.adapters.fs.container_identity import prepare_project_user
+        except ImportError:
+            raise SystemExit("Incompatible ProjectExpert image: upgrade the application image and deployment kit; check PI_IMAGE. Project-owner execution is required.") from None
+        os.environ["PI_RUN_AS_PROJECT_OWNER"] = "1"
+        prepare_project_user(os.environ["PI_TARGET_ROOT"])
+        from pi_platform.cli.main import main
+        raise SystemExit(main())
+    # An explicit entrypoint suppresses image CMD in Compose.
+    command: ["serve", "--target", "/repo", "--host", "0.0.0.0", "--port", "8765"]
     extra_hosts:
       - "host.docker.internal:host-gateway"
     profiles: ["core-headless", "desktop-lite", "desktop-local-ai", "open-webui", "enterprise"]

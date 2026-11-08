@@ -3,6 +3,20 @@ services:
   production:
     image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:production}
     platform: linux/amd64
+    # Enforce ownership even for image overrides or direct Compose invocation.
+    entrypoint:
+      - python
+      - -c
+      - |
+        import os
+        try:
+            from pi_platform.adapters.fs.container_identity import prepare_project_user
+        except ImportError:
+            raise SystemExit("Incompatible ProjectExpert image: upgrade the application image and deployment kit; check PI_IMAGE. Project-owner execution is required.") from None
+        os.environ["PI_RUN_AS_PROJECT_OWNER"] = "1"
+        prepare_project_user(os.environ["PI_TARGET_ROOT"])
+        from pi_platform.cli.main import main
+        raise SystemExit(main())
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

@@ -189,6 +189,21 @@ pin. Update that override to the new kit's digest for an image-only upgrade,
 then run `start.sh` / `start.ps1` to recreate the service. A container restart
 does not change its image. Preserve local configuration and any sidecar patches.
 
+Application startup checks ownership support **before running CLI writers**.
+An image from before project-owner execution is refused with an `Incompatible
+ProjectExpert image` error. This also protects direct Compose invocation without
+`deployment.env` and explicit `PI_IMAGE` overrides. Upgrade both the exported kit
+and its application image; do not remove the guard to run an old pin. No manual
+`PI_IMAGE`, UID or GID is required for a normal quick start: published kits retain
+their verified matching default image.
+
+New Wiki articles written through MCP have POSIX mode `0644`. Updating an article
+or navigation index preserves its existing permissions, including deliberately
+private `0600`/`0640` modes. Files already created by an old root-run image may
+need a one-time, reviewed owner/access repair; the platform does not recursively
+chown canonical sources. A manual permission repair will now survive subsequent
+atomic updates. Runtime state and credentials remain private.
+
 SHA tags are retained without an automatic expiry/cleanup job. Registry owners
 can delete packages; keep a local archive if permanent independent retention
 is required. Files also live in Git under distribution/deployment/.

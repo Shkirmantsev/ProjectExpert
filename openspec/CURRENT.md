@@ -338,3 +338,15 @@ New files remain user-owned across indexing, administrative jobs and restart;
 private model-key/cache access is retained. Host CLI behavior and canonical source
 ownership remain unchanged. This needs the updated application image, not only
 the exporter. Adopted as `2026-11-06-fix-container-cache-ownership`.
+
+## Ownership-compatible deployment and Wiki modes — 2026-11-08
+
+Compose application services now reject images lacking project-owner preparation
+before CLI writers run, including overrides and invocation without deployment.env.
+Supported default startup still needs no manual image or UID parameters. Published
+kit verification checks its matching default image, and the real image smoke
+checks MCP Wiki ownership/modes and cache ownership across restart. New POSIX Wiki
+pages use 0644; atomic updates preserve existing ordinary access bits, including
+private modes. Accepted in the existing one-click-distribution and
+llm-wiki-curated-knowledge capabilities; archived as
+`2026-11-08-prevent-deployment-owner-regressions`.

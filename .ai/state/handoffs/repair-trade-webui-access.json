@@ -1,0 +1,49 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [
+    "Operational configuration fix using existing optional profile; no specification or ADR change needed. Full harness not run because no product code changed; live endpoint and Docker health verification used."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Reviewed persistent one-line profile enablement and verified requested endpoint; preserve unrelated source work and target staging"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-07T14:12:46+00:00",
+    "id": "repair-trade-webui-access",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-07T14:19:49+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Diagnose actual running deployment; restore requested frontend without changing unrelated project state; verify local HTTP access and service health"
+    ],
+    "goal": "Restore Open WebUI access on localhost8768 for trade-analyzer deployment",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "HTTP8768/200;8768/health200 status=true; frontend container healthy; production8765/health/ready200 ready=true; frontend internal /v1/models200 project-intelligence; target staged diff preserved"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

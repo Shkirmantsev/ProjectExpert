@@ -1,0 +1,51 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Concurrent Wiki writes are observed and may delay stable readiness; do not stop or overwrite another writer. Preserve user work; staging fingerprint remains unchanged."
+  ],
+  "decisions": [
+    "Operational deployment repair only; no new upstream code/spec/ADR change. Full harness not rerun because product code unchanged; actual published-image fixture and live restart/functional checks used. PI_IMAGE now pins verified published digest87056a743, replacing old8b0aae36 default."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Reviewed bounded deployment change and verified preserved target data/settings/work; no cache deletion or broad repository chown performed"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-08T12:10:43+00:00",
+    "id": "repair-live-cache-owner",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-08T12:34:57+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Prove installed image contents and PID identity; deploy compatible fixed application; restore cache ownership; verify restart, retrieval, MCP and frontend while preserving target settings, models and staging"
+    ],
+    "goal": "Stop root cache writers in trade-analyzer and deploy ownership fix persistently",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Post-restart6101 cache entries all UID/GID1000; no unexpected owners. readiness200 and healthy, deterministic retrieval200, MCP27 tools, OpenWebUI root/health200. retrieval-settings.json/settings.json byte-identical to before update; target staged and unstaged tracked diffs unchanged. Isolated image cache-repair/store proof PASS."
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
