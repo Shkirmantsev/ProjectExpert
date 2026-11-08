@@ -885,9 +885,6 @@ def _cmd_ingest_sources(args: argparse.Namespace) -> int:
 def _resolve_skills_root(target: Optional[Path] = None) -> Optional[Path]:
     """Locate the canonical ``distribution/skills`` directory."""
     candidates: list[Path] = []
-    if target is not None:
-        candidates.append(Path(target).resolve() / "distribution" / "skills")
-    candidates.append(Path.cwd() / "distribution" / "skills")
     platform_home = os.environ.get("PI_PLATFORM_HOME")
     if platform_home:
         candidates.append(Path(platform_home) / "distribution" / "skills")
@@ -895,6 +892,9 @@ def _resolve_skills_root(target: Optional[Path] = None) -> Optional[Path]:
         Path(__file__).resolve().parents[2] / "distribution" / "skills"
     )
     candidates.append(Path(sys.prefix) / "distribution" / "skills")
+    candidates.append(Path.cwd() / "distribution" / "skills")
+    if target is not None:
+        candidates.append(Path(target).resolve() / "distribution" / "skills")
     for cand in candidates:
         if (cand / "project-intelligence" / "SKILL.md").is_file():
             return cand

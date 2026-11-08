@@ -22,6 +22,7 @@ Verifies:
 from __future__ import annotations
 
 import io
+import hashlib
 import json
 import os
 import subprocess
@@ -299,6 +300,26 @@ class StandaloneContainerCapabilitiesTests(unittest.TestCase):
         self.assertEqual(status, 200)
         manifest_data = json.loads(rpc_res["result"]["contents"][0]["text"])
         self.assertEqual(manifest_data["platformVersion"], "0.8.0")
+
+        # The installed bundle is available even in an unrelated target project.
+        status, skills = _http_json(
+            f"{base}/mcp", method="POST",
+            payload={"jsonrpc": "2.0", "id": 4, "method": "skills/list"},
+        )
+        self.assertEqual(status, 200)
+        entry = skills["result"]["skills"][0]
+        self.assertEqual(entry["uri"], "skill://project-intelligence/SKILL.md")
+        self.assertEqual(entry["frontmatter"]["metadata"]["version"], "1.4.0")
+        for item in entry["resources"]:
+            status, resource = _http_json(
+                f"{base}/mcp", method="POST",
+                payload={"jsonrpc": "2.0", "id": 5, "method": "resources/read",
+                         "params": {"uri": item["uri"]}},
+            )
+            self.assertEqual(status, 200)
+            raw = resource["result"]["contents"][0]["text"].encode("utf-8")
+            self.assertEqual(item["size"], len(raw))
+            self.assertEqual(item["digest"], "sha256:" + hashlib.sha256(raw).hexdigest())
 
         # 5. A2A Agent Card and tasks:send
         status, card_body = _http_json(f"{base}/.well-known/agent-card.json")

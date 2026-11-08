@@ -39,6 +39,7 @@ interpreter with the SDK installed.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 from .tool_schemas import tool_definition
@@ -1114,6 +1115,11 @@ def _serialise(obj: Any) -> Any:
     return obj
 
 
+SUPPORTED_PROTOCOL_VERSIONS = (
+    "2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05",
+)
+
+
 class McpServer:
     """§36 MCP server (tool / resource plane).
 
@@ -1187,6 +1193,41 @@ class McpServer:
         return self.tool_names
 
     async def handle_jsonrpc_async(
+        self, payload: Mapping[str, Any], *, skill_plane: Optional[Any] = None,
+    ) -> dict[str, Any]:
+        params = payload.get("params")
+        params = params if isinstance(params, Mapping) else {}
+        meta = params.get("_meta")
+        meta = meta if isinstance(meta, Mapping) else {}
+        version = meta.get("io.modelcontextprotocol/protocolVersion")
+        supported = list(SUPPORTED_PROTOCOL_VERSIONS)
+        if version is not None and version not in supported:
+            return {"jsonrpc": "2.0", "id": payload.get("id"), "error": {
+                "code": -32022, "message": "Unsupported protocol version",
+                "data": {"supported": supported, "requested": version}}}
+        if version == "2026-07-28":
+            info = meta.get("io.modelcontextprotocol/clientInfo")
+            if (not isinstance(info, Mapping) or not isinstance(info.get("name"), str)
+                    or not isinstance(info.get("version"), str)
+                    or not isinstance(meta.get("io.modelcontextprotocol/clientCapabilities"), Mapping)):
+                return {"jsonrpc": "2.0", "id": payload.get("id"), "error": {
+                    "code": -32602, "message": "Modern requests require clientInfo and clientCapabilities metadata"}}
+        response = await self._dispatch_jsonrpc_async(payload, skill_plane=skill_plane)
+        if version == "2026-07-28" and "result" in response:
+            result = response["result"]
+            result.setdefault("resultType", "complete")
+            result.setdefault("_meta", {})["io.modelcontextprotocol/serverInfo"] = self._server_info()
+            if payload.get("method") in {"tools/list", "resources/list", "resources/read"}:
+                # No cache promises for target-dependent tool/resource listings.
+                result.setdefault("ttlMs", 0)
+                result.setdefault("cacheScope", "private")
+        return response
+
+    def _server_info(self) -> dict[str, str]:
+        identity = self._context.server_identity
+        return {"name": identity["name"], "version": identity.get("version") or identity["serverVersion"]}
+
+    async def _dispatch_jsonrpc_async(
         self,
         payload: Mapping[str, Any],
         *,
@@ -1205,6 +1246,35 @@ class McpServer:
         if not isinstance(params, Mapping):
             params = {}
 
+        capabilities = {"tools": {"listChanged": False}, "resources": {"listChanged": False}}
+        instructions = "Use project.* tools to retrieve project evidence before drawing conclusions."
+        if skill_plane is not None:
+            capabilities["extensions"] = {"io.modelcontextprotocol/skills": {}}
+            instructions += (
+                " Workflow skill: skill://project-intelligence/SKILL.md. "
+                "Discover with skills/list or skills/get and read with resources/read. "
+                "Clients without Skills support can read it as an ordinary resource; "
+                "loading and permissions remain subject to client and user policy."
+            )
+        if method == "server/discover":
+            return {"jsonrpc": "2.0", "id": req_id, "result": {
+                "resultType": "complete", "ttlMs": 0, "cacheScope": "public",
+                "supportedVersions": list(SUPPORTED_PROTOCOL_VERSIONS),
+                "capabilities": capabilities, "instructions": instructions,
+                "_meta": {"io.modelcontextprotocol/serverInfo": self._server_info()},
+            }}
+        if method in {"skills/list", "skills/get"}:
+            try:
+                if skill_plane is None:
+                    raise ValueError("skill catalog unavailable")
+                value = ({"skills": skill_plane.list_skills(params.get("cursor"))}
+                         if method == "skills/list" else
+                         {"skill": skill_plane.get_skill(params.get("uri"))})
+                return {"jsonrpc": "2.0", "id": req_id, "result": {
+                    "resultType": "complete", "ttlMs": 300000, "cacheScope": "public", **value}}
+            except (ValueError, RuntimeError) as exc:
+                return {"jsonrpc": "2.0", "id": req_id,
+                        "error": {"code": -32602, "message": str(exc)}}
         if method == "initialize":
             return {
                 "jsonrpc": "2.0",
@@ -1220,10 +1290,8 @@ class McpServer:
                         "version": self._context.server_identity.get("version")
                                    or self._context.server_identity["serverVersion"],
                     },
-                    "capabilities": {
-                        "tools": {"listChanged": False},
-                        "resources": {"listChanged": False},
-                    },
+                    "capabilities": capabilities,
+                    "instructions": instructions,
                 },
             }
         if method in ("notifications/initialized", "initialized", "ping"):
@@ -1261,7 +1329,7 @@ class McpServer:
         if method == "resources/list":
             resources = (
                 [
-                    {"uri": uri, "name": uri}
+                    skill_plane.resource_metadata(uri)
                     for uri in skill_plane.list_resources()
                 ]
                 if skill_plane is not None
@@ -1285,23 +1353,17 @@ class McpServer:
                 }
             try:
                 raw = skill_plane.read_resource(uri)
-                return {
-                    "jsonrpc": "2.0",
-                    "id": req_id,
-                    "result": {
-                        "contents": [
-                            {
-                                "uri": uri,
-                                "text": raw.decode("utf-8", errors="replace"),
-                            }
-                        ]
-                    },
-                }
+                content = {"uri": uri, "mimeType": skill_plane.resource_metadata(uri)["mimeType"]}
+                try:
+                    content["text"] = raw.decode("utf-8")
+                except UnicodeDecodeError:
+                    content["blob"] = base64.b64encode(raw).decode("ascii")
+                return {"jsonrpc": "2.0", "id": req_id, "result": {"contents": [content]}}
             except Exception as exc:
                 return {
                     "jsonrpc": "2.0",
                     "id": req_id,
-                    "error": {"code": -32002, "message": str(exc)},
+                    "error": {"code": -32602, "message": str(exc)},
                 }
         return {
             "jsonrpc": "2.0",

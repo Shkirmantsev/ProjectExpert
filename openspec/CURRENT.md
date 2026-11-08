@@ -64,7 +64,7 @@ project product.
 | [Capability discovery](specs/2026-10-05-capability-discovery/spec.md) |
 | [Retrieval first policy](specs/2026-10-05-retrieval-first-policy/spec.md) |
 | [MCP server](specs/2026-10-07-mcp-server/spec.md) |
-| [Skill distribution plane](specs/2026-10-07-skill-distribution-plane/spec.md) |
+| [Skill distribution plane, including Skills over MCP](specs/2026-10-07-skill-distribution-plane/spec.md) |
 | [Agent skill canonical](specs/2026-10-07-agent-skill-canonical/spec.md) |
 | [Version compatibility handshake](specs/2026-10-07-version-compatibility-handshake/spec.md) |
 | [Codex plugin package](specs/2026-10-07-codex-plugin-package/spec.md) |

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -101,6 +102,21 @@ def main():
             assert version['fingerprint'] and version['embedding_model_version'], version
             tools = request(base, '/mcp', {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list'})
             assert 'project.search' in json.dumps(tools), tools
+            discovered = request(base, '/mcp', {'jsonrpc': '2.0', 'id': 'skills-discover',
+                'method': 'server/discover'})['result']
+            assert 'io.modelcontextprotocol/skills' in discovered['capabilities']['extensions']
+            skills = request(base, '/mcp', {'jsonrpc': '2.0', 'id': 'skills-list',
+                'method': 'skills/list'})['result']['skills']
+            entry = next(skill for skill in skills if skill['uri'] == 'skill://project-intelligence/SKILL.md')
+            fetched = request(base, '/mcp', {'jsonrpc': '2.0', 'id': 'skills-get',
+                'method': 'skills/get', 'params': {'uri': entry['uri']}})['result']['skill']
+            assert fetched == entry
+            for resource in entry['resources']:
+                content = request(base, '/mcp', {'jsonrpc': '2.0', 'id': 'skills-read',
+                    'method': 'resources/read', 'params': {'uri': resource['uri']}})['result']['contents'][0]
+                raw = content['text'].encode('utf-8')
+                assert len(raw) == resource['size']
+                assert 'sha256:' + hashlib.sha256(raw).hexdigest() == resource['digest']
             run(*compose, 'exec', '-T', 'production', 'python', '-m', 'pip', 'check', env=env)
             request(base, '/mcp', {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call',
                 'params': {'name': 'project.wiki_write_page', 'arguments': {

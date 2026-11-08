@@ -20,13 +20,17 @@ without the MCP SDK.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import logging
+import mimetypes
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping, Optional, Sequence
+from urllib.parse import quote
 
 
 __all__ = [
@@ -121,6 +125,7 @@ class SkillDistributionPlane:
         self._runtime_index_schema_version = (
             runtime_index_schema_version)
         self._manifest = self._build_manifest()
+        self._skill_entries, self._skill_files = self._snapshot_skills()
 
     @property
     def skills_root(self) -> Path:
@@ -148,7 +153,7 @@ class SkillDistributionPlane:
                 continue
             sha = _sha256_file(skill_md)
             frontmatter = _parse_frontmatter(skill_md.read_text())
-            version = frontmatter.get("version", "0.0.0")
+            version = _skill_version(frontmatter)
             skills_index.append({
                 "name": skill_name,
                 "version": str(version),
@@ -175,6 +180,62 @@ class SkillDistributionPlane:
             runtimeIndexSchemaVersion=self._runtime_index_schema_version,
         )
 
+    def _snapshot_skills(self) -> tuple[dict, dict]:
+        """Freeze manifests and bytes together for the lifetime of this server."""
+        entries, files = {}, {}
+        for skill_dir in sorted(self._skills_root.iterdir()):
+            if not skill_dir.is_dir() or not (skill_dir / "SKILL.md").is_file():
+                continue
+            if skill_dir.is_symlink():
+                raise SkillDistributionError("symlinked skill directory")
+            frontmatter = _extension_frontmatter((skill_dir / "SKILL.md").read_bytes())
+            name = frontmatter.get("name")
+            if (name != skill_dir.name or not isinstance(name, str)
+                    or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name)
+                    or len(name) > 64
+                    or not isinstance(frontmatter.get("description"), str)
+                    or not frontmatter["description"].strip()):
+                raise SkillDistributionError("invalid skill name or description")
+            resources, total = [], 0
+            for path in sorted(skill_dir.rglob("*")):
+                if path.is_symlink():
+                    raise SkillDistributionError("symlink in skill package")
+                if not path.is_file():
+                    continue
+                path.resolve().relative_to(skill_dir.resolve())
+                total += path.stat().st_size
+                if len(resources) >= 512 or total > 16 * 1024 * 1024:
+                    raise SkillDistributionError("skill exceeds SEP-2640 package limits")
+                raw = path.read_bytes()
+                uri = f"skill://{name}/" + quote(path.relative_to(skill_dir).as_posix(), safe="/")
+                files[uri] = raw
+                resources.append({"uri": uri, "digest": "sha256:" + _sha256_bytes(raw),
+                                  "size": len(raw)})
+            uri = f"skill://{name}/SKILL.md"
+            entries[uri] = {"uri": uri, "frontmatter": dict(frontmatter), "resources": resources}
+        return entries, files
+
+    def list_skills(self, cursor: object = None) -> list[dict]:
+        # The bundled catalog fits one complete page; no continuation is issued.
+        if cursor is not None:
+            raise SkillDistributionError("unknown skills cursor")
+        return copy.deepcopy(list(self._skill_entries.values()))
+
+    def get_skill(self, uri: str) -> dict:
+        if not isinstance(uri, str) or uri not in self._skill_entries:
+            raise SkillDistributionError("unknown skill URI")
+        return copy.deepcopy(self._skill_entries[uri])
+
+    def resource_metadata(self, uri: str) -> dict:
+        metadata = {"uri": uri, "name": uri.rsplit("/", 1)[-1],
+                    "mimeType": mimetypes.guess_type(uri)[0] or "application/octet-stream"}
+        if uri.endswith(".md"):
+            metadata["mimeType"] = "text/markdown"
+        if uri in self._skill_entries:
+            fm = self._skill_entries[uri]["frontmatter"]
+            metadata.update(name=fm["name"], description=fm["description"])
+        return metadata
+
     def list_resources(self) -> tuple[str, ...]:
         prefix = "project-intelligence://"
         out = [prefix + "distribution/manifest",
@@ -186,7 +247,7 @@ class SkillDistributionPlane:
             if not skill_md.is_file():
                 continue
             frontmatter = _parse_frontmatter(skill_md.read_text())
-            version = str(frontmatter.get("version", "0.0.0"))
+            version = str(_skill_version(frontmatter))
             out.append(f"{prefix}skills/{skill_name}/{version}/SKILL.md")
             for ref_dir in (skill_dir / "references",):
                 if not ref_dir.is_dir():
@@ -205,9 +266,13 @@ class SkillDistributionPlane:
                         f"{prefix}skills/{skill_name}/{version}/assets/"
                         f"{asset.name}"
                     )
-        return tuple(out)
+        return tuple(out) + tuple(self._skill_files)
 
     def read_resource(self, uri: str) -> bytes:
+        if uri.startswith("skill://"):
+            if uri not in self._skill_files:
+                raise SkillDistributionError("unknown skill resource URI")
+            return self._skill_files[uri]
         if not uri.startswith("project-intelligence://"):
             raise SkillDistributionError(
                 f"unsupported URI scheme: {uri!r}"
@@ -247,7 +312,7 @@ class SkillDistributionPlane:
                 )
             frontmatter = _parse_frontmatter(
                 (skill_dir / "SKILL.md").read_text())
-            pinned_version = str(frontmatter.get("version", "0.0.0"))
+            pinned_version = str(_skill_version(frontmatter))
             if pinned_version != version:
                 raise SkillDistributionError(
                     f"resource pinned at version {pinned_version!r}; "
@@ -266,7 +331,7 @@ class SkillDistributionPlane:
             frontmatter = _parse_frontmatter(skill_md.read_text())
             index.append({
                 "name": skill_dir.name,
-                "version": str(frontmatter.get("version", "0.0.0")),
+                "version": str(_skill_version(frontmatter)),
                 "sha256": _sha256_file(skill_md),
             })
         return json.dumps({"skills": index},
@@ -274,40 +339,75 @@ class SkillDistributionPlane:
                           ).encode("utf-8")
 
 
-def _parse_frontmatter(markdown: bytes | str) -> Mapping[str, object]:
-    text = markdown.decode("utf-8") if isinstance(markdown, bytes) else markdown
-    if not text.startswith("---"):
-        return {}
-    end = text.find("\n---", 3)
-    if end < 0:
-        return {}
-    fm = text[3:end].strip()
-    out: dict[str, object] = {}
-    current_key: Optional[str] = None
-    for line in fm.splitlines():
-        if line.startswith("  - "):
-            if current_key is not None and current_key in out:
-                if isinstance(out[current_key], list):
-                    out[current_key].append(line[4:].strip())
-            continue
-        if ":" in line:
-            key, _, value = line.partition(":")
+def _skill_version(frontmatter: Mapping[str, object]) -> str:
+    metadata = frontmatter.get("metadata", {})
+    return str(frontmatter.get("version") or
+               (metadata.get("version") if isinstance(metadata, Mapping) else None) or "0.0.0")
+
+
+def _extension_frontmatter(raw: bytes) -> Mapping[str, object]:
+    """Parse complete metadata; the stdlib subset covers our shipped skill.
+
+    Arbitrary YAML belongs to the optional YAML adapter. Fail closed rather
+    than flattening or silently dropping fields when it is unavailable.
+    """
+    text = raw.decode("utf-8")
+    match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|$)", text, re.S)
+    if not match:
+        raise SkillDistributionError("skill requires YAML frontmatter")
+    try:
+        import yaml
+    except ImportError:
+        result = {}
+        stack = [(-1, result)]
+        mappings = [result]
+        for line in match[1].splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if "\t" in line[:len(line) - len(line.lstrip())]:
+                raise SkillDistributionError("tabs are not allowed in YAML indentation")
+            key, separator, value = stripped.partition(":")
+            if not separator or not re.fullmatch(r"[A-Za-z0-9_-]+", key):
+                raise SkillDistributionError("this frontmatter requires optional PyYAML")
+            indent = len(line) - len(line.lstrip(" "))
+            while stack[-1][0] >= indent:
+                stack.pop()
+            parent = stack[-1][1]
+            if key in parent:
+                raise SkillDistributionError("duplicate frontmatter key")
             value = value.strip()
-            if value == "":
-                out[key.strip()] = []
-                current_key = key.strip()
+            if not value:
+                parent[key] = {}
+                mappings.append(parent[key])
+                stack.append((indent, parent[key]))
+            elif value.startswith('"'):
+                parent[key] = json.loads(value)
+            elif value.startswith("'") and value.endswith("'"):
+                parent[key] = value[1:-1].replace("''", "'")
+            elif re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", value):
+                parent[key] = value
+            elif (value[0] in "[{>|&*!\'" or " #" in value or ": " in value
+                  or value.lower() in {"true", "false", "null", "yes", "no", "on", "off", "~", ".nan", ".inf", "-.inf", "+.inf"}
+                  or re.match(r"^[+-]?[0-9]", value)):
+                raise SkillDistributionError("this frontmatter requires optional PyYAML")
             else:
-                out[key.strip()] = _coerce(value)
-                current_key = key.strip()
-    return out
+                parent[key] = value
+        if any(not mapping for mapping in mappings):
+            raise SkillDistributionError("empty YAML values require optional PyYAML")
+    else:
+        result = yaml.safe_load(match[1])
+    if not isinstance(result, dict):
+        raise SkillDistributionError("skill frontmatter must be a mapping")
+    # Ensure metadata has a faithful JSON representation before publishing it.
+    try:
+        if json.loads(json.dumps(result, allow_nan=False)) != result:
+            raise ValueError("frontmatter mapping keys must be strings")
+    except (TypeError, ValueError) as exc:
+        raise SkillDistributionError("frontmatter must contain JSON-compatible values") from exc
+    return result
 
 
-def _coerce(text: str) -> object:
-    if text.startswith("[") and text.endswith("]"):
-        inner = text[1:-1].strip()
-        if not inner:
-            return []
-        return [item.strip().strip("\"'") for item in inner.split(",")]
-    if text.startswith("\"") and text.endswith("\""):
-        return text[1:-1]
-    return text
+def _parse_frontmatter(markdown: bytes | str) -> Mapping[str, object]:
+    raw = markdown.encode("utf-8") if isinstance(markdown, str) else markdown
+    return _extension_frontmatter(raw)

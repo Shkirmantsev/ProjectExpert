@@ -7,8 +7,8 @@ summary: Phase 6 §36 MCP server — thin adapter over Phase 4 / 5 ports; 17 §3
 sourceRefs:
   - pi_platform/mcp/server.py
   - pi_platform/mcp/skill_plane.py
-  - openspec/specs/2026-10-05-mcp-server/spec.md
-  - openspec/specs/2026-10-05-skill-distribution-plane/spec.md
+  - openspec/specs/2026-10-07-mcp-server/spec.md
+  - openspec/specs/2026-10-07-skill-distribution-plane/spec.md
 maintenance:
   mode: authored
 related:
@@ -36,15 +36,22 @@ It does not introduce a new runtime store.
 - `McpServer.list_tools()` — returns the union of the
   17 §36 tools and the documented extension
   `project.describe_capabilities`.
-- `McpServer.serve(transport)` — boots the official MCP
-  Python SDK over `stdio` (default) or Streamable HTTP.
+- `McpServer.handle_jsonrpc[_async]` — shared embedded HTTP `/mcp`
+  dispatcher and CLI stdio surface, including Skills discovery.
+- `McpServer.serve_stdio_fallback` — the product CLI's stdlib transport.
+- `McpServer.serve(transport)` — optional legacy SDK tool-only adapter;
+  use the product CLI / embedded endpoint for bundled Skills support.
 
 ## Skill distribution plane
 
 `SkillDistributionPlane` exposes the canonical Agent
 Skill under the documented URI namespace. Every
 resource is content-addressed; two consecutive reads
-return byte-identical bytes.
+return byte-identical bytes. The standard `io.modelcontextprotocol/skills`
+extension adds `skills/list`, `skills/get` and `skill://` resources. See
+[Skill distribution](../interfaces/skill-distribution.md) for manifests,
+protocol compatibility and client activation limits. Discovery and resource
+reads remain available while target indexing is not ready.
 
 ## Typed errors
 
@@ -61,3 +68,5 @@ failure, so callers branch without parsing prose.
   rejection.
 - `tests/test_phase_6_quality_gates.py` — §49
   integration fixtures against the server.
+- `tests/test_mcp_skills_extension.py` — discovery, integrity, metadata,
+  stdio, binary resources and unsafe-path boundaries.
