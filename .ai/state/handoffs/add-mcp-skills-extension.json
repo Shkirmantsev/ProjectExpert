@@ -1,0 +1,65 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Local image projectexpert:local-mcp-skills-20261108 verified; changes committed locally on feature/generate-init-project; no upstream push, publish or existing target deployment modification"
+  ],
+  "decisions": [
+    "No new dependency or environment variable; keep legacy resources and initialization; native activation belongs to the client; optional directoryRead omitted"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Skills over MCP implementation, tests, documentation and adopted OpenSpec requirements committed as 9c8cbe6; verified work complete"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "No remaining implementation work; publishing the image and updating deployments are separate actions",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-08T18:51:41+00:00",
+    "id": "add-mcp-skills-extension",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-08T19:09:53+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Verified skills/list and skills/get manifests, readable bundled files, legacy MCP compatibility, packaged container coverage, documentation and harness PASS"
+    ],
+    "goal": "Serve bundled ProjectExpert skills through SEP-2640 discovery and standard MCP resources",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "PASS: python3 harness.py check; 56 focused tests; 11 HTTP/stdio integration tests; final local Docker image minimal smoke with every resource digest and restart",
+      "PASS after spec adoption: OpenSpec strict 92 items, Wiki validation 131 documents, refreshed Wiki index, artifact manifest 1448 files and git diff --check"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "pi_platform/mcp/server.py",
+      "sha256": "8e04ba34ab1171815ec7ae4d746d97700d23b5e6fb10bba21355dcd6c4653205"
+    },
+    {
+      "path": "pi_platform/mcp/skill_plane.py",
+      "sha256": "03791d9d9fe72db238d65871cd70ca0cb1ed6dde3070a52a69b918de943844e1"
+    },
+    {
+      "path": "tests/test_mcp_skills_extension.py",
+      "sha256": "1493e2ab1e013bd019e093576c6527565d9bb0ba76dc644a929105e61bdd0c35"
+    }
+  ]
+}
