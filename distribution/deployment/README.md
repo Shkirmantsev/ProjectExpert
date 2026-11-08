@@ -469,3 +469,47 @@ cannot reveal it. Paste it into the page when requested (kept in tab memory).
 Configure the same bearer value privately in MCP clients and Open WebUI
 (`PI_OPEN_WEBUI_API_KEY`). Public `/api/v1/auth-status` reveals only whether it is
 required, never its value. No authentication is silently enabled by this upgrade.
+
+
+## Agent Skills over MCP (SEP-2640)
+
+The application image includes the `project-intelligence` Agent Skill and its
+reference documents. Nothing needs to be copied into a new target project, and
+no chat model or environment variable is required for skill discovery.
+Connect your agent to the deployment's existing MCP endpoint, for example
+`http://127.0.0.1:8765/mcp` (use your configured published control port).
+
+The server advertises `io.modelcontextprotocol/skills` in `server/discover` and
+legacy `initialize`. A client with native support can list the skill with
+`skills/list`, obtain its complete manifest with `skills/get`, and lazily read
+`skill://project-intelligence/SKILL.md` and its references using `resources/read`.
+Each manifest includes the complete frontmatter, file sizes and SHA-256 digests.
+The server does not implement the optional `resources/directory/read` method;
+all supporting files are already enumerated in the manifest.
+
+For a quick operator check (adjust the port if needed):
+
+```bash
+curl -sS http://127.0.0.1:8765/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"skills/list","params":{}}'
+```
+
+If your operator enabled API authentication, supply its existing bearer token
+through your client's secure credential configuration. The command above
+assumes the default local deployment without API authentication.
+
+Native skill activation depends on the MCP client. Reading `SKILL.md` alone
+does not install or activate a skill and never grants extra tool permissions.
+For a client without the extension, ask it to read
+`skill://project-intelligence/SKILL.md` and the needed relative references from
+this MCP server using ordinary MCP resources. If the client does not expose
+resource reads, use the existing vendor skill package/local installation path.
+Keep approvals and caches scoped to the originating MCP server, not only the URI.
+
+The extension is currently Beta; SEP-2640 itself is Final. Protocol references:
+[Skills specification](https://skills.extensions.modelcontextprotocol.io/specification/beta/skills),
+[SEP-2640](https://modelcontextprotocol.io/seps/2640-skills-extension).
+Upgrading source alone does not update deployed containers: rebuild/publish the
+application image, update the deployment kit's image pin, recreate the application
+container, and reconnect the MCP client to refresh discovery.
