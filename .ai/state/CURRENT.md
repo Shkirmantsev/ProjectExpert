@@ -5,8 +5,8 @@
 Structured source: [handoffs/prevent-deployment-owner-regressions.json](handoffs/prevent-deployment-owner-regressions.json)
 
 Task: `prevent-deployment-owner-regressions`
-Status: `reviewing`
-Updated: `2026-11-08T12:57:56+00:00`
+Status: `complete`
+Updated: `2026-11-08T13:04:59+00:00`
 Active OpenSpec change: `prevent-deployment-owner-regressions`
 
 ## Objective
@@ -19,11 +19,11 @@ Prevent legacy-image root writers and unreadable atomic Wiki files across reusab
 
 ## Completed
 
-- Full harness PASS1756 executions; final added supported-image command regression also passed in focused22 suite, real root Compose and final fd-based MCP smoke. OpenSpec CLI adopted two requirements and archived2026-11-08 change. Updated CURRENT/docs/Wiki and manifest.
+- Reusable ownership and Wiki permission fix implemented, verified and committed as2e15cd2; specs adopted and archived. Reviewed remaining four operational handoffs for inclusion in a separate state commit.
 
 ## Remaining
 
-- Specify bounded change; write failing tests; implement guard and Wiki modes; run focused and real Docker checks; adopt specs and run harness; commit
+- none
 
 ## Blocked
 
@@ -45,7 +45,7 @@ Prevent legacy-image root writers and unreadable atomic Wiki files across reusab
 
 ## Verification passed
 
-- Full harness PASS; latest22focused and69adjacent tests PASS; real old-image refusal/no writes PASS; kit fallback without env PASS; root Compose force-preparation PASS; rebuilt final core MCP Wiki create/update/restart/modes/cache ownership PASS; final spec/Wiki/manifest checks executed
+- Prior full harness PASS1756 executions; latest22focused and69adjacent tests PASS; actual legacy-image refusal, exported no-env fallback, root Compose and rebuilt core MCP/restart proofs PASS. Remaining handoffs parsed and reviewed without credentials or raw logs.
 
 ## Verification pending
 

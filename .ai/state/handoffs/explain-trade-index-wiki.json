@@ -1,0 +1,49 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [
+    "Bootstrap indexes source chunks; it does not author curated explanations. Explain agent-driven MCP wiki_write_page/validate workflow and reindex visibility; avoid claiming an external chat connection automatically publishes Wiki. Source init-project seeds scaffold, first MCP Wiki write also ensures it; empty target does not show any curated pages yet."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Prepared concrete steps for viewing evidence and asking an MCP-connected LLM agent to curate Wiki pages with source references; no code/specification/ADR edits needed"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "none",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-07T14:29:44+00:00",
+    "id": "explain-trade-index-wiki",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-07T14:31:04+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Verify index, retrieval provenance and curated Wiki state; give accurate practical steps without implying embeddings create articles"
+    ],
+    "goal": "Explain actual index and Wiki behavior after bootstrap in trade-analyzer",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Live readiness/index status, sources, POST Wiki read, grounded retrieval and MCP tools/list PASS; inspection only, target files unchanged"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}
