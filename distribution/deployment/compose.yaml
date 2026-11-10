@@ -30,6 +30,7 @@ services:
       - model-cache:/models
     environment:
       PI_TARGET_ROOT: /repo
+      PI_WORKSPACE_MODE: ${PI_WORKSPACE_MODE:-bind}
       PI_UI_TOKEN: ${PI_UI_TOKEN:-}
       PI_STARTUP_PROFILE: production
       PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-gemma}

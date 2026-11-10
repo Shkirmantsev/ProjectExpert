@@ -513,3 +513,11 @@ The extension is currently Beta; SEP-2640 itself is Final. Protocol references:
 Upgrading source alone does not update deployed containers: rebuild/publish the
 application image, update the deployment kit's image pin, recreate the application
 container, and reconnect the MCP client to refresh discovery.
+
+## Managed workspace (opt-in)
+
+Set `PI_WORKSPACE_MODE=volume` in `deployment.env` to use the packaged native helper. `auto` and `bind` retain direct host mounts. Mutating `up`, `run`, and `restart` prepare and synchronize before application execution. `up` and `restart` start session supervision; `config`, logs, and status never initialize storage. The generated `workspace.env` is persistent local state; do not edit it. Normal shutdown requests a verified checkpoint before stopping supervision and retains both volumes. Backup failure is reported but does not prevent shutdown.
+
+The default supervisor is session-only. For explicit per-user login startup, run `bash workspace-autostart.sh install` on Linux (systemd user session) or `./workspace-autostart.ps1 -Action Install` on Windows (Task Scheduler). These commands register a task only when invoked; launchers never register one. Remove using `uninstall` / `-Action Uninstall`. Linux login startup does not imply system-wide lingering. Windows native login execution requires platform acceptance testing.
+
+Release kit images contain Linux amd64 and Windows amd64 helper binaries and `workspace-agent-SHA256SUMS`; wrappers verify the selected binary before execution. A source-only template export lacks these release-built executables and cannot start volume mode until they are supplied with matching checksums.

@@ -2,3 +2,10 @@ accelerator/
 *.partial
 .kit-backups/
 .kit-upgrade-*
+
+workspace.env
+workspace-agent.json
+workspace-*.json
+workspace-agent.log
+workspace-stop
+workspace-supervisor.lock

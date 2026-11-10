@@ -12,6 +12,7 @@
 # cannot be obtained falls back to the CPU profile.
 $ErrorActionPreference = 'Stop'
 $composeArgs = $args
+. (Join-Path $PSScriptRoot 'workspace.ps1')
 
 
 function Measure-Endpoint([string]$Endpoint, [string[]]$Files) {
@@ -19,7 +20,7 @@ function Measure-Endpoint([string]$Endpoint, [string[]]$Files) {
     # in milliseconds, or $null when the runtime cannot be measured. The
     # caller supplies the complete applicable Compose topology: a reduced file
     # set would make the running sidecars look like orphans to Compose.
-    $raw = & docker compose --env-file deployment.env @Files `
+    $raw = Invoke-WorkspaceCompose --env-file deployment.env @Files `
         run --rm --no-deps -T production `
         inference benchmark --endpoint $Endpoint --iterations 20 2>$null
     if ($LASTEXITCODE -ne 0 -or -not $raw) { return $null }
@@ -32,12 +33,12 @@ function Measure-Endpoint([string]$Endpoint, [string[]]$Files) {
 function Measure-CpuSidecar {
     # Start the managed CPU sidecar, measure it and stop it again.
     $files = @('-f','compose.yaml','-f','compose.accelerator.yaml','-f','compose.cpu.yaml')
-    & docker compose --env-file deployment.env @files up -d --wait --wait-timeout 1800 embeddings *> $null
+    Invoke-WorkspaceCompose --env-file deployment.env @files up -d --wait --wait-timeout 1800 embeddings *> $null
     if ($LASTEXITCODE -ne 0) { return $null }
     try {
         return Measure-Endpoint 'http://embeddings:8769' $files
     } finally {
-        & docker compose --env-file deployment.env @files stop embeddings *> $null
+        Invoke-WorkspaceCompose --env-file deployment.env @files stop embeddings *> $null
     }
 }
 
@@ -59,7 +60,7 @@ function Resolve-PlanWithMeasurements($Plan, $Measurements) {
     # The decision is asked before the backend is known, so the provisional CPU
     # overlay supplies the complete service topology. The plan only runs the
     # production service (--no-deps).
-    $raw = & docker compose --env-file deployment.env -f compose.yaml `
+    $raw = Invoke-WorkspaceCompose --env-file deployment.env -f compose.yaml `
         -f compose.accelerator.yaml -f compose.cpu.yaml `
         run --rm --no-deps -T production inference plan --evidence-b64 $encoded 2>$null
     if ($LASTEXITCODE -ne 0 -or -not $raw) { return $null }
@@ -71,6 +72,7 @@ function Resolve-PlanWithMeasurements($Plan, $Measurements) {
 }
 Push-Location $PSScriptRoot
 try {
+    Initialize-Workspace $composeArgs
     $backend = $env:PI_ACCELERATOR
     if (-not $backend) {
         $line = Get-Content deployment.env | Where-Object { $_ -match '^PI_ACCELERATOR=' } | Select-Object -Last 1
@@ -90,7 +92,7 @@ try {
     }
     if ($backend -notin @('auto','cpu','vulkan','cuda')) { throw 'PI_ACCELERATOR must be auto, cpu, vulkan or cuda' }
     if ($composeArgs -contains 'down') {
-        & (Join-Path $PSScriptRoot 'stop.ps1')
+        & (Join-Path $PSScriptRoot 'stop.ps1') -WorkspacePrepared
         exit 0
     }
     $files = @('-f', 'compose.yaml')
@@ -98,7 +100,7 @@ try {
         # Native PyTorch binding: no llama.cpp runtime, no probing.
         $env:PI_EMBEDDING_MODEL = 'gemma-torch'
         $env:PI_EMBEDDING_DEVICE = 'cpu'
-        docker compose --env-file deployment.env @files @composeArgs
+        Invoke-WorkspaceCompose --env-file deployment.env @files @composeArgs
         if ($LASTEXITCODE -ne 0) { throw 'Docker Compose failed' }
         exit 0
     }
@@ -116,7 +118,7 @@ try {
             $files += @('-f','compose.windows-gpu.yaml')
             $env:PI_ACCELERATOR = $savedBackend
         }
-        & docker compose --env-file deployment.env @files @composeArgs
+        Invoke-WorkspaceCompose --env-file deployment.env @files @composeArgs
         if ($LASTEXITCODE -ne 0) { throw 'Docker Compose failed' }
         exit 0
     }
@@ -127,7 +129,7 @@ try {
         & (Join-Path $PSScriptRoot 'setup-windows-accelerator.ps1') -Backend $backend -Model 'gemma'
     } catch {
         Write-Warning "Native GPU setup failed; using the CPU sidecar. $_"
-        & (Join-Path $PSScriptRoot 'stop.ps1')
+        & (Join-Path $PSScriptRoot 'stop.ps1') -KeepWorkspaceSupervisor
         if (Test-Path -LiteralPath $planPath) { Remove-Item -LiteralPath $planPath -Force }
     }
     $plan = $null
@@ -145,7 +147,7 @@ try {
             if (-not $decision -or -not $decision.ok -or $decision.backend -eq 'cpu') {
                 Write-Output "The $plan.backend profile is not faster than the CPU baseline; using the CPU profile."
                 Write-Output "Rejected inference candidates: $($plan.backend) (not faster than the cpu baseline)"
-                & (Join-Path $PSScriptRoot 'stop.ps1')
+                & (Join-Path $PSScriptRoot 'stop.ps1') -KeepWorkspaceSupervisor
                 $plan = [pscustomobject]@{ ok = $true; backend = 'cpu'; device = $null; fit_target_mib = 192 }
                 $plan | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $planPath -Encoding UTF8
             } else {
@@ -153,7 +155,7 @@ try {
             }
         } else {
             Write-Warning 'Could not measure both GPU and CPU; using the CPU profile.'
-            & (Join-Path $PSScriptRoot 'stop.ps1')
+            & (Join-Path $PSScriptRoot 'stop.ps1') -KeepWorkspaceSupervisor
             $plan = [pscustomobject]@{ ok = $true; backend = 'cpu'; device = $null; fit_target_mib = 192 }
             $plan | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $planPath -Encoding UTF8
         }
@@ -180,6 +182,6 @@ try {
         $env:PI_EMBEDDING_DEVICE = 'cpu'
         $files += @('-f','compose.accelerator.yaml','-f','compose.cpu.yaml')
     }
-    docker compose --env-file deployment.env @files @composeArgs
+    Invoke-WorkspaceCompose --env-file deployment.env @files @composeArgs
     if ($LASTEXITCODE -ne 0) { throw 'Docker Compose failed' }
 } finally { Pop-Location }

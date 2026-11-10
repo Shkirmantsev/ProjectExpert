@@ -16,6 +16,9 @@ infra
 remote
 patches
 tools
+!tools/workspace-agent/
+!tools/workspace-agent/*.go
+!tools/workspace-agent/go.mod
 openspec
 docs
 schemas

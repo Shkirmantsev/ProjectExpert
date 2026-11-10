@@ -25,6 +25,7 @@ import io
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -147,8 +148,15 @@ class ContainerIsolationAndComposeTests(unittest.TestCase):
         self.assertIn("COPY distribution/skills ./distribution/skills", text)
         self.assertIn("COPY evals ./evals", text)
         self.assertIn("package-plugins --output-root /opt/project-intelligence/distribution", text)
-        for harness_item in ("COPY harness.py", "COPY infra", "COPY .ai", "COPY tools"):
-            self.assertNotIn(harness_item, text)
+        # Build-only native helper sources may enter their isolated compiler
+        # stage. They must never enter the application runtime stages.
+        stages = re.split(r"(?m)^FROM ", text)[1:]
+        runtime_stages = [stage for stage in stages
+                          if stage.splitlines()[0].rsplit(" AS ", 1)[-1] in {"core", "production"}]
+        self.assertEqual(len(runtime_stages), 2)
+        for stage in runtime_stages:
+            for harness_item in ("COPY harness.py", "COPY infra", "COPY .ai", "COPY tools"):
+                self.assertNotIn(harness_item, stage)
 
     def test_compose_defaults_to_ghcr_oci_image(self) -> None:
         text = COMPOSE_PATH.read_text(encoding="utf-8")

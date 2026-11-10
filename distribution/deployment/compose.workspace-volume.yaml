@@ -1,0 +1,27 @@
+# Apply last: Compose merges mounts by container target.
+services:
+  production:
+    volumes:
+      - type: volume
+        source: workspace-source
+        target: /repo
+        read_only: true
+        volume:
+          nocopy: true
+      - type: bind
+        source: ${PI_CANONICAL_HOST_DIR:?Run workspace prepare first}
+        target: /repo/project-knowledge
+        bind:
+          create_host_path: false
+      - type: volume
+        source: workspace-runtime
+        target: /repo/.project-intelligence-cache
+        volume:
+          nocopy: true
+volumes:
+  workspace-source:
+    external: true
+    name: ${PI_WORKSPACE_VOLUME:?Run workspace prepare first}
+  workspace-runtime:
+    external: true
+    name: ${PI_RUNTIME_VOLUME:?Run workspace prepare first}

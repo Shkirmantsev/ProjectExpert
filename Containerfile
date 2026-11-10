@@ -76,10 +76,26 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 ENTRYPOINT ["python", "-m", "pi_platform.cli"]
 CMD ["serve", "--target", "/repo", "--host", "0.0.0.0", "--port", "8765"]
 
+# Standard-library helper cross builds; host installations need no Go runtime.
+# Compiler archive is pinned by version and SHA-256 from go.dev/dl.
+FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS workspace-agent-build
+ARG GO_VERSION=1.27.4
+ARG GO_SHA256=7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840
+RUN python -c 'import hashlib,os,pathlib,tarfile,urllib.request; p=pathlib.Path("/tmp/go.tar.gz"); urllib.request.urlretrieve("https://go.dev/dl/go"+os.environ["GO_VERSION"]+".linux-amd64.tar.gz",p); assert hashlib.sha256(p.read_bytes()).hexdigest()==os.environ["GO_SHA256"], "Go archive checksum mismatch"; tarfile.open(p).extractall("/usr/local",filter="data"); p.unlink()'
+ENV PATH=/usr/local/go/bin:$PATH GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off
+WORKDIR /src
+COPY tools/workspace-agent/ ./
+RUN mkdir /out && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -buildvcs=false -o /out/workspace-agent-linux-amd64 . \
+    && CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -buildvcs=false -o /out/workspace-agent-windows-amd64.exe . \
+    && cp /usr/local/go/LICENSE /out/workspace-agent-go-LICENSE.txt \
+    && go version -m /out/workspace-agent-linux-amd64 > /out/workspace-agent-build.txt \
+    && cd /out && sha256sum workspace-agent-linux-amd64 workspace-agent-windows-amd64.exe > workspace-agent-SHA256SUMS
+
 # Runnable OCI deployment artifact: docker run exports files; no Docker socket.
 FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS deployment-kit
 WORKDIR /bundle
 COPY distribution/deployment/ /bundle/
+COPY --from=workspace-agent-build /out/ /bundle/
 ARG PI_DEPLOY_IMAGE=ghcr.io/shkirmantsev/project-intelligence:production
 RUN python -c 'import os,pathlib; [p.write_text(p.read_text().replace("ghcr.io/shkirmantsev/project-intelligence:production", os.environ["PI_DEPLOY_IMAGE"])) for p in pathlib.Path(".").glob("compose*.yaml")]'
 ENTRYPOINT ["python", "/bundle/export.py"]

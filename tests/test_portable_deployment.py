@@ -487,7 +487,7 @@ services:
 """
 
     def setUp(self):
-        self.project = 'pi-topology-acceptance'
+        self.project = f'pi-topology-acceptance-{os.getpid()}'
         inspect = subprocess.run(['docker', 'image', 'inspect', 'alpine:latest'],
                                  capture_output=True, text=True)
         if inspect.returncode != 0:

@@ -1,0 +1,10 @@
+{
+  "component": "projectexpert-workspace-agent",
+  "license": "Apache-2.0",
+  "runtime_dependencies": [],
+  "linked_components": [{"name": "Go standard library and runtime", "version": "1.27.4", "license": "BSD-3-Clause", "license_artifact": "workspace-agent-go-LICENSE.txt"}],
+  "build_tool": {"name": "Go", "version": "1.27.4", "source": "https://go.dev/dl/go1.27.4.linux-amd64.tar.gz", "sha256": "7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840"},
+  "release_evidence": ["workspace-agent-SHA256SUMS", "workspace-agent-build.txt"],
+  "network_at_runtime": "Docker CLI local context only; no telemetry or source upload",
+  "signing": "Checksummed build artifacts; code signing not configured"
+}
