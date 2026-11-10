@@ -620,7 +620,10 @@ class LlmWiki:
                     # Keep content private while writing; use the open fd so a
                     # path swap cannot redirect chmod to a symlink target.
                     os.fchmod(stream.fileno(), access_mode)
+                os.fsync(stream.fileno())
             os.replace(temporary, path)
+            from ..canonical.durable_write import sync_parent_directories
+            sync_parent_directories(path)
         finally:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)

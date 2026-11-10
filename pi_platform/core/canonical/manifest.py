@@ -73,7 +73,8 @@ def save_manifest(path: Path, manifest: Manifest) -> Path:
     if manifest.contentHash is not None:
         payload["contentHash"] = manifest.contentHash
     body = canonical_dump_json(payload)
-    path.write_bytes(body)
+    from .durable_write import atomic_write_bytes
+    atomic_write_bytes(path, body)
     return path
 
 

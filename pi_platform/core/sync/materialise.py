@@ -227,7 +227,8 @@ class MaterialiseService(MaterialisePort):
             )
             (fs.knowledge_root / shard_path).parent.mkdir(parents=True,
                                                           exist_ok=True)
-            (fs.knowledge_root / shard_path).write_bytes(payload_bytes)
+            from ..canonical.durable_write import atomic_write_bytes
+            atomic_write_bytes(fs.knowledge_root / shard_path, payload_bytes)
             by_family[family].append(shard)
             yield DiffEntry(path=shard_path, status="added")
 
