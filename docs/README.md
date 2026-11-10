@@ -14,6 +14,7 @@
 
 - [Quick start](QUICKSTART.md): initialize, install MCP, and validate.
 - [Production reconciliation status](PRODUCTION_RECONCILIATION_STATUS.md): executed acceptance evidence and remaining release limits.
+- [Managed fast workspace](FAST_WORKSPACE.md): optional local volumes, source exclusions, backup and recovery; platform acceptance limits.
 - [Production install](PRODUCTION_INSTALL.md): locked semantic dependencies and production/core container targets.
 - [Production license review](PRODUCTION_LICENSE_REVIEW.md): accepted exact closure, retained obligations and wheel-license evidence.
 - [Harness commands and MCP lifecycle](HARNESS_COMMANDS.md): setup, Wiki init

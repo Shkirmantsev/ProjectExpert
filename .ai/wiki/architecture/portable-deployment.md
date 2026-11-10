@@ -145,3 +145,37 @@ The broader portable-OCI change remains active until its acceptance is complete.
 See [installation](../../../docs/PRODUCTION_INSTALL.md),
 [kit operation](../../../distribution/deployment/README.md), and
 [review evidence](../../../docs/RUNTIME_PYTHON_REVIEW.md).
+
+## Managed fast workspace — observed implementation, 2026-11-10
+
+The active `add-managed-fast-workspace` change adds opt-in volume storage; `auto`
+continues to select bind. A host-native checksummed Go helper pins a local Docker
+context, prepares compatible image/volume/canonical-host access, and reconciles
+verified source manifests before mutating startup commands. The last Compose
+overlay changes production mounts only: read-only source at `/repo`, direct writable
+host canonical knowledge, and writable nested runtime cache. Existing inference
+profiles, models, services and endpoints retain their existing configuration.
+
+The importer and full indexing/publication pass share the source-generation lease;
+unfinished import fails closed. Native filesystem events supplement complete scans
+and periodic hash verification. Repository `.projectexpert-workspaceignore`,
+`PI_WORKSPACE_EXCLUDE` and the 1 GiB default per-file limit bound transfer; exclusions
+remove mirror entries after complete reconciliation and never remove host files.
+
+Runtime checkpoints use coordinated SQLite online backup plus compatible derived
+files and a checksummed manifest. Host completion follows verification/final rename.
+Snapshots exclude credentials/private settings/models, are bounded to 20 GiB each,
+and retain at most three good snapshots toward a 40 GiB budget while keeping the
+newest good snapshot. Automatic backup follows observed index generations and a
+30-minute interval, with a one-minute minimum. Explicit restore requires stopped
+writers, imports into an inactive volume and preserves the previous runtime.
+
+OS advisory supervisor/operation locks release on process death. Session supervision
+is the default; user login hooks require an explicit registration command. Software
+tests/rendered Compose evidence do not prove native Windows/PowerShell/GPU behavior,
+reboot or power-loss durability. Measured platform acceptance remains pending;
+proposed OpenSpec requirements remain distinct from current accepted specs.
+
+See [operator guide](../../../docs/FAST_WORKSPACE.md),
+[ADR 0032](../adr/0032-managed-fast-workspace.md), and
+[active design](../../../openspec/changes/add-managed-fast-workspace/design.md).
