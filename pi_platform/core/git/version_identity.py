@@ -70,6 +70,18 @@ def compute_version_identity(
         # record the warning via the returned dataclass.
         pass
 
+    from ..sync.workspace_sync_contract import WorkspaceSyncFence
+    managed = WorkspaceSyncFence(repo_root).committed()
+    if managed is not None:
+        from ..sync.version_monitor import read_project_version
+        version = read_project_version(repo_root)
+        return VersionIdentity(
+            gitHead=version.head,
+            workingTreeFingerprint=version.working_tree_fingerprint,
+            knowledgeSchemaVersion=knowledge_schema_version,
+            embeddingModelVersion=embedding_model_version,
+            indexSchemaVersion=index_schema_version,
+        )
     port = git_port or GitCliAdapter()
     git_head = port.head(repo_root)
     if working_tree_overlay is None:

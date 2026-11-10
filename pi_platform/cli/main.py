@@ -2250,10 +2250,19 @@ def _bootstrap_and_index_target(
         project_id = "proj-" + hashlib.sha256(str(target).lower().encode()).hexdigest()[:32]
         try:
             with ProjectLock(project_id, root=cache_root / "locks").acquire():
-                return _bootstrap_and_index_target_locked(
-                    target, model_alias=model_alias, device=device,
-                    service=service, readiness=readiness, cache_root=cache_root,
-                )
+                from ..core.sync.workspace_sync_contract import WorkspaceSyncFence
+                with WorkspaceSyncFence(target).lease() as workspace:
+                    result = _bootstrap_and_index_target_locked(
+                        target, model_alias=model_alias, device=device,
+                        service=service, readiness=readiness, cache_root=cache_root,
+                    )
+                    if workspace is not None:
+                        from ..core.runtime.runtime_checkpoint import atomic_json
+                        atomic_json(cache_root / "workspace-index.json", {
+                            "sync_generation": workspace["generation"],
+                            "index_generation": result["active_index_generation"],
+                        })
+                    return result
         except Exception as exc:
             readiness.record_failure(str(exc))
             try:

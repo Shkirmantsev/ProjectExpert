@@ -329,6 +329,11 @@ class RestService(RestApiPort):
                     bound_version=snapshot.current_head,
                 )
         ready = hydration["consistent"] and not hydration["in_progress"]
+        from ..sync.workspace_sync_contract import workspace_status
+        workspace = workspace_status(self._repo_root)
+        if workspace["mode"] == "volume":
+            indexes = {**indexes, "workspace": workspace}
+            ready = ready and not workspace.get("updating", False)
         return IndexingStatusResult(ready=ready, hydration=hydration, indexes=indexes)
 
     def knowledge_status(self, actor: UiActor) -> KnowledgeStatusResult:

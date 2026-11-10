@@ -68,7 +68,7 @@ DEFAULT_INCLUDE_PATTERNS: tuple[str, ...] = (
 
 DEFAULT_EXCLUDE_PATTERNS: tuple[str, ...] = (
     # Version control
-    ".git/**", ".hg/**", ".svn/**",
+    ".git/**", ".hg/**", ".svn/**", ".projectexpert-workspace/**",
     # Runtime caches
     ".project-intelligence-cache/**", ".project-intelligence-deploy/**",
     "node_modules/**", ".venv/**", "venv/**", "__pycache__/**",
@@ -82,7 +82,7 @@ DEFAULT_EXCLUDE_PATTERNS: tuple[str, ...] = (
 )
 
 LOCAL_INPUT_EXCLUDED_DIRECTORIES = (
-    ".git", ".hg", ".svn", ".project-intelligence-cache", ".project-intelligence-deploy",
+    ".git", ".hg", ".svn", ".projectexpert-workspace", ".project-intelligence-cache", ".project-intelligence-deploy",
     "node_modules", ".venv", "venv", "__pycache__", "target", "build", "dist", "out",
     ".next", "vendor", "third_party", "generated", ".generated",
 )
