@@ -18,6 +18,13 @@ func reparse(info os.FileInfo) bool {
 	return ok && v.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0
 }
 
+func windowsDOSPath(path string) string {
+	if strings.HasPrefix(path, `\\?\UNC\`) {
+		return `\\` + strings.TrimPrefix(path, `\\?\UNC\`)
+	}
+	return strings.TrimPrefix(path, `\\?\`)
+}
+
 func openSource(path string) (*os.File, error) {
 	p, e := syscall.UTF16PtrFromString(path)
 	if e != nil {
@@ -40,9 +47,25 @@ func openSource(path string) (*os.File, error) {
 		f.Close()
 		return nil, os.ErrPermission
 	}
-	final := strings.TrimPrefix(syscall.UTF16ToString(buffer[:n]), `\\?\`)
+	final := windowsDOSPath(syscall.UTF16ToString(buffer[:n]))
 	absolute, err := filepath.Abs(path)
-	if err != nil || !strings.EqualFold(filepath.Clean(final), filepath.Clean(absolute)) {
+	if err != nil {
+		f.Close()
+		return nil, err
+	}
+	// Windows temp roots can contain 8.3 aliases (e.g. RUNNER~1). Expand
+	// their spelling before comparing with the normalized handle path. Unlike
+	// EvalSymlinks, GetLongPathName does not resolve a junction/symlink parent:
+	// that redirection must still cause the final-path comparison to fail.
+	expected, err := syscall.UTF16PtrFromString(absolute)
+	if err != nil {
+		f.Close()
+		return nil, err
+	}
+	long := make([]uint16, 32768)
+	length, err := syscall.GetLongPathName(expected, &long[0], uint32(len(long)))
+	if err != nil || length == 0 || length >= uint32(len(long)) ||
+		!strings.EqualFold(filepath.Clean(final), filepath.Clean(windowsDOSPath(syscall.UTF16ToString(long[:length])))) {
 		f.Close()
 		return nil, os.ErrPermission
 	}

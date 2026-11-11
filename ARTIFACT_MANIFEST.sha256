@@ -447,7 +447,7 @@ a4a212c2d380e833b380830d1621541d501bddc8430ecff90e6f7fc286595605  ./openspec/REA
 a7c31915ab18287e57b36d0f64b6b72d4415bcde6e8b929ec13467850a0faabb  ./openspec/changes/add-managed-fast-workspace/proposal.md
 316df9e6a44c378686262b922e09735f1ba30b38839d84f97c922717866d49b6  ./openspec/changes/add-managed-fast-workspace/specs/managed-fast-workspace/spec.md
 7950fb19f3c394d3afdacdb68a9da78e93bab0ef272f07d097cae78033c5e078  ./openspec/changes/add-managed-fast-workspace/tasks.md
-e6f07e7571170651265d38d443fc378d11c375510afa8aa70f875d4af3e15460  ./openspec/changes/add-managed-fast-workspace/verification.md
+6012a650fbca3596f204628c407ca04716b0c5900b05791c02caf81f9039585c  ./openspec/changes/add-managed-fast-workspace/verification.md
 0f309eb2a73eeb1b4293d513a0f5a78181e4f348fad6425b72665b3a02a01de3  ./openspec/changes/archive/2026-10-04-implement-phase-1-foundation/context-impact.md
 54499624e60c11ae08cbb9419d3f27ca498a2beb2a9f09a5c48cc67468b97b67  ./openspec/changes/archive/2026-10-04-implement-phase-1-foundation/design.md
 d4a86c715c784b167fe7b9a6f789d3fb090d4560f7b68462c7ce4e9c7bf1866a  ./openspec/changes/archive/2026-10-04-implement-phase-1-foundation/proposal.md
@@ -1480,7 +1480,8 @@ bd5e5a73cc9f901034be054bfad0d22bb879c5828549f67545dca74b1c1a65b2  ./tools/worksp
 9fbdfe1d01e14d630dcd5b6d1a8510e8f37dfa7159c6c51322d5889b14221564  ./tools/workspace-agent/backup_test.go
 520498b3bc104e04b17a6a6e4b568d7a429b08951fb1f6f3f92f4a370eb75dfa  ./tools/workspace-agent/go.mod
 4b9b76a413af93a0a090ed0eebb94686bb65d663cc13a45d3306ca597b9d6a3e  ./tools/workspace-agent/host_linux.go
-34f3a7932f11a52c43abfda282a6cec2bbc733da6820ccb383b631daba9dbd4d  ./tools/workspace-agent/host_windows.go
+e62432e848d85f4adc9ad9bdb22f19236e3a50b5f8a58aaeed6f0c0bff684da4  ./tools/workspace-agent/host_windows.go
+3a0221120d3eab7f901dda0236bc039f08c321907b672289e66ee460e30a12b3  ./tools/workspace-agent/host_windows_test.go
 4be687bf36a0eba3ba2a3bd69a02faad22d0a4af408bcfb29ddd56e5cc8e9557  ./tools/workspace-agent/main.go
 d2c380bd8039fd40f7e688a158ba24dcd18c534011ff2e7bd86f1ab58cf455cf  ./tools/workspace-agent/main_test.go
 2187f29e1a21e09dd41a7c2e811aa5a1027ac134551c1307f26381242da308e4  ./tools/workspace-agent/policy.go

@@ -124,3 +124,32 @@ CI-repair local evidence:
   remain separate from these unit-test repairs.
 
 - PASS: final serial `python3 harness.py check`: 1,807 tests across 135 suites, 15 skips, no failed suites; Wiki, OpenSpec, configuration and artifact verification passed.
+
+## Native Windows host-agent path repair — PR 21
+
+The native Go test step fails identically in the [push job](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/42968169776/job/130350158312)
+and [PR job](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/42968385257/job/130350845293):
+ordinary source scans and backup verification return `permission denied`, before
+the PowerShell step executes. The runner uses short Windows paths (`RUNNER~1`).
+The opener compared that spelling with a normalized long path obtained from the
+file handle, incorrectly treating an ordinary file as a redirected path.
+
+The expected path now expands 8.3 names with `GetLongPathNameW` before comparison.
+It preserves the lexical junction/symlink path rather than resolving it, retaining
+the check against parent redirection. Extended DOS and UNC prefixes are normalized
+consistently; reparse-point and multiple-hardlink rejection remain enforced.
+Windows-only regressions cover ordinary, extended and short source paths,
+junction parents (including short aliases), hardlinks and UNC prefix conversion.
+On volumes without 8.3 names, the path test reports that alias coverage is absent.
+
+Local checks and native CI execution are recorded separately below. A Windows
+cross-build does not execute these regressions or establish the Windows Docker
+release gates above.
+
+- PASS: uncached Linux `go test -count=1 ./...` (including the 30,000-file scan).
+- PASS: Linux and Windows/amd64 `go vet ./...` and Windows test cross-compilation.
+- PASS: serial `python3 harness.py check`: 1,807 tests across 135 suites, 15 skips,
+  no failed suites; Wiki, OpenSpec, configuration and artifact checks passed.
+- Native Windows regression execution and PowerShell step: NOT RUN locally;
+  require a fresh CI run with this repair. The reported failures are historical
+  runs, not post-repair results.
