@@ -128,6 +128,8 @@ def replay(root, state, descriptor):
     shutil.rmtree(stage)
 
 def receive(stream, root, owner_uid=None, owner_gid=None):
+    if sys.platform != 'linux':
+        raise RuntimeError('Workspace importer requires Linux containers; use the native host agent')
     root = Path(root).absolute(); root.mkdir(parents=True, exist_ok=True)
     if root.is_symlink(): raise ValueError('symlink root')
     # Open before staging/replay writes: syncfs must retain its error-sequence

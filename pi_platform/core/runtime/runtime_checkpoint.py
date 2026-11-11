@@ -172,7 +172,7 @@ class RuntimeCheckpointService:
                     else:
                         shutil.copyfile(path, output)
                     os.chmod(output, 0o600)
-                    with output.open('rb') as stream:
+                    with output.open('r+b') as stream:
                         os.fsync(stream.fileno())
                     records[rel] = {'size': output.stat().st_size, 'sha256': digest(output)}
                 after = _files(self.cache_root)
@@ -194,9 +194,10 @@ class RuntimeCheckpointService:
                 verify_checkpoint(temporary, max_bytes=self.max_bytes)
                 sync_directories(temporary)
                 os.replace(temporary, destination)
-                descriptor = os.open(destination.parent, os.O_RDONLY)
-                try: os.fsync(descriptor)
-                finally: os.close(descriptor)
+                if os.name == 'posix':
+                    descriptor = os.open(destination.parent, os.O_RDONLY)
+                    try: os.fsync(descriptor)
+                    finally: os.close(descriptor)
             return destination
         except Exception:
             shutil.rmtree(temporary, ignore_errors=True)
@@ -255,7 +256,7 @@ def restore_checkpoint(source: Path, inactive_root: Path, *, profile=None):
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(Path(source) / rel, target)
             os.chmod(target, 0o600)
-            with target.open('rb') as stream:
+            with target.open('r+b') as stream:
                 os.fsync(stream.fileno())
             copied.append(target)
         # The restored runtime must rebuild readiness under the actual current

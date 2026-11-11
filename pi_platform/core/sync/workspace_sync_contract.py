@@ -7,6 +7,7 @@ No environment flag can silently turn a missing managed generation into bind.
 from contextlib import contextmanager
 import json
 import os
+import sys
 from pathlib import Path
 
 
@@ -48,6 +49,8 @@ class WorkspaceSyncFence:
         if not self.managed:
             yield None
             return
+        if sys.platform != "linux":
+            raise WorkspaceUnavailable("Managed workspace leases require Linux containers")
         import fcntl  # Managed application/importer always runs in Linux containers.
         lock = self.state / "commit.lock"
         if lock.is_symlink():

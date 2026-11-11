@@ -1,6 +1,7 @@
 """Safety proofs for source commit/publication and host identity bridging."""
 import json
 import os
+import sys
 from unittest.mock import patch
 import multiprocessing
 from pathlib import Path
@@ -71,6 +72,7 @@ class WorkspaceFenceTests(unittest.TestCase):
         with self.assertRaises(WorkspaceUnavailable):
             fence.committed()
 
+    @unittest.skipUnless(sys.platform == 'linux', 'Managed importer and publication lock run in Linux containers')
     def test_import_cannot_mutate_during_complete_index_publication_lease(self):
         acquired = multiprocessing.Event()
         with WorkspaceSyncFence(self.root).lease() as source:
@@ -85,6 +87,12 @@ class WorkspaceFenceTests(unittest.TestCase):
         process.join(3)
         self.assertEqual(process.exitcode, 0)
         self.assertEqual(WorkspaceSyncFence(self.root).committed()['generation'], 'two')
+
+    def test_native_managed_lease_fails_closed_with_a_clear_platform_error(self):
+        with patch('pi_platform.core.sync.workspace_sync_contract.sys.platform', 'win32'):
+            with self.assertRaisesRegex(WorkspaceUnavailable, 'Linux containers'):
+                with WorkspaceSyncFence(self.root).lease():
+                    self.fail('unsupported native lease was acquired')
 
     def test_git_worktree_and_branch_identity_reaches_hydration_identity(self):
         version = read_project_version(self.root)

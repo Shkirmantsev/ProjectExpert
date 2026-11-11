@@ -50,10 +50,14 @@ class WorkspaceDeploymentTests(unittest.TestCase):
                 self.assertEqual(mounts['/models'], original['/models'])
                 self.assertEqual(mounts['/repo']['type'], 'volume')
                 self.assertTrue(mounts['/repo']['read_only'])
-                self.assertFalse(mounts['/repo/project-knowledge']['bind']['create_host_path'])
+                # Compose serializers can omit false-valued fields. The source
+                # overlay assertion above still requires an explicit false.
+                self.assertFalse(mounts['/repo/project-knowledge'].get('bind', {}).get('create_host_path', False))
                 self.assertFalse(mounts['/repo/project-knowledge'].get('read_only', False))
                 self.assertFalse(mounts['/repo/.project-intelligence-cache'].get('read_only', False))
 
+    @unittest.skipUnless(os.name == 'posix' and shutil.which('bash'),
+                         'POSIX Bash helper fixture; Windows uses native launcher contract tests')
     def test_bash_managed_read_only_and_lifecycle_calls(self):
         with tempfile.TemporaryDirectory() as raw:
             kit = Path(raw) / 'kit'; shutil.copytree(BUNDLE, kit)

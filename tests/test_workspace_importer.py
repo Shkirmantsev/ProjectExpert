@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import sys
 import tarfile
 from pathlib import Path
 import unittest
@@ -76,6 +77,7 @@ def check_file_directory_transitions(tmp_path):
     assert (tmp_path/'a').read_bytes()==b'c'
 
 
+@unittest.skipUnless(sys.platform == 'linux', 'Importer runs inside Linux containers; host transport is native Go')
 class WorkspaceImporterTests(unittest.TestCase):
     def run_case(self, fn, *args):
         with tempfile.TemporaryDirectory() as directory:
@@ -138,5 +140,25 @@ class WorkspaceImporterTests(unittest.TestCase):
             self.assertIn('importing.json', metadata)
 
     def test_transitions(self): self.run_case(check_file_directory_transitions)
+
+class PortableWorkspaceValidationTests(unittest.TestCase):
+    def test_unsafe_paths_and_collisions_are_rejected_before_transport(self):
+        record = {'size': 1, 'sha256': hashlib.sha256(b'x').hexdigest()}
+        unsafe_paths = ('../outside', '/absolute', 'a/../b', 'a\\b',
+                        'project-knowledge/wiki/a', '.projectexpert-workspace/x',
+                        '.git/config', '.env.production', 'secrets/key.pem', 'A:x')
+        candidates = [{name: record} for name in unsafe_paths]
+        candidates.extend(({'A': record, 'a': record}, {'a': record, 'a/b': record},
+                           {'caf\u00e9.md': record, 'cafe\u0301.md': record}))
+        for files in candidates:
+            with self.subTest(paths=list(files)), self.assertRaises(ValueError):
+                w.validate({'schema_version': 1, 'generation': 'one', 'files': files, 'vcs': {'provider': 'none'}})
+
+    def test_native_windows_importer_refuses_before_filesystem_mutation(self):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(w.sys, 'platform', 'win32'):
+            root = Path(directory) / 'must-not-create'
+            with self.assertRaisesRegex(RuntimeError, 'Linux containers'):
+                w.receive(stream({'a': b'content'}), root)
+            self.assertFalse(root.exists())
 
 if __name__ == '__main__': unittest.main()

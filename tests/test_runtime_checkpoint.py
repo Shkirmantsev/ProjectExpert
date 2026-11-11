@@ -1,5 +1,8 @@
 """Coherent WAL/FTS checkpoints, corruption, bounded extraction and inactive restore."""
+from contextlib import closing
+import errno
 import io
+import os
 import json
 from pathlib import Path
 import sqlite3
@@ -34,7 +37,7 @@ class RuntimeCheckpointTests(unittest.TestCase):
             source=SourceSnapshot(snapshot_hash='sh', source_ids=(), content_hashes={}),
         )
         self.db = self.cache / 'runtime.db'
-        with sqlite3.connect(self.db) as conn:
+        with closing(sqlite3.connect(self.db)) as conn, conn:
             conn.execute('PRAGMA journal_mode=WAL')
             conn.execute('CREATE VIRTUAL TABLE evidence USING fts5(text)')
             conn.execute("INSERT INTO evidence VALUES ('searchable evidence')")
@@ -55,7 +58,7 @@ class RuntimeCheckpointTests(unittest.TestCase):
         self.assertFalse((self.destination / 'settings.json').exists())
         self.assertFalse((self.destination / 'home').exists())
         self.assertFalse(list(self.destination.rglob('*-wal')))
-        with sqlite3.connect(self.destination / 'runtime.db') as conn:
+        with closing(sqlite3.connect(self.destination / 'runtime.db')) as conn, conn:
             self.assertEqual(conn.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
             self.assertEqual(len(conn.execute("SELECT * FROM evidence WHERE evidence MATCH 'searchable'").fetchall()), 1)
         restored = self.root / 'inactive'
@@ -113,10 +116,29 @@ class RuntimeCheckpointTests(unittest.TestCase):
         original = module.shutil.copyfile
         def mutate(source, dest):
             result = original(source, dest)
-            if str(source).endswith('objects/hash'):
+            if Path(source).relative_to(self.cache).as_posix() == 'objects/hash':
                 Path(source).write_bytes(b'concurrent changed artifact')
             return result
         with patch.object(module.shutil, 'copyfile', side_effect=mutate):
             with self.assertRaises(CheckpointError):
                 RuntimeCheckpointService(self.cache).create(self.destination)
         self.assertFalse(self.destination.exists())
+
+    def test_checkpoint_and_restore_flush_only_writable_file_handles(self):
+        # Windows _commit rejects read-only handles. Model that constraint on
+        # every host while still performing real SQLite backup and restoration.
+        original_open, original_sync = Path.open, os.fsync
+        streams = []
+        def tracked_open(path, *args, **kwargs):
+            stream = original_open(path, *args, **kwargs)
+            streams.append(stream)
+            return stream
+        def writable_sync(descriptor):
+            for stream in streams:
+                if not stream.closed and stream.fileno() == descriptor and not stream.writable():
+                    raise OSError(errno.EBADF, 'Windows requires a writable flush handle')
+            return original_sync(descriptor)
+        with patch.object(Path, 'open', tracked_open), patch('os.fsync', side_effect=writable_sync):
+            RuntimeCheckpointService(self.cache).create(self.destination)
+            restore_checkpoint(self.destination, self.root / 'inactive', profile='profile')
+        self.assertEqual(verify_checkpoint(self.destination)['generation'], 'generation')

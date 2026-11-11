@@ -86,3 +86,41 @@ Cross-builds, unit failures and process restart tests do not establish these
 hardware/host properties. Auto promotion and complete cross-platform release
 acceptance remain open; direct bind remains the compatibility default. Optional
 per-user login registration is explicit; otherwise supervision is session-only.
+
+## Windows CI repair — PR 21
+
+All four reported jobs in [run 42924373495](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/42924373495)
+were inspected. Both Python minors fail in checkpoint creation with `EBADF` when
+flushing a read-only file descriptor; fixture cleanup also reports `WinError 32`
+because a SQLite connection context manager commits but does not close the handle.
+The full jobs stop there; unit jobs additionally identify native execution of the
+Linux importer/flock, a POSIX Bash fixture and omitted false Compose JSON fields.
+
+The correction keeps writable handles for checkpoint/restore flushes, explicitly
+closes SQLite fixture connections, and applies directory flushing only on POSIX.
+The mutation fixture normalizes relative paths on every host. A regression models
+Windows' writable-flush requirement while performing real backup and restore.
+
+Linux-container execution tests remain enabled on Linux. Portable manifest/path
+validation and clear unsupported-native failure tests run everywhere; native Go
+host-agent tests are added to Windows CI alongside PowerShell launcher tests.
+The rendered Compose assertion accepts an omitted false field, while the source
+overlay assertion still requires an explicit `create_host_path: false`.
+
+Local verification results and the fresh remote Windows outcome are recorded
+separately: local reproduction is not a claim that GitHub's Windows jobs reran.
+
+CI-repair local evidence:
+
+- PASS: complete unit discovery with Python 3.11.15 on Linux: 1,792 tests,
+  41 optional-dependency skips, no failures.
+- PASS: complete unit discovery with Python 3.13.12 on Linux: 1,792 tests,
+  41 optional-dependency skips, no failures.
+- PASS: 33 focused portability/durability/deployment tests under the system Python,
+  including real backup/restore with strict Windows writable-handle semantics.
+- PASS: native Linux Go tests and cross-compilation of the Windows Go test binary.
+- Fresh GitHub Windows Python 3.11/3.13 executions: NOT RUN locally; require the
+  repaired commit to reach the PR. Native Windows Docker/reboot release gates
+  remain separate from these unit-test repairs.
+
+- PASS: final serial `python3 harness.py check`: 1,807 tests across 135 suites, 15 skips, no failed suites; Wiki, OpenSpec, configuration and artifact verification passed.
