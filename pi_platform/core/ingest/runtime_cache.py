@@ -110,3 +110,26 @@ class InMemoryRuntimeCache:
                     )
 
                     self._store[key] = canonical_dump_json(data)
+
+    def iter_records(self):
+        with self._lock:
+            records = tuple(self._store.values())
+        return iter(records)
+
+    def source_ids(self):
+        with self._lock:
+            return tuple(self._sources)
+
+    def snapshot(self):
+        with self._lock:
+            return {
+                'records': {k: v.decode() for k, v in self._store.items()},
+                'sources': dict(self._sources),
+                'owners': {k: sorted(v) for k, v in self._owners.items()},
+            }
+
+    def restore(self, saved):
+        with self._lock:
+            self._store = {k: v.encode() for k, v in saved.get('records', {}).items()}
+            self._sources = dict(saved.get('sources', {}))
+            self._owners = {k: set(v) for k, v in saved.get('owners', {}).items()}
