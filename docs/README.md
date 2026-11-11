@@ -4,6 +4,8 @@
 
 ## Setup and daily work
 
+- [Production indexing recovery](PRODUCTION_INDEXING_RESUME.md): opt-in durable sources, resumable artifacts, batching and release limits.
+
 - [Apply embedding model and device in the UI](UI_EMBEDDING_RUNTIME_CONTROL.md): runtime switching, actual mode, restart persistence and optional API token.
 
 - [Portable deployment runtime repair](PORTABLE_DEPLOYMENT_RUNTIME_REPAIR.md): embedding limits, safe kit upgrades, optional Open WebUI and cache-preserving trade-analyzer recovery.
