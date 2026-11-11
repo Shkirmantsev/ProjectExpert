@@ -1,0 +1,8 @@
+**
+!pi_platform/
+!pi_platform/deployment/
+!pi_platform/deployment/asset_pack.py
+!tmp/
+!tmp/local/
+!tmp/local/asset-pack/
+!tmp/local/asset-pack/**

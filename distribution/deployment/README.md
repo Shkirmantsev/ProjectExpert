@@ -521,3 +521,46 @@ Set `PI_WORKSPACE_MODE=volume` in `deployment.env` to use the packaged native he
 The default supervisor is session-only. For explicit per-user login startup, run `bash workspace-autostart.sh install` on Linux (systemd user session) or `./workspace-autostart.ps1 -Action Install` on Windows (Task Scheduler). These commands register a task only when invoked; launchers never register one. Remove using `uninstall` / `-Action Uninstall`. Linux login startup does not imply system-wide lingering. Windows native login execution requires platform acceptance testing.
 
 Release kit images contain Linux amd64 and Windows amd64 helper binaries and `workspace-agent-SHA256SUMS`; wrappers verify the selected binary before execution. A source-only template export lacks these release-built executables and cannot start volume mode until they are supplied with matching checksums.
+
+## Liveness and indexing readiness
+
+`start.sh` / `start.ps1` waits for `/health`, then returns while the background
+indexer continues. `/health/ready` retains the consistency gate. Use
+`bash ./wait-ready.sh` or `.\wait-ready.ps1` when a complete retrieval index is
+required before continuing. A live process with failed indexing stays live;
+inspect `/api/v1/indexing-status` and logs for indexing failures.
+
+## Enterprise certificate trust
+
+On `up`, launchers collect host public root certificates into the ignored
+`host-trust/` directory and merge them with the image's public CA roots at
+container startup. `PI_HOST_CA_MODE=off` disables import. TLS and hostname
+verification remain enabled. The optional `PI_EXTRA_CA_BUNDLE` names a path
+**inside the container** and requires an explicit mount when used.
+
+The Docker daemon must already trust GHCR before it can pull any image,
+including this kit. A container CA bundle cannot fix a failed registry pull.
+An `x509`/unknown-authority error during pull belongs to the Engine/Desktop/
+Rancher trust/proxy configuration. Configure that engine's approved corporate
+CA or preload images through an approved air-gap process; retain TLS checks.
+Application HTTPS failures after startup belong to the container trust boundary.
+The launchers do not modify Docker credential helpers, `~/.docker/config.json`,
+or the host PATH. For a credential-helper failure, inspect `docker context show`,
+the selected Docker config and the reported helper executable; use a scoped
+`DOCKER_CONFIG` directory when organizational policy requires a separate config.
+
+## Offline asset release gate
+
+The repository provides a strict local manifest verifier, immutable seeder and
+candidate OCI build recipe in `distribution/assets/`. The asset release is
+**BLOCKED**: exact Docling/tokenizer/native file hashes, per-artifact license
+reviews, network-denied production smoke tests and a published OCI digest are
+still required. The current deployment retains its model-download behavior;
+this kit does not claim a zero-Hugging-Face default install.
+
+`compose.assets.yaml` is a candidate seeding overlay, invoked explicitly with a
+reviewed `PI_ASSET_IMAGE` and `PI_ASSET_MANIFEST_SHA256`. It verifies every file,
+seeds with networking denied, and never overwrites an existing active pack.
+Consumers must use `/models/asset-packs/<manifest-sha256>/...` directly. The
+`active-asset-pack` pointer is informational. No existing model-cache volume is
+removed or rewritten. Do not delete active/previous packs during rollback.

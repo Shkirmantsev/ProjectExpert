@@ -10,7 +10,14 @@ workspace_value() {
   printf '%s' "$value"
 }
 workspace_mode=${PI_WORKSPACE_MODE:-$(workspace_value PI_WORKSPACE_MODE)}
-case "${workspace_mode:-auto}" in auto|bind) workspace_managed=0 ;; volume) workspace_managed=1 ;; *) echo 'PI_WORKSPACE_MODE must be auto, bind or volume' >&2; return 2 ;; esac
+case "${workspace_mode:-auto}" in
+  auto)
+    workspace_managed=0
+    workspace_candidate=${PI_TARGET_REPO:-$(workspace_value PI_TARGET_REPO)}
+    workspace_candidate=$(cd -- "${workspace_candidate:-..}" && pwd -P)
+    case "$workspace_candidate" in /mnt/[a-zA-Z]/*|/mnt/[a-zA-Z]) workspace_managed=1 ;; esac
+    ;;
+  bind) workspace_managed=0 ;; volume) workspace_managed=1 ;; *) echo 'PI_WORKSPACE_MODE must be auto, bind or volume' >&2; return 2 ;; esac
 workspace_repo=${PI_TARGET_REPO:-$(workspace_value PI_TARGET_REPO)}
 if [ "$workspace_managed" = 1 ]; then workspace_repo=$(cd -- "${workspace_repo:-..}" && pwd -P); fi
 # Only documented helper settings cross the data/command boundary.
@@ -44,17 +51,23 @@ workspace_before() {
   esac
 }
 workspace_compose() {
-  if [ "$workspace_managed" != 1 ]; then docker compose "$@"; return; fi
-  local leading=() arg context
-  context=$(workspace_agent context) || return
-  [ -n "$context" ] || { echo "Missing pinned Docker context" >&2; return 2; }
+  local leading=() arg context docker_arguments=() overlays=()
+  if [ "$workspace_managed" = 1 ]; then
+    context=$(workspace_agent context) || return
+    [ -n "$context" ] || { echo "Missing pinned Docker context" >&2; return 2; }
+    docker_arguments=(--context "$context")
+    overlays=(--env-file workspace.env -f compose.workspace-volume.yaml)
+  fi
+  if [ "${PI_HOST_CA_MODE:-$(workspace_value PI_HOST_CA_MODE)}" != off ] && [ -f host-trust/host-ca-bundle.pem ]; then
+    overlays+=(-f compose.host-trust.yaml)
+  fi
   while [ "$#" -gt 0 ]; do
     arg=$1; shift
     case "$arg" in
       up|run|restart|config|ps|logs|down|stop|start|exec|pull|build|images|top|version|ls|events|pause|unpause|kill|rm|create|cp|port|wait|watch)
-        docker --context "$context" compose "${leading[@]}" --env-file workspace.env -f compose.workspace-volume.yaml "$arg" "$@"; return ;;
+        docker "${docker_arguments[@]}" compose "${leading[@]}" "${overlays[@]}" "$arg" "$@"; return ;;
       *) leading+=("$arg") ;;
     esac
   done
-  docker --context "$context" compose "${leading[@]}" --env-file workspace.env -f compose.workspace-volume.yaml
+  docker "${docker_arguments[@]}" compose "${leading[@]}" "${overlays[@]}"
 }

@@ -9,3 +9,5 @@ workspace-*.json
 workspace-agent.log
 workspace-stop
 workspace-supervisor.lock
+
+host-trust/

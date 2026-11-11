@@ -11,7 +11,7 @@ function Get-WorkspaceValue([string]$Name) {
 $workspaceMode = Get-WorkspaceValue 'PI_WORKSPACE_MODE'
 if (-not $workspaceMode) { $workspaceMode = 'auto' }
 if ($workspaceMode -notin @('auto','bind','volume')) { throw 'PI_WORKSPACE_MODE must be auto, bind or volume' }
-$workspaceManaged = $workspaceMode -eq 'volume'
+$workspaceManaged = $workspaceMode -in @('auto','volume')
 if ($workspaceManaged) {
     foreach ($key in @('PI_WORKSPACE_EXCLUDE','PI_WORKSPACE_MAX_FILE_BYTES','PI_RUNTIME_BACKUP','PI_RUNTIME_BACKUP_DIR','PI_RUNTIME_BACKUP_INTERVAL_MINUTES','PI_RUNTIME_BACKUP_INTERVAL_SECONDS','PI_WORKSPACE_DEBOUNCE_MS','PI_WORKSPACE_VERIFY_INTERVAL_SECONDS')) {
         $setting = Get-WorkspaceValue $key
@@ -63,5 +63,21 @@ function Invoke-WorkspaceCompose {
         if ($index -lt $compose.Count) { $after = @($compose[$index..($compose.Count-1)]) }
         $compose = $before + @('--env-file','workspace.env','-f','compose.workspace-volume.yaml') + $after
     }
-    & docker @dockerArguments compose @compose
+    if ((Get-WorkspaceValue 'PI_HOST_CA_MODE') -ne 'off' -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'host-trust/host-ca-bundle.pem'))) {
+        $index = 0
+        $commands = @('up','run','restart','config','ps','logs','down','stop','start','exec','pull','build','images','top','version','ls','events','pause','unpause','kill','rm','create','cp','port','wait','watch')
+        while ($index -lt $compose.Count -and $compose[$index] -notin $commands) { $index++ }
+        $before = @(); $after = @()
+        if ($index -gt 0) { $before = @($compose[0..($index-1)]) }
+        if ($index -lt $compose.Count) { $after = @($compose[$index..($compose.Count-1)]) }
+        $compose = $before + @('-f','compose.host-trust.yaml') + $after
+    }
+    # PS 5.1 treats native stderr as an error under Stop; use exit status.
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & docker @dockerArguments compose @compose
+        $nativeExitCode = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previousPreference }
+    $global:LASTEXITCODE = $nativeExitCode
 }

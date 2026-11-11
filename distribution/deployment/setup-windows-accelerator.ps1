@@ -79,11 +79,14 @@ foreach ($candidate in $candidates) {
     $errFile = Join-Path $cache ("devices-{0}-error.txt" -f $candidate)
     $probe = Start-Process -FilePath $server.FullName -ArgumentList '--list-devices' -PassThru -NoNewWindow `
         -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+    $probeHandle = $probe.Handle # Materialize before exit on Windows PowerShell 5.1.
     if (-not $probe.WaitForExit(15000)) {
         Stop-Process -Id $probe.Id -ErrorAction SilentlyContinue
         throw 'GPU device probe timed out'
     }
+    $probe.WaitForExit() # Drain redirected output and populate the cached exit code.
     $probe.Refresh()
+    if ($null -eq $probe.ExitCode) { throw 'GPU device probe returned no integer exit code' }
     $text = ''
     if (Test-Path -LiteralPath $outFile) { $text += (Get-Content -LiteralPath $outFile -Raw) }
     if (Test-Path -LiteralPath $errFile) { $text += (Get-Content -LiteralPath $errFile -Raw) }

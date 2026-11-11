@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -43,13 +44,16 @@ func command(args ...string) (string, error) {
 func contextName() (string, error) { return command("context", "show") }
 func excluded(name string) bool {
 	name = filepath.ToSlash(name)
+	if name == ".idea/workspace.xml" || strings.HasSuffix(name, "/.idea/workspace.xml") {
+		return true
+	}
 	if name == "tmp/local" || strings.HasPrefix(name, "tmp/local/") || name == "distribution/sbom" || strings.HasPrefix(name, "distribution/sbom/") {
 		return true
 	}
 	for _, part := range strings.Split(filepath.ToSlash(name), "/") {
 		p := strings.ToLower(part)
 		switch p {
-		case ".git", ".svn", ".hg", ".projectexpert-workspace", "project-knowledge", ".project-intelligence-cache", ".project-intelligence-deploy", "node_modules", "__pycache__", ".venv", "venv", "target", "build", "dist", "out", ".next", "vendor", "third_party", "generated", ".generated", "credentials", "credentials.json", "id_rsa", "id_ed25519", "id_ecdsa", "id_dsa", ".ssh", ".aws", ".azure", ".kube", ".docker", ".npmrc", ".pypirc", ".netrc", ".git-credentials":
+		case ".worktrees", ".git", ".svn", ".hg", ".projectexpert-workspace", "project-knowledge", ".project-intelligence-cache", ".project-intelligence-deploy", "node_modules", "__pycache__", ".venv", "venv", "target", "build", "dist", "out", ".next", "vendor", "third_party", "generated", ".generated", "credentials", "credentials.json", "id_rsa", "id_ed25519", "id_ecdsa", "id_dsa", ".ssh", ".aws", ".azure", ".kube", ".docker", ".npmrc", ".pypirc", ".netrc", ".git-credentials":
 			return true
 		}
 		if strings.HasPrefix(p, ".env") || strings.HasSuffix(p, ".pem") || strings.HasSuffix(p, ".key") || strings.HasSuffix(p, ".p12") || strings.HasSuffix(p, ".pfx") {
@@ -145,7 +149,7 @@ func scan(root string, omit ...string) (Manifest, error) {
 			return e
 		}
 		if se != nil || after.Size() != info.Size() || !after.ModTime().Equal(info.ModTime()) {
-			return errors.New("source changed during scan")
+			return fmt.Errorf("source changed during scan: %s", name)
 		}
 		hash := hex.EncodeToString(h.Sum(nil))
 		m.Files[name] = File{info.Size(), hash}
@@ -284,6 +288,30 @@ func syncRepo(c Config, kit string) error {
 	defer lock.Close()
 	return syncRepoLocked(c, kit)
 }
+
+// firstChangedSource makes a volatile source actionable without exposing contents.
+func firstChangedSource(before, after Manifest) string {
+	names := map[string]bool{}
+	for name := range before.Files {
+		names[name] = true
+	}
+	for name := range after.Files {
+		names[name] = true
+	}
+	ordered := make([]string, 0, len(names))
+	for name := range names {
+		ordered = append(ordered, name)
+	}
+	sort.Strings(ordered)
+	for _, name := range ordered {
+		previous, was := before.Files[name]
+		current, now := after.Files[name]
+		if was != now || previous != current {
+			return name
+		}
+	}
+	return "VCS metadata"
+}
 func syncRepoLocked(c Config, kit string) error {
 	if e := pinned(c); e != nil {
 		return e
@@ -305,7 +333,7 @@ func syncRepoLocked(c Config, kit string) error {
 		return err
 	}
 	if confirm.Generation != m.Generation {
-		return errors.New("source changed during reconciliation; retry")
+		return fmt.Errorf("source changed during reconciliation: %s; retry", firstChangedSource(m, confirm))
 	}
 	var old Manifest
 	for _, v := range []string{c.Workspace, c.Runtime} {
@@ -349,7 +377,7 @@ func syncRepoLocked(c Config, kit string) error {
 		path := filepath.Join(c.Repo, filepath.FromSlash(name))
 		info, err := os.Lstat(path)
 		if err != nil || !info.Mode().IsRegular() || reparse(info) {
-			e = errors.New("source changed before transfer")
+			e = fmt.Errorf("source changed before transfer: %s", name)
 			break
 		}
 		f, err := openSource(path)

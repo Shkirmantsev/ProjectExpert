@@ -19,10 +19,32 @@ services:
   model-setup:
     image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:production}
     platform: linux/amd64
-    entrypoint: ["python", "-m", "pi_platform.cli.gguf_setup"]
+    entrypoint:
+      - python
+      - -c
+      - |
+        import os
+        host_ca_mode = os.environ.get("PI_HOST_CA_MODE", "auto")
+        if host_ca_mode not in ("auto", "off"):
+            raise SystemExit("PI_HOST_CA_MODE must be auto or off")
+        trust_requested = host_ca_mode != "off" and (
+            bool(os.environ.get("PI_EXTRA_CA_BUNDLE")) or
+            os.path.isfile("/run/projectexpert-host-trust/host-ca-bundle.pem")
+        )
+        if trust_requested:
+            try:
+                from pi_platform.deployment.trust import configure_container_trust
+            except ImportError:
+                raise SystemExit("Incompatible ProjectExpert image: requested CA trust requires an application image and deployment kit upgrade; check PI_IMAGE. TLS verification has not been weakened.") from None
+            configure_container_trust()
+        from pi_platform.cli.gguf_setup import main
+        main()
+    environment:
+      PI_HOST_CA_MODE: ${PI_HOST_CA_MODE:-auto}
     command: ["--cache", "/models", "--model", "gemma"]
     volumes:
       - model-cache:/models
+      - ./host-trust:/run/projectexpert-host-trust:ro
     restart: "no"
   embeddings:
     entrypoint: ["/bin/sh", "/control/runtime-entrypoint.sh"]
