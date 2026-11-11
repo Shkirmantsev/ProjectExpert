@@ -332,6 +332,8 @@ def cmd_benchmark(args) -> int:
         "iterations": iterations,
         "warmup": warmup,
         "median_ms": round(median, 3),
+        "latencies_ms": latencies,
+        "workload_scope": "raw-query-request-latency",
         "mean_ms": round(statistics.mean(latencies), 3),
         "p95_ms": round(latencies[min(len(latencies) - 1, int(len(latencies) * 0.95))], 3),
         "embeddings_per_second": round(1000.0 / median, 3) if median > 0 else 0.0,
