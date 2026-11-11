@@ -19,6 +19,8 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 - [Dependency research service](modules/dependency-research.md)
 - [Dependency research interfaces](interfaces/dependency-research.md)
 - [ADR: Cross-language research tooling policy](adr/0031-cross-language-research-tooling-policy.md)
+- [Managed fast workspace operator guide](../../docs/FAST_WORKSPACE.md)
+- [ADR: Managed local workspace and runtime recovery](adr/0032-managed-fast-workspace.md)
 - [Portable deployment architecture](architecture/portable-deployment.md)
 - [ADR: Portable model runtimes and OCI kit](adr/0029-portable-model-runtime-and-oci-kit.md)
 - [ADR: LLM Wiki as the curated knowledge layer](adr/0030-llm-wiki-as-curated-knowledge.md)

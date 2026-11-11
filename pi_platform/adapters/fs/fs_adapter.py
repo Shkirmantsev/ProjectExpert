@@ -115,6 +115,8 @@ class LocalFilesystemAdapter:
             wiki_log.write_text(self._OKF_WIKI_LOG_STUB, encoding="utf-8")
 
     def ensure_distribution_tree(self) -> None:
+        if (self.repo_root / ".projectexpert-workspace").exists():
+            return  # Host-owned source is read-only in managed workspaces.
         for sub in ("licenses", "skills", "codex", "claude-code",
                     "opencode", "generic-agent", "sbom"):
             target = self.distribution_root / sub
@@ -139,6 +141,8 @@ class LocalFilesystemAdapter:
         Returns the list of entries that were actually added.
         """
 
+        if (self.repo_root / ".projectexpert-workspace").exists():
+            return []
         gitignore = self.repo_root / ".gitignore"
         if gitignore.exists():
             existing = gitignore.read_text(encoding="utf-8").splitlines()

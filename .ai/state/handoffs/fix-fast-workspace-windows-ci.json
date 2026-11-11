@@ -1,0 +1,65 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Fresh remote Windows CI remains unexecuted until the repair is pushed; no push or remote workflow mutation was performed"
+  ],
+  "decisions": [
+    "Importer/flock execution stays on Linux containers; portable validation remains cross-platform and Windows CI executes native Go tests"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Committed Windows CI root-cause fixes and regression coverage as d2e6839; all locally available acceptance checks pass",
+      "Full harness: 1807 tests, 15 skips; Python 3.11/3.13 Linux suites: 1792 tests and 41 skips each; Go tests and Windows test cross-build pass"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Local repair delivered; push the fix and run fresh Windows Python 3.11/3.13 CI for native confirmation",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-10T23:45:46+00:00",
+    "id": "fix-fast-workspace-windows-ci",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-11T00:03:07+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Identify actual failed assertions from all four jobs; preserve Linux behavior; add focused portability regressions; run relevant checks and commit scoped fixes"
+    ],
+    "goal": "Diagnose and fix Windows CI failures reported for PR 21",
+    "openspec_change": "add-managed-fast-workspace",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "PASS: serial full harness 1807 tests/15 skips; Python 3.11.15 and 3.13.12 Linux unit suites each 1792 tests/41 skips; 33 focused tests; Go tests and Windows test cross-build; artifact verification and diff review"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "openspec/changes/add-managed-fast-workspace/verification.md",
+      "sha256": "e6f07e7571170651265d38d443fc378d11c375510afa8aa70f875d4af3e15460"
+    },
+    {
+      "path": "pi_platform/core/runtime/runtime_checkpoint.py",
+      "sha256": "532c13a6f0544c7833465e73e2c545267781fc7374ad07c0961c598c737247e1"
+    },
+    {
+      "path": "tests/test_runtime_checkpoint.py",
+      "sha256": "8755ab35766bade51338b508df4c3d33b6a74f47734869a68312d68bbcc9ecd7"
+    }
+  ]
+}

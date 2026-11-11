@@ -167,8 +167,14 @@ def read_project_version(repo_root: Path) -> ProjectVersionState:
     from pi_platform.core.ingest.repository_source_discovery import RepositorySourceDiscovery
 
     root = Path(repo_root).resolve()
+    from .workspace_sync_contract import WorkspaceSyncFence
+    managed = WorkspaceSyncFence(root).committed()
     head, branch = "unversioned", ""
-    if (root / ".git").exists():
+    if managed is not None:
+        vcs = managed["vcs"]
+        head = str(vcs.get("head") or vcs.get("revision") or "unversioned")
+        branch = str(vcs.get("branch") or "")
+    elif (root / ".git").exists():
         result = subprocess.run(
             ["git", "-C", str(root), "rev-parse", "HEAD"],
             capture_output=True, text=True, check=False,
@@ -183,6 +189,8 @@ def read_project_version(repo_root: Path) -> ProjectVersionState:
         branch = result.stdout.strip() if result.returncode == 0 else "HEAD"
     inventory = RepositorySourceDiscovery().discover(root)
     hashes = {entry.path: entry.content_hash for entry in inventory.entries}
+    if managed is not None:
+        hashes["@workspace-generation"] = managed["generation"]
     canonical = root / "project-knowledge"
     if canonical.is_dir():
         for path in sorted(path for path in canonical.rglob("*") if path.is_file() and path.suffix in {".json", ".jsonl"}):

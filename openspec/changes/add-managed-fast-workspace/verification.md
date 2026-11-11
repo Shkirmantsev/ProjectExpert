@@ -1,0 +1,155 @@
+# Verification and release acceptance
+
+Implementation checkout: `feature/generate-init-project`, baseline `32c0c1b`.
+This differs from the supplied document's inspected dev baseline. No branch switch, publication or installed-project migration was performed.
+The user subsequently requested structured local commits.
+
+## Executed evidence
+
+- PASS: native Go tests (30k scan, hash-cache verification, exclusions before
+  hashing, unsafe paths/links, backup policy and CRLF configuration), Linux build
+  and Windows amd64 cross-build. Release helper uses pinned/hash-checked Go 1.27.4;
+  local compatibility builds also used the available Go 1.22.2.
+- PASS: real deployment-kit container build; both bundled binary checksums and
+  Go build metadata verified. Standard-library runtime and compiler licence are
+  shipped; code signing is not configured.
+- PASS: five actual `docker compose config` profiles (base/torch, CPU, CUDA,
+  Vulkan, Windows-native) retain inference services, model mounts, endpoints and
+  devices. Storage overlay changes only production mounts. Base Compose forwards
+  workspace mode solely so missing managed metadata fails closed.
+- PASS: Linux application container readiness, MCP discovery, immediate MCP Wiki
+  host write-through, project UID ownership, source read-only enforcement and
+  readiness after container restart. Diagnostic hashing/minimal was used; this
+  is not a semantic inference or GPU benchmark.
+- PASS: failure-injected importer replay, corrupted/hash/path/collision rejection,
+  shared full-build publication lease, Git/SVN identity, canonical changes,
+  coordinated SQLite/WAL/FTS snapshot, secret omission, corruption/space failure,
+  host verification and inactive-volume restore preserving the old runtime.
+- PASS: focused Wiki/canonical/approval regressions; original Wiki flush tests
+  failed before the durability fix. Canonical shard/manifest replacement now
+  preserves prior bytes on failed flush and syncs ancestor entries to the mount.
+- PASS: final `python3 harness.py check`: 1,803 tests across 135 suites,
+  15 skips, no failed suites; Wiki/OpenSpec/configuration and the 1,488-file
+  artifact manifest passed. Skips are reported rather than treated as platform
+  acceptance. Final independent review found no unresolved blockers.
+
+
+## Actual storage measurement
+
+Synthetic 30,000 Markdown files, 1,657,802 source bytes, same native Linux machine,
+fixed application image within the bind/volume comparison, three read/hash
+measurements per mode. No GPU, model, parser or inference difference is hidden
+inside these timings. Concurrent repository checks were running; this is a local
+engineering measurement, not a controlled production performance acceptance.
+
+| Operation | Measured result |
+| --- | ---: |
+| Initial native scan + transport + verified import | 18.1084 s |
+| Unchanged full reconciliation | 5.0112 s; 0 source payload bytes |
+| One same-size source edit | 4.9111 s; 48 source payload bytes |
+| Bind enumerate/read/hash median | 0.9788 s |
+| Volume enumerate/read/hash median | 0.9854 s |
+
+The initial per-file fsync implementation cost 648.8534 s on this corpus. Two
+Linux filesystem batch barriers reduced that cost while retaining a descriptor
+opened before writes to observe asynchronous writeback errors. Journal and
+publication ordering, failure propagation and recovery were separately tested.
+No Linux volume-read advantage was observed; auto therefore remains bind.
+
+The complete synthetic run also verified a skipped sparse 2 GiB dump, skipped
+image archive and credential file, 20 renames/deletions, multiple SQLite databases,
+FTS recovery, completed host backup verification and restore into a new runtime
+volume. Raw reproducible local reports live under `tmp/local/` and are not
+normative requirements or committed release artifacts.
+
+Reproduce with matching built application/helper:
+
+```bash
+python3 scripts/test_fast_workspace_container.py --files 30000
+python3 scripts/test_fast_workspace_serving.py
+```
+
+## Unverified release gates
+
+| Platform / condition | Result |
+| --- | --- |
+| Linux Docker synthetic volume/import/canonical/backup/restore | PASS |
+| Linux default bind compatibility and rendered accelerator profiles | PASS |
+| Windows Docker Desktop native helper/PowerShell/storage/performance | NOT TESTED |
+| Windows Rancher Desktop/Moby and native accelerator routing | NOT TESTED |
+| Real CUDA/Vulkan/native Windows GPU execution or throughput | NOT TESTED |
+| NFS/SMB source, corporate EDR and real SVN working-copy runtime | NOT TESTED |
+| Host reboot/login registration and physical power-loss durability | NOT TESTED |
+| Full 30k semantic/PDF ingestion, accelerator parity and stage timings | NOT TESTED |
+
+Cross-builds, unit failures and process restart tests do not establish these
+hardware/host properties. Auto promotion and complete cross-platform release
+acceptance remain open; direct bind remains the compatibility default. Optional
+per-user login registration is explicit; otherwise supervision is session-only.
+
+## Windows CI repair — PR 21
+
+All four reported jobs in [run 42924373495](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/42924373495)
+were inspected. Both Python minors fail in checkpoint creation with `EBADF` when
+flushing a read-only file descriptor; fixture cleanup also reports `WinError 32`
+because a SQLite connection context manager commits but does not close the handle.
+The full jobs stop there; unit jobs additionally identify native execution of the
+Linux importer/flock, a POSIX Bash fixture and omitted false Compose JSON fields.
+
+The correction keeps writable handles for checkpoint/restore flushes, explicitly
+closes SQLite fixture connections, and applies directory flushing only on POSIX.
+The mutation fixture normalizes relative paths on every host. A regression models
+Windows' writable-flush requirement while performing real backup and restore.
+
+Linux-container execution tests remain enabled on Linux. Portable manifest/path
+validation and clear unsupported-native failure tests run everywhere; native Go
+host-agent tests are added to Windows CI alongside PowerShell launcher tests.
+The rendered Compose assertion accepts an omitted false field, while the source
+overlay assertion still requires an explicit `create_host_path: false`.
+
+Local verification results and the fresh remote Windows outcome are recorded
+separately: local reproduction is not a claim that GitHub's Windows jobs reran.
+
+CI-repair local evidence:
+
+- PASS: complete unit discovery with Python 3.11.15 on Linux: 1,792 tests,
+  41 optional-dependency skips, no failures.
+- PASS: complete unit discovery with Python 3.13.12 on Linux: 1,792 tests,
+  41 optional-dependency skips, no failures.
+- PASS: 33 focused portability/durability/deployment tests under the system Python,
+  including real backup/restore with strict Windows writable-handle semantics.
+- PASS: native Linux Go tests and cross-compilation of the Windows Go test binary.
+- Fresh GitHub Windows Python 3.11/3.13 executions: NOT RUN locally; require the
+  repaired commit to reach the PR. Native Windows Docker/reboot release gates
+  remain separate from these unit-test repairs.
+
+- PASS: final serial `python3 harness.py check`: 1,807 tests across 135 suites, 15 skips, no failed suites; Wiki, OpenSpec, configuration and artifact verification passed.
+
+## Native Windows host-agent path repair — PR 21
+
+The native Go test step fails identically in the [push job](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/42968169776/job/130350158312)
+and [PR job](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/42968385257/job/130350845293):
+ordinary source scans and backup verification return `permission denied`, before
+the PowerShell step executes. The runner uses short Windows paths (`RUNNER~1`).
+The opener compared that spelling with a normalized long path obtained from the
+file handle, incorrectly treating an ordinary file as a redirected path.
+
+The expected path now expands 8.3 names with `GetLongPathNameW` before comparison.
+It preserves the lexical junction/symlink path rather than resolving it, retaining
+the check against parent redirection. Extended DOS and UNC prefixes are normalized
+consistently; reparse-point and multiple-hardlink rejection remain enforced.
+Windows-only regressions cover ordinary, extended and short source paths,
+junction parents (including short aliases), hardlinks and UNC prefix conversion.
+On volumes without 8.3 names, the path test reports that alias coverage is absent.
+
+Local checks and native CI execution are recorded separately below. A Windows
+cross-build does not execute these regressions or establish the Windows Docker
+release gates above.
+
+- PASS: uncached Linux `go test -count=1 ./...` (including the 30,000-file scan).
+- PASS: Linux and Windows/amd64 `go vet ./...` and Windows test cross-compilation.
+- PASS: serial `python3 harness.py check`: 1,807 tests across 135 suites, 15 skips,
+  no failed suites; Wiki, OpenSpec, configuration and artifact checks passed.
+- Native Windows regression execution and PowerShell step: NOT RUN locally;
+  require a fresh CI run with this repair. The reported failures are historical
+  runs, not post-repair results.

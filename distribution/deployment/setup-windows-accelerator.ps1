@@ -115,7 +115,8 @@ $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($evidenceJso
 $composeArgs = @('--env-file','deployment.env','-f','compose.yaml','-f','compose.accelerator.yaml',
                  '-f','compose.cpu.yaml','run','--rm','--no-deps','-T','production',
                  'inference','plan','--evidence-b64',$encoded)
-$planRaw = & docker compose @composeArgs 2>$null
+. (Join-Path $PSScriptRoot 'workspace.ps1')
+$planRaw = Invoke-WorkspaceCompose @composeArgs 2>$null
 if ($LASTEXITCODE -ne 0 -or -not $planRaw) {
     Write-Warning 'The inference plan was unavailable; falling back to the validated CPU profile.'
     [pscustomobject]@{ ok = $true; backend = 'cpu'; device = $null; fit_target_mib = 192

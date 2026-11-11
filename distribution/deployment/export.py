@@ -6,7 +6,8 @@ import shutil
 import stat
 import tempfile
 
-FILES = ('runtime-entrypoint.sh', 'runtime_supervisor.py', 'compose.ui-vulkan.yaml', 'compose.yaml', 'deployment.env', 'Makefile', 'start.sh', 'start.ps1', 'stop.ps1', 'README.md', 'compose.sh', 'compose.ps1', 'compose.accelerator.yaml', 'compose.vulkan.yaml', 'compose.cuda.yaml', 'compose.cpu.yaml', 'compose.windows-gpu.yaml', 'accelerator-lock.json', 'setup-windows-accelerator.ps1', 'url.sh', 'url.ps1', '.gitignore')
+HELPERS = ('workspace-agent-go-LICENSE.txt', 'workspace-agent-build.txt', 'workspace-agent-linux-amd64', 'workspace-agent-windows-amd64.exe', 'workspace-agent-SHA256SUMS')
+FILES = ('compose.workspace-volume.yaml', 'workspace.sh', 'workspace.ps1', 'workspace-autostart.sh', 'workspace-autostart.ps1', 'runtime-entrypoint.sh', 'runtime_supervisor.py', 'compose.ui-vulkan.yaml', 'compose.yaml', 'deployment.env', 'Makefile', 'start.sh', 'start.ps1', 'stop.ps1', 'README.md', 'compose.sh', 'compose.ps1', 'compose.accelerator.yaml', 'compose.vulkan.yaml', 'compose.cuda.yaml', 'compose.cpu.yaml', 'compose.windows-gpu.yaml', 'accelerator-lock.json', 'setup-windows-accelerator.ps1', 'url.sh', 'url.ps1', '.gitignore')
 
 
 def _repair_root_owner(path: Path, owner, *, directory: bool = False) -> None:
@@ -30,7 +31,7 @@ def _repair_kit_ownership(destination: Path) -> None:
     if owner.st_uid == 0:
         owner = destination.parent.stat()
     _repair_root_owner(destination, owner, directory=True)
-    for name in FILES:
+    for name in FILES + HELPERS:
         _repair_root_owner(destination / name, owner)
     backup_root = destination / '.kit-backups'
     if backup_root.is_dir() and not backup_root.is_symlink():
@@ -38,7 +39,7 @@ def _repair_kit_ownership(destination: Path) -> None:
         for backup in backup_root.glob('upgrade-*'):
             if backup.is_dir() and not backup.is_symlink():
                 _repair_root_owner(backup, owner, directory=True)
-                for name in FILES:
+                for name in FILES + HELPERS:
                     _repair_root_owner(backup / name, owner)
 
 
@@ -46,7 +47,7 @@ def export(source: Path, destination: Path, *, upgrade: bool = False) -> None:
     if destination.is_symlink():
         raise ValueError('Refusing symlinked kit destination')
     if upgrade:
-        for name in FILES:
+        for name in FILES + HELPERS:
             if name != 'deployment.env' and (destination / name).is_symlink():
                 raise ValueError(f'Refusing upgrade of managed symlink: {name}')
         if (destination / '.kit-backups').is_symlink():
@@ -54,8 +55,10 @@ def export(source: Path, destination: Path, *, upgrade: bool = False) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     _repair_kit_ownership(destination)
     backup = None
-    for name in FILES:
+    for name in FILES + HELPERS:
         path = destination / name
+        if name in HELPERS and not (source / name).exists():
+            continue  # Source-only developer exports; release images contain all helpers.
         content = (source / name).read_bytes()
         if upgrade and name != 'deployment.env' and path.exists():
             if path.read_bytes() == content:

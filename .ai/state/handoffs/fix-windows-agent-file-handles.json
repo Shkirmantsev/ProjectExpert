@@ -1,0 +1,60 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Repair committed locally; fresh native Windows CI and launcher execution await pushing this commit"
+  ],
+  "decisions": [
+    "Compare long DOS path spellings while retaining handle identity and reparse protections"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Committed ca2f675: Windows short-path normalization, regression tests and verification evidence"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-11T06:23:05+00:00",
+    "id": "fix-windows-agent-file-handles",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-11T06:57:10+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Identify the shared permission-denied mechanism, preserve path confinement, add regression coverage, pass relevant checks and commit scoped fixes"
+    ],
+    "goal": "Fix native Windows workspace agent file access failures in push and PR CI",
+    "openspec_change": "add-managed-fast-workspace",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Final artifact manifest and git diff whitespace checks pass"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "ARTIFACT_MANIFEST.sha256",
+      "sha256": "133c1c68f90f3866c8eeb9bf67cda4808afdf9d0fc584542cdb8a977fcbccb1b"
+    },
+    {
+      "path": "openspec/changes/add-managed-fast-workspace/verification.md",
+      "sha256": "6012a650fbca3596f204628c407ca04716b0c5900b05791c02caf81f9039585c"
+    }
+  ]
+}

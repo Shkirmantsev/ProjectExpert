@@ -7,6 +7,9 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
+source ./workspace.sh
+workspace_before "$@"
+
 read_env() { sed -n "s/^$1=//p" deployment.env | tail -1; }
 
 requested="${PI_ACCELERATOR:-$(read_env PI_ACCELERATOR)}"
@@ -41,9 +44,11 @@ if [ "$model" = gemma-torch ]; then
   if [ "$is_down" = 1 ]; then
     # Stopping must also reach the sidecars of an earlier sidecar deployment,
     # so the complete service topology is used for `down`.
-    exec docker compose --env-file deployment.env -f compose.yaml -f compose.accelerator.yaml "$@"
+    workspace_compose --env-file deployment.env -f compose.yaml -f compose.accelerator.yaml "$@"
+    exit $?
   fi
-  exec docker compose --env-file deployment.env "${files[@]}" "$@"
+  workspace_compose --env-file deployment.env "${files[@]}" "$@"
+  exit $?
 fi
 
 # The Gemma sidecar topology is the default; the backend overlay supplies the
@@ -102,7 +107,7 @@ probe_rc=0
 probe_output=""
 probe_backend() { # backend
   probe_rc=0
-  probe_output=$(docker compose --env-file deployment.env -f compose.yaml \
+  probe_output=$(workspace_compose --env-file deployment.env -f compose.yaml \
     -f compose.accelerator.yaml -f "compose.$1.yaml" \
     run --rm --no-deps -T embeddings --list-devices 2>&1) || probe_rc=$?
 }
@@ -131,7 +136,7 @@ benchmark_backend() { # backend -> prints the median latency in ms
   candidate_evidence=$(printf '%s' "{\"candidates\":[{\"backend\":\"$backend\",\"ok\":true,\"exit_code\":0,\"output\":\"$(json_escape "$candidate_output")\"}]}" | b64_encode)
   # Every helper invocation uses the complete applicable topology. A reduced
   # file set would make the running sidecars look like orphans to Compose.
-  candidate_plan=$(docker compose --env-file deployment.env -f compose.yaml \
+  candidate_plan=$(workspace_compose --env-file deployment.env -f compose.yaml \
     -f compose.accelerator.yaml -f "compose.$backend.yaml" \
     run --rm --no-deps -T production inference plan --evidence-b64 "$candidate_evidence") || return 1
   selected=$(printf '%s\n' "$candidate_plan" | sed -n 's/^[[:space:]]*"backend":[[:space:]]*"\([^"]*\)".*$/\1/p' | head -1)
@@ -139,21 +144,21 @@ benchmark_backend() { # backend -> prints the median latency in ms
   candidate_device=$(printf '%s\n' "$candidate_plan" | sed -n 's/^[[:space:]]*"device":[[:space:]]*"\([^"]*\)".*$/\1/p' | head -1)
   candidate_fit=$(printf '%s\n' "$candidate_plan" | sed -n 's/^[[:space:]]*"fit_target_mib":[[:space:]]*\([0-9]*\).*$/\1/p' | head -1)
   export PI_GPU_DEVICE="${candidate_device:-none}" PI_FIT_TARGET="${candidate_fit:-192}"
-  docker compose --env-file deployment.env -f compose.yaml \
+  workspace_compose --env-file deployment.env -f compose.yaml \
     -f compose.accelerator.yaml -f "compose.$backend.yaml" \
     up -d --wait --wait-timeout 1800 embeddings >/dev/null 2>&1 || {
-      docker compose --env-file deployment.env -f compose.yaml \
+      workspace_compose --env-file deployment.env -f compose.yaml \
         -f compose.accelerator.yaml -f "compose.$backend.yaml" stop embeddings >/dev/null 2>&1 || true
       return 1
     }
-  median=$(docker compose --env-file deployment.env -f compose.yaml \
+  median=$(workspace_compose --env-file deployment.env -f compose.yaml \
     -f compose.accelerator.yaml -f "compose.$backend.yaml" \
     run --rm --no-deps -T production \
     inference benchmark \
     --endpoint http://embeddings:8769 --iterations "$benchmark_iterations" \
     2>/dev/null \
     | sed -n 's/^[[:space:]]*"median_ms":[[:space:]]*\([0-9.]*\).*$/\1/p' | head -1)
-  docker compose --env-file deployment.env -f compose.yaml \
+  workspace_compose --env-file deployment.env -f compose.yaml \
     -f compose.accelerator.yaml -f "compose.$backend.yaml" \
     stop embeddings >/dev/null 2>&1 || true
   [ -n "$median" ] || return 1
@@ -176,7 +181,8 @@ if [ "$is_up" != 1 ]; then
   else
     apply_decision "$backend" "${PI_GPU_DEVICE:-$( [ "$backend" = cuda ] && echo CUDA0 || echo Vulkan0 )}" "${PI_FIT_TARGET:-192}"
   fi
-  exec docker compose --env-file deployment.env "${files[@]}" "$@"
+  workspace_compose --env-file deployment.env "${files[@]}" "$@"
+  exit $?
 fi
 
 # ---------------------------------------------------------------------------
@@ -300,7 +306,7 @@ plan_rc=0
 # The decision is asked before the backend is known, so the provisional CPU
 # overlay supplies the complete service topology. The plan only runs the
 # production service (--no-deps), so no sidecar is started by this call.
-plan=$(docker compose --env-file deployment.env -f compose.yaml \
+plan=$(workspace_compose --env-file deployment.env -f compose.yaml \
   -f compose.accelerator.yaml -f compose.cpu.yaml \
   run --rm --no-deps -T production \
   inference plan --evidence-b64 "$b64") || plan_rc=$?
@@ -365,4 +371,4 @@ files+=(-f "compose.$decision_backend.yaml")
 if [ "$decision_backend" = cpu ] && [ -d /dev/dri ]; then
   files+=(-f compose.ui-vulkan.yaml)
 fi
-exec docker compose --env-file deployment.env "${files[@]}" "$@"
+workspace_compose --env-file deployment.env "${files[@]}" "$@"
