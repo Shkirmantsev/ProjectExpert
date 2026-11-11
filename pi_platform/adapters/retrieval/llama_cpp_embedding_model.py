@@ -78,6 +78,10 @@ _MEDIA_KINDS = {
 }
 
 
+class _BatchCapacityError(EmbeddingModelError):
+    """The server rejected a bounded embedding batch."""
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         raise ValueError("Runtime redirects are not permitted")
@@ -94,11 +98,23 @@ class LlamaCppEmbeddingModel(EmbeddingModelPort):
         key_file: str | None = None,
         timeout: int = 120,
         model_alias: str | None = None,
+        batch_size: int | None = None,
+        max_input_tokens: int = 4096,
+        max_batch_tokens: int = 4096,
+        token_counter=None,
     ) -> None:
         if device not in {"cpu", "cuda", "vulkan", "auto"}:
             raise EmbeddingModelError(
                 "the GGUF binding supports cpu, cuda, vulkan or auto"
             )
+        if batch_size is None:
+            batch_size = 32 if os.environ.get("PI_EMBED_BATCHING", "0") == "1" else 1
+        if not 1 <= batch_size <= 64 or min(max_input_tokens, max_batch_tokens) < 1:
+            raise ValueError("invalid embedding batch limits")
+        self._batch_size = batch_size
+        self._max_input_tokens = max_input_tokens
+        self._max_batch_tokens = max_batch_tokens
+        self._token_counter = token_counter
         self.device = device
         self.runtime_alias = model_alias or GEMMA_MODEL_ALIAS
         self._profile = GEMMA_GGUF_PROFILE
@@ -147,6 +163,11 @@ class LlamaCppEmbeddingModel(EmbeddingModelPort):
                 if len(raw) > _MAX_RESPONSE_BYTES:
                     raise ValueError("embedding response exceeds size limit")
                 return json.loads(raw)
+        except urllib.error.HTTPError as exc:
+            self._ready = False
+            if exc.code in {400, 413, 422}:
+                raise _BatchCapacityError("GGUF runtime rejected embedding batch capacity or input") from exc
+            raise EmbeddingModelError(f"GGUF runtime returned HTTP {exc.code}") from exc
         except (OSError, ValueError) as exc:
             # Never include headers, tokens, remote error bodies or query text.
             self._ready = False
@@ -277,56 +298,78 @@ class LlamaCppEmbeddingModel(EmbeddingModelPort):
                     f"it advertises {sorted(modalities)}"
                 )
         output = []
-        # Bound one request per sequence: avoids server context/batch overflow
-        # and preserves exact document order for mixed-role inputs.
+        batch = []
+        batch_tokens = 0
         for request in requests:
             text = request.text
             if request.role == EmbeddingRole.QUERY:
-                text = (
-                    TASK_PROMPTS.get(request.task, TASK_PROMPTS[EmbeddingTask.SEARCH])
-                    + text
-                )
+                text = TASK_PROMPTS.get(request.task, TASK_PROMPTS[EmbeddingTask.SEARCH]) + text
             else:
                 text = _format_document_text(text, request.title)
+            # Without a pinned tokenizer, UTF-8 bytes plus BOS/EOS give a
+            # conservative bound for the pinned byte-fallback tokenizer.
+            # An injected local tokenizer can use the actual prompted length.
+            tokens = (self._token_counter(text) if self._token_counter is not None
+                      else len(text.encode("utf-8")) + 2)
+            if not isinstance(tokens, int) or tokens <= 0:
+                raise EmbeddingModelError("invalid prompted token count")
+            if tokens > min(self._max_input_tokens, self._max_batch_tokens):
+                raise EmbeddingModelError("embedding input exceeds token limit; project it into smaller segments")
             media = self._media_part(request)
             if media is not None:
-                text = {
-                    "content": [
-                        {"type": "text", "text": text},
-                        media,
-                    ]
-                }
-            result = self._request(
-                "/v1/embeddings",
-                {
-                    "model": self.runtime_alias,
-                    "input": [text],
-                    "encoding_format": "float",
-                },
-            )
-            try:
-                data = result["data"]
-                if len(data) != 1 or data[0]["index"] != 0:
-                    raise ValueError("invalid response cardinality")
-                vector = data[0]["embedding"]
+                if batch:
+                    output.extend(self._embed_group(batch))
+                    batch, batch_tokens = [], 0
+                # Media stays on its separately capability-checked singleton
+                # route until pinned-runtime multimodal batching is verified.
+                output.extend(self._embed_group([{"content": [{"type": "text", "text": text}, media]}]))
+                continue
+            if batch and (len(batch) >= self._batch_size or batch_tokens + tokens > self._max_batch_tokens):
+                output.extend(self._embed_group(batch))
+                batch, batch_tokens = [], 0
+            batch.append(text)
+            batch_tokens += tokens
+        if batch:
+            output.extend(self._embed_group(batch))
+        self._ready = True
+        return output
+
+    def _embed_group(self, inputs):
+        try:
+            result = self._request("/v1/embeddings", {
+                "model": self.runtime_alias, "input": inputs, "encoding_format": "float",
+            })
+        except _BatchCapacityError:
+            if len(inputs) == 1:
+                raise EmbeddingModelError("embedding input rejected; project it into smaller segments") from None
+            middle = len(inputs) // 2
+            return self._embed_group(inputs[:middle]) + self._embed_group(inputs[middle:])
+        try:
+            data = result["data"]
+            if len(data) != len(inputs):
+                raise ValueError("invalid response cardinality")
+            by_index = {}
+            for item in data:
+                index = item["index"]
+                if (isinstance(index, bool) or not isinstance(index, int)
+                    or index < 0 or index >= len(inputs) or index in by_index):
+                    raise ValueError("invalid response index")
+                vector = item["embedding"]
                 if len(vector) != GEMMA_FULL_DIMENSION or any(
-                    isinstance(x, bool)
-                    or not isinstance(x, (int, float))
-                    or not math.isfinite(x)
+                    isinstance(x, bool) or not isinstance(x, (int, float)) or not math.isfinite(x)
                     for x in vector
                 ):
                     raise ValueError("invalid embedding values or dimensions")
-                # Matryoshka truncation first, then re-normalisation.
-                vector = vector[: self.dimension()]
+                vector = vector[:self.dimension()]
                 norm = math.sqrt(sum(x * x for x in vector))
                 if not math.isfinite(norm) or norm <= 0:
                     raise ValueError("invalid embedding norm")
-                output.append([x / norm for x in vector])
-            except (KeyError, TypeError, ValueError, IndexError) as exc:
-                self._ready = False
-                raise EmbeddingModelError("Invalid GGUF embedding response") from exc
-            self._calls += 1
-        self._ready = True
+                by_index[index] = [x / norm for x in vector]
+            output = [by_index[index] for index in range(len(inputs))]
+        except (KeyError, TypeError, ValueError, IndexError) as exc:
+            self._ready = False
+            raise EmbeddingModelError("Invalid GGUF embedding response") from exc
+        self._calls += len(inputs)
         return output
 
     def embed_request(self, request):

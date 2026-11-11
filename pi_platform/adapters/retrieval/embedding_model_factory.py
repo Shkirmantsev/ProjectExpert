@@ -208,6 +208,16 @@ class EmbeddingModelFactory:
             f"{sorted(PRODUCTION_ALIASES | MINIMAL_ALIASES)}"
         )
 
+    def build_multi_endpoint(self, endpoints, evidence, *, batch_size=32, max_retries=1, enabled=None):
+        """Compose only explicit pre-authorized ports; never discover endpoints."""
+        from .multi_endpoint_embedding_model import MultiEndpointEmbeddingModel
+        if self._startup_profile == StartupProfile.PRODUCTION:
+            for endpoint in endpoints:
+                if endpoint.model.profile().identity() == HASHING_DEFAULT.identity():
+                    raise EmbeddingModelError("hashing requires the explicit minimal startup profile")
+        return MultiEndpointEmbeddingModel(endpoints,evidence,batch_size=batch_size,
+            max_retries=max_retries,enabled=enabled)
+
     @staticmethod
     def _normalise_alias(alias: str) -> str:
         if not alias:

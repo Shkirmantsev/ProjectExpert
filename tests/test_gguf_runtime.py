@@ -20,17 +20,17 @@ def _models_response():
 
 class GgufRuntimeTests(unittest.TestCase):
     def test_roles_order_and_normalization(self):
-        model = LlamaCppEmbeddingModel()
+        model = LlamaCppEmbeddingModel(batch_size=32)
         calls = []
         def request(path, payload=None):
             calls.append((path, payload))
             if path == '/v1/models':
                 return _models_response()
-            return {'data': [{'index': 0, 'embedding': [1.] * 768}]}
+            return {'data': [{'index': i, 'embedding': [1.] * 768} for i in range(len(payload['input']))]}
         with patch.object(model, '_request', side_effect=request):
             result = model.embed_requests([EmbeddingRequest('query', EmbeddingRole.QUERY), EmbeddingRequest('doc', EmbeddingRole.DOCUMENT)])
         self.assertTrue(calls[1][1]['input'][0].startswith('task: search result | query: '))
-        self.assertEqual(calls[2][1]['input'], ['title: none | text: doc'])
+        self.assertEqual(calls[1][1]['input'][1], 'title: none | text: doc')
         self.assertAlmostEqual(sum(x*x for x in result[0]), 1)
         self.assertEqual(model.stats()['real_binding'], '1')
 
