@@ -79,3 +79,25 @@ func TestWindowsCRLFImageConfiguration(t *testing.T) {
 		t.Fatal("environment precedence")
 	}
 }
+
+func TestBackupIncludesResumableIndexingState(t *testing.T) {
+	if !allowedCheckpoint("indexing-state.sqlite") {
+		t.Fatal("resumable indexing state was excluded")
+	}
+	for _, name := range []string{"indexing-state.sqlite-wal", "indexing-state.sqlite-shm", "indexing.lock", "restore-in-progress.json"} {
+		if allowedCheckpoint(name) {
+			t.Fatal("accepted uncheckpointed sidecar or recovery marker", name)
+		}
+	}
+	root := testCheckpoint(t, map[string][]byte{
+		"runtime-state/snapshot.json": []byte(`{"active":{"active_index_generation":"gen","embedding_profile_identity":"profile"}}`),
+		"indexing-state.sqlite":       []byte("standalone SQLite checkpoint verified in Python"),
+	})
+	manifest, err := verifyBackup(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := manifest.Files["indexing-state.sqlite"]; !ok {
+		t.Fatal("resumable state missing from verified backup")
+	}
+}

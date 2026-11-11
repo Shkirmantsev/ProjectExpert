@@ -26,6 +26,8 @@ def _family(path):
     p = Path(path)
     if family := python_family(p):
         return family
+    if p.suffix.lower() in {'.docx', '.pptx', '.xlsx', '.doc', '.ppt', '.xls'}:
+        return SourceContentFamily.OFFICE
     if p.suffix.lower() == '.pdf':
         return SourceContentFamily.PDF
     if p.suffix.lower() in {'.md', '.markdown'}:
@@ -51,34 +53,38 @@ def _load_cache(path):
     cache = InMemoryRuntimeCache()
     if path.is_file():
         saved = json.loads(path.read_text(encoding='utf-8'))
-        cache._store = {k: v.encode() for k, v in saved.get('records', {}).items()}
-        cache._sources = saved.get('sources', {})
-        cache._owners = {k: set(v) for k, v in saved.get('owners', {}).items()}
+        cache.restore(saved)
     return cache
 
 
-def _candidate_graph(target, cache_root, cache):
+def _candidate_graph(target, cache_root, cache, *, progress=None):
     """Snapshot graph bodies into a disposable generation, never canonical Git."""
     from pi_platform.adapters.runtime.sharded_graph import LocalShardedGraph
     from pi_platform.adapters.runtime.graph_expansion import ProductionGraphExpansion
     from pi_platform.core.canonical.value_types import Entity, Relation, from_canonical_json
-    records = [json.loads(raw) for raw in cache._store.values()]
-    canonical = target / 'project-knowledge' / 'graph'
-    if canonical.is_dir():
+    def canonical_records():
+        for raw in cache.iter_records():
+            yield json.loads(raw)
+        canonical = target / 'project-knowledge' / 'graph'
+        if not canonical.is_dir():
+            return
         for path in sorted(canonical.rglob('*')):
             if not path.is_file() or path.is_symlink() or path.suffix not in {'.json', '.jsonl'}:
                 continue
             if 'objects' in path.relative_to(canonical).parts:
-                continue  # historical content-addressed bodies are not active nodes
-            texts = path.read_text(encoding='utf-8').splitlines() if path.suffix == '.jsonl' else [path.read_text(encoding='utf-8')]
-            for text in texts:
-                if text.strip():
-                    body = json.loads(text)
-                    records.extend(body if isinstance(body, list) else [body])
+                continue
+            if path.suffix == '.jsonl':
+                with path.open(encoding='utf-8') as handle:
+                    for line in handle:
+                        if line.strip():
+                            yield json.loads(line)
+            else:
+                body = json.loads(path.read_text(encoding='utf-8'))
+                yield from body if isinstance(body, list) else [body]
     # Legacy runtime.db retains historical versions. Only the active canonical
     # tree and current ingestion ownership above define this served graph.
     entities, relations = {}, {}
-    for record in records:
+    for record in canonical_records():
         if not isinstance(record, dict):
             continue
         if {'id', 'family', 'label'}.issubset(record):
@@ -88,10 +94,8 @@ def _candidate_graph(target, cache_root, cache):
     bodies = [json.dumps(__import__('dataclasses').asdict(v), sort_keys=True) for v in (*entities.values(), *relations.values())]
     generation = hashlib.sha256('\n'.join(sorted(bodies)).encode()).hexdigest()
     graph = LocalShardedGraph(cache_root / 'indexes' / 'graph' / generation)
-    for entity in entities.values():
-        graph.upsert_entity(entity)
-    for relation in relations.values():
-        graph.upsert_relation(relation)
+    from pi_platform.adapters.runtime.candidate_artifacts import build_graph_shards
+    build_graph_shards(graph, tuple(entities.values()), tuple(relations.values()), progress=progress)
     return ProductionGraphExpansion(graph), tuple(sorted(entities))
 
 
@@ -111,28 +115,32 @@ def _index_dense_generation(runtime, active):
     if isinstance(dense, USearchDenseIndex) and dense._real_usearch:
         profile = runtime.embedding_model.profile()
         vectors = {}
-        for chunk in active:
-            record = runtime.vector_record_store.get(chunk.chunk_id, runtime.embedding_profile_hash)
-            if record is None:
-                continue
-            try:
-                vector = decode_vector_payload(record.vector_payload)
-                valid = (
-                    record.created_from_retrieval_text_hash == chunk.retrieval_text_hash
-                    and record.dimension == profile.output_dimension
-                    and record.model_revision == profile.model_revision
-                    and record.normalization == profile.normalization
-                    and len(vector) == profile.output_dimension
-                    and all(math.isfinite(value) for value in vector)
-                )
-                if profile.normalization == "l2":
-                    valid = valid and abs(sum(value * value for value in vector) - 1.0) < 0.02
-            except (ValueError, TypeError, RuntimeError):
-                valid = False
-            if valid:
-                vectors[chunk.chunk_id] = vector
-            else:
-                runtime.vector_record_store.delete(chunk.chunk_id, runtime.embedding_profile_hash)
+        for start in range(0, len(active), 256):
+            batch = active[start:start + 256]
+            records = runtime.vector_record_store.get_many(
+                [chunk.chunk_id for chunk in batch], runtime.embedding_profile_hash)
+            for chunk in batch:
+                record = records.get(chunk.chunk_id)
+                if record is None:
+                    continue
+                try:
+                    vector = decode_vector_payload(record.vector_payload)
+                    valid = (
+                        record.created_from_retrieval_text_hash == chunk.retrieval_text_hash
+                        and record.dimension == profile.output_dimension
+                        and record.model_revision == profile.model_revision
+                        and record.normalization == profile.normalization
+                        and len(vector) == profile.output_dimension
+                        and all(math.isfinite(value) for value in vector)
+                    )
+                    if profile.normalization == "l2":
+                        valid = valid and abs(sum(value * value for value in vector) - 1.0) < 0.02
+                except (ValueError, TypeError, RuntimeError):
+                    valid = False
+                if valid:
+                    vectors[chunk.chunk_id] = vector
+                else:
+                    runtime.vector_record_store.delete(chunk.chunk_id, runtime.embedding_profile_hash)
         if len(vectors) == len(active):
             loaded = dense.load_generation(
                 generation, vectors=vectors,
@@ -148,6 +156,57 @@ def _index_dense_generation(runtime, active):
 
 
 def index_repository(*, target, cache_root, inventory, previous_inventory, settings, cli_overrides=None):
+    """Return an unpublished candidate; explicit resumable mode never falls back."""
+    import os
+    from pi_platform.adapters.runtime.sqlite_ingestion_cache import SqliteIngestionCache, exclusive_indexer
+    engine = os.environ.get('PI_INDEX_ENGINE', 'legacy').strip().lower()
+    if engine not in {'legacy', 'resumable'}:
+        raise ValueError('PI_INDEX_ENGINE must be legacy or resumable')
+    arguments = dict(target=target, cache_root=cache_root, inventory=inventory,
+                     previous_inventory=previous_inventory, settings=settings, cli_overrides=cli_overrides)
+    with exclusive_indexer(cache_root):
+        if (Path(cache_root) / 'gc-in-progress.json').exists():
+            raise RuntimeError('Interrupted canonical GC; resume scripts/indexing_state.py gc --apply --resume before indexing')
+        if (Path(cache_root) / 'restore-in-progress.json').exists():
+            raise RuntimeError('Interrupted state restore; complete scripts/indexing_state.py restore --resume before indexing')
+        if engine == 'legacy':
+            return _index_repository(**arguments)
+        fingerprint = hashlib.sha256(json.dumps(
+            [(e.path, e.content_hash, e.policy) for e in inventory.entries], sort_keys=True).encode()).hexdigest()
+        import shutil
+        # Conservatively reserve room for candidate canonical data and derived
+        # artifacts while retaining the last-good generation. This is a preflight,
+        # not a guarantee that later writes cannot exhaust the filesystem.
+        source_bytes = 0
+        target_root = Path(target).resolve()
+        for entry in inventory.entries:
+            path = (target_root / entry.path).resolve()
+            if not path.is_relative_to(target_root):
+                raise ValueError('Inventory source lies outside the target repository')
+            try:
+                source_bytes += path.stat().st_size
+            except OSError:
+                pass  # The parser reports missing/unreadable sources precisely.
+        disk = shutil.disk_usage(cache_root)
+        reserve = max(64 * 1024 * 1024, source_bytes * 2, int(disk.total * 0.01))
+        if disk.free < reserve:
+            raise RuntimeError(f'Insufficient disk space for indexing candidate: need {reserve} bytes free; '
+                               f'available {disk.free}. Preserve the active generation and free space.')
+        cache = SqliteIngestionCache(Path(cache_root) / 'indexing-state.sqlite', compatibility_hash=fingerprint)
+        try:
+            cache.import_legacy(Path(cache_root) / 'ingestion.json')
+            runtime = _index_repository(**arguments, durable_cache=cache)
+            cache.assert_fence()
+            cache.finish('ready')
+            return runtime
+        except BaseException:
+            cache.finish('failed')
+            raise
+        finally:
+            cache.close()
+
+
+def _index_repository(*, target, cache_root, inventory, previous_inventory, settings, cli_overrides=None, durable_cache=None):
     """Parse current files, reuse vectors and return an unpublished runtime."""
     from pi_platform.adapters.config.runtime_configuration_resolver import RuntimeConfigurationResolver
     target, cache_root = Path(target).resolve(), Path(cache_root).resolve()
@@ -163,9 +222,12 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         from pi_platform.adapters.pdf.real_docling import _pinned_pdf_assets
         _pinned_pdf_assets(do_ocr=True)
     cache_path = cache_root / 'ingestion.json'
-    cache = _load_cache(cache_path)
+    cache = durable_cache if durable_cache is not None else _load_cache(cache_path)
+    def progress(stage, total, completed=0, failed=0, degraded=0, state='running'):
+        if durable_cache is not None:
+            durable_cache.stage(stage, total, completed, failed, degraded, state=state)
     active_source_ids = {'repo:' + e.path for e in inventory.entries}
-    for sid in tuple(cache._sources):
+    for sid in cache.source_ids():
         if sid.startswith('repo:') and sid not in active_source_ids:
             cache.invalidate_source(sid, stale=False)
     parsers, chunkers = _default_parser_registry(), _default_chunker_registry()
@@ -187,32 +249,70 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         # Canonical chunks are model-independent. Tokenizer-specific splitting
         # remains a projection at the embedding adapter boundary.
         chunkers.register(PdfStructuralChunker())
-    driver = LocalPipelineDriver(parser_registry=parsers, chunker_registry=chunkers, cache=cache)
-    failures = []
+    parallel = durable_cache is not None and os.environ.get('PI_INDEX_PARALLEL', '0') == '1'
+    driver = LocalPipelineDriver(parser_registry=parsers, chunker_registry=chunkers, cache=cache,
+                                 parse_workers=None if parallel else 1, parallel_safe_registry=True)
+    failures, sources = [], []
+    for entry in inventory.entries:
+        if entry in image_entries:
+            continue
+        if _family(entry.path) == SourceContentFamily.PDF and not config.docling_enabled:
+            cache.invalidate_source('repo:' + entry.path, stale=False)
+            continue
+        sources.append(Source(
+            id='repo:' + entry.path, uri=str(target / entry.path),
+            family=_family(entry.path).value, contentHash=entry.content_hash,
+            metadata=Metadata(documentId='repo:' + entry.path, version='0.1.0', language='und',
+                              sourcePath=entry.path, policy=entry.policy or None),
+        ))
+    if durable_cache is not None:
+        from pi_platform.core.canonical.content_address import content_address
+        from pi_platform.core.canonical.value_types import to_canonical_json
+        cache.select_sources((source.id, source.contentHash,
+            content_address(to_canonical_json(source.metadata).decode()), driver.pipeline_key(source))
+            for source in sources)
+    progress('sources', len(sources), len(cache.source_ids()))
+    pdf_admission = {}
     try:
-        for entry in inventory.entries:
-            if entry in image_entries:
-                continue
-            if _family(entry.path) == SourceContentFamily.PDF and not config.docling_enabled:
-                cache.invalidate_source('repo:' + entry.path, stale=False)
-                continue
-            source = Source(
-                id='repo:' + entry.path, uri=str(target / entry.path),
-                family=_family(entry.path).value, contentHash=entry.content_hash,
-                metadata=Metadata(documentId='repo:' + entry.path, version='0.1.0', language='und', sourcePath=entry.path, policy=entry.policy or None),
-            )
-            report = driver.run(source, target)
+        if durable_cache is not None and int(os.environ.get('PI_PDF_WORKERS', '1')) > 1 and pdf_entries and config.docling_enabled:
+            from pi_platform.adapters.pdf.process_sources import run_pdf_sources
+            if pdf_db is not None:
+                pdf_db.commit()
+                pdf_db.close()
+                pdf_db = None
+            regular = driver.run_many([source for source in sources if source.family != 'pdf'], target)
+            fatal = any(report.error_category in {'configuration_error', 'internal_error', 'cancelled'} for report in regular)
+            pdf_reports = () if fatal else run_pdf_sources(
+                [source for source in sources if source.family == 'pdf'], target, cache=cache,
+                documents_db_path=cache_root / 'documents-v2.sqlite', asset_root=cache_root / 'document-assets',
+                embedding_model_id=settings.model_id,
+                pipeline_keys={source.id: driver.pipeline_key(source) for source in sources if source.family == 'pdf'},
+                resource_pool=driver.resource_pool, diagnostics=pdf_admission)
+            by_id = {report.source_id: report for report in (*regular, *pdf_reports)}
+            reports = tuple(by_id[source.id] for source in sources if source.id in by_id)
+        else:
+            reports = driver.run_many(sources, target)
+        source_by_id = {source.id: source for source in sources}
+        for report in reports:
+            source = source_by_id[report.source_id]
             if not report.ok:
                 cache.invalidate_source(source.id, stale=False)
+                failures.append({'path': source.metadata.sourcePath, 'error': report.error_message,
+                                 'category': report.error_category})
                 if report.error_category in {"configuration_error", "internal_error"}:
-                    raise RuntimeError(f"Ingestion failed for {entry.path}: {report.error_message}")
-                failures.append({'path': entry.path, 'error': report.error_message, 'category': report.error_category})
+                    raise RuntimeError(f"Ingestion failed for {source.metadata.sourcePath}: {report.error_message}")
+        degraded = sum(report.ok and report.degraded for report in reports)
+        progress('sources', len(sources), sum(report.ok for report in reports), len(failures), degraded,
+                 state='failed' if failures else 'complete')
+        require_complete = os.environ.get('PI_INDEX_REQUIRE_COMPLETE', '1') == '1'
+        if durable_cache is not None and require_complete and (failures or len(reports) != len(sources)):
+            raise RuntimeError(f'Incomplete ingestion blocks publication: {len(failures)} failed sources')
     finally:
         if pdf_db is not None:
             pdf_db.commit()
             pdf_db.close()
     chunks_by_id = {}
-    for raw in cache._store.values():
+    for raw in cache.iter_records():
         data = json.loads(raw)
         body = data.get('chunk', data) if isinstance(data, dict) else {}
         if body.get('rawText') and body.get('id'):
@@ -228,7 +328,7 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         record = cache.source_record('repo:' + entry.path) or {}
         projected = {}
         for address in record.get('addresses', ()):
-            raw = cache._store.get(address)
+            raw = cache.get(address)
             if raw is None:
                 continue
             body = json.loads(raw)
@@ -248,7 +348,7 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
             chunkId=cid, score=0.5, source='sparse', snippet=text,
             contentHash=body.get('contentHash', ''),
             metadata=Metadata(**{k: v for k, v in meta.items() if k in Metadata.__dataclass_fields__}),
-            knowledgeState=KnowledgeState.VERIFIED, tokenEstimate=max(1, len(text.split())),
+            knowledgeState=KnowledgeState(body.get('provenance', {}).get('knowledgeState', 'verified')), tokenEstimate=max(1, len(text.split())),
         )
         active.append(ActiveChunk(cid, body.get('contentHash', text_hash), text, text_hash, meta))
     for entry in image_entries:
@@ -274,14 +374,24 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         catalog[cid] = RetrievalHit(chunkId=cid, score=0.5, source='dense', snippet=text,
             contentHash=entry.content_hash, metadata=Metadata(**meta),
             knowledgeState=KnowledgeState.VERIFIED, tokenEstimate=max(1, len(text.split())))
-    from pi_platform.adapters.runtime.sqlite_fts_full_text_index import SqliteFtsFullTextIndex
     corpus_hash = hashlib.sha256(json.dumps([(c.chunk_id, c.retrieval_text_hash) for c in active]).encode()).hexdigest()
     exact_path = cache_root / 'indexes' / 'exact' / (corpus_hash + '.sqlite')
     exact_path.parent.mkdir(parents=True, exist_ok=True)
-    exact = SqliteFtsFullTextIndex(db_path=str(exact_path))
-    for cid, hit in catalog.items():
-        exact.index_document('chunks', cid, hit.snippet, {})
-    graph_expansion, graph_node_ids = _candidate_graph(target, cache_root, cache)
+    if durable_cache is not None and require_complete and failures:
+        raise RuntimeError(f'Incomplete ingestion blocks publication: {len(failures)} failed sources')
+    from pi_platform.adapters.runtime.candidate_artifacts import build_exact
+    exact = build_exact(exact_path, [(cid, hit.snippet) for cid, hit in catalog.items()], corpus_hash,
+                        progress=lambda completed, total: progress('exact', total, completed,
+                            state='complete' if completed == total else 'running'))
+    if durable_cache is not None:
+        cache.artifact('exact', 'sqlite-fts', exact_path, corpus_hash, len(catalog))
+    graph_expansion, graph_node_ids = _candidate_graph(target, cache_root, cache,
+        progress=lambda completed, total: progress('graph', total, completed,
+            state='complete' if completed == total else 'running'))
+    if durable_cache is not None:
+        graph_path = graph_expansion._graph.root if hasattr(graph_expansion, '_graph') else None
+        if graph_path is not None:
+            cache.artifact('graph', 'sharded-graph', graph_path / 'ready.json', graph_path.name, len(graph_node_ids))
     from pi_platform.ports.retrieval.reranker import RerankPolicy
     rerank_policy = RerankPolicy(
         enabled=config.reranking_enabled,
@@ -331,17 +441,26 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
                 projected.append(replace(chunk, embedding_segments=segments, image_path=image_path,
                                          retrieval_text_hash=projection_hash))
             active = projected
+    progress('embedding', len(active))
+    if durable_cache is not None:
+        runtime.semantic_index_service.set_progress_callback(
+            lambda completed, total: progress('embedding', total, completed,
+                state='complete' if completed == total else 'running'))
     report, dense_generation_loaded = _index_dense_generation(runtime, active)
+    progress('embedding', len(active), len(active), state='complete')
+    if durable_cache is not None and hasattr(runtime.dense_index, 'index_path'):
+        index_path = Path(runtime.dense_index.index_path)
+        for path in (index_path, index_path.with_suffix('.meta.json'), Path(str(index_path) + '.keys.json')):
+            if path.is_file():
+                cache.artifact(path.name, 'dense', path, report.source_generation, len(active))
+    progress('sparse', len(catalog))
     for cid, hit in catalog.items():
         runtime.sparse_index.index_document('chunks', cid, hit.snippet, {})
-    saved = {
-        'records': {k: v.decode() for k, v in cache._store.items()},
-        'sources': cache._sources, 'owners': {k: sorted(v) for k, v in cache._owners.items()},
-        'failures': failures,
-    }
-    temporary = cache_path.with_suffix('.tmp')
-    temporary.write_text(json.dumps(saved, sort_keys=True), encoding='utf-8')
-    temporary.replace(cache_path)
+    progress('sparse', len(catalog), len(catalog), state='complete')
+    if durable_cache is None:
+        saved = {**cache.snapshot(), 'failures': failures}
+        from pi_platform.adapters.runtime.candidate_artifacts import atomic_bytes
+        atomic_bytes(cache_path, json.dumps(saved, sort_keys=True).encode())
     return replace(runtime, extra={
         'source_inventory': projected_inventory,
         'graph_node_ids': graph_node_ids,
@@ -350,6 +469,11 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         'dense_generation_loaded': dense_generation_loaded,
         'indexing_report': report, 'source_failures': failures,
         'resolved_configuration': config.as_dict(),
+        'index_engine': 'resumable' if durable_cache is not None else 'legacy',
+        'index_job_id': durable_cache.generation if durable_cache is not None else '',
+        'index_fence': durable_cache.fence if durable_cache is not None else 0,
+        'source_admission': driver.last_admission,
+        'pdf_admission': pdf_admission,
     })
 
 

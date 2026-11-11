@@ -142,3 +142,49 @@ class RuntimeCheckpointTests(unittest.TestCase):
             RuntimeCheckpointService(self.cache).create(self.destination)
             restore_checkpoint(self.destination, self.root / 'inactive', profile='profile')
         self.assertEqual(verify_checkpoint(self.destination)['generation'], 'generation')
+
+
+    def test_resumable_source_checkpoint_is_backed_up_from_live_wal_and_restored(self):
+        from pi_platform.adapters.runtime.sqlite_ingestion_cache import SqliteIngestionCache
+        cache = SqliteIngestionCache(self.cache / 'indexing-state.sqlite')
+        self.addCleanup(cache.close)
+        overlay = cache.source_buffer('repo:manual.md')
+        overlay.put('chunk', b'canonical parser payload')
+        overlay.put('pipeline', json.dumps({'addresses': ['chunk'], 'chunkCount': 1,
+                                           'knowledgeState': 'verified'}).encode())
+        overlay.complete_source('repo:manual.md', 'source-hash', 'pipeline', ['chunk'], 'metadata')
+        self.assertTrue((self.cache / 'indexing-state.sqlite-wal').is_file())
+        self.assertGreater((self.cache / 'indexing-state.sqlite-wal').stat().st_size, 0)
+        RuntimeCheckpointService(self.cache).create(self.destination)
+        manifest = verify_checkpoint(self.destination)
+        self.assertIn('indexing-state.sqlite', manifest['files'])
+        self.assertFalse((self.destination / 'indexing-state.sqlite-wal').exists())
+        restored = self.root / 'inactive'
+        restore_checkpoint(self.destination, restored)
+        with closing(sqlite3.connect(restored / 'indexing-state.sqlite')) as db:
+            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+            self.assertEqual(db.execute('SELECT source_id,source_hash,pipeline_key FROM source_outputs').fetchall(),
+                             [('repo:manual.md', 'source-hash', 'pipeline')])
+            self.assertEqual(db.execute('SELECT payload FROM canonical_payloads').fetchall(),
+                             [(b'canonical parser payload',)])
+        self.assertFalse((restored / 'indexing-state.sqlite-wal').exists())
+
+    def test_interrupted_restore_blocks_managed_checkpoint_export(self):
+        (self.cache / 'restore-in-progress.json').write_text('{"schema_version":1}')
+        with self.assertRaisesRegex(CheckpointError, 'Interrupted indexing state restore'):
+            RuntimeCheckpointService(self.cache).create(self.destination)
+        self.assertFalse(self.destination.exists())
+
+    def test_index_builder_lock_blocks_checkpoint_and_checkpoint_holds_it(self):
+        from pi_platform.adapters.runtime.sqlite_ingestion_cache import exclusive_indexer, IndexingStateError
+        with exclusive_indexer(self.cache):
+            with self.assertRaisesRegex(CheckpointError, 'Another index builder'):
+                RuntimeCheckpointService(self.cache).create(self.destination)
+        original = RuntimeCheckpointService._create_locked
+        def inspect_lock(service, destination):
+            with self.assertRaises(IndexingStateError):
+                with exclusive_indexer(self.cache):
+                    self.fail('checkpoint did not exclude an index builder')
+            return original(service, destination)
+        with patch.object(RuntimeCheckpointService, '_create_locked', inspect_lock):
+            RuntimeCheckpointService(self.cache).create(self.destination)
