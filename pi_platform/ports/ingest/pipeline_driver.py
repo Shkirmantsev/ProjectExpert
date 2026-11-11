@@ -134,6 +134,7 @@ class PipelineReport:
     sources: Sequence[Source] = field(default_factory=tuple)
     started_at: str = ""
     finished_at: str = ""
+    degraded: bool = False
 
     @property
     def ok(self) -> bool:

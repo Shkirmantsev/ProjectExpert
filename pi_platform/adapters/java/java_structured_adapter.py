@@ -16,7 +16,9 @@ from pi_platform.ports.ingest.source_adapter import (
     SourceContentFamily,
 )
 from pi_platform.ports.ingest.chunker import ChunkerPort
-from pi_platform.ports.ingest.java_parser import JavaParseRequest
+from pi_platform.ports.ingest.java_parser import (
+    JavaParseRequest, JavaParserCorruptOutput, JavaParserTimeout, JavaParserMissing,
+)
 from .parser_subprocess import TreeSitterJavaSubprocess
 
 
@@ -48,9 +50,16 @@ class JavaStructuredAdapter(SourceAdapterPort):
                 for k, v in rows
             )
             return replace(result, entities=entities)
-        parsed = self.parser.parse(
-            JavaParseRequest(text, Path(source.uri), self.parser.parser_version)
-        )
+        try:
+            parsed = self.parser.parse(
+                JavaParseRequest(text, Path(source.uri), self.parser.parser_version)
+            )
+        except (JavaParserCorruptOutput, JavaParserTimeout, JavaParserMissing) as exc:
+            if isinstance(exc, JavaParserMissing) and getattr(self.parser, "required", False):
+                raise
+            return self._text_fallback(source, text, str(exc), type(exc).__name__)
+        if parsed.degraded:
+            return self._text_fallback(source, text, parsed.rationale or "parser unavailable", "unavailable")
         state = (
             KnowledgeState.ASSUMPTION if parsed.degraded else KnowledgeState.VERIFIED
         )
@@ -222,6 +231,21 @@ class JavaStructuredAdapter(SourceAdapterPort):
             entities=tuple(entities),
             relations=tuple(relations),
             evidence=tuple(evidence),
+        )
+
+
+    def _text_fallback(self, source, text, reason, category):
+        import logging
+        logging.getLogger(__name__).warning(
+            "Java source degraded source=%s parser_version=%s category=%s reason=%s",
+            source.uri, self.parser.parser_version, category, reason)
+        return document_result(
+            source, [(Path(source.uri).stem, 1, text, {
+                "degraded": True, "parserFailure": {"category": category,
+                    "parserVersion": self.parser.parser_version, "reason": reason},
+                "structured": False,
+            })], "java", "java-text-fallback-1",
+            state=KnowledgeState.ASSUMPTION, rationale=reason,
         )
 
 

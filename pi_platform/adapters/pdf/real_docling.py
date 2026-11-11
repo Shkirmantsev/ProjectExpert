@@ -70,6 +70,11 @@ def _pinned_pdf_assets(*, do_ocr):
     """Fetch only inventoried, immutable checkpoints; respect HF offline mode."""
     import shutil
     from pathlib import Path
+    if os.environ.get("PI_DOCLING_ASSET_ROOT"):
+        from .assets import resolve_local_docling_assets
+        return resolve_local_docling_assets(Path(os.environ["PI_DOCLING_ASSET_ROOT"]), do_ocr=do_ocr)
+    if os.environ.get("PI_ALLOW_REMOTE_ASSET_DOWNLOADS") == "0":
+        raise RealDoclingConverterError("local Docling assets required; PI_DOCLING_ASSET_ROOT is unset")
     from huggingface_hub import snapshot_download
 
     root = Path(os.environ.get("PI_DOCLING_CACHE", str(
@@ -209,7 +214,11 @@ class HuggingFaceTokenizerAdapter:
         try:
             from transformers import AutoTokenizer
             return AutoTokenizer.from_pretrained(
-                self.tokenizer_id, revision=os.environ.get("PI_DOCLING_TOKENIZER_REVISION")
+                self.tokenizer_id,
+                local_files_only=(os.environ.get("PI_ALLOW_REMOTE_ASSET_DOWNLOADS") == "0"
+                    or os.environ.get("HF_HUB_OFFLINE") == "1"
+                    or bool(os.environ.get("PI_DOCLING_ASSET_ROOT"))),
+                revision=os.environ.get("PI_DOCLING_TOKENIZER_REVISION")
                 or _DEFAULT_TOKENIZER_REVISION.get(self.tokenizer_id))
         except Exception:
             pass
@@ -414,11 +423,16 @@ class RealDoclingConverter:
                 PdfPipelineOptions, LayoutObjectDetectionOptions,
                 TableStructureOptions, RapidOcrOptions,
             )
+            from docling.datamodel.accelerator_options import AcceleratorOptions
+            from pi_platform.adapters.runtime.host_resources import parse_worker_budget
             artifacts, ocr_paths = _pinned_pdf_assets(do_ocr=do_ocr)
             layout = LayoutObjectDetectionOptions()
             layout.model_spec.revision = DOCLING_LAYOUT_REVISION
             options = PdfPipelineOptions(
                 do_ocr=do_ocr, generate_picture_images=True,
+                accelerator_options=AcceleratorOptions(
+                    num_threads=parse_worker_budget(),
+                    device=os.environ.get("PI_DOCLING_DEVICE", "cpu")),
                 artifacts_path=artifacts, layout_options=layout,
                 table_structure_options=TableStructureOptions(),
             )

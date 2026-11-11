@@ -24,6 +24,7 @@ from typing import List, Optional, Sequence
 
 from pi_platform.adapters.fs.local_source_adapter import LocalSourceAdapter
 from pi_platform.adapters.html.html_adapter import HtmlAdapter
+from pi_platform.adapters.office.office_adapter import OfficeAdapter
 from pi_platform.adapters.ingest.chunkers import (
     HtmlChunker,
     MarkdownChunker,
@@ -139,6 +140,7 @@ def _default_parser_registry() -> SourceAdapterRegistry:
     for adapter in (
         MarkdownAdapter(),
         HtmlAdapter(),
+        OfficeAdapter(),
         LocalSourceAdapter(),
         JavaStructuredAdapter(),
         JarAdapter(),
@@ -167,6 +169,7 @@ def _default_chunker_registry() -> ChunkerRegistry:
         *[
             DependencyChunker(f)
             for f in (
+                SourceContentFamily.OFFICE,
                 SourceContentFamily.JAR,
                 SourceContentFamily.PYTHON_SOURCE,
                 SourceContentFamily.PYTHON_MANIFEST,
@@ -202,6 +205,12 @@ class LocalPipelineDriver(PipelineDriverPort):
         chunker_context=None,
         enricher_context=None,
         retry_delay=0.01,
+        parse_workers=None,
+        resource_pool=None,
+        parallel_safe_registry=False,
+        memory_probe=None,
+        worker_peak_estimator=None,
+        memory_target_percent=50,
     ):
         self._parsers = (
             parser_registry
@@ -223,6 +232,28 @@ class LocalPipelineDriver(PipelineDriverPort):
         self.chunker_context = chunker_context
         self.enricher_context = enricher_context
         self.retry_delay = retry_delay
+        from pi_platform.adapters.runtime.host_resources import parse_worker_budget
+        from pi_platform.core.orchestration.resource_budget import ResourceTokenPool
+        self.parse_workers = parse_worker_budget(parse_workers)
+        self.resource_pool = resource_pool or ResourceTokenPool(self.parse_workers)
+        self._parallel_safe = (
+            parser_registry is None and chunker_registry is None and enricher_registry is None
+        ) or parallel_safe_registry
+        # Optional model adapters may carry session state; they require their own
+        # worker factory before sharing an enricher context across sources.
+        if self.enricher_context is not None and (
+            getattr(self.enricher_context, "enable_optional_llm", False)
+            or getattr(self.enricher_context, "local_contextualizer", None) is not None
+            or (getattr(self.enricher_context, "extra", {}) or {}).get("local_llm") is not None
+        ):
+            self._parallel_safe = False
+        if not 0 < memory_target_percent <= 100:
+            raise ValueError("memory target must be in (0, 100]")
+        from pi_platform.adapters.runtime.host_resources import probe_available_memory, estimate_source_worker_peak
+        self.memory_probe = memory_probe or probe_available_memory
+        self.worker_peak_estimator = worker_peak_estimator or estimate_source_worker_peak
+        self.memory_target_percent = memory_target_percent
+        self.last_admission = {}
 
     def _resolve_chunker(self, family, chunk_ctx):
         """Return the structural chunker, token-budget-wrapped when needed.
@@ -336,41 +367,16 @@ class LocalPipelineDriver(PipelineDriverPort):
             output.append(dataclasses.replace(contextual, chunk=new_chunk))
         return tuple(output)
 
-    def run(self, source, project_root, *, cancellation=None, cache=None):
-        import json
-        import logging
-        import dataclasses
-        from datetime import datetime, timezone
-        from pi_platform.core.canonical.content_address import (
-            content_address,
-            chunk_content_address,
-        )
+    def pipeline_key(self, source):
+        """Return the source/configuration compatibility key without cache access."""
+        from pi_platform.core.canonical.content_address import content_address
         from pi_platform.core.canonical.value_types import dataclass_to_dict
-        from pi_platform.ports.ingest.source_adapter import SourceAdapterContext
-        from pi_platform.ports.ingest.java_parser import (
-            JavaParserMissing,
-            JavaParserVersionMismatch,
-            JavaParserTimeout,
-            JavaParserCorruptOutput,
-        )
-
-        log = logging.getLogger(__name__)
-        active = cache if cache is not None else self._cache
-        started_at = datetime.now(timezone.utc).isoformat()
-        stages, chunks, enriched, addresses = [], (), (), []
-        parsed = None
-        hits = misses = 0
-        stage = STAGE_PARSE
-        state = {
-            "LOCAL_ONLY": KnowledgeState.UNKNOWN,
-            "REFERENCE": KnowledgeState.ASSUMPTION,
-        }.get(source.metadata.policy, KnowledgeState.VERIFIED)
-        key = content_address(
+        return content_address(
             {
                 "source": source.contentHash,
                 "uri": source.uri,
                 "metadata": dataclass_to_dict(source.metadata),
-                "pipelineVersion": "phase2-1",
+                "pipelineVersion": "phase2-2",
                 "chunking": (
                     dataclass_to_dict(self.chunker_context)
                     if self.chunker_context
@@ -396,6 +402,38 @@ class LocalPipelineDriver(PipelineDriverPort):
             }
         )
 
+    def run(self, source, project_root, *, cancellation=None, cache=None):
+        import json
+        import logging
+        import dataclasses
+        from datetime import datetime, timezone
+        from pi_platform.core.canonical.content_address import (
+            content_address,
+            chunk_content_address,
+        )
+        from pi_platform.ports.ingest.source_adapter import SourceAdapterContext
+        from pi_platform.ports.ingest.java_parser import (
+            JavaParserMissing,
+            JavaParserVersionMismatch,
+            JavaParserTimeout,
+            JavaParserCorruptOutput,
+        )
+
+        log = logging.getLogger(__name__)
+        active = cache if cache is not None else self._cache
+        if hasattr(active, "source_buffer"):
+            active = active.source_buffer(source.id)
+        started_at = datetime.now(timezone.utc).isoformat()
+        stages, chunks, enriched, addresses = [], (), (), []
+        parsed = None
+        hits = misses = 0
+        stage = STAGE_PARSE
+        state = {
+            "LOCAL_ONLY": KnowledgeState.UNKNOWN,
+            "REFERENCE": KnowledgeState.ASSUMPTION,
+        }.get(source.metadata.policy, KnowledgeState.VERIFIED)
+        key = self.pipeline_key(source)
+
         def report(category=None, message=None):
             return PipelineReport(
                 source.id,
@@ -414,12 +452,14 @@ class LocalPipelineDriver(PipelineDriverPort):
                 (source,),
                 started_at,
                 datetime.now(timezone.utc).isoformat(),
+                degraded=bool(parsed and parsed.knowledge_state is not KnowledgeState.VERIFIED),
             )
 
         def flush():
             for chunk in chunks:
-                k = chunk_content_address(chunk)
-                active.put(k, to_canonical_json(chunk))
+                raw = to_canonical_json(chunk)
+                k = content_address_bytes(raw) if getattr(active, "immutable_payloads", False) else chunk_content_address(chunk)
+                active.put(k, raw)
                 addresses.append(k)
 
         def checkpoint_cancel():
@@ -522,6 +562,7 @@ class LocalPipelineDriver(PipelineDriverPort):
                     entity_count=data["entityCount"],
                     relation_count=data["relationCount"],
                     evidence_count=data["evidenceCount"],
+                    degraded=bool(data.get("degraded", False)),
                 )
             adapter = self._parsers.resolve(family)
             parsed = operation(
@@ -595,8 +636,9 @@ class LocalPipelineDriver(PipelineDriverPort):
 
             def store():
                 for c in chunks:
-                    k = chunk_content_address(c)
-                    active.put(k, to_canonical_json(c))
+                    raw = to_canonical_json(c)
+                    k = content_address_bytes(raw) if getattr(active, "immutable_payloads", False) else chunk_content_address(c)
+                    active.put(k, raw)
                     addresses.append(k)
                 for record in (*enriched, *records):
                     raw = to_canonical_json(record)
@@ -616,6 +658,7 @@ class LocalPipelineDriver(PipelineDriverPort):
                 "relationCount": len(parsed.relations),
                 "evidenceCount": len(parsed.evidence),
                 "knowledgeState": state.value,
+                "degraded": parsed.knowledge_state is not KnowledgeState.VERIFIED,
                 "addresses": addresses,
             }
             checkpoint_cancel()
@@ -684,12 +727,91 @@ class LocalPipelineDriver(PipelineDriverPort):
         return report(category.value, message)
 
     def run_many(self, sources, project_root, *, cancellation=None, cache=None):
+        from concurrent.futures import ThreadPoolExecutor
+        import logging
+        log = logging.getLogger(__name__)
+        active = cache if cache is not None else self._cache
         reports = []
-        for source in sources:
-            result = self.run(
-                source, project_root, cancellation=cancellation, cache=cache
-            )
+        workers = self.parse_workers if self._parallel_safe and hasattr(active, "source_buffer") else 1
+        diagnostics = self.last_admission = {
+            "cpu_worker_limit": workers, "peak_pending_workers": 0,
+            "peak_reserved_bytes": 0, "minimum_memory_budget_bytes": None,
+            "serialized_sources": 0, "unknown_estimates": 0,
+            "memory_limited_sources": 0,
+        }
+
+        def execute(source):
+            cost = self.resource_pool.capacity if source.family == "pdf" else 1
+            with self.resource_pool.acquire(cost):
+                return self.run(source, project_root, cancellation=cancellation, cache=active)
+
+        if workers == 1:
+            for source in sources:
+                result = execute(source)
+                reports.append(result)
+                if result.error_category in ("configuration_error", "cancelled"):
+                    break
+            return tuple(reports)
+
+        pending = []
+        reserved = 0
+
+        def collect_first():
+            nonlocal reserved
+            future, estimate = pending.pop(0)
+            result = future.result()
+            reserved -= estimate
             reports.append(result)
-            if result.error_category in ("configuration_error", "cancelled"):
-                break
-        return tuple(reports)
+            return result.error_category not in ("configuration_error", "cancelled")
+
+        try:
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                for source in sources:
+                    if cancellation is not None and cancellation.is_cancelled():
+                        break
+                    available = self.memory_probe()
+                    budget = None if available is None else max(0, int(available * self.memory_target_percent / 100))
+                    estimate = self.worker_peak_estimator(source)
+                    if estimate is not None and estimate <= 0:
+                        estimate = None
+                    if budget is not None:
+                        previous = diagnostics["minimum_memory_budget_bytes"]
+                        diagnostics["minimum_memory_budget_bytes"] = budget if previous is None else min(previous, budget)
+                    # Unknown/oversized documents get exclusive admission. This bounds
+                    # parallel allocations; it does not claim a hard per-source RSS cap.
+                    serial = source.family in ("pdf", "office") or estimate is None or budget is None or estimate > budget
+                    if serial:
+                        diagnostics["serialized_sources"] += 1
+                        if estimate is None or budget is None:
+                            diagnostics["unknown_estimates"] += 1
+                        elif estimate > budget:
+                            diagnostics["memory_limited_sources"] += 1
+                        log.info("source admission=serial source=%s estimate_bytes=%s memory_budget_bytes=%s",
+                                 source.id, estimate, budget)
+                        while pending:
+                            if not collect_first():
+                                return tuple(reports)
+                        result = execute(source)
+                        reports.append(result)
+                        if result.error_category in ("configuration_error", "cancelled"):
+                            break
+                        continue
+                    limited = False
+                    while pending and (len(pending) >= workers or reserved + estimate > budget):
+                        limited = limited or reserved + estimate > budget
+                        if not collect_first():
+                            return tuple(reports)
+                    if limited:
+                        diagnostics["memory_limited_sources"] += 1
+                    pending.append((executor.submit(execute, source), estimate))
+                    reserved += estimate
+                    diagnostics["peak_pending_workers"] = max(diagnostics["peak_pending_workers"], len(pending))
+                    diagnostics["peak_reserved_bytes"] = max(diagnostics["peak_reserved_bytes"], reserved)
+                while pending:
+                    if not collect_first():
+                        break
+                return tuple(reports)
+        finally:
+            for future, _ in pending:
+                future.cancel()
+            log.info("source admission summary=%s", diagnostics)

@@ -1,7 +1,7 @@
 """HTML headings and semantic containers with body text, excluding active content."""
 
 from html.parser import HTMLParser
-from pi_platform.core.ingest.records import document_result, read_text
+from pi_platform.core.ingest.records import document_result, read_text_with_provenance
 from pi_platform.ports.ingest.source_adapter import (
     SourceAdapterPort,
     SourceContentFamily,
@@ -58,7 +58,12 @@ class HtmlAdapter(SourceAdapterPort):
 
     def parse(self, source, context=None):
         parser = _SectionParser()
-        parser.feed(read_text(source.uri))
+        text, decoding = read_text_with_provenance(source.uri, legacy=True, html=True)
+        parser.feed(text)
         parser.close()
         parser.flush()
-        return document_result(source, parser.rows, "html", "html-stdlib-1")
+        from pi_platform.core.canonical.value_types import KnowledgeState
+        rows = [(h, level, body, {"textDecoding": decoding}) for h, level, body, _ in parser.rows]
+        return document_result(source, rows, "html", "html-stdlib-2",
+            state=KnowledgeState.ASSUMPTION if decoding["degraded"] else KnowledgeState.VERIFIED,
+            rationale="text decoding required replacement" if decoding["degraded"] else None)
