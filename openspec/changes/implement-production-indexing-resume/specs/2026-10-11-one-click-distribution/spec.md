@@ -34,3 +34,8 @@ assets MUST fail before indexing writes, without deleting existing data.
 #### Scenario: Seeder and application use different identities
 - **WHEN** a root seeder publishes verified public model assets with a restrictive umask
 - **THEN** the non-root application can traverse pack directories and read every inventoried asset without modifying their hashes
+
+#### Scenario: A reviewed PR precedes registry publication
+- **WHEN** source or PR verification runs before the asset image is published
+- **THEN** it builds the approved independently pinned inventory as a local image and exercises offline seeding and actual production acceptance without changing canonical publication metadata
+- **AND** source workspace/export checks use the candidate kit while production publication and normal release-kit builds still require the actual immutable registry digest

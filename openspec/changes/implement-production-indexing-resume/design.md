@@ -61,3 +61,11 @@ run inside the test network. Seeded public assets are readable by the applicatio
 UID after atomic publication, including when the seeder has a restrictive umask.
 Installed-wheel checks resolve the lock from the image's explicit application
 home and continue checking its exact hash.
+
+PR/source validation must be possible before registry publication. Its explicit
+CI candidate preparation validates the canonical approved manifest, independent
+pin, lock and notices before materialization, then supplies an actual local
+image ID to denied-egress acceptance. It does not rewrite release metadata.
+Workspace/export checks use `deployment-kit-candidate`; published kit builds
+continue through the separate strict `deployment-kit` release gate. Non-PR
+production promotion still requires the actual immutable registry identity.

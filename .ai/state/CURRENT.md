@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `reviewing`
-Updated: `2026-11-12T22:41:39+00:00`
+Updated: `2026-11-12T23:05:46+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,19 +19,19 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- All authorized local fixes, operator-approved89-file inventory/notices, approved asset image and production image are complete and verified; scoped changes ready for owner push
+- PR23 CI bootstrap fix implemented and verified: reviewed local assets for PR/source checks, candidate kit for workspace/export checks, strict immutable published-release gates retained; ready for owner push
 
 ## Remaining
 
-- Owner pushes commits and publishes reviewed asset image, then records its real OCI digest; physical Windows and broader production release acceptance remain open
+- Owner pushes CI fix and reruns PR23 checks; actual registry publication/digest recording and physical Windows matrix remain separate release follow-up
 
 ## Blocked
 
-- Standard registry release/kit promotion still requires actual published OCI digest; owner will handle GitHub push. Physical Windows hardware acceptance remains unverified.
+- Actual production registry publication still requires owner-provided published OCI digest; no remaining local CI implementation blocker
 
 ## Decisions
 
-- User will push commits to GitHub; finish local changes and verification without requesting further publication authentication. Actual registry digest remains unrecorded until owner publication; no placeholder identity.
+- Candidate kit retains original publication metadata; default deployment-kit is derived from it and still runs release_identity before exportable production promotion. CI-owned raw pack is removed only after actual built image ID is verified.
 
 ## Relevant context
 
@@ -39,20 +39,21 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Working set
 
-- `distribution/assets/assets-lock.json`
-- `distribution/assets/licenses/asset-review.json`
+- `Containerfile`
+- `scripts/prepare_ci_assets.py`
+- `tests/test_ci_offline_assets.py`
 
 ## Verification passed
 
-- Final full harness PASS1955 tests16skips; focused28 PASS; exact approved-image fresh-volume denied-egress production OCR/table/tokenizer/GGUF/Torch/UI/MCP/indexing/repository-owner writes/restart PASS; OpenSpec strict, state, artifact manifest and whitespace validation PASS
+- Full harness PASS1961 tests16skips; final six candidate regression tests PASS after publication-independent fixture adjustment; initial focused32 PASS; real kit build/helper hashes/export/Compose fallback PASS; normal release target expected refusal PASS; workflow YAML/Bash, Wiki, OpenSpec, state/artifact/whitespace validation PASS
 
 ## Verification pending
 
-- Actual GHCR publication and ordinary published-image release smoke; native Windows5.1 and physical Windows CUDA/Vulkan/Rancher/Desktop; broader durability and rollout matrix
+- Remote GitHub controlled assembly and job reruns after owner push; actual published-image acceptance and physical Windows hardware matrix
 
 ## Next action
 
-Owner pushes local commits; follow committed distribution/assets/README.md to publish approved manifest f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25 and record actual OCI digest
+Owner pushes CI fix on feature/generate-init-project and reruns the listed PR23/source checks; publish approved pack and record actual OCI digest for production promotion separately
 
 ## Prerequisites
 

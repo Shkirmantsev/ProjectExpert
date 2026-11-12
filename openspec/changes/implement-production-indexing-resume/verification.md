@@ -268,3 +268,36 @@ Physical Windows GPU/Rancher/Desktop and broader durability/rollout gates remain
 open; local contract tests do not certify them. Existing user services/volumes
 were preserved, and only disposable fixture volumes and superseded build artifacts
 were removed.
+
+## PR 23 CI bootstrap follow-up
+
+All five reported failures shared the unpublished asset-release gate. Production
+and seeding jobs called `release_identity` while metadata was still blocked;
+workspace Go tests passed, but its helper-contract job unnecessarily built the
+release-gated deployment kit. Logs: jobs 131549258687, 131549096396,
+131548404102, 131549096201 and 131548403868.
+
+PR/source validation now explicitly prepares the operator-approved independently
+pinned candidate, checking the lock and notice hashes before materialization.
+Only an actual inspected local Docker image ID is passed to candidate offline
+acceptance. The preparer refuses an existing raw-pack directory and removes only
+its own successful assembly after the image build. Default/non-PR preparation
+still requires the published immutable release. Source seeding cleanup also
+checks volume existence so an earlier error does not cause a second cleanup error.
+
+The real `deployment-kit-candidate` target built both cross-platform helpers;
+their SHA-256 checks passed. Actual kit export, complete Compose configuration
+and application-image fallback checks passed with the verified local pack, while
+the kit retained blocked publication metadata. Building ordinary `deployment-kit`
+still failed with the expected blocked-release error. No OCI digest or release
+status was fabricated, and no candidate-kit publication path was added.
+
+Verification: six candidate-preparation regressions PASS; the initial 32-test focused
+CI/packaging/workspace tests PASS; workflow YAML and every Linux run-step Bash
+syntax PASS; full `harness.py check` PASS (1,961 tests, 16 skips). The candidate
+Docker build/export and strict-gate checks above are actual local execution.
+Fresh controlled assembly on GitHub and remote job reruns remain pending owner
+push; candidate-preparation subprocess orchestration is covered by the regression
+suite, and the unchanged approved pack has the prior full real offline/restart
+acceptance recorded above. Registry publication and physical Windows hardware
+certification remain separate outstanding release gates.

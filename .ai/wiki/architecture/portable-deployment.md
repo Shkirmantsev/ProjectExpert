@@ -132,6 +132,12 @@ navigation/page updates from silently resetting a reviewed access policy to
 
 ## Delivery and evidence
 
+PR/source jobs materialize the approved independently pinned asset inventory and
+use its actual local Docker image ID for denied-egress validation before registry
+publication. Workspace/helper and PR export checks use `deployment-kit-candidate`,
+which retains source publication metadata. Normal `deployment-kit` builds and
+non-PR production promotion still require the immutable published asset identity.
+
 The publication workflow builds and tests PRs without publishing. Pushes to dev,
 development and main publish the tested image and a digest-bound deployment kit.
 Publication completes after the production gates; the independent core job can

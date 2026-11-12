@@ -188,7 +188,7 @@ a0c69636ad28433f89a7feb36cdd95c1f8bec331c6de0c6619ba47ee1ad79843  ./.ai/wiki/adr
 33efc9a7d18b18efa69dde34a51174be7c627bb8392e0b27010d554810eba149  ./.ai/wiki/adr/0033-resumable-indexing-state.md
 ed006694a7ef0637162b2730c2c2e21b412fa30eefdfd1757881267ce545a6ec  ./.ai/wiki/architecture/embedding-profile-identity.md
 b721c1e17149f490c9ec99d9e277dfafcb3db750a453b4bee1a3de9dbfa710f9  ./.ai/wiki/architecture/platform-overview.md
-548bc2ff6299b6a8fdc24b986d1fdc59a77a64423a0e1f3ccf02ba296e67b208  ./.ai/wiki/architecture/portable-deployment.md
+c727ea581d89d2fa2e9a6ac95750003eaa985de46eb8922179588162bee2a9ab  ./.ai/wiki/architecture/portable-deployment.md
 ad70ffa302e7b388538c3d33c19b7fd14ceacfcd507b7ee736d4d284f502a956  ./.ai/wiki/architecture/resumable-indexing.md
 2184f13b8c7c080caddecfaee3b82a2e81a2e1e9b65010d7f4a8bad3c9817b85  ./.ai/wiki/architecture/retrieval-candidate-selection.md
 67d4adb93b0730d7a8d934c79f18131d51f861ec446cec855cf2ae0f14bf04fc  ./.ai/wiki/architecture/rich-document-graph.md
@@ -293,12 +293,12 @@ b838f9db9c1b0f1857547f802190bb1686a460e8b51c9df15e3dd389d128282f  ./.dockerignor
 80e8a91e904a6a05fb88154916ce072dc69c34569f20bd4a080a518f61409aa3  ./.env.example
 cd60e3a9811804e13d1212f1da1aa187839d155543acbcd2a8ac8bb52bb0b0c2  ./.gitattributes
 63ea4c86e47d8de249fd7a7d09fff92da8d09e3fa647b6e39ee1bccb16bf616b  ./.github/workflows/codeql.yml
-ba77c6defd6cc093aee4c527d10d97d479eb00fbd9ce7f247f0f959d8bc851a0  ./.github/workflows/publish-oci-container.yml
+5d6abf741e4e1a3c7f583cc8db72cef35b6807fbb666607e7344efeb927a2108  ./.github/workflows/publish-oci-container.yml
 0ad5191ee56869aa61e17c1581dc51b28a40a35b74a010496966e7748a12cd46  ./.github/workflows/publish-offline-assets.yml
-2d4aa0ad4ba5f5c649f6186c95315cc97500d6ae22bbd00f07fcd6e6dfe1559e  ./.github/workflows/verify-asset-pack.yml
+69c035fe8537da0ea587787eef9b927114f65d595301a1137b4ad02dbf48624d  ./.github/workflows/verify-asset-pack.yml
 411e41e8ca3a6b50bc9cbb7e3741696f2799ab24e6e27f5fe1ab0fffcef17445  ./.github/workflows/verify-production-runtime.yml
 3d0cd2f3aa43e25817b36188164c1faaf9f3824c69570b9ed4692e50197821aa  ./.github/workflows/verify.yml
-ba08edae97681fb6dfb0e2ae8bbeb41d467ec6012b6e1ced2d135ba2a67a79b8  ./.github/workflows/workspace-agent.yml
+c626c6e42843f054186288f0e4f3080d0d1f088234e2644d37c4ed5d9cad0ddb  ./.github/workflows/workspace-agent.yml
 dca07f3ee52a5083b43cfe495f2a9168ee9d6930682f19b5946a148944fd72d3  ./.gitignore
 147823b25c2caf0314fd5dea69320f4e4709e314562e1dca89ffec7d6189dead  ./.harness/runtime.json
 d8c58083d0075d277ce47c100b12b8deaaab1000eaff144057a0080ef61291a9  ./.opencode/.gitignore
@@ -312,7 +312,7 @@ fb70b7d1cd5cfac1fd77a280f51941130d53b4036f7f5572be6420becdbe6250  ./.opencode/to
 aa01697f5d1d3de0ebce837bbc01e51392b9cb6d8e9d20ede5f79bb8a2e2a9a9  ./AGENT.md
 0c84cb00315c491d5a19f0fe9c65c510b10d4b3ce487843af810532548a49562  ./AGENTS.md
 51e60dc0a5fe8d2b017bf6efd51f68383d59132919ece44721cdc1a90da2d1b5  ./CLAUDE.md
-695a5192d9eca8cd6de95dcb48a0073c995e10dc4dd5f8aa6cbe212a85c0e835  ./Containerfile
+f713240176f626f0a40f7d0c95aecc95e8d6f63f84a388287c90d3d4847e7e6a  ./Containerfile
 2e70e468e3e8e759d87f1cc9e6c9a9d7ecb9b19facbb0b40e979bfd86358fcb4  ./GITHUB_REVIEW_SETUP.md
 027a332a6f9fee51db93e4bdf8587ce04d30e776e5e015e3da5c404d11ec6f5c  ./LICENSE
 6513830ea350bccc77a0c4cd48398b1ca5a82b82376ae635eb603cad681d027d  ./Makefile
@@ -322,7 +322,7 @@ aa01697f5d1d3de0ebce837bbc01e51392b9cb6d8e9d20ede5f79bb8a2e2a9a9  ./AGENT.md
 e1d49c569ae09b2ede16e2d83820a3809b35eb6c44c13ba9b5330598d6b8f43c  ./VERSION
 8afea3ade4ef1422d4e1c672353c90bfce19dbb2aea640d4bd99669218e830a6  ./distribution/assets/Containerfile
 73399ad487982b27a1780156c17ab556d9d5cdf2ea23ea554411cdeb82badaac  ./distribution/assets/Containerfile.dockerignore
-f81014b60e85d6343b682138b570cf019553d45bdcda4fc9416851d9e624098b  ./distribution/assets/README.md
+9074d7493a758bf6390294e0512bbbd7127ddd6b6158051d3fe7142a91eb652e  ./distribution/assets/README.md
 8737f0981c2c0a7ce7625cdde357c2762fbe0d97b84e5ab34b56cc7a2a53d7bc  ./distribution/assets/asset-release.json
 f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25  ./distribution/assets/assets-lock.json
 cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30  ./distribution/assets/licenses/Apache-2.0.txt
@@ -812,14 +812,14 @@ e9ee63822a165a6de1519ba4561ecb96c415cd4d68b2b18f89625cb016f74769  ./openspec/cha
 107b89dca9f11ab1fa14d928100982e450ded34057aa8e6af5bfbb60584a3dc2  ./openspec/changes/archive/2026-11-08-prevent-deployment-owner-regressions/specs/2026-10-25-llm-wiki-curated-knowledge/spec.md
 dc989c155f08992905bcc8653b4678c73a9cd22649e7b24308ae56f4fbdbc84b  ./openspec/changes/archive/2026-11-08-prevent-deployment-owner-regressions/tasks.md
 46f3d1e72d3829ec204513c711533554ddbfbd1d5060fc113440d53255afabbc  ./openspec/changes/implement-production-indexing-resume/context-impact.md
-83aab33cfc62775d951d3313dd862bc83b57c1f94298e03b151498d0d377abb6  ./openspec/changes/implement-production-indexing-resume/design.md
+2dba40e18f5b7c2de01e895ae2d59634e97bf4a89ff5a39ecd74ba02e83d0203  ./openspec/changes/implement-production-indexing-resume/design.md
 01323c5d34ab2e142ec49f705d2575a79db925431e822a8f0ab0f129c4144f05  ./openspec/changes/implement-production-indexing-resume/proposal.md
 2b90d1566fe27781f7d2307b31ad65693c7c018f55f0047762db4cc67ac4a715  ./openspec/changes/implement-production-indexing-resume/specs/2026-10-04-ingestion-pipeline-driver/spec.md
-1088e5c285893c362ca5fa90d2d350fe462457b15fc2715b2109e2e9b5fdca5a  ./openspec/changes/implement-production-indexing-resume/specs/2026-10-11-one-click-distribution/spec.md
+39669a2bb2925407187c50623baea76d3739bbbe5e266fe144295980231f50ab  ./openspec/changes/implement-production-indexing-resume/specs/2026-10-11-one-click-distribution/spec.md
 df49ffd0b40b0c1d9e4745de128a615c45c17dbd389cffcaa877c2ae21c3bb33  ./openspec/changes/implement-production-indexing-resume/specs/2026-10-18-semantic-index-service/spec.md
 22cf00f2fb5c7f6e54193388902669f23ed0f2b92b0d6d5a757000812b22946d  ./openspec/changes/implement-production-indexing-resume/specs/2026-10-25-portable-inference-runtime/spec.md
-8a734cd3252d093b95e6689405ff5a60cc88b3855d9101b73d46b14024800015  ./openspec/changes/implement-production-indexing-resume/tasks.md
-7052b51d9b86257d5e828bbed09d121d104863e796ea4b9b6aec3d40398b3416  ./openspec/changes/implement-production-indexing-resume/verification.md
+a14ae08c2f3d0a7a0de928bf16ad0bae6548da7323263f733aae4b119ef5b2eb  ./openspec/changes/implement-production-indexing-resume/tasks.md
+fc33fcf0270b248b4dc18df6ab4a78bbf378e2bc4f990c7a1d100f9872f2c31e  ./openspec/changes/implement-production-indexing-resume/verification.md
 22899bd18db889fd1d6de4bef366cd53fc8841b230805257b30cfb61e69f65d8  ./openspec/changes/plan-v0-8-platform-architecture/context-impact.md
 b3b35a00cd497f5eb3d44ff842ce93d160f21d5b4f9ce9ad438358f969d1ab48  ./openspec/changes/plan-v0-8-platform-architecture/design.md
 09d7612b85c18d79481be51a4e4fc91b5677d5a0f92495fbdbf7d672dc528627  ./openspec/changes/plan-v0-8-platform-architecture/proposal.md
@@ -1355,6 +1355,7 @@ f52cb7dd998370d4a1fe3420fde09f70b8d238248d87eb434ee00180622238e3  ./scripts/herm
 53330c0a3411dc49e798e94234b42f2831a8015d82bf568e76aad793b904dd5e  ./scripts/lesson_candidate.py
 8dc3d49298e5883b01dc19bd10b726fe3558b221d48b09e2f2ab8d117c0fc48e  ./scripts/materialize_asset_pack.py
 b8ed4553c4bfb3ccea1511810ffc3a0671336f6466a0a1b1c7f77b75275c83d5  ./scripts/openspec_layout.py
+016065e3b10890c072a1d3ca0a8e8f5aa85ff2117be3ee5e7f5bca77a223bec7  ./scripts/prepare_ci_assets.py
 8a10253fff1eae5a4cea41f3701a6f6e20e71e6d572ca88b6e723786b071d454  ./scripts/production_dependency_inventory.py
 c529c5a64ec4d4897aa760bf45f2475ef81f297dfccc2da555709b2568a44b2b  ./scripts/project-intelligence.sh
 8648630c9a0588fc773633bf70d190959b23f21a26a2120469e5037b995cd3fc  ./scripts/project_mcp.py
@@ -1382,6 +1383,7 @@ ec8f4fe998558df4496b47e5e5d41d2ff1978db2b477f51f8f57eef1eb76946c  ./tests/test_c
 d48a73af312b9c4ec8ef57ac21eb2ec314b18793ffb50c4181291f3b0aa3b25d  ./tests/test_canonical_roundtrip.py
 e68a098029afb1023a1bc1e37524bf4d2c06b62c8df61b1d100256ac4282fe8d  ./tests/test_chunk_size_sweep.py
 a07cee5d74b316059237b17c13a10e92d81cae6b4231fdc5ff65fc3cd89b28fc  ./tests/test_chunker_context_additive.py
+07944515b0a2aa7ac00861d1e15fa501695a855ea63223272178f82feae7f096  ./tests/test_ci_offline_assets.py
 6e98d85c2e2ed988752de9d1f64ae36f78f21d59e21dd2f255c17c2ea8d5b211  ./tests/test_ci_spawn_runner.py
 fe3e1794e91faa86ca4bea1bcaf33cdcfd29591661cbef2315a4b9ce7bfc666f  ./tests/test_clean_install_q4_runtime.py
 48802a6e3550fef73360ecf6ec2c6421125251e9d803a396d78fdd68272c7b1f  ./tests/test_clean_install_regressions.py

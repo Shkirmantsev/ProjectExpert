@@ -216,20 +216,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Require reviewed offline asset release before production promotion
+      - name: Prepare reviewed PR assets or require the immutable published release
         run: |
-          python -m pi_platform.deployment.offline_assets --release distribution/assets/asset-release.json > /tmp/asset-release.json
-          python - <<'PYCODE'
-          import json, os
-          release = json.load(open('/tmp/asset-release.json'))
-          with open(os.environ['GITHUB_ENV'], 'a') as output:
-              output.write('PI_ASSET_IMAGE=' + release['image'] + '\n')
-              output.write('PI_ASSET_MANIFEST_SHA256=' + release['manifest_sha256'] + '\n')
-          PYCODE
+          args=()
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then args+=(--candidate); fi
+          python scripts/prepare_ci_assets.py "${args[@]}" --env-output "$RUNNER_TEMP/asset-env"
+          cat "$RUNNER_TEMP/asset-env" >> "$GITHUB_ENV"
         # GITHUB_ENV is visible in subsequent steps.
       - name: Verify immutable seeding from an empty volume with no network
         run: |
-          docker pull "$PI_ASSET_IMAGE"
           docker volume create release-assets-verification
           docker run --rm --network none -v release-assets-verification:/models "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256"
           docker run --rm --network none -v release-assets-verification:/models "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256"
@@ -264,10 +259,17 @@ jobs:
           cache-from: type=gha,scope=production
           cache-to: type=gha,scope=production,mode=max
       - name: Offline default setup, OCR tables, inference, startup and restart
-        run: python scripts/smoke_production_container.py --image '${{ steps.names.outputs.image }}:candidate-${{ github.sha }}'
+        run: |
+          args=()
+          if [ "$PI_ASSET_MODE" = candidate ]; then
+            args+=(--candidate-assets --asset-image "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256")
+          fi
+          python scripts/smoke_production_container.py --image '${{ steps.names.outputs.image }}:candidate-${{ github.sha }}' "${args[@]}"
       - name: Build and test deployment kit export
         run: |
-          docker build -f Containerfile --target deployment-kit -t deployment-kit:test \
+          target=deployment-kit
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then target=deployment-kit-candidate; fi
+          docker build -f Containerfile --target "$target" -t deployment-kit:test \
             --build-arg 'PI_DEPLOY_IMAGE=${{ steps.names.outputs.image }}:candidate-${{ github.sha }}' \
             --build-arg 'PI_KIT_REVISION=${{ github.sha }}' .
           destination="$(mktemp -d)"

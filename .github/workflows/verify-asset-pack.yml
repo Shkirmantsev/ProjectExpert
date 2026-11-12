@@ -5,6 +5,8 @@ on:
       - 'distribution/deployment/**'
       - 'distribution/assets/**'
       - 'scripts/materialize_asset_pack.py'
+      - 'scripts/prepare_ci_assets.py'
+      - 'tests/test_ci_offline_assets.py'
       - 'scripts/verify_offline_runtime.py'
       - 'pi_platform/deployment/**'
       - 'tests/windows_deployment_runtime.ps1'
@@ -16,6 +18,8 @@ on:
       - 'distribution/deployment/**'
       - 'distribution/assets/**'
       - 'scripts/materialize_asset_pack.py'
+      - 'scripts/prepare_ci_assets.py'
+      - 'tests/test_ci_offline_assets.py'
       - 'scripts/verify_offline_runtime.py'
       - 'pi_platform/deployment/**'
       - 'tests/windows_deployment_runtime.ps1'
@@ -33,26 +37,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Require the reviewed release on every promotion path
+      - name: Build the pinned reviewed asset candidate for source verification
         run: |
-          python -m pi_platform.deployment.offline_assets --release distribution/assets/asset-release.json > /tmp/release.json
-          python - <<'PYCODE'
-          import json, os
-          release = json.load(open('/tmp/release.json'))
-          with open(os.environ['GITHUB_ENV'], 'a') as output:
-              output.write('ASSET_IMAGE=' + release['image'] + '\n')
-              output.write('MANIFEST_SHA256=' + release['manifest_sha256'] + '\n')
-          PYCODE
-      - name: Pull candidate through engine registry trust
-        run: docker pull "$ASSET_IMAGE"
+          python scripts/prepare_ci_assets.py --candidate --env-output "$RUNNER_TEMP/asset-env"
+          cat "$RUNNER_TEMP/asset-env" >> "$GITHUB_ENV"
       - name: Seed twice with networking denied
         run: |
           docker volume create candidate-assets
-          docker run --rm --network none -v candidate-assets:/models "$ASSET_IMAGE" --manifest-sha256 "$MANIFEST_SHA256"
-          docker run --rm --network none -v candidate-assets:/models "$ASSET_IMAGE" --manifest-sha256 "$MANIFEST_SHA256"
+          docker run --rm --network none -v candidate-assets:/models "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256"
+          docker run --rm --network none -v candidate-assets:/models "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256"
       - name: Remove isolated candidate cache
         if: always()
-        run: docker volume rm candidate-assets
+        run: |
+          if docker volume inspect candidate-assets >/dev/null 2>&1; then
+            docker volume rm candidate-assets
+          fi
   windows-launcher-contract:
     runs-on: windows-latest
     steps:

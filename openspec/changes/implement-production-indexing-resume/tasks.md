@@ -16,4 +16,5 @@
 - [x] Require seed before model setup/startup, preserve upgrade settings and diagnose stale pins.
 - [x] Add production publication gates for real network-denied seed/model/PDF/text/image/restart smoke.
 - [x] Execute complete fresh-volume egress-denied production OCR/table/tokenizer/text/image/Torch/UI/MCP/indexing/restart acceptance with the exact operator-approved pack.
+- [x] Verify reviewed PR/source candidates before publication, with candidate-kit helper/export checks and unchanged strict production release gates.
 - [ ] Publish reviewed asset OCI image and record actual immutable image/manifest identities.

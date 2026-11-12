@@ -42,6 +42,23 @@ from registry publication and does not promote the canonical release metadata.
 The smoke uses container-local HTTP on an internal network, so it needs no
 host access to an isolated bridge's published ports.
 
+PR CI invokes `scripts/prepare_ci_assets.py --candidate`: it checks the approved
+canonical manifest against its independent pin, dependency lock and retained
+notices, materializes that exact pack in the controlled build job, and returns
+its actual local Docker image ID for offline seeding and production acceptance.
+It removes only its own raw pack after successful image verification to bound
+disk use; an existing build directory is rejected rather than overwritten.
+The default preparer mode requires and pulls the immutable published release.
+Source `verify-asset-pack` jobs exercise reviewed candidates on both push and PR.
+Production publication still uses the default published-release mode and fails
+when registry identity is missing. No workflow invents or rewrites release pins.
+
+`deployment-kit-candidate` supports PR export and workspace-helper checks while
+retaining the source publication metadata. It cannot activate a blocked release.
+The normal `deployment-kit` target derives from it and requires the verified
+published identity before baking usable production pins. Candidate-kit builds
+are not published as release kits.
+
 The approved redistribution review checks no-fee commercial use at any
 company size. The pack uses Apache-2.0, MIT, CDLA-Permissive-2.0 and the
 retained LLVM/OpenMP/Intel notices. These grants do not impose revenue or company
