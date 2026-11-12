@@ -8,6 +8,9 @@ set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 source ./workspace.sh
+if [[ " $* " == *" up "* ]] && [ "${PI_HOST_CA_MODE:-$(workspace_value PI_HOST_CA_MODE)}" != off ]; then
+  bash ./host-trust.sh
+fi
 workspace_before "$@"
 
 read_env() { sed -n "s/^$1=//p" deployment.env | tail -1; }

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass, field
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Sequence
 
 
 __all__ = [
@@ -61,6 +61,18 @@ class VectorRecordStorePort(abc.ABC):
         self, chunk_id: str, embedding_profile_hash: str,
     ) -> VectorRecord | None:
         """Return the record or ``None`` when unknown."""
+
+    def get_many(
+        self, chunk_ids: Sequence[str], embedding_profile_hash: str,
+    ) -> Mapping[str, VectorRecord]:
+        """Optional bulk lookup; older adapters retain the single-row fallback."""
+        records = (self.get(chunk_id, embedding_profile_hash) for chunk_id in chunk_ids)
+        return {record.chunk_id: record for record in records if record is not None}
+
+    def put_many(self, records: Sequence[VectorRecord]) -> None:
+        """Optional bulk write; adapters may override with an atomic batch."""
+        for record in records:
+            self.put(record)
 
     @abc.abstractmethod
     def delete(self, chunk_id: str, embedding_profile_hash: str) -> None:

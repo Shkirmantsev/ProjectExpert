@@ -45,6 +45,43 @@ class DeploymentImageCompatibilityTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertTrue((root / "prepared").exists())
 
+    def test_ownership_compatible_old_image_rejects_requested_ca_instead_of_ignoring_it(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            package = root / "pi_platform"
+            cli = package / "cli"
+            fs = package / "adapters" / "fs"
+            cli.mkdir(parents=True)
+            fs.mkdir(parents=True)
+            for folder in (package, cli, fs.parent, fs):
+                (folder / "__init__.py").touch()
+            (fs / "container_identity.py").write_text(
+                "def prepare_project_user(target):\n    raise AssertionError('preparation must not run without requested trust')\n")
+            (cli / "main.py").write_text(
+                "def main():\n    raise AssertionError('application must not run without requested trust')\n")
+            bundle = root / "enterprise-roots.pem"
+            bundle.write_text("public certificate bundle")
+            for template, service in (("distribution/deployment/compose.yaml", "production"),
+                                      ("distribution/deployment/compose.accelerator.yaml", "model-setup")):
+                for requested_by in ("explicit", "mounted"):
+                    with self.subTest(template=template, requested_by=requested_by):
+                        config = yaml.safe_load((ROOT / template).read_text())["services"][service]
+                        code = config["entrypoint"][2]
+                        if requested_by == "mounted":
+                            # Model a container bind mount using a real fixture file;
+                            # neither the test nor the kit writes the host /run tree.
+                            code = ("import os\n_original_isfile=os.path.isfile\n"
+                                    "os.path.isfile=lambda path: _original_isfile(" + repr(str(bundle)) + ") if path == '/run/projectexpert-host-trust/host-ca-bundle.pem' else _original_isfile(path)\n" + code)
+                        result = subprocess.run(
+                            [sys.executable, "-c", code, *config.get("command", [])],
+                            cwd=root, env={**os.environ, "PYTHONPATH": raw, "PI_TARGET_ROOT": raw,
+                                           "PI_HOST_CA_MODE": "auto", "PI_EXTRA_CA_BUNDLE": str(bundle) if requested_by == "explicit" else ""},
+                            capture_output=True, text=True, timeout=20)
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertIn("requested CA trust", result.stderr)
+                        self.assertIn("upgrade", result.stderr)
+                        self.assertNotIn("AssertionError", result.stderr)
+
     def test_legacy_image_cli_cannot_write_through_application_entrypoints(self):
         for template, service in (("distribution/deployment/compose.yaml", "production"),
                                   ("docker-compose.yml", "core"),

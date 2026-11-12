@@ -37,7 +37,7 @@ func checkpointPath(name string) bool {
 }
 func allowedCheckpoint(name string) bool {
 	switch name {
-	case "runtime.db", "embeddings.sqlite", "index.json", "wal.jsonl", "documents-v2.sqlite", "ingestion.json", "source-inventory.json", "workspace-index.json":
+	case "runtime.db", "embeddings.sqlite", "index.json", "wal.jsonl", "documents-v2.sqlite", "ingestion.json", "source-inventory.json", "workspace-index.json", "indexing-state.sqlite":
 		return true
 	}
 	first := strings.Split(name, "/")[0]

@@ -267,6 +267,22 @@ class ThroughputGateTests(unittest.TestCase):
         self.assertEqual(profile.backend, "vulkan")
         self.assertEqual(profile.rejected, ())
 
+    def test_two_percent_gpu_gain_is_accepted_without_old_threshold(self):
+        profile = select_profile([
+            candidate("vulkan", VULKAN_OUTPUT),
+            candidate("cpu", NO_DEVICES_OUTPUT),
+        ], measurements={"cpu": 102.0, "vulkan": 100.0})
+        self.assertEqual(profile.backend, "vulkan")
+
+    def test_invalid_measurement_is_inconclusive_not_a_gpu_rejection(self):
+        for invalid in (float('nan'), float('inf'), -1.0, 0.0):
+            with self.subTest(invalid=invalid):
+                profile = select_profile([
+                    candidate("vulkan", VULKAN_OUTPUT),
+                    candidate("cpu", NO_DEVICES_OUTPUT),
+                ], measurements={"cpu": invalid, "vulkan": 100.0})
+                self.assertEqual(profile.backend, "vulkan")
+
     def test_the_threshold_is_configurable(self):
         profile = select_profile([
             candidate("vulkan", VULKAN_OUTPUT),

@@ -15,7 +15,7 @@ SCHEMA_VERSION = 1
 # Deliberately exclude HOME, settings/chat keys, model assets and arbitrary files.
 DERIVED_FILES = frozenset({
     'runtime.db', 'embeddings.sqlite', 'index.json', 'wal.jsonl', 'documents-v2.sqlite',
-    'ingestion.json', 'source-inventory.json', 'workspace-index.json',
+    'ingestion.json', 'source-inventory.json', 'workspace-index.json', 'indexing-state.sqlite',
 })
 DERIVED_TREES = frozenset({'objects', 'indexes', 'runtime-state', 'document-assets', 'dense', 'graph'})
 
@@ -120,6 +120,21 @@ class RuntimeCheckpointService:
         self.timeout = timeout
 
     def create(self, destination: Path) -> Path:
+        from pi_platform.adapters.runtime.sqlite_ingestion_cache import exclusive_indexer, IndexingStateError
+        # Match indexing/restore exclusion, including the first builder that has
+        # not created indexing-state.sqlite yet. Callers hold ProjectLock first;
+        # source builders release this lock before checkpoint export is invoked.
+        try:
+            with exclusive_indexer(self.cache_root):
+                if (self.cache_root / 'gc-in-progress.json').exists():
+                    raise CheckpointError('Complete interrupted canonical GC before checkpoint export')
+                if (self.cache_root / 'restore-in-progress.json').exists():
+                    raise CheckpointError('Interrupted indexing state restore; finish restore before checkpoint export')
+                return self._create_locked(destination)
+        except IndexingStateError as exc:
+            raise CheckpointError(str(exc)) from exc
+
+    def _create_locked(self, destination: Path) -> Path:
         from ..sync.version_snapshot import RuntimeSnapshotService
         snapshot = RuntimeSnapshotService(cache_root=self.cache_root).read_snapshot()
         if snapshot is None:

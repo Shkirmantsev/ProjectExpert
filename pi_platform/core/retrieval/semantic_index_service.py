@@ -31,7 +31,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import math
-from typing import Iterable, Mapping, Sequence
+import os
+from typing import Callable, Iterable, Mapping, Sequence
 
 from pi_platform.adapters.runtime.sqlite_vector_record_store import (
     encode_vector_payload,
@@ -53,6 +54,7 @@ from pi_platform.ports.retrieval.embedding_profile import EmbeddingProfile
 from pi_platform.ports.runtime.vector_record_store import (
     VectorRecord,
     VectorRecordStorePort,
+    VectorRecordStoreError,
 )
 
 
@@ -282,7 +284,15 @@ class SemanticIndexService:
         vector_record_store: VectorRecordStorePort,
         dense_index: USearchDenseIndex,
         dense_key_store: DenseKeyStore | None = None,
+        batch_size: int | None = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> None:
+        if batch_size is None:
+            batch_size = 32 if os.environ.get("PI_EMBED_BATCHING", "0") == "1" else 1
+        if batch_size < 1:
+            raise ValueError("batch_size must be positive")
+        self._batch_size = batch_size
+        self._progress_callback = progress_callback
         self._embedding_model = embedding_model
         self._vector_record_store = vector_record_store
         self._dense_index = dense_index
@@ -313,6 +323,10 @@ class SemanticIndexService:
                 target_profile=self._dense_index.embedding_profile_hash,
                 source_profile=self._embedding_profile_hash,
             )
+
+    def set_progress_callback(self, callback: Callable[[int, int], None] | None) -> None:
+        """Report completed chunks only after durable vectors and dense insertion."""
+        self._progress_callback = callback
 
     @property
     def embedding_profile_hash(self) -> str:
@@ -360,150 +374,108 @@ class SemanticIndexService:
         active_chunk_ids: list[str] = []
         seen_chunk_ids: set[str] = set()
 
+        unique_chunks = []
         for chunk in chunks:
-            if not chunk.chunk_id:
-                raise SemanticIndexServiceError(
-                    "ActiveChunk.chunk_id is required"
-                )
-            if not chunk.retrieval_text:
-                raise SemanticIndexServiceError(
-                    f"ActiveChunk {chunk.chunk_id!r} has empty "
-                    f"retrieval_text"
-                )
-            if not chunk.retrieval_text_hash:
-                raise SemanticIndexServiceError(
-                    f"ActiveChunk {chunk.chunk_id!r} has empty "
-                    f"retrieval_text_hash"
-                )
+            if not chunk.chunk_id or not chunk.retrieval_text or not chunk.retrieval_text_hash:
+                raise SemanticIndexServiceError("ActiveChunk requires chunk_id, retrieval_text and retrieval_text_hash")
             if chunk.chunk_id in seen_chunk_ids:
-                # The service trusts the caller to deduplicate but
-                # we still protect against double-insert into the
-                # dense index (USearch would raise on the second
-                # add for the same numeric key).
                 skipped.append(chunk.chunk_id)
                 continue
             seen_chunk_ids.add(chunk.chunk_id)
             active_chunk_ids.append(chunk.chunk_id)
             retrieval_text_hashes.append(chunk.retrieval_text_hash)
+            unique_chunks.append(chunk)
 
-            record = self._vector_record_store.get(
-                chunk.chunk_id, profile_hash,
-            )
-            if (
-                record is not None
-                and record.created_from_retrieval_text_hash
-                == chunk.retrieval_text_hash
-                and record.dimension == self._embedding_profile.output_dimension
-            ):
-                # Reuse: just add (or update) the dense index entry
-                # with the persisted vector; this is idempotent for
-                # the dense backend because we delete + add when the
-                # vector changes. To keep the implementation simple
-                # we delete + re-add, but only if the dense index
-                # does not already hold this chunk's id.
-                if chunk.chunk_id in self._dense_index._vectors:
+        for start in range(0, len(unique_chunks), self._batch_size):
+            batch = unique_chunks[start:start + self._batch_size]
+            lookup = getattr(self._vector_record_store, "get_many", None)
+            if lookup is not None:
+                cached = lookup([chunk.chunk_id for chunk in batch], profile_hash)
+            else:
+                cached = {chunk.chunk_id: self._vector_record_store.get(chunk.chunk_id, profile_hash)
+                          for chunk in batch}
+            misses = []
+            ready = []
+            for chunk in batch:
+                record = cached.get(chunk.chunk_id)
+                vector = None
+                if (record is not None
+                    and record.chunk_id == chunk.chunk_id
+                    and record.embedding_profile_hash == profile_hash
+                    and record.created_from_retrieval_text_hash == chunk.retrieval_text_hash
+                    and record.dimension == self._embedding_profile.output_dimension
+                    and record.model_revision == self._embedding_profile.model_revision
+                    and record.normalization == self._embedding_profile.normalization):
+                    try:
+                        vector = self._validate_vector(decode_vector_payload(record.vector_payload), chunk.chunk_id)
+                    except (SemanticIndexServiceError, VectorRecordStoreError, ValueError):
+                        vector = None
+                if vector is None:
+                    misses.append(chunk)
+                else:
+                    ready.append((chunk, vector))
                     reused.append(chunk.chunk_id)
-                    continue
-                self._dense_index.delete_chunk(chunk.chunk_id)
-                self._dense_index.index_chunk(
-                    chunk.chunk_id,
-                    decode_vector_payload(record.vector_payload),
-                    dict(chunk.metadata),
-                )
-                reused.append(chunk.chunk_id)
-                continue
 
-            # Embed the chunk through the role-aware request path.
+            # Keep segment ownership explicit while flattening requests; every
+            # segment is validated before its chunk's mean-pool projection.
+            requests = []
+            spans = []
+            for chunk in misses:
+                texts = chunk.embedding_segments or (chunk.retrieval_text,)
+                spans.append((len(requests), len(texts)))
+                requests.extend(EmbeddingRequest(text=text, role=EmbeddingRole.DOCUMENT,
+                    task=EmbeddingTask.SEARCH, image_path=chunk.image_path) for text in texts)
+            vectors = []
             try:
-                if chunk.embedding_segments:
-                    vectors = self._embedding_model.embed_requests([
-                        EmbeddingRequest(text=text, role=EmbeddingRole.DOCUMENT, task=EmbeddingTask.SEARCH, image_path=chunk.image_path)
-                        for text in chunk.embedding_segments
-                    ])
-                    if len(vectors) != len(chunk.embedding_segments) or any(
-                        len(item) != self._embedding_profile.output_dimension for item in vectors
-                    ):
-                        raise SemanticIndexServiceError("PDF projection returned incompatible vectors")
-                    vector = [sum(values) / len(vectors) for values in zip(*vectors)]
+                for offset in range(0, len(requests), self._batch_size):
+                    group = requests[offset:offset + self._batch_size]
+                    result = self._embedding_model.embed_requests(group)
+                    if len(result) != len(group):
+                        raise SemanticIndexServiceError("embedding batch returned incompatible cardinality")
+                    vectors.extend(result)
+            except EmbeddingModelError as exc:
+                raise SemanticIndexServiceError(f"embedding model raised for batch: {exc}") from exc
+            records = []
+            for chunk, (offset, count) in zip(misses, spans):
+                parts = [self._validate_vector(vector, chunk.chunk_id)
+                         for vector in vectors[offset:offset + count]]
+                vector = parts[0]
+                if count > 1:
+                    vector = [sum(values) / count for values in zip(*parts)]
                     norm = sum(value * value for value in vector) ** 0.5
                     if not math.isfinite(norm) or norm == 0:
                         raise SemanticIndexServiceError("PDF projection returned a non-finite or zero vector")
                     vector = [value / norm for value in vector]
-                else:
-                    vector = self._embedding_model.embed_request(
-                        EmbeddingRequest(
-                            text=chunk.retrieval_text,
-                            image_path=chunk.image_path,
-                            role=EmbeddingRole.DOCUMENT,
-                            task=EmbeddingTask.SEARCH,
-                        ),
-                    )
-            except EmbeddingModelError as exc:
-                raise SemanticIndexServiceError(
-                    f"embedding model raised for chunk "
-                    f"{chunk.chunk_id!r}: {exc}"
-                ) from exc
-            vector_list = [float(v) for v in vector]
-            if len(vector_list) != self._embedding_profile.output_dimension:
-                raise SemanticIndexServiceError(
-                    f"embedding for chunk {chunk.chunk_id!r} returned "
-                    f"{len(vector_list)}d; the active profile expects "
-                    f"{self._embedding_profile.output_dimension}d"
-                )
-            if not all(math.isfinite(value) for value in vector_list):
-                raise SemanticIndexServiceError(f"embedding for chunk {chunk.chunk_id!r} is not finite")
-            squared_norm = sum(value * value for value in vector_list)
-            if self._embedding_profile.normalization == "l2" and abs(squared_norm - 1.0) > 0.02:
-                raise SemanticIndexServiceError(f"embedding for chunk {chunk.chunk_id!r} is not normalized")
-
-            # Persist the vector record under the active profile
-            # namespace. The store overwrites on duplicate
-            # ``(chunk_id, profile_hash)`` so a profile switch on a
-            # chunk with a stale record from another profile is
-            # safe.
-            self._vector_record_store.put(
-                VectorRecord(
-                    chunk_id=chunk.chunk_id,
-                    content_hash=chunk.content_hash,
+                vector = self._validate_vector(vector, chunk.chunk_id)
+                records.append(VectorRecord(
+                    chunk_id=chunk.chunk_id, content_hash=chunk.content_hash,
                     embedding_profile_hash=profile_hash,
                     model_revision=self._embedding_profile.model_revision,
-                    dimension=len(vector_list),
-                    normalization=self._embedding_profile.normalization,
-                    vector_payload=encode_vector_payload(
-                        vector_list, dtype="f",
-                    ),
+                    dimension=len(vector), normalization=self._embedding_profile.normalization,
+                    vector_payload=encode_vector_payload(vector, dtype="f"),
                     created_from_retrieval_text_hash=chunk.retrieval_text_hash,
-                ),
-            )
-            # Cross-profile rejection: the dense index namespace
-            # is keyed by profile hash; we never insert a vector
-            # produced under a different profile. The dense index
-            # would already refuse an incompatible profile via its
-            # ``is_compatible_with`` check; we re-check here to
-            # surface a redacted error early.
-            if (
-                self._dense_index.embedding_profile_hash
-                != profile_hash
-            ):
-                raise CrossProfileInsertRejected(
-                    target_profile=self._dense_index.embedding_profile_hash,
-                    source_profile=profile_hash,
-                )
-            # Replace any prior entry for this chunk under the
-            # same namespace (e.g. after a content change).
-            self._dense_index.delete_chunk(chunk.chunk_id)
-            try:
-                self._dense_index.index_chunk(
-                    chunk.chunk_id,
-                    vector_list,
-                    dict(chunk.metadata),
-                )
-            except ANNIndexError as exc:
-                raise SemanticIndexServiceError(
-                    f"dense index rejected chunk {chunk.chunk_id!r}: "
-                    f"{exc}"
-                ) from exc
-            embedded.append(chunk.chunk_id)
+                ))
+                ready.append((chunk, vector))
+            # Validate the complete response before persisting anything in this
+            # batch. No transaction is open during model/HTTP work.
+            put_many = getattr(self._vector_record_store, "put_many", None)
+            if put_many is not None:
+                put_many(records)
+            else:
+                for record in records:
+                    self._vector_record_store.put(record)
+            for chunk, vector in ready:
+                if self._dense_index.embedding_profile_hash != profile_hash:
+                    raise CrossProfileInsertRejected(target_profile=self._dense_index.embedding_profile_hash,
+                                                     source_profile=profile_hash)
+                self._dense_index.delete_chunk(chunk.chunk_id)
+                try:
+                    self._dense_index.index_chunk(chunk.chunk_id, vector, dict(chunk.metadata))
+                except ANNIndexError as exc:
+                    raise SemanticIndexServiceError(f"dense index rejected chunk {chunk.chunk_id!r}") from exc
+            embedded.extend(chunk.chunk_id for chunk in misses)
+            if self._progress_callback is not None:
+                self._progress_callback(start + len(batch), len(unique_chunks))
 
         # Compute the deterministic generation identifier. The
         # generation includes every chunk id and retrieval text
@@ -540,6 +512,19 @@ class SemanticIndexService:
             persisted_chunk_ids=tuple(active_chunk_ids),
             removed_chunk_ids=(),
         )
+
+    def _validate_vector(self, vector: Sequence[float], chunk_id: str) -> list[float]:
+        if any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in vector):
+            raise SemanticIndexServiceError(f"embedding for chunk {chunk_id!r} contains invalid values")
+        values = [float(value) for value in vector]
+        if len(values) != self._embedding_profile.output_dimension:
+            raise SemanticIndexServiceError(f"embedding for chunk {chunk_id!r} has incompatible dimensions")
+        if not all(math.isfinite(value) for value in values):
+            raise SemanticIndexServiceError(f"embedding for chunk {chunk_id!r} is not finite")
+        squared_norm = sum(value * value for value in values)
+        if self._embedding_profile.normalization == "l2" and abs(squared_norm - 1.0) > 0.02:
+            raise SemanticIndexServiceError(f"embedding for chunk {chunk_id!r} is not normalized")
+        return values
 
     def remove_chunks(self, chunk_ids: Sequence[str]) -> tuple[str, ...]:
         """Remove the given chunks from both the dense index and the

@@ -95,7 +95,7 @@ class TreeSitterJavaSubprocess(JavaParserPort):
             )
         try:
             if probe.returncode != 0:
-                raise ValueError("version probe failed")
+                raise ValueError(f"version probe exit_code={probe.returncode}")
             info = json.loads(probe.stdout)
             if (
                 info["parser_version"] != request.parser_version
@@ -110,7 +110,7 @@ class TreeSitterJavaSubprocess(JavaParserPort):
                 ),
             )
             if output.returncode != 0:
-                raise ValueError(f"parser failed: {output.stderr[:400]}")
+                raise ValueError(f"parser failed exit_code={output.returncode}: {output.stderr[:400]}")
             result = json.loads(output.stdout)
             if result["parser_version"] != request.parser_version:
                 raise JavaParserVersionMismatch(

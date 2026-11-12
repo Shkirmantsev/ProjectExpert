@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "release_status": "blocked",
+  "runtime_compatibility": "llama-b11515/docling-production-lock",
+  "files": [],
+  "release_blockers": [
+    "Exact file hashes for tokenizer, Docling layout, table and OCR assets are not inventoried",
+    "Per-artifact redistribution license evidence and notices must be reviewed",
+    "Native Windows binary extracted file inventory must be verified",
+    "Network-denied smoke test using the pinned production dependencies has not run",
+    "Asset image has not been published; no OCI digest exists to pin"
+  ],
+  "known_upstream_pins": [
+    {
+      "path": "embedding/embeddinggemma-2-Q8_0.gguf",
+      "source": "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/58faf90940886df2d62be555c8765d00dac362c5/embeddinggemma-2-Q8_0.gguf",
+      "sha256": "2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135",
+      "license_review": "pending per-artifact evidence"
+    },
+    {
+      "path": "embedding/mmproj-embeddinggemma-2-Q8_0.gguf",
+      "source": "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/58faf90940886df2d62be555c8765d00dac362c5/mmproj-embeddinggemma-2-Q8_0.gguf",
+      "sha256": "c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f",
+      "license_review": "pending per-artifact evidence"
+    },
+    {
+      "source": "google/embeddinggemma-2",
+      "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
+      "file_hashes": "not yet inventoried"
+    },
+    {
+      "source": "docling-project/docling-layout-heron",
+      "revision": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
+      "file_hashes": "not yet inventoried"
+    },
+    {
+      "source": "docling-project/docling-models",
+      "revision": "2199320848bb9a8a519d22e4b528185a4f9a6f64",
+      "file_hashes": "not yet inventoried"
+    },
+    {
+      "source": "SWHL/RapidOCR",
+      "revision": "1cfba2e90fc938db55889873735088de210cc173",
+      "file_hashes": "not yet inventoried"
+    },
+    {
+      "backend": "vulkan",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip",
+      "archive_sha256": "013275bb02719d6de02107d0e1daca91462bfc6385ac56712f43db8418690358",
+      "extracted_file_hashes": "not yet inventoried",
+      "license_review": "pending per-artifact evidence"
+    },
+    {
+      "backend": "cuda",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-cuda-12.4-x64.zip",
+      "archive_sha256": "9381b20187aef342cf45b8f1a8605e66c244fc0a33176a2406655221522d992e",
+      "extracted_file_hashes": "not yet inventoried",
+      "license_review": "pending per-artifact evidence"
+    },
+    {
+      "backend": "cuda",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/cudart-llama-bin-win-cuda-12.4-x64.zip",
+      "archive_sha256": "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6",
+      "extracted_file_hashes": "not yet inventoried",
+      "license_review": "pending per-artifact evidence"
+    }
+  ]
+}

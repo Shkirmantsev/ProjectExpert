@@ -59,7 +59,7 @@ DEFAULT_INCLUDE_PATTERNS: tuple[str, ...] = (
     "uv.lock", "poetry.lock", "package-lock.json", "pnpm-lock.yaml",
     "yarn.lock",
     # Documentation
-    "*.md", "*.rst", "*.adoc", "*.txt", "*.html", "*.htm", "*.pdf",
+    "*.md", "*.rst", "*.adoc", "*.txt", "*.html", "*.htm", "*.pdf", "*.docx", "*.pptx", "*.xlsx", "*.doc", "*.ppt", "*.xls",
     "*.xml", "*.yaml", "*.yml", "*.json", "*.proto", "*.graphql", "*.sql",
     "*.png", "*.jpg", "*.jpeg", "*.webp",
     # OpenSpec and project knowledge
@@ -125,7 +125,7 @@ _FAMILY_RULES: tuple[tuple[str, Sequence[str]], ...] = (
     ),
     (
         SOURCE_FAMILY_DOCUMENTATION,
-        ("*.md", "*.rst", "*.adoc", "docs/", "requirements/"),
+        ("*.md", "*.rst", "*.adoc", "*.docx", "*.pptx", "*.xlsx", "*.doc", "*.ppt", "*.xls", "docs/", "requirements/"),
     ),
     (
         SOURCE_FAMILY_SOURCE_CODE,

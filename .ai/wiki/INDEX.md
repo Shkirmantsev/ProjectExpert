@@ -12,6 +12,9 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 
 ## Start here
 
+- [Resumable production indexing](architecture/resumable-indexing.md)
+- [ADR: Durable source checkpoints](adr/0033-resumable-indexing-state.md)
+
 - [Documentation map](../../docs/README.md)
 - [Structure and ownership](../../docs/PROJECT_STRUCTURE.md)
 - [Engineering conventions](../../docs/conventions/README.md)

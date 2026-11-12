@@ -200,6 +200,56 @@ class SqliteVectorRecordStore(VectorRecordStorePort):
                 return None
             return self._record_from_row(row)
 
+    def get_many(
+        self, chunk_ids: Sequence[str], embedding_profile_hash: str,
+    ) -> Mapping[str, VectorRecord]:
+        records = {}
+        # Stay below SQLite's conservative 999-bound-variable limit.
+        with self._connection() as db:
+            for start in range(0, len(chunk_ids), 900):
+                ids = chunk_ids[start:start + 900]
+                placeholders = ",".join("?" for _ in ids)
+                rows = db.execute(
+                    "SELECT chunk_id, embedding_profile_hash, content_hash, "
+                    "model_revision, dimension, normalization, vector_payload, "
+                    "created_from_retrieval_text_hash, created_at FROM embeddings "
+                    f"WHERE embedding_profile_hash = ? AND chunk_id IN ({placeholders})",
+                    (embedding_profile_hash, *ids),
+                ).fetchall()
+                records.update((str(row[0]), self._record_from_row(row)) for row in rows)
+        return records
+
+    def put_many(self, records: Sequence[VectorRecord]) -> None:
+        if not records:
+            return
+        rows = [(
+            record.chunk_id, record.embedding_profile_hash, record.content_hash,
+            record.model_revision, record.dimension, record.normalization,
+            record.vector_payload, record.created_from_retrieval_text_hash, self._clock(),
+        ) for record in records]
+        with self._connection() as db:
+            # A borrowed connection keeps transaction ownership. A savepoint
+            # makes the batch atomic without committing any caller changes.
+            owned = self._db is None
+            try:
+                if not owned and not db.in_transaction:
+                    db.execute("BEGIN")
+                db.execute("BEGIN IMMEDIATE" if owned else "SAVEPOINT vector_batch")
+                db.executemany(
+                    "INSERT OR REPLACE INTO embeddings (chunk_id, embedding_profile_hash, "
+                    "content_hash, model_revision, dimension, normalization, vector_payload, "
+                    "created_from_retrieval_text_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    rows,
+                )
+                db.execute("COMMIT" if owned else "RELEASE SAVEPOINT vector_batch")
+            except sqlite3.Error as exc:
+                if owned:
+                    db.rollback()
+                else:
+                    db.execute("ROLLBACK TO SAVEPOINT vector_batch")
+                    db.execute("RELEASE SAVEPOINT vector_batch")
+                raise VectorRecordStoreError(f"failed to put vector batch: {exc}") from exc
+
     def delete(self, chunk_id: str, embedding_profile_hash: str) -> None:
         with self._connection() as db:
             db.execute(

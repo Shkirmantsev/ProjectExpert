@@ -13,6 +13,19 @@ services:
             from pi_platform.adapters.fs.container_identity import prepare_project_user
         except ImportError:
             raise SystemExit("Incompatible ProjectExpert image: upgrade the application image and deployment kit; check PI_IMAGE. Project-owner execution is required.") from None
+        host_ca_mode = os.environ.get("PI_HOST_CA_MODE", "auto")
+        if host_ca_mode not in ("auto", "off"):
+            raise SystemExit("PI_HOST_CA_MODE must be auto or off")
+        trust_requested = host_ca_mode != "off" and (
+            bool(os.environ.get("PI_EXTRA_CA_BUNDLE")) or
+            os.path.isfile("/run/projectexpert-host-trust/host-ca-bundle.pem")
+        )
+        if trust_requested:
+            try:
+                from pi_platform.deployment.trust import configure_container_trust
+            except ImportError:
+                raise SystemExit("Incompatible ProjectExpert image: requested CA trust requires an application image and deployment kit upgrade; check PI_IMAGE. TLS verification has not been weakened.") from None
+            configure_container_trust()
         os.environ["PI_RUN_AS_PROJECT_OWNER"] = "1"
         prepare_project_user(os.environ["PI_TARGET_ROOT"])
         from pi_platform.cli.main import main
@@ -38,16 +51,24 @@ services:
       PI_DENSE_INDEX: usearch
       PI_DOCLING_ENABLED: ${PI_DOCLING_ENABLED:-1}
       PI_PREPARE_DOCLING: "1"
+      PI_INDEX_ENGINE: ${PI_INDEX_ENGINE:-legacy}
+      PI_INDEX_PARALLEL: ${PI_INDEX_PARALLEL:-0}
+      PI_INDEX_REQUIRE_COMPLETE: ${PI_INDEX_REQUIRE_COMPLETE:-1}
+      PI_EMBED_BATCHING: ${PI_EMBED_BATCHING:-0}
+      PI_CPU_TARGET_PERCENT: ${PI_CPU_TARGET_PERCENT:-80}
+      PI_PARSE_WORKERS: ${PI_PARSE_WORKERS:-auto}
+      PI_PDF_WORKERS: ${PI_PDF_WORKERS:-1}
+      PI_PDF_THREADS: ${PI_PDF_THREADS:-1}
       PI_MODEL_CACHE: /models/huggingface
       HF_HOME: /models/huggingface
       HF_TOKEN: ${HF_TOKEN:-}
       XDG_CACHE_HOME: /models/cache
     command: ["start", "--target", "/repo", "--host", "0.0.0.0", "--port", "8765"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health/ready', timeout=4)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=4)"]
       interval: 10s
       timeout: 5s
-      start_period: 30m
+      start_period: 30s
       retries: 3
     restart: unless-stopped
   open-webui:

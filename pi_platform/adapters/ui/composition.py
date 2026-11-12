@@ -603,8 +603,9 @@ def is_open_webui_enabled(
 
 class PublishedRetrieval:
     """One atomic runtime pointer shared by UI, orchestration and MCP."""
-    def __init__(self, readiness):
+    def __init__(self, readiness, *, indexing_state_path=None):
         self.readiness = readiness
+        self.indexing_state_path = indexing_state_path
         self.runtime = None
 
     def retrieve(self, query):
@@ -624,12 +625,14 @@ class PublishedRetrieval:
         return result
 
     def stats(self):
+        from pi_platform.adapters.runtime.sqlite_ingestion_cache import indexing_progress
+        progress = indexing_progress(self.indexing_state_path) if self.indexing_state_path else {}
         if self.runtime is None:
-            return {}
+            return {'indexing_progress': progress} if progress else {}
         from pi_platform.adapters.ui.execution_status import embedding_execution_status
         from pi_platform.adapters.orchestration.managed_runtime import observed_execution
         saved = self.runtime.extra.get("managed_execution")
-        return {"execution": observed_execution(saved) if saved else embedding_execution_status(self.runtime.embedding_model),
+        return {"indexing_progress": progress, "execution": observed_execution(saved) if saved else embedding_execution_status(self.runtime.embedding_model),
                 **self.runtime.multi_stage_retrieval.stats(), **self.runtime.stage_report(),
                 "source_failures": list(self.runtime.extra.get("source_failures", ())),
                 "active_chunks": len(self.runtime.extra.get("chunk_ids", ())),
@@ -684,7 +687,7 @@ def build_ui_service(
     )
     from pi_platform.adapters.ui.projections import build_read_projections
     projections = build_read_projections(repo_root=repo_root, cache_root=cache_root, git=git)
-    retrieval = PublishedRetrieval(readiness)
+    retrieval = PublishedRetrieval(readiness, indexing_state_path=cache_root / 'indexing-state.sqlite')
     from pi_platform.adapters.orchestration.chat_connection import ChatConnection
     chat_connection = ChatConnection(cache_root)
     orchestrator = RetrievalOnlyOrchestrator(retrieval, chat_connection)
@@ -734,5 +737,7 @@ def build_ui_service(
             inventory=discovery.discover(repo_root), previous_inventory=None,
             settings=load_retrieval_settings(repo_root),
         )
-        publish_runtime(service, runtime)
+        from pi_platform.adapters.runtime.sqlite_ingestion_cache import candidate_publication
+        with candidate_publication(cache_root, runtime):
+            publish_runtime(service, runtime)
     return service, readiness

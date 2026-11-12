@@ -1,0 +1,70 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "/home/dmytro/Downloads/ProjectExpert-production-indexing-resume-performance-design-v2.md"
+  ],
+  "decisions": [
+    "Acquire Windows byte-range lock without reading locked byte; resolve ambiguous UTF8 bounds with pinned runtime tokenizer including special tokens"
+  ],
+  "progress": {
+    "blocked": [
+      "Cannot publish PR repair: configured Git SSH authentication unavailable; GitHub integration Git-tree write returns HTTP403"
+    ],
+    "done": [
+      "Third-round Windows crashed-pipe polling repaired; actual spawned-worker regression verifies checkpoints, sibling completion, cleanup and recovery"
+    ],
+    "todo": [
+      "Owner pushes third-round repair and reruns native Windows CI; continue remaining original production rollout gates separately"
+    ]
+  },
+  "resume": {
+    "next_action": "Owner pushes feature/generate-init-project and reruns PR22 Windows matrix",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-11T20:38:02+00:00",
+    "id": "production-indexing-resume-v2",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-12T07:15:16+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Durable compatible source resume and atomic generation isolation; batched embeddings; robust parser encoding and Office routing; bounded resources; offline assets and trust integration; focused tests and harness check pass; scoped commits with honest release limits"
+    ],
+    "goal": "Implement supplied production indexing resume performance offline asset and resource design on feature/generate-init-project",
+    "openspec_change": "implement-production-indexing-resume",
+    "status": "blocked"
+  },
+  "verification": {
+    "passed": [
+      "Full harness PASS: 1937 tests, 15 optional skips, zero failures; 37 focused tests PASS"
+    ],
+    "pending": [
+      "Native Windows 3.11/3.13 PR CI after publishing third-round repair"
+    ]
+  },
+  "working_set": [
+    {
+      "path": "openspec/changes/implement-production-indexing-resume/verification.md",
+      "sha256": "239442e10a094802d263aaf9b2413b07d2b24fffe3bfae05a4209b4fb609f752"
+    },
+    {
+      "path": "pi_platform/adapters/pdf/process_sources.py",
+      "sha256": "a915a1b39070f3f33c8ae7d8bab591bffaf517c83548c0e0b914fee7b18eeeb4"
+    },
+    {
+      "path": "tests/test_pdf_process_sources.py",
+      "sha256": "98f5d8a45abfe3864c283f73baa624332ed3c88ac4fd8adc8d23f44e4a4d84ba"
+    }
+  ]
+}

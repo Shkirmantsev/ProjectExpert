@@ -1,0 +1,8 @@
+# Collect host-trust first; an application bundle cannot repair registry pulls.
+services:
+  production:
+    volumes:
+      - ./host-trust:/run/projectexpert-host-trust:ro
+    environment:
+      PI_HOST_CA_MODE: ${PI_HOST_CA_MODE:-auto}
+      PI_EXTRA_CA_BUNDLE: ${PI_EXTRA_CA_BUNDLE:-}

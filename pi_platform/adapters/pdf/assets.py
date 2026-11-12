@@ -95,3 +95,31 @@ class FigureAssetAdapter:
             with open(path, "wb") as f:
                 f.write(image_bytes)
         return path
+
+
+def resolve_local_docling_assets(root, *, do_ocr):
+    """Resolve materialized pack files without importing any HF helper.
+
+    ``root`` points to the pinned pack's docling directory. Layout follows the
+    existing Docling artifacts tree, so version-specific vendor discovery is
+    preserved. Missing assets fail explicitly rather than initiating downloads.
+    """
+    from pathlib import Path
+    from .real_docling import DOCLING_OCR_FILES
+    root = Path(root).expanduser().resolve()
+    artifacts = root / "artifacts"
+    required = (
+        "docling-project--docling-layout-heron/config.json",
+        "docling-project--docling-layout-heron/preprocessor_config.json",
+        "docling-project--docling-layout-heron/model.safetensors",
+        "docling-project--docling-models/config.json",
+    )
+    missing = [name for name in required if not (artifacts / name).is_file()]
+    table = artifacts / "docling-project--docling-models/model_artifacts/tableformer/accurate"
+    if not table.is_dir() or not any(path.is_file() and path.suffix in {".pt", ".safetensors"} for path in table.iterdir()):
+        missing.append(str(table))
+    ocr = tuple(str(root / "ocr" / name) for name in DOCLING_OCR_FILES) if do_ocr else None
+    missing.extend(path for path in (ocr or ()) if not Path(path).is_file())
+    if missing:
+        raise FigureAssetError("Pinned offline Docling pack is incomplete: " + ", ".join(missing))
+    return artifacts, ocr

@@ -1,0 +1,1 @@
+"""Office document source adapters."""

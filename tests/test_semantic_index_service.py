@@ -74,7 +74,7 @@ class SemanticIndexServiceReuseTests(unittest.TestCase):
         from unittest.mock import patch
         for vector in ([float('nan')]*512, [0.0]*512):
             with self.subTest(vector=vector[0]):
-                with patch.object(self.model, 'embed_request', return_value=vector):
+                with patch.object(self.model, 'embed_requests', return_value=[vector]):
                     with self.assertRaises(SemanticIndexServiceError):
                         self.service.embed_active_chunks([_make_chunk('invalid', 'test')])
                 self.assertIsNone(self.service._vector_record_store.get('invalid', self.profile_hash))

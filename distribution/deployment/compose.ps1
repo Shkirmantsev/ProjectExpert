@@ -11,6 +11,9 @@
 # and the GPU is only kept when it is measurably faster. A measurement that
 # cannot be obtained falls back to the CPU profile.
 $ErrorActionPreference = 'Stop'
+# Restore all process environment changes, including workspace configuration.
+$savedEnvironment = @{}
+foreach ($item in Get-ChildItem Env:) { $savedEnvironment[$item.Name] = $item.Value }
 $composeArgs = $args
 . (Join-Path $PSScriptRoot 'workspace.ps1')
 
@@ -72,6 +75,9 @@ function Resolve-PlanWithMeasurements($Plan, $Measurements) {
 }
 Push-Location $PSScriptRoot
 try {
+    if ($composeArgs -contains 'up' -and (Get-WorkspaceValue 'PI_HOST_CA_MODE') -ne 'off') {
+        & (Join-Path $PSScriptRoot 'host-trust.ps1')
+    }
     Initialize-Workspace $composeArgs
     $backend = $env:PI_ACCELERATOR
     if (-not $backend) {
@@ -184,4 +190,10 @@ try {
     }
     Invoke-WorkspaceCompose --env-file deployment.env @files @composeArgs
     if ($LASTEXITCODE -ne 0) { throw 'Docker Compose failed' }
-} finally { Pop-Location }
+} finally {
+    foreach ($item in Get-ChildItem Env:) {
+        if (-not $savedEnvironment.ContainsKey($item.Name)) { [Environment]::SetEnvironmentVariable($item.Name, $null, 'Process') }
+    }
+    foreach ($key in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($key, $savedEnvironment[$key], 'Process') }
+    Pop-Location
+}

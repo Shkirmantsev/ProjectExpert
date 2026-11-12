@@ -46,14 +46,14 @@ class EmbeddingRuntimeContracts(unittest.TestCase):
         # the EmbeddingGemma 2 task prompt while the document side must
         # stay in the plain "title: ... | text: ..." document format.
         from pi_platform.adapters.retrieval.gguf_artifacts import GEMMA_MODEL_ALIAS
-        adapter = LlamaCppEmbeddingModel()
+        adapter = LlamaCppEmbeddingModel(batch_size=32)
         calls = []
         def request(path, payload=None):
             calls.append((path, payload))
             if path == '/v1/models':
                 return {'data': [{'id': GEMMA_MODEL_ALIAS,
                                   'architecture': {'input_modalities': ['text', 'image', 'audio', 'video']}}]}
-            return {'data': [{'index': 0, 'embedding': [1/math.sqrt(768)] * 768}]}
+            return {'data': [{'index': i, 'embedding': [1/math.sqrt(768)] * 768} for i in range(len(payload['input']))]}
         with patch.object(adapter, '_request', side_effect=request):
             vectors = adapter.embed_requests([
                 EmbeddingRequest('refund', EmbeddingRole.QUERY),
@@ -61,9 +61,9 @@ class EmbeddingRuntimeContracts(unittest.TestCase):
                 EmbeddingRequest('contract', EmbeddingRole.DOCUMENT, title='Billing'),
                 EmbeddingRequest('plain', EmbeddingRole.DOCUMENT),
             ])
-        # One identity probe plus one request per sequence.
-        self.assertEqual([path for path, _ in calls], ['/v1/models'] + ['/v1/embeddings'] * 4)
-        query_payloads = [calls[1][1]['input'][0], calls[2][1]['input'][0]]
+        # One identity probe plus a true multi-string request.
+        self.assertEqual([path for path, _ in calls], ['/v1/models', '/v1/embeddings'])
+        query_payloads = calls[1][1]['input'][:2]
         self.assertEqual(query_payloads, [
             'task: search result | query: refund',
             'task: code retrieval | query: function',
@@ -72,7 +72,7 @@ class EmbeddingRuntimeContracts(unittest.TestCase):
             self.assertTrue(payload.startswith('task: '), payload)
         # The task prompt is applied ONLY to queries: documents keep the
         # structured title/text format and never receive a task prompt.
-        doc_payloads = [calls[3][1]['input'][0], calls[4][1]['input'][0]]
+        doc_payloads = calls[1][1]['input'][2:]
         self.assertEqual(doc_payloads, [
             'title: Billing | text: contract',
             'title: none | text: plain',

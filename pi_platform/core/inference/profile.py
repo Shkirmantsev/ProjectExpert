@@ -33,6 +33,8 @@ policy never signals a GPU failure as fatal.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
+from typing import Mapping
 
 from .backend import (
     BACKEND_PREFERENCE_ORDER,
@@ -58,10 +60,9 @@ MIN_FIT_TARGET_MIB = 192
 MAX_FIT_TARGET_MIB = 512
 #: Fraction used to calculate the free-memory margin (not a consumption cap).
 FIT_MEMORY_FRACTION = 0.35
-#: A GPU candidate is only selected when it is at least this much faster
-#: than the CPU baseline. Below the threshold the GPU is an optimisation
-#: that costs time instead of saving it.
-MIN_GPU_SPEEDUP = 1.10
+#: Default comparison accepts equal or faster measured GPU performance.
+#: Explicit callers may retain their own policy through min_gpu_speedup.
+MIN_GPU_SPEEDUP = 1.0
 #: Rejection reason used when the measured GPU is not faster than the CPU.
 REJECTED_NOT_FASTER = "not faster than the cpu baseline"
 
@@ -117,9 +118,9 @@ def _measured_speedup(
 
     backend_median = measured.get(backend)
     cpu_median = measured.get(CPU_BACKEND)
-    if not backend_median or not cpu_median:
-        return None
-    if backend_median <= 0:
+    if (backend_median is None or cpu_median is None
+        or not math.isfinite(backend_median) or not math.isfinite(cpu_median)
+        or cpu_median <= 0 or backend_median <= 0):
         return None
     return float(cpu_median) / float(backend_median)
 

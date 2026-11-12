@@ -129,3 +129,26 @@ func TestFolderExclusionDoesNotOmitSameNamedFile(t *testing.T) {
 		t.Fatal("folder rule did not omit directory")
 	}
 }
+
+func TestVolatileDefaultsPreserveProjectConfiguration(t *testing.T) {
+	for _, name := range []string{".idea/workspace.xml", "nested/.idea/workspace.xml", ".worktrees/copy/source.go"} {
+		if !excluded(name) {
+			t.Errorf("volatile duplicate path included: %s", name)
+		}
+	}
+	for _, name := range []string{".idea/compiler.xml", "src/worktrees/model.go", "src/application.go"} {
+		if excluded(name) {
+			t.Errorf("project configuration excluded: %s", name)
+		}
+	}
+}
+func TestChangedSourceDiagnosticIsDeterministic(t *testing.T) {
+	before := Manifest{Files: map[string]File{"z.java": {1, "a"}, "a.java": {1, "b"}}}
+	after := Manifest{Files: map[string]File{"z.java": {1, "c"}, "a.java": {1, "d"}}}
+	if firstChangedSource(before, after) != "a.java" {
+		t.Fatal("missing deterministic changed path")
+	}
+	if firstChangedSource(before, before) != "VCS metadata" {
+		t.Fatal("missing VCS diagnostic")
+	}
+}

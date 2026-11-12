@@ -2438,17 +2438,19 @@ def _bootstrap_and_index_target_locked(
         active_index_generation=gen_id,
         last_refresh_id=f"refresh-{int(time.time())}",
     )
-    RuntimeSnapshotService(cache_root=cache_root).commit(
-        active=active_ver,
-        manifest=manifest_snap,
-        source=source_snap,
-    )
+    from ..adapters.runtime.sqlite_ingestion_cache import candidate_publication
+    with candidate_publication(cache_root, runtime):
+        RuntimeSnapshotService(cache_root=cache_root).commit(
+            active=active_ver,
+            manifest=manifest_snap,
+            source=source_snap,
+        )
 
-    discovery.persist(merged_inv, inv_path)
-    if service is not None:
-        from ..adapters.ui.composition import publish_runtime
-        publish_runtime(service, runtime)
-        service._published_version = active_ver
+        discovery.persist(merged_inv, inv_path)
+        if service is not None:
+            from ..adapters.ui.composition import publish_runtime
+            publish_runtime(service, runtime)
+            service._published_version = active_ver
     readiness.record_hydrate(hydrate_report)
     readiness.record_reconcile(
         transient_readiness._reconcile_report,
