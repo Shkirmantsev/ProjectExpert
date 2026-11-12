@@ -306,12 +306,19 @@ class LlamaCppEmbeddingModel(EmbeddingModelPort):
                 text = TASK_PROMPTS.get(request.task, TASK_PROMPTS[EmbeddingTask.SEARCH]) + text
             else:
                 text = _format_document_text(text, request.title)
-            # Without a pinned tokenizer, UTF-8 bytes plus BOS/EOS give a
-            # conservative bound for the pinned byte-fallback tokenizer.
-            # An injected local tokenizer can use the actual prompted length.
+            # Bytes bound batch packing without a tokenizer round trip for
+            # short inputs. An upper bound cannot prove that an input is too
+            # long: resolve ambiguous cases with the pinned runtime tokenizer.
             tokens = (self._token_counter(text) if self._token_counter is not None
                       else len(text.encode("utf-8")) + 2)
-            if not isinstance(tokens, int) or tokens <= 0:
+            if self._token_counter is None and tokens > min(self._max_input_tokens, self._max_batch_tokens):
+                result = self._request("/tokenize", {"content": text, "add_special": True})
+                token_ids = result.get("tokens") if isinstance(result, dict) else None
+                if (not isinstance(token_ids, list) or not token_ids
+                    or any(type(token) is not int or token < 0 for token in token_ids)):
+                    raise EmbeddingModelError("invalid runtime token count")
+                tokens = len(token_ids)
+            if type(tokens) is not int or tokens <= 0:
                 raise EmbeddingModelError("invalid prompted token count")
             if tokens > min(self._max_input_tokens, self._max_batch_tokens):
                 raise EmbeddingModelError("embedding input exceeds token limit; project it into smaller segments")

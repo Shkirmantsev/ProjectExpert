@@ -149,6 +149,39 @@ class LlamaBatchTests(unittest.TestCase):
             model.embed_batch(['a'])
         self.assertEqual(calls, [])
 
+    def test_byte_upper_bound_uses_runtime_tokens_before_rejecting_wide_text(self):
+        model, calls = self.make(max_input_tokens=32, max_batch_tokens=32)
+        original = model._request
+        prompted = []
+        def request(path, payload=None):
+            if path == '/tokenize':
+                prompted.append(payload)
+                return {'tokens': [1] * 20}
+            return original(path, payload)
+        model._request = request
+        self.assertEqual(len(model.embed_batch(['ledger ' * 20, 'x'])), 2)
+        self.assertEqual(prompted, [{'content': 'title: none | text: ' + 'ledger ' * 20,
+                                    'add_special': True}])
+        self.assertEqual([len(batch) for batch in calls], [1, 1])
+
+    def test_runtime_token_limit_still_rejects_oversized_input(self):
+        model, calls = self.make(max_input_tokens=32)
+        original = model._request
+        model._request = lambda path, payload=None: (
+            {'tokens': [1] * 33} if path == '/tokenize' else original(path, payload))
+        with self.assertRaisesRegex(EmbeddingModelError, 'smaller segments'):
+            model.embed_batch(['ledger ' * 20])
+        self.assertEqual(calls, [])
+
+    def test_invalid_runtime_token_response_fails_closed(self):
+        for result in ({}, {'tokens': []}, {'tokens': 'fake'}, {'tokens': [True]}):
+            model, calls = self.make(max_input_tokens=1)
+            model._modalities = frozenset({'text'})
+            model._request = lambda *args: result
+            with self.subTest(result=result), self.assertRaisesRegex(EmbeddingModelError, 'token'):
+                model.embed_batch(['ledger'])
+            self.assertEqual(calls, [])
+
     def test_duplicate_response_indices_are_rejected(self):
         model, calls = self.make()
         model._modalities = frozenset({'text'})
