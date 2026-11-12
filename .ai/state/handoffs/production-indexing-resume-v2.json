@@ -7,21 +7,22 @@
     "/home/dmytro/Downloads/ProjectExpert-production-indexing-resume-performance-design-v2.md"
   ],
   "decisions": [
-    "Do not change accepted stale-evidence readiness semantics or enable offline asset defaults without release evidence"
+    "Require TLS1.2 in CodeQL-flagged local server; preserve strict trust and native-error assertions"
   ],
   "progress": {
     "blocked": [
-      "Full V2 production rollout still needs licensed published OCI assets, packaged SQLite proof, native Windows/GPU acceptance and remaining serving/artifact-GC contract work"
+      "Cannot publish PR repair: configured Git SSH authentication unavailable; GitHub integration Git-tree write returns HTTP403"
     ],
     "done": [
-      "Committed six verified source groups: 509a929, d71a2d8, fd8b220, 2c1ca7f, 35179e6, 080e04c; final docs/state commit follows"
+      "PR22 repair verified locally: full harness PASS with 1932 tests and 15 optional skips; source fixes ready for scoped commits"
     ],
     "todo": [
-      "Resolve remaining production release gates recorded in active OpenSpec verification and operator guide"
+      "Owner pushes local CI repair commits or restores repository write access",
+      "Continue remaining V2 production rollout gates separately"
     ]
   },
   "resume": {
-    "next_action": "Release owner completes asset inventory/publication and target-platform matrix; continue remaining serving and artifact retention contracts before production adoption",
+    "next_action": "Push feature/generate-init-project and rerun PR22 checks; local code and regression fixes are ready",
     "prerequisites": []
   },
   "runtime": {
@@ -35,7 +36,7 @@
     "created_at": "2026-11-11T20:38:02+00:00",
     "id": "production-indexing-resume-v2",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-11T23:47:38+00:00"
+    "updated_at": "2026-11-12T06:23:41+00:00"
   },
   "task": {
     "acceptance": [
@@ -47,20 +48,16 @@
   },
   "verification": {
     "passed": [
-      "Frozen-source full harness PASS: 1930 tests run, 15 optional skips; Go tests, Compose config, Bash syntax, Wiki/OpenSpec and diff checks PASS"
+      "Full harness, writable-flush regression, actual Actions spawn runner, strict TLS fixture and portable PowerShell launcher/parser PASS"
     ],
     "pending": [
-      "Complete real-model offline, pinned-server batch, OS power-loss and hardware release matrix"
+      "After owner pushes repair, run native Windows 3.11/3.13, PowerShell5.1/7 and CodeQL checks"
     ]
   },
   "working_set": [
     {
-      "path": "docs/PRODUCTION_INDEXING_RESUME.md",
-      "sha256": "e98b802116d8fc4f48ab9472c4e373f874a3eecc6c87bdbbee1b2556810f0ced"
-    },
-    {
       "path": "openspec/changes/implement-production-indexing-resume/verification.md",
-      "sha256": "7d3e20d16c1ae3734500953ba9537d87edcdc4b3f53ee58fbe1137833b81685a"
+      "sha256": "775f499bd25164dfad3eeecfee457dfc0e4fe63b367219c373efd22942bc0df2"
     }
   ]
 }

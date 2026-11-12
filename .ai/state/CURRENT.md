@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `blocked`
-Updated: `2026-11-11T23:47:38+00:00`
+Updated: `2026-11-12T06:23:41+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,19 +19,20 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- Committed six verified source groups: 509a929, d71a2d8, fd8b220, 2c1ca7f, 35179e6, 080e04c; final docs/state commit follows
+- PR22 repair verified locally: full harness PASS with 1932 tests and 15 optional skips; source fixes ready for scoped commits
 
 ## Remaining
 
-- Resolve remaining production release gates recorded in active OpenSpec verification and operator guide
+- Owner pushes local CI repair commits or restores repository write access
+- Continue remaining V2 production rollout gates separately
 
 ## Blocked
 
-- Full V2 production rollout still needs licensed published OCI assets, packaged SQLite proof, native Windows/GPU acceptance and remaining serving/artifact-GC contract work
+- Cannot publish PR repair: configured Git SSH authentication unavailable; GitHub integration Git-tree write returns HTTP403
 
 ## Decisions
 
-- Do not change accepted stale-evidence readiness semantics or enable offline asset defaults without release evidence
+- Require TLS1.2 in CodeQL-flagged local server; preserve strict trust and native-error assertions
 
 ## Relevant context
 
@@ -39,20 +40,19 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Working set
 
-- `docs/PRODUCTION_INDEXING_RESUME.md`
 - `openspec/changes/implement-production-indexing-resume/verification.md`
 
 ## Verification passed
 
-- Frozen-source full harness PASS: 1930 tests run, 15 optional skips; Go tests, Compose config, Bash syntax, Wiki/OpenSpec and diff checks PASS
+- Full harness, writable-flush regression, actual Actions spawn runner, strict TLS fixture and portable PowerShell launcher/parser PASS
 
 ## Verification pending
 
-- Complete real-model offline, pinned-server batch, OS power-loss and hardware release matrix
+- After owner pushes repair, run native Windows 3.11/3.13, PowerShell5.1/7 and CodeQL checks
 
 ## Next action
 
-Release owner completes asset inventory/publication and target-platform matrix; continue remaining serving and artifact retention contracts before production adoption
+Push feature/generate-init-project and rerun PR22 checks; local code and regression fixes are ready
 
 ## Prerequisites
 

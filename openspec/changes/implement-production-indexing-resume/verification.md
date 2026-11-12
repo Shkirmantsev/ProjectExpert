@@ -66,3 +66,35 @@ No result below is a claim of the full production target in the supplied V2 desi
 
 The rollout switches remain conservative. Current accepted specs/CURRENT are
 not rewritten to imply these release requirements have been delivered.
+
+
+## PR 22 CI follow-up — 2026-11-12
+
+Windows job logs identified read-only `fsync` failure during FTS finalization,
+Docker-only launcher fixtures entering managed-helper mode, and an intentional
+native exit code leaking from a passing contract test. Repaired the responsible
+handle mode and fixture boundaries without changing managed workspace defaults
+or suppressing native error assertions. Launcher assertions now check the Docker
+child environment while verifying that parent preferences remain unchanged.
+
+The unit matrix timed out because the Actions Python wrapper re-entered the
+entire suite in spawned children. A real spawned-process fixture reproduces the
+failure in the exact workflow wrapper and passes with its new main guard.
+
+CodeQL check 131003204592 reports insecure TLS versions in the local test server
+at `tests/test_enterprise_ca_handshake.py`; its minimum is now explicitly TLS 1.2.
+Strict trusted-root success and unknown-root rejection continue to pass.
+
+Local verification: full harness PASS (1,932 tests, 15 optional skips), artifact
+flush/spawn/deployment regressions PASS, and official checksum-verified portable
+PowerShell 7.4.6 parser/mocked-launcher execution PASS on Linux. Native Windows
+PowerShell 5.1/7 and new CodeQL execution are tracked through the repaired PR CI;
+portable execution does not certify native Windows behavior.
+
+
+Publishing this follow-up from the repair session is blocked: the configured Git
+remote has no usable SSH authentication and the connected GitHub integration
+returns HTTP 403 for Git tree creation. No remote branch update was performed.
+The repair is committed locally for the owner to push before the native matrix
+and CodeQL can certify it. Original unit logs confirm recursive suite execution
+in spawned children and job cancellation; the guarded-runner regression passes.
