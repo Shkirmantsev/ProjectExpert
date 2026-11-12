@@ -169,18 +169,23 @@ def run_pdf_sources(sources, project_root, *, cache, documents_db_path, asset_ro
                     index, task, process, reader, started = row
                     result = None
                     error = None
-                    if reader.poll():
-                        try:
+                    try:
+                        # Windows can report a dead named-pipe writer during
+                        # poll itself, before recv has a chance to observe EOF.
+                        ready = reader.poll()
+                        if ready:
                             result = reader.recv()
-                        except (EOFError, OSError):
-                            error = f'PDF worker exited without a complete result (exit_code={process.exitcode})'
-                    elif not process.is_alive():
-                        error = f'PDF worker crashed (exit_code={process.exitcode})'
-                    elif time.monotonic() - started > timeout:
-                        error = f'PDF worker exceeded {timeout}s source timeout'
-                        process.terminate()
-                    else:
-                        continue
+                    except (EOFError, OSError):
+                        ready = True
+                        error = f'PDF worker exited without a complete result (exit_code={process.exitcode})'
+                    if not ready:
+                        if not process.is_alive():
+                            error = f'PDF worker crashed (exit_code={process.exitcode})'
+                        elif time.monotonic() - started > timeout:
+                            error = f'PDF worker exceeded {timeout}s source timeout'
+                            process.terminate()
+                        else:
+                            continue
                     process.join(timeout=5)
                     if process.is_alive():
                         process.terminate()

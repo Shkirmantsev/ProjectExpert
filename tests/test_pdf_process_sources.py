@@ -93,6 +93,34 @@ class PdfProcessTests(unittest.TestCase):
         Path(self.sources[0].uri).write_text('recovered text')
         self.assertTrue(all(report.ok for report in self.run_workers()))
 
+    def test_windows_broken_pipe_poll_preserves_crash_checkpoint_and_siblings(self):
+        import multiprocessing
+        context = multiprocessing.get_context('spawn')
+        original_pipe = context.Pipe
+        injected = []
+        first = True
+        def pipe(*args, **kwargs):
+            nonlocal first
+            reader, sender = original_pipe(*args, **kwargs)
+            if first:
+                first = False
+                original_poll = reader.poll
+                def poll(timeout=0):
+                    try:
+                        ready = original_poll(timeout)
+                    except (EOFError, BrokenPipeError):
+                        ready = True
+                    if ready:
+                        injected.append(True)
+                        raise BrokenPipeError(109, 'The pipe has been ended')
+                    return False
+                reader.poll = poll
+            return reader, sender
+        with patch.object(context, 'Pipe', side_effect=pipe):
+            self.test_crashed_source_has_page_checkpoint_but_no_complete_source_output()
+        self.assertEqual(injected, [True])
+        self.assertEqual(list((self.cache_root / 'pdf-worker-spool').iterdir()), [])
+
     def test_source_deadline_terminates_children_without_publishing_partial_results(self):
         reports = self.run_workers(source_timeout=0.001)
         self.assertTrue(all(not report.ok for report in reports))
