@@ -103,7 +103,7 @@ def build_exact(path, documents, fingerprint, *, batch_size=256, progress=None):
                 raise RuntimeError('Exact artifact integrity validation failed')
     if not _valid_exact(temporary, fingerprint, expected):
         raise RuntimeError('Exact artifact row validation failed')
-    with temporary.open('rb') as handle:
+    with temporary.open('r+b') as handle:
         os.fsync(handle.fileno())
     os.replace(temporary, path)
     if os.name == 'posix':

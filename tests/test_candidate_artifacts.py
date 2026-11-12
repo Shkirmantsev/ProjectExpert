@@ -1,6 +1,9 @@
 """Real artifact recovery and WAL-independent promotion tests."""
 from contextlib import closing
 import hashlib
+import errno
+import os
+import stat
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -46,6 +49,20 @@ class CandidateArtifactTests(unittest.TestCase):
         original = path.read_bytes()
         build_exact(path, rows, 'fingerprint')
         self.assertEqual(path.read_bytes(), original)
+
+    @unittest.skipUnless(os.name == 'posix', 'Models Windows file-handle rules using POSIX descriptor access flags')
+    def test_fts_promotion_uses_a_writable_handle_for_durable_flush(self):
+        import fcntl
+        native_fsync = os.fsync
+        def windows_flush_rules(descriptor):
+            if stat.S_ISREG(os.fstat(descriptor).st_mode):
+                access = fcntl.fcntl(descriptor, fcntl.F_GETFL) & os.O_ACCMODE
+                if access == os.O_RDONLY:
+                    raise OSError(errno.EBADF, 'Windows cannot flush a read-only file handle')
+            return native_fsync(descriptor)
+        with patch('pi_platform.adapters.runtime.candidate_artifacts.os.fsync', side_effect=windows_flush_rules):
+            result = build_exact(self.root / 'durable.sqlite', [('a', 'refund')], 'fingerprint')
+        self.assertEqual(result.stats()['documents'], 1)
 
     def test_fts_failed_new_candidate_preserves_old(self):
         old = self.root / 'old.sqlite'
