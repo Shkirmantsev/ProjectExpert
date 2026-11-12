@@ -9,6 +9,7 @@ on:
       - 'pi_platform/deployment/**'
       - 'tests/windows_deployment_runtime.ps1'
       - 'tests/windows_offline_assets.ps1'
+      - 'tests/windows_container_cuda.ps1'
       - '.github/workflows/verify-asset-pack.yml'
   pull_request:
     paths:
@@ -19,6 +20,7 @@ on:
       - 'pi_platform/deployment/**'
       - 'tests/windows_deployment_runtime.ps1'
       - 'tests/windows_offline_assets.ps1'
+      - 'tests/windows_container_cuda.ps1'
       - '.github/workflows/verify-asset-pack.yml'
   workflow_dispatch:
 permissions:
@@ -67,3 +69,9 @@ jobs:
       - name: PowerShell 7 offline native extraction contract
         shell: pwsh
         run: ./tests/windows_offline_assets.ps1
+      - name: Windows PowerShell 5.1 container CUDA preference and fallback
+        shell: powershell
+        run: ./tests/windows_container_cuda.ps1
+      - name: PowerShell 7 container CUDA preference and fallback
+        shell: pwsh
+        run: ./tests/windows_container_cuda.ps1

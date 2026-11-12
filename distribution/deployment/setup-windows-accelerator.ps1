@@ -85,7 +85,12 @@ if ($Backend -eq 'auto') {
 $evidence = @()
 $runtimeRoot = Join-Path $offlineRoot 'windows'
 $deviceOutput = @{}
+$includedNative = @((Get-Content (Join-Path $offlineRoot 'manifest.json') -Raw | ConvertFrom-Json).native_backends)
 foreach ($candidate in $candidates) {
+    if ($candidate -notin $includedNative) {
+        $evidence += @{ backend = $candidate; ok = $false; exit_code = -1; output = 'Native backend is not included; prefer the container runtime with the host driver' }
+        continue
+    }
     $assets = $lock.windows.$candidate
     if (-not $assets) {
         $evidence += @{ backend = $candidate; ok = $false; exit_code = -1
@@ -115,6 +120,12 @@ foreach ($candidate in $candidates) {
     $text = ''
     if (Test-Path -LiteralPath $outFile) { $text += (Get-Content -LiteralPath $outFile -Raw) }
     if (Test-Path -LiteralPath $errFile) { $text += (Get-Content -LiteralPath $errFile -Raw) }
+    $pinned = Get-WorkspaceValue 'PI_GPU_DEVICE'
+    if ($pinned) {
+        $match = [regex]::Match($text, '(?m)^\s*' + [regex]::Escape($pinned) + ':.*$')
+        if ($match.Success) { $text = $match.Value }
+        else { throw "Requested device $pinned was not reported by $candidate" }
+    }
     $deviceOutput[$candidate] = $text
     $evidence += @{ backend = $candidate
                     ok = ($probe.ExitCode -eq 0)

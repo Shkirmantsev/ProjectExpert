@@ -12,6 +12,10 @@ function global:docker {
     $global:offlineCalls.Add($call)
     $global:LASTEXITCODE = 0
     if ($args[0] -eq 'create') { 'fixture-container'; return }
+    if ($args[0] -eq 'cp') {
+        @{native_backends=@('vulkan')} | ConvertTo-Json | Set-Content (Join-Path $args[-1] 'manifest.json')
+        return
+    }
     if ($args[0] -eq 'run') {
         if ($global:rejectPack) { $global:LASTEXITCODE = 31 }
         return
