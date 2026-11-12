@@ -134,3 +134,29 @@ Native Windows 3.11/3.13 is NOT RUN locally; rerun PR CI after publishing these
 commits. The prior Git SSH and integration write-access blocker remains; no push
 was attempted during this repair. Original production rollout limits above
 remain unchanged.
+
+
+## PR 22 third CI follow-up — 2026-11-12
+
+All four Windows jobs in run 43171898548 reached the same remaining failure:
+`test_crashed_source_has_page_checkpoint_but_no_complete_source_output` raised
+WinError 109 from `Connection.poll()` after its PDF worker intentionally exited.
+The coordinator handled EOF/OSError from `recv()` but polling was outside that
+boundary. Poll and receive now share the incomplete-result handling, preserving
+normal bounded child cleanup, transient crash reporting and sibling processing.
+
+A cross-platform regression uses actual spawned workers and pipes, reproducing
+Windows broken-pipe polling at the first crashed worker's pipe. It fails with
+the previous implementation and passes with the repair. Its assertions retain
+the committed page checkpoint, absence of incomplete canonical output, sibling
+success, successful recovery on the next run and empty spool cleanup.
+
+Focused verification: 37 PDF/cache/GC/checkpoint tests PASS. No tests were skipped
+or disabled to address the Windows failure. Native Windows execution remains a
+PR CI verification step after publishing the local repair.
+
+Final local verification: full `harness.py check` PASS (1,937 tests, 15 optional
+skips, zero failures), artifact manifest PASS, and `git diff --check` PASS.
+The existing repository publishing authentication limitation remains; this
+session creates local commits for the owner to push. Original rollout limits
+above are unchanged.

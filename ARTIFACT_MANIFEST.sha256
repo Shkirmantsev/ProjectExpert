@@ -808,7 +808,7 @@ c0e52669fb33cde0ddb7b19743116cfb6093264ae59d34dcea85cb1ff969c357  ./openspec/cha
 df49ffd0b40b0c1d9e4745de128a615c45c17dbd389cffcaa877c2ae21c3bb33  ./openspec/changes/implement-production-indexing-resume/specs/2026-10-18-semantic-index-service/spec.md
 22cf00f2fb5c7f6e54193388902669f23ed0f2b92b0d6d5a757000812b22946d  ./openspec/changes/implement-production-indexing-resume/specs/2026-10-25-portable-inference-runtime/spec.md
 48ce5b45bbeb1f61ede2ac8bd338f234d4e481d522a28607bd1c4086b946063b  ./openspec/changes/implement-production-indexing-resume/tasks.md
-ceb2478508f44640b14f1cbe997ede1d74a937da54ab8711e2d5057b42cc65a9  ./openspec/changes/implement-production-indexing-resume/verification.md
+239442e10a094802d263aaf9b2413b07d2b24fffe3bfae05a4209b4fb609f752  ./openspec/changes/implement-production-indexing-resume/verification.md
 22899bd18db889fd1d6de4bef366cd53fc8841b230805257b30cfb61e69f65d8  ./openspec/changes/plan-v0-8-platform-architecture/context-impact.md
 b3b35a00cd497f5eb3d44ff842ce93d160f21d5b4f9ce9ad438358f969d1ab48  ./openspec/changes/plan-v0-8-platform-architecture/design.md
 09d7612b85c18d79481be51a4e4fc91b5677d5a0f92495fbdbf7d672dc528627  ./openspec/changes/plan-v0-8-platform-architecture/proposal.md
@@ -1003,7 +1003,7 @@ e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./pi_platform/
 0ba87d49c6310355809bf46952d7505b4eab8b8849a6dcdba879d6e6f6fd2367  ./pi_platform/adapters/pdf/docling_pdf_adapter.py
 979ad0249c968dbd94aa569288a85a6745d0b6524b85a9f544b8933212cff6da  ./pi_platform/adapters/pdf/ocr_policy.py
 78c0d4c289d354a673da5fc7f5cb07beccb438a6724e3550b8d3ebcca81eafc4  ./pi_platform/adapters/pdf/prescan.py
-21dfadb7327137813b3d25b61abce4eb3d9587b9e16bf5d000f406bcbe1cc442  ./pi_platform/adapters/pdf/process_sources.py
+a915a1b39070f3f33c8ae7d8bab591bffaf517c83548c0e0b914fee7b18eeeb4  ./pi_platform/adapters/pdf/process_sources.py
 2cda322b8a0e29809f58c458eb5906a5f0241c52d90f222f65eb82fcce2e5e15  ./pi_platform/adapters/pdf/real_docling.py
 085624ce0ad5524a4d482637b3162f3ffdd678000a399f72cc8a318fc534e2a5  ./pi_platform/adapters/pdf/runtime_projection.py
 f072a2721399a06c7258c7fef2bdfa8bbd14d056ba76f3e4950b3ea649587f84  ./pi_platform/adapters/pdf/source_worker.py
@@ -1441,7 +1441,7 @@ b4090d9caf1f0d1cc3fa50cb5b6f1eeaabdb07babb2fbfff9603ab17ce058728  ./tests/test_o
 360fab6015ec83f0254da2accd1a1d68038d5f5e70eccf5d8faaab5978bc5130  ./tests/test_pdf_batch_resume.py
 5157af791aacd993bfc7d757121c7df45a685ae91a038e09a236a75ea7c5f2b0  ./tests/test_pdf_fixture_generator.py
 78b974540fe979f64fc25178e8368278123ae4bb3329f6f0c584ef1cbb22e729  ./tests/test_pdf_prescan.py
-68907b30aec9bbbb1e338498e23d6308b55d7044e627c4de4c482a87d68129f1  ./tests/test_pdf_process_sources.py
+98f5d8a45abfe3864c283f73baa624332ed3c88ac4fd8adc8d23f44e4a4d84ba  ./tests/test_pdf_process_sources.py
 0036b57d7339bd79a554ee898a0168fb77f3a08543954a785566a28b94b21bf6  ./tests/test_pdf_production_mapping.py
 a64fa6d665bfb0f3c9b7282a992ef54369509d3719f325c5934799e2042b1a9f  ./tests/test_persisted_runtime_snapshot.py
 21dcb145fbee956395c436a167ca41953da2e35c2d969a9bdec2761d2cfdad7e  ./tests/test_phase_10_a2a.py

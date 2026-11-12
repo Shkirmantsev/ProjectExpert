@@ -14,12 +14,14 @@
       "Cannot publish PR repair: configured Git SSH authentication unavailable; GitHub integration Git-tree write returns HTTP403"
     ],
     "done": [
-      "Second-round Windows mandatory-lock, portable fixtures and runtime token admission repaired in scoped commits"
+      "Third-round Windows crashed-pipe polling repaired; actual spawned-worker regression verifies checkpoints, sibling completion, cleanup and recovery"
     ],
-    "todo": []
+    "todo": [
+      "Owner pushes third-round repair and reruns native Windows CI; continue remaining original production rollout gates separately"
+    ]
   },
   "resume": {
-    "next_action": "Owner pushes feature/generate-init-project and reruns PR22 CI; continue remaining rollout gates separately",
+    "next_action": "Owner pushes feature/generate-init-project and reruns PR22 Windows matrix",
     "prerequisites": []
   },
   "runtime": {
@@ -33,7 +35,7 @@
     "created_at": "2026-11-11T20:38:02+00:00",
     "id": "production-indexing-resume-v2",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-12T06:54:53+00:00"
+    "updated_at": "2026-11-12T07:15:16+00:00"
   },
   "task": {
     "acceptance": [
@@ -45,18 +47,24 @@
   },
   "verification": {
     "passed": [
-      "Full harness PASS: 1936 tests, 15 optional skips, zero failures; 98 focused tests PASS; unchanged real GGUF CPU smoke PASS"
+      "Full harness PASS: 1937 tests, 15 optional skips, zero failures; 37 focused tests PASS"
     ],
-    "pending": []
+    "pending": [
+      "Native Windows 3.11/3.13 PR CI after publishing third-round repair"
+    ]
   },
   "working_set": [
     {
-      "path": "pi_platform/adapters/retrieval/llama_cpp_embedding_model.py",
-      "sha256": "ba9b85e6634b6d5fc5bb6a69b3bcf2d6af37aff54214c62d9535520f54948da1"
+      "path": "openspec/changes/implement-production-indexing-resume/verification.md",
+      "sha256": "239442e10a094802d263aaf9b2413b07d2b24fffe3bfae05a4209b4fb609f752"
     },
     {
-      "path": "pi_platform/adapters/runtime/sqlite_ingestion_cache.py",
-      "sha256": "193caf6c450daea9feeb67f0149d4c55b40bfb07de66054877f09fe75cbb62a6"
+      "path": "pi_platform/adapters/pdf/process_sources.py",
+      "sha256": "a915a1b39070f3f33c8ae7d8bab591bffaf517c83548c0e0b914fee7b18eeeb4"
+    },
+    {
+      "path": "tests/test_pdf_process_sources.py",
+      "sha256": "98f5d8a45abfe3864c283f73baa624332ed3c88ac4fd8adc8d23f44e4a4d84ba"
     }
   ]
 }

@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `blocked`
-Updated: `2026-11-12T06:54:53+00:00`
+Updated: `2026-11-12T07:15:16+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,11 +19,11 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- Second-round Windows mandatory-lock, portable fixtures and runtime token admission repaired in scoped commits
+- Third-round Windows crashed-pipe polling repaired; actual spawned-worker regression verifies checkpoints, sibling completion, cleanup and recovery
 
 ## Remaining
 
-- none
+- Owner pushes third-round repair and reruns native Windows CI; continue remaining original production rollout gates separately
 
 ## Blocked
 
@@ -39,20 +39,21 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Working set
 
-- `pi_platform/adapters/retrieval/llama_cpp_embedding_model.py`
-- `pi_platform/adapters/runtime/sqlite_ingestion_cache.py`
+- `openspec/changes/implement-production-indexing-resume/verification.md`
+- `pi_platform/adapters/pdf/process_sources.py`
+- `tests/test_pdf_process_sources.py`
 
 ## Verification passed
 
-- Full harness PASS: 1936 tests, 15 optional skips, zero failures; 98 focused tests PASS; unchanged real GGUF CPU smoke PASS
+- Full harness PASS: 1937 tests, 15 optional skips, zero failures; 37 focused tests PASS
 
 ## Verification pending
 
-- none
+- Native Windows 3.11/3.13 PR CI after publishing third-round repair
 
 ## Next action
 
-Owner pushes feature/generate-init-project and reruns PR22 CI; continue remaining rollout gates separately
+Owner pushes feature/generate-init-project and reruns PR22 Windows matrix
 
 ## Prerequisites
 
