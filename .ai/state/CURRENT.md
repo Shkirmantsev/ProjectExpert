@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `blocked`
-Updated: `2026-11-12T06:23:41+00:00`
+Updated: `2026-11-12T06:54:53+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,12 +19,11 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- PR22 repair verified locally: full harness PASS with 1932 tests and 15 optional skips; source fixes ready for scoped commits
+- Second-round Windows mandatory-lock, portable fixtures and runtime token admission repaired in scoped commits
 
 ## Remaining
 
-- Owner pushes local CI repair commits or restores repository write access
-- Continue remaining V2 production rollout gates separately
+- none
 
 ## Blocked
 
@@ -32,7 +31,7 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Decisions
 
-- Require TLS1.2 in CodeQL-flagged local server; preserve strict trust and native-error assertions
+- Acquire Windows byte-range lock without reading locked byte; resolve ambiguous UTF8 bounds with pinned runtime tokenizer including special tokens
 
 ## Relevant context
 
@@ -40,19 +39,20 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Working set
 
-- `openspec/changes/implement-production-indexing-resume/verification.md`
+- `pi_platform/adapters/retrieval/llama_cpp_embedding_model.py`
+- `pi_platform/adapters/runtime/sqlite_ingestion_cache.py`
 
 ## Verification passed
 
-- Full harness, writable-flush regression, actual Actions spawn runner, strict TLS fixture and portable PowerShell launcher/parser PASS
+- Full harness PASS: 1936 tests, 15 optional skips, zero failures; 98 focused tests PASS; unchanged real GGUF CPU smoke PASS
 
 ## Verification pending
 
-- After owner pushes repair, run native Windows 3.11/3.13, PowerShell5.1/7 and CodeQL checks
+- none
 
 ## Next action
 
-Push feature/generate-init-project and rerun PR22 checks; local code and regression fixes are ready
+Owner pushes feature/generate-init-project and reruns PR22 CI; continue remaining rollout gates separately
 
 ## Prerequisites
 

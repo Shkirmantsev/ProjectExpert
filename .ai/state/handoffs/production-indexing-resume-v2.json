@@ -7,22 +7,19 @@
     "/home/dmytro/Downloads/ProjectExpert-production-indexing-resume-performance-design-v2.md"
   ],
   "decisions": [
-    "Require TLS1.2 in CodeQL-flagged local server; preserve strict trust and native-error assertions"
+    "Acquire Windows byte-range lock without reading locked byte; resolve ambiguous UTF8 bounds with pinned runtime tokenizer including special tokens"
   ],
   "progress": {
     "blocked": [
       "Cannot publish PR repair: configured Git SSH authentication unavailable; GitHub integration Git-tree write returns HTTP403"
     ],
     "done": [
-      "PR22 repair verified locally: full harness PASS with 1932 tests and 15 optional skips; source fixes ready for scoped commits"
+      "Second-round Windows mandatory-lock, portable fixtures and runtime token admission repaired in scoped commits"
     ],
-    "todo": [
-      "Owner pushes local CI repair commits or restores repository write access",
-      "Continue remaining V2 production rollout gates separately"
-    ]
+    "todo": []
   },
   "resume": {
-    "next_action": "Push feature/generate-init-project and rerun PR22 checks; local code and regression fixes are ready",
+    "next_action": "Owner pushes feature/generate-init-project and reruns PR22 CI; continue remaining rollout gates separately",
     "prerequisites": []
   },
   "runtime": {
@@ -36,7 +33,7 @@
     "created_at": "2026-11-11T20:38:02+00:00",
     "id": "production-indexing-resume-v2",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-12T06:23:41+00:00"
+    "updated_at": "2026-11-12T06:54:53+00:00"
   },
   "task": {
     "acceptance": [
@@ -48,16 +45,18 @@
   },
   "verification": {
     "passed": [
-      "Full harness, writable-flush regression, actual Actions spawn runner, strict TLS fixture and portable PowerShell launcher/parser PASS"
+      "Full harness PASS: 1936 tests, 15 optional skips, zero failures; 98 focused tests PASS; unchanged real GGUF CPU smoke PASS"
     ],
-    "pending": [
-      "After owner pushes repair, run native Windows 3.11/3.13, PowerShell5.1/7 and CodeQL checks"
-    ]
+    "pending": []
   },
   "working_set": [
     {
-      "path": "openspec/changes/implement-production-indexing-resume/verification.md",
-      "sha256": "775f499bd25164dfad3eeecfee457dfc0e4fe63b367219c373efd22942bc0df2"
+      "path": "pi_platform/adapters/retrieval/llama_cpp_embedding_model.py",
+      "sha256": "ba9b85e6634b6d5fc5bb6a69b3bcf2d6af37aff54214c62d9535520f54948da1"
+    },
+    {
+      "path": "pi_platform/adapters/runtime/sqlite_ingestion_cache.py",
+      "sha256": "193caf6c450daea9feeb67f0149d4c55b40bfb07de66054877f09fe75cbb62a6"
     }
   ]
 }

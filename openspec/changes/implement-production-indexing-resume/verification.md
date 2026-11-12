@@ -98,3 +98,39 @@ returns HTTP 403 for Git tree creation. No remote branch update was performed.
 The repair is committed locally for the owner to push before the native matrix
 and CodeQL can certify it. Original unit logs confirm recursive suite execution
 in spawned children and job cancellation; the guarded-runner regression passes.
+
+
+## PR 22 second CI follow-up — 2026-11-12
+
+Runs 43169268272 and 43169268308 exposed independent native Windows and real
+GGUF admission failures after the first repair. CodeQL now passes remotely.
+
+Windows byte-range locks deny reads through a second handle, including in the
+same process. `exclusive_indexer` previously read byte zero before attempting
+its lock, leaking PermissionError instead of the expected contention error.
+It now acquires the kernel lock without protected-byte I/O; Windows supports
+locking beyond EOF, so an empty lock file needs no initialization
+([Microsoft CRT contract](https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/locking?view=msvc-170)).
+This also repairs PDF worker initialization, GC, backups and checkpoints through
+the shared lock implementation. A simulated mandatory-lock regression reproduces
+the previous failure on Linux, while native contention coverage stays enabled.
+
+Portable tests now create mocks for absent POSIX APIs, simulate unavailable
+Windows memory information, encode the Unicode legacy-cache fixture explicitly
+as UTF-8, and close its inspection SQLite connection before directory cleanup.
+
+The GGUF adapter previously rejected the 1,500-word real smoke document because
+its UTF-8 byte upper bound exceeded the token budget. Ambiguous bounds now use
+the pinned runtime `/tokenize` response with special tokens before admission.
+Short inputs keep the existing no-round-trip packing path. Exact oversized
+inputs and malformed tokenizer responses still fail explicitly; item and token
+batch limits remain enforced. The real smoke corpus has not been weakened.
+
+Verification: 98 focused tests PASS; full `harness.py check` PASS (1,936 tests,
+15 optional skips); unchanged real GGUF CPU smoke PASS with verified downloaded
+backbone/projector, 1,507-token document, pixel-sensitive image vectors and 512d
+normalization. Manifest verification and diff whitespace checks PASS.
+Native Windows 3.11/3.13 is NOT RUN locally; rerun PR CI after publishing these
+commits. The prior Git SSH and integration write-access blocker remains; no push
+was attempted during this repair. Original production rollout limits above
+remain unchanged.
