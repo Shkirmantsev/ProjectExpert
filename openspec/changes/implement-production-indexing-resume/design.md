@@ -32,3 +32,16 @@ engine opt-in until migration/restore and packaged SQLite release proof pass.
 PI_INDEX_PARALLEL and PI_EMBED_BATCHING stay individually gated. Offline asset
 requirements cannot be enabled by default until a real pinned pack is published.
 No test fixture or fake embedding is evidence of actual hardware throughput.
+
+## Offline release remediation (2026-11-12)
+The follow-up user audit supersedes the optional offline rollout in this proposal.
+The default exported topology must seed a reviewed digest-addressed asset image
+with networking disabled before model-setup and application startup. No default
+HF/GitHub model or host-runtime downloads are permitted. Missing release pins
+block startup and production publication, with an explicit kit-upgrade diagnosis;
+existing volumes, caches, deployment.env and index data are retained. Developer
+model pulls remain explicit and cannot bypass production offline configuration.
+Pack paths are embedding/, transformers/gemma/, docling/artifacts/, docling/ocr/,
+and windows/{cuda,vulkan}/. Full tokenizer/native/model loading and egress-denied
+PDF/text/image/restart acceptance remain required release gates. Neither a test
+fixture nor a materialized unreviewed candidate can populate verified release pins.

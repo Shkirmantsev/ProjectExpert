@@ -9,3 +9,11 @@
 - [x] Review integration, run focused regressions and python harness.py check; fix failures.
 - [x] Update Wiki/ADR/operator evidence and commit focused changes.
 - [ ] Run packaged SQLite, real-model offline, hardware benchmark, kill/power-loss and Windows Rancher/Desktop release matrix before adoption.
+
+## Mandatory offline release remediation
+- [ ] Materialize exact pinned production assets and independently review per-file redistribution evidence.
+- [x] Require verified local assets for standard setup, PDF/tokenizer/torch consumers and native Windows execution.
+- [x] Require seed before model setup/startup, preserve upgrade settings and diagnose stale pins.
+- [x] Add production publication gates for real network-denied seed/model/PDF/text/image/restart smoke.
+- [ ] Execute that complete real offline production acceptance with a reviewed pack.
+- [ ] Publish reviewed asset OCI image and record actual immutable image/manifest identities.

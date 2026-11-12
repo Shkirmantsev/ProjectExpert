@@ -25,7 +25,11 @@ batches use the existing profile namespaces. Prior artifacts and legacy input
 remain retained; no automatic GC or silent legacy fallback runs. SQLite backup
 and journaled restore operate on generated state, never canonical sources.
 
-The default engine remains legacy during rollout. Full offline OCI asset release,
+The default engine remains legacy during rollout. Source deployment now requires
+verified offline asset seeding and fails closed when release pins/files are
+missing. The real licensed/published asset pack remains blocked;
+[release assembly](../../../distribution/assets/README.md) records the workflow.
+Full offline OCI asset release,
 hardware acceptance, automatic artifact GC
 and stale-version-safe last-good UI serving remain unverified or unimplemented;
 the operator guide enumerates these differences from the supplied full design.

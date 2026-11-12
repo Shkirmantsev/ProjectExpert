@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `blocked`
-Updated: `2026-11-12T07:15:16+00:00`
+Updated: `2026-11-12T11:42:55+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,41 +19,41 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- Third-round Windows crashed-pipe polling repaired; actual spawned-worker regression verifies checkpoints, sibling completion, cleanup and recovery
+- Mandatory local-only offline setup and consumers, OCI-only native Windows setup, strict release/promotion gates and upgrade diagnostics implemented and committed; full harness PASS
 
 ## Remaining
 
-- Owner pushes third-round repair and reruns native Windows CI; continue remaining original production rollout gates separately
+- Materialize actual pack on controlled host with at least 8 GiB free; independently review file/license inventory; publish real OCI digest; run complete offline production and Windows acceptance; continue original rollout gates
 
 ## Blocked
 
-- Cannot publish PR repair: configured Git SSH authentication unavailable; GitHub integration Git-tree write returns HTTP403
+- Offline release incomplete: about 4.4 GiB free prevents controlled assembly; actual reviewed file/license inventory and published OCI digest are absent; prior repository write-authentication limitation remains
 
 ## Decisions
 
-- Acquire Windows byte-range lock without reading locked byte; resolve ambiguous UTF8 bounds with pinned runtime tokenizer including special tokens
+- Production and kit publication intentionally blocked by real reviewed inventory and actual OCI digest; no placeholder release is promoted
 
 ## Relevant context
 
-- `/home/dmytro/Downloads/ProjectExpert-production-indexing-resume-performance-design-v2.md`
+- `/tmp/codex-remote-attachments/01a1cc51-96bc-7d71-b479-852d6bdea0de/8d3a836f-f6ae-4cd8-b9ff-e79bbaa8f50a/1-ProjectExpert-fix-plan.md`
 
 ## Working set
 
+- `distribution/assets/README.md`
 - `openspec/changes/implement-production-indexing-resume/verification.md`
-- `pi_platform/adapters/pdf/process_sources.py`
-- `tests/test_pdf_process_sources.py`
+- `pi_platform/deployment/offline_assets.py`
 
 ## Verification passed
 
-- Full harness PASS: 1937 tests, 15 optional skips, zero failures; 37 focused tests PASS
+- Full harness PASS: 1947 tests, 15 optional skips, zero failures; focused offline/upgrade/workspace tests and portable PowerShell contracts PASS; real GGUF local-cache CPU text/image smoke PASS (not full pack acceptance)
 
 ## Verification pending
 
-- Native Windows 3.11/3.13 PR CI after publishing third-round repair
+- Real complete reviewed asset assembly, egress-denied production OCR/table/tokenizer/Torch/GGUF/restart smoke, native Windows/Rancher/Desktop hardware matrix and OCI publication
 
 ## Next action
 
-Owner pushes feature/generate-init-project and reruns PR22 Windows matrix
+Provide reviewed pack/evidence or use controlled build host with sufficient disk, then publish and pin actual asset release and run required promotion checks; source commits are ready for owner push
 
 ## Prerequisites
 

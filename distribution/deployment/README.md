@@ -29,10 +29,12 @@ deployment; it now prints the command list, so any script that relied on bare
 
 The target repository defaults to the parent directory. Set PI_TARGET_REPO in
 `deployment.env` to change it; use forward slashes for Windows paths. The target
-must already exist. First startup downloads the selected embedding model. The
-default EmbeddingGemma 2 artifact is ~310 MB and its multimodal projector is
-~555 MB; PDF layout/table/OCR assets download only when PDFs are present.
-Allow network access; the launcher timeout is 30 minutes, not an expected startup duration. The launcher reports success only after retrieval readiness.
+must already exist. First startup seeds the reviewed offline OCI asset image,
+then verifies local embedding, tokenizer and Docling assets. Registry pulls still
+require the engine's normal TLS/enterprise trust; setup/indexing do not download
+models from HF/GitHub. Missing reviewed release pins stop startup with an explicit
+error. The asset release is currently blocked; see the release gate below.
+The launcher timeout is 30 minutes. Success requires retrieval readiness.
 
 ## The reported address
 
@@ -425,7 +427,7 @@ and survives application/container restart. The page follows a background job;
 failure stays visible. Selecting a dropdown alone does not apply a change.
 
 Gemma is one checkpoint with two bindings: managed GGUF Q8_0 and native
-Transformers. Native is offered when its libraries are installed and may download
+Transformers. Native requires its libraries and the installed verified local pack; explicit developer mode may download
 separate weights. Its available hardware depends on the installed PyTorch build;
 the standard production image contains CPU PyTorch. A native-only deployment
 without a configured GGUF endpoint does not offer the unavailable GGUF binding.
@@ -551,16 +553,22 @@ the selected Docker config and the reported helper executable; use a scoped
 
 ## Offline asset release gate
 
-The repository provides a strict local manifest verifier, immutable seeder and
-candidate OCI build recipe in `distribution/assets/`. The asset release is
-**BLOCKED**: exact Docling/tokenizer/native file hashes, per-artifact license
-reviews, network-denied production smoke tests and a published OCI digest are
-still required. The current deployment retains its model-download behavior;
-this kit does not claim a zero-Hugging-Face default install.
+The standard topology always requires asset-seed before production/model-setup,
+including CPU, CUDA, Vulkan, torch and native Windows modes. Seed and model setup
+run with networking disabled; application model consumers use verified local files
+with HF/Transformers offline flags. Native Windows extracts the pinned OCI pack
+and verifies it before executing any runtime binary. `compose.assets.yaml` is now
+a compatibility overlay; selecting it manually is unnecessary.
 
-`compose.assets.yaml` is a candidate seeding overlay, invoked explicitly with a
-reviewed `PI_ASSET_IMAGE` and `PI_ASSET_MANIFEST_SHA256`. It verifies every file,
-seeds with networking denied, and never overwrites an existing active pack.
-Consumers must use `/models/asset-packs/<manifest-sha256>/...` directly. The
-`active-asset-pack` pointer is informational. No existing model-cache volume is
-removed or rewritten. Do not delete active/previous packs during rollback.
+The actual asset release is **BLOCKED**, with no invented license inventory or
+OCI digest. Fresh setup fails explicitly until a complete reviewed pack is
+published. See [controlled assembly and required real-model gates](../assets/README.md).
+Production/kit CI promotion checks these identities and actual offline inference.
+
+Upgrade managed kit files using the existing exporter `--upgrade` option. It
+backs up managed templates and preserves deployment.env. Review the exporter's
+asset-image/manifest display and mismatch warning; copy only the independently
+reviewed release pins into the preserved operator environment. Never delete
+volumes to fix missing assets. `make platform-assets` shows running image IDs and
+verifies the active pinned pack. Roll back with matching image/kit/pins; retain
+active/previous pack directories and existing index data.

@@ -129,13 +129,17 @@ verification stays enabled. Engine registry trust must be fixed before any pull;
 container roots cannot repair bootstrap trust. Windows and WSL source defaults
 choose the managed volume; explicit workspace configuration retains precedence.
 
-The asset pack has a verifier, immutable seeder, candidate Containerfile,
-Compose overlay and network-denied seeding workflow. Its
-[asset lock](../distribution/assets/assets-lock.json) is honestly release-blocked:
-complete file/license inventory and a published OCI digest do not exist yet.
-The default installation therefore still uses the existing model downloads.
-Explicit local Docling assets/offline policy are supported; no clean-install
-HF-denied claim is made. See [asset release instructions](../distribution/assets/README.md).
+The offline remediation now requires mandatory digest-addressed seeding before
+setup and startup, local-only model/PDF/tokenizer/torch consumers, native Windows
+OCI extraction, and network-denied production promotion gates. The
+[asset lock](../distribution/assets/assets-lock.json) and
+[release identity](../distribution/assets/asset-release.json) remain honestly
+blocked: the actual complete reviewed pack and published OCI digest are still
+missing. Default installation therefore fails with a missing offline asset
+message; it no longer downloads as a fallback. This is not yet a usable offline
+release. See [assembly/review instructions](../distribution/assets/README.md).
+Existing data is preserved, and explicit kit upgrades preserve deployment.env
+while diagnosing missing or mismatched release pins.
 
 The old fixed 1.10 accelerator threshold is removed. Managed Auto now retains
 three actual query-corpus throughput rounds and scopes its evidence to the live
