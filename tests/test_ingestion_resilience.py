@@ -94,7 +94,7 @@ class ResilienceTests(unittest.TestCase):
     def test_effective_cpu_caps_and_nested_costs(self):
         (self.root / "cpu.max").write_text("250000 100000")
         (self.root / "cpuset.cpus.effective").write_text("0-9")
-        with patch("os.cpu_count", return_value=20), patch("os.sched_getaffinity", return_value=set(range(16))):
+        with patch("os.cpu_count", return_value=20), patch("os.sched_getaffinity", return_value=set(range(16)), create=True):
             capacity = probe_cpu_capacity(self.root)
         self.assertEqual(capacity, 2.5)
         self.assertEqual(cpu_worker_budget(capacity), 2)
@@ -170,7 +170,9 @@ class MemoryAdmissionTests(unittest.TestCase):
 
     def test_unknown_memory_is_distinct_from_exhausted_memory(self):
         from pi_platform.adapters.runtime.host_resources import probe_available_memory
-        with patch("os.sysconf", side_effect=ValueError("unavailable")):
+        with patch("os.sysconf", side_effect=ValueError("unavailable"), create=True), \
+             patch("ctypes.windll", create=True) as windows:
+            windows.kernel32.GlobalMemoryStatusEx.return_value = 0
             self.assertIsNone(probe_available_memory(self.root, meminfo_path=self.root / "absent"))
 
     def test_source_estimates_include_buffer_amplification_unknown_archives_are_serial(self):

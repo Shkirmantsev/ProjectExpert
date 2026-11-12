@@ -1,4 +1,7 @@
 """Atomicity and generation contracts use actual on-disk SQLite connections."""
+from contextlib import closing
+import types
+from unittest.mock import Mock, patch
 import hashlib
 import json
 from pathlib import Path
@@ -46,7 +49,7 @@ class DurableSourceTests(unittest.TestCase):
         with self.assertRaises(IndexingStateError):
             b.complete_source('repo:b', 'v1', 'other', ['new', 'a'], 'meta')
         self.assertIsNone(self.cache.source_record('repo:b'))
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db:
             self.assertEqual(db.execute('SELECT count(*) FROM canonical_payloads').fetchone()[0], 1)
             self.assertEqual(db.execute('PRAGMA foreign_key_check').fetchall(), [])
 
@@ -102,7 +105,7 @@ class DurableSourceTests(unittest.TestCase):
         path.write_text(json.dumps({
             'sources': {'repo:a': {'hash': 'v1', 'key': 'pipeline', 'addresses': ['a'], 'metadata_key': 'meta'}},
             'owners': {'orphan': ['deleted']},
-            'records': {'pipeline': summary, 'a': payload}, 'failures': []}, ensure_ascii=False))
+            'records': {'pipeline': summary, 'a': payload}, 'failures': []}, ensure_ascii=False), encoding='utf-8')
         self.cache.import_legacy(path)
         self.cache.select_sources([('repo:a', 'v1', 'meta')])
         self.assertEqual(list(self.cache.iter_records()), [payload.encode()])
@@ -114,6 +117,23 @@ class DurableSourceTests(unittest.TestCase):
                     pass
         with exclusive_indexer(self.path.parent):
             pass
+
+    def test_windows_contention_acquires_lock_before_touching_protected_byte(self):
+        handle = Mock()
+        handle.read.side_effect = PermissionError('mandatory byte-range lock')
+        handle.write.side_effect = PermissionError('mandatory byte-range lock')
+        crt = types.SimpleNamespace(LK_NBLCK=1, LK_UNLCK=0, locking=Mock(
+            side_effect=OSError('already locked')))
+        with patch('pi_platform.adapters.runtime.sqlite_ingestion_cache.os', types.SimpleNamespace(name='nt')), \
+             patch.object(Path, 'open', return_value=handle), \
+             patch.dict(sys.modules, {'msvcrt': crt}):
+            with self.assertRaisesRegex(IndexingStateError, 'Another index builder'):
+                with exclusive_indexer(self.path.parent):
+                    self.fail('contended lock acquired')
+        handle.read.assert_not_called()
+        handle.write.assert_not_called()
+        handle.close.assert_called_once()
+        self.assertEqual(crt.locking.call_count, 1)
 
     def test_abrupt_exit_preserves_committed_source(self):
         code = '''import json,sys,os

@@ -28,10 +28,8 @@ def exclusive_indexer(cache_root):
     try:
         if os.name == 'nt':
             import msvcrt
-            handle.seek(0)
-            if not handle.read(1):
-                handle.write(b'0')
-                handle.flush()
+            # Windows permits locking beyond EOF. Do not initialize/read the
+            # byte first: a competing mandatory lock also denies those I/Os.
             handle.seek(0)
             try:
                 msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
