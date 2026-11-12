@@ -3,39 +3,44 @@ on:
   push:
     paths:
       - 'distribution/deployment/**'
+      - 'distribution/assets/**'
+      - 'scripts/materialize_asset_pack.py'
+      - 'scripts/verify_offline_runtime.py'
       - 'pi_platform/deployment/**'
       - 'tests/windows_deployment_runtime.ps1'
+      - 'tests/windows_offline_assets.ps1'
       - '.github/workflows/verify-asset-pack.yml'
   pull_request:
     paths:
       - 'distribution/deployment/**'
+      - 'distribution/assets/**'
+      - 'scripts/materialize_asset_pack.py'
+      - 'scripts/verify_offline_runtime.py'
       - 'pi_platform/deployment/**'
       - 'tests/windows_deployment_runtime.ps1'
+      - 'tests/windows_offline_assets.ps1'
       - '.github/workflows/verify-asset-pack.yml'
   workflow_dispatch:
-    inputs:
-      asset_image:
-        description: Reviewed asset OCI image with immutable sha256 digest
-        required: true
-      manifest_sha256:
-        description: Independently reviewed manifest SHA-256
-        required: true
 permissions:
   contents: read
 jobs:
   verify-seeding-offline:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    env:
-      ASSET_IMAGE: ${{ inputs.asset_image }}
-      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
     steps:
       - uses: actions/checkout@v4
-      - name: Validate immutable identities before pull
-        shell: bash
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Require the reviewed release on every promotion path
         run: |
-          [[ "$ASSET_IMAGE" =~ ^ghcr.io/shkirmantsev/project-intelligence-assets@sha256:[0-9a-f]{64}$ ]]
-          [[ "$MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          python -m pi_platform.deployment.offline_assets --release distribution/assets/asset-release.json > /tmp/release.json
+          python - <<'PYCODE'
+          import json, os
+          release = json.load(open('/tmp/release.json'))
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('ASSET_IMAGE=' + release['image'] + '\n')
+              output.write('MANIFEST_SHA256=' + release['manifest_sha256'] + '\n')
+          PYCODE
       - name: Pull candidate through engine registry trust
         run: docker pull "$ASSET_IMAGE"
       - name: Seed twice with networking denied
@@ -56,3 +61,9 @@ jobs:
       - name: PowerShell 7 native stderr and exit contract
         shell: pwsh
         run: ./tests/windows_deployment_runtime.ps1
+      - name: Windows PowerShell 5.1 offline native extraction contract
+        shell: powershell
+        run: ./tests/windows_offline_assets.ps1
+      - name: PowerShell 7 offline native extraction contract
+        shell: pwsh
+        run: ./tests/windows_offline_assets.ps1

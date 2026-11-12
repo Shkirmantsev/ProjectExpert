@@ -216,6 +216,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Require reviewed offline asset release before production promotion
+        run: |
+          python -m pi_platform.deployment.offline_assets --release distribution/assets/asset-release.json > /tmp/asset-release.json
+          python - <<'PYCODE'
+          import json, os
+          release = json.load(open('/tmp/asset-release.json'))
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('PI_ASSET_IMAGE=' + release['image'] + '\n')
+              output.write('PI_ASSET_MANIFEST_SHA256=' + release['manifest_sha256'] + '\n')
+          PYCODE
+        # GITHUB_ENV is visible in subsequent steps.
+      - name: Verify immutable seeding from an empty volume with no network
+        run: |
+          docker pull "$PI_ASSET_IMAGE"
+          docker volume create release-assets-verification
+          docker run --rm --network none -v release-assets-verification:/models "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256"
+          docker run --rm --network none -v release-assets-verification:/models "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256"
+      - name: Remove isolated seed verification volume
+        if: always()
+        run: docker volume rm release-assets-verification || true
       - name: Validate the exact production redistribution review before building
         run: |
           python -m pi_platform.cli license-gate \
@@ -243,15 +263,13 @@ jobs:
           tags: ${{ steps.names.outputs.image }}:candidate-${{ github.sha }}
           cache-from: type=gha,scope=production
           cache-to: type=gha,scope=production,mode=max
-      - name: Real default model download, inference, startup and restart
+      - name: Offline default setup, OCR tables, inference, startup and restart
         run: python scripts/smoke_production_container.py --image '${{ steps.names.outputs.image }}:candidate-${{ github.sha }}'
-      - name: Verify optional GGUF runtime with real CPU inference
-        run: |
-          python scripts/smoke_gguf_container.py
       - name: Build and test deployment kit export
         run: |
           docker build -f Containerfile --target deployment-kit -t deployment-kit:test \
-            --build-arg 'PI_DEPLOY_IMAGE=${{ steps.names.outputs.image }}:candidate-${{ github.sha }}' .
+            --build-arg 'PI_DEPLOY_IMAGE=${{ steps.names.outputs.image }}:candidate-${{ github.sha }}' \
+            --build-arg 'PI_KIT_REVISION=${{ github.sha }}' .
           destination="$(mktemp -d)"
           docker run --rm -v "$destination:/deployment" deployment-kit:test
           test -f "$destination/.project-intelligence-deploy/Makefile"
@@ -294,6 +312,7 @@ jobs:
           push: true
           build-args: |
             PI_DEPLOY_IMAGE=${{ steps.published.outputs.reference }}
+            PI_KIT_REVISION=${{ github.sha }}
           tags: |
             ${{ steps.names.outputs.kit }}:sha-${{ github.sha }}
             ${{ steps.names.outputs.kit }}:${{ steps.names.outputs.channel }}

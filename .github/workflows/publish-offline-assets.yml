@@ -1,0 +1,66 @@
+name: publish-offline-assets
+on:
+  workflow_dispatch:
+    inputs:
+      manifest_sha256:
+        description: Independently reviewed SHA-256 of committed distribution/assets/assets-lock.json
+        required: true
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build-reviewed-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Reject missing inventory or redistribution review before downloads
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from pi_platform.deployment.asset_pack import load_manifest
+          load_manifest(Path('distribution/assets/assets-lock.json'), os.environ['MANIFEST_SHA256'])
+          PY
+      - name: Materialize exact pinned files in the controlled build runner
+        shell: bash
+        run: |
+          evidence=()
+          if [ -d distribution/assets/licenses ]; then
+            evidence=(--license-evidence distribution/assets/licenses)
+          fi
+          python scripts/materialize_asset_pack.py --output tmp/local/asset-pack \
+            --reviewed-manifest distribution/assets/assets-lock.json \
+            --reviewed-manifest-sha256 "$MANIFEST_SHA256" "${evidence[@]}"
+      - name: Build complete reviewed candidate without model downloads in the image build
+        run: |
+          docker build -f distribution/assets/Containerfile \
+            --build-arg PI_ASSET_MANIFEST_SHA256="$MANIFEST_SHA256" -t reviewed-assets:candidate .
+      - name: Verify idempotent seeding from empty cache with networking disabled
+        run: |
+          docker volume create asset-build-verification
+          docker run --rm --network none -v asset-build-verification:/models reviewed-assets:candidate --manifest-sha256 "$MANIFEST_SHA256"
+          docker run --rm --network none -v asset-build-verification:/models reviewed-assets:candidate --manifest-sha256 "$MANIFEST_SHA256"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish licensed candidate and record actual OCI digest
+        shell: bash
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/project-intelligence-assets:candidate-$MANIFEST_SHA256"
+          docker tag reviewed-assets:candidate "$image"
+          docker push "$image"
+          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "$image")"
+          [[ "$digest" =~ ^ghcr.io/.+/project-intelligence-assets@sha256:[0-9a-f]{64}$ ]]
+          printf '%s\n' "$digest" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Candidate only: production promotion still requires real offline OCR/table/tokenizer/text/image/restart acceptance.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove isolated verification cache
+        if: always()
+        run: docker volume rm asset-build-verification || true
