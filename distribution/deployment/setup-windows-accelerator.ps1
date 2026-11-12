@@ -1,4 +1,4 @@
-# Downloads only pinned public assets; keeps upstream DLLs and license notices.
+# Extracts only the reviewed immutable OCI assets; never downloads host models or runtimes.
 #
 # The backend is detected automatically: the pinned native llama.cpp runtime is
 # probed for the candidate backends (CUDA first, then Vulkan) and the validated
@@ -15,18 +15,49 @@ if (-not $modelSpec) { throw "The deployment lock has no model record for '$Mode
 $cache = Join-Path $PSScriptRoot 'accelerator'
 New-Item -ItemType Directory -Force -Path $cache | Out-Null
 
-function Get-VerifiedFile([string]$Url, [string]$Path, [string]$Hash) {
-    if ((Test-Path -LiteralPath $Path) -and ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -eq $Hash)) { return }
-    $partial = "$Path.partial"
+# Keep the complete inventory and notices together; verify before executing any EXE.
+. (Join-Path $PSScriptRoot 'workspace.ps1')
+$assetImage = Get-WorkspaceValue 'PI_ASSET_IMAGE'
+$manifestDigest = Get-WorkspaceValue 'PI_ASSET_MANIFEST_SHA256'
+if ($assetImage -notmatch '^ghcr\.io/shkirmantsev/project-intelligence-assets@sha256:[0-9a-f]{64}$' -or
+    $manifestDigest -notmatch '^[0-9a-f]{64}$') {
+    throw 'Missing reviewed offline asset release. Upgrade the kit with --upgrade and review preserved deployment.env; native setup will not download from HF or GitHub.'
+}
+$offlineRoot = Join-Path $cache ("asset-pack-" + $manifestDigest)
+if (-not (Test-Path -LiteralPath $offlineRoot)) {
+    New-Item -ItemType Directory -Path $offlineRoot | Out-Null
+    $assetContainer = $null
     try {
-        Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $partial
-        if ((Get-FileHash -LiteralPath $partial -Algorithm SHA256).Hash -ne $Hash) { throw 'Download checksum mismatch' }
-        Move-Item -Force -LiteralPath $partial -Destination $Path
-    } finally { if (Test-Path -LiteralPath $partial) { Remove-Item -LiteralPath $partial } }
+        $assetContainer = docker create $assetImage
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot create the pinned offline asset container' }
+        docker cp "${assetContainer}:/opt/projectexpert-assets/." $offlineRoot
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot extract the pinned offline assets' }
+    } catch {
+        Remove-Item -LiteralPath $offlineRoot -Recurse -Force
+        throw
+    } finally {
+        if ($assetContainer) { docker rm $assetContainer | Out-Null }
+    }
+}
+$appImage = Get-WorkspaceValue 'PI_IMAGE'
+if (-not $appImage) { $appImage = 'ghcr.io/shkirmantsev/project-intelligence:production' }
+docker run --rm --network none --entrypoint python -v "${offlineRoot}:/pack:ro" $appImage `
+    -m pi_platform.deployment.offline_assets --root /pack --manifest-sha256 $manifestDigest
+if ($LASTEXITCODE -ne 0) { throw 'Offline asset verification failed; native setup stopped without executing unverified binaries' }
+
+function Get-VerifiedFile([string]$Name, [string]$Path, [string]$Hash) {
+    $source = Join-Path (Join-Path $offlineRoot 'embedding') $Name
+    if (-not (Test-Path -LiteralPath $source) -or
+        (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne $Hash) {
+        throw "Missing or corrupt offline embedding asset: $Name"
+    }
+    if ((Test-Path -LiteralPath $Path) -and ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -eq $Hash)) { return }
+    Copy-Item -LiteralPath $source -Destination $Path -Force
+    if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -ne $Hash) { throw 'Offline copy checksum mismatch' }
 }
 
 # --- Cheap host hints -------------------------------------------------------
-# These hints only decide which pinned archive is worth downloading. They never
+# These hints only decide which pinned runtime is worth probing. They never
 # select a backend: the runtime's own --list-devices output is the only
 # evidence that decides.
 function Test-NvidiaPresent {
@@ -52,7 +83,7 @@ if ($Backend -eq 'auto') {
 
 # --- Native runtime acquisition and probing --------------------------------
 $evidence = @()
-$runtimeRoot = Join-Path $cache ("{0}-native" -f $lock.runtime_version)
+$runtimeRoot = Join-Path $offlineRoot 'windows'
 $deviceOutput = @{}
 foreach ($candidate in $candidates) {
     $assets = $lock.windows.$candidate
@@ -62,13 +93,7 @@ foreach ($candidate in $candidates) {
         continue
     }
     $runtimeDir = Join-Path $runtimeRoot $candidate
-    New-Item -ItemType Directory -Force -Path $runtimeDir | Out-Null
     try {
-    foreach ($asset in $assets) {
-        $archive = Join-Path $cache $asset.name
-        Get-VerifiedFile ("https://github.com/ggml-org/llama.cpp/releases/download/{0}/{1}" -f $lock.runtime_version,$asset.name) $archive $asset.sha256
-        Expand-Archive -LiteralPath $archive -DestinationPath $runtimeDir -Force
-    }
     $server = Get-ChildItem -LiteralPath $runtimeDir -Filter llama-server.exe -Recurse | Select-Object -First 1
     if (-not $server) {
         $evidence += @{ backend = $candidate; ok = $false; exit_code = -1
@@ -183,10 +208,10 @@ if ($models) {
     exit 0
 }
 
-# Download the weights only after the selected device has passed its probe.
-Get-VerifiedFile $modelSpec.model_url (Join-Path $cache $modelSpec.model_filename) $modelSpec.model_sha256
+# Provision verified offline weights after the selected device has passed its probe.
+Get-VerifiedFile $modelSpec.model_filename (Join-Path $cache $modelSpec.model_filename) $modelSpec.model_sha256
 if ($modelSpec.projector_filename) {
-    Get-VerifiedFile $modelSpec.projector_url (Join-Path $cache $modelSpec.projector_filename) $modelSpec.projector_sha256
+    Get-VerifiedFile $modelSpec.projector_filename (Join-Path $cache $modelSpec.projector_filename) $modelSpec.projector_sha256
 }
 
 $runtimeDir = Join-Path $runtimeRoot $backend

@@ -1,7 +1,10 @@
 # Build from a reviewed local pack. This target never fetches model files.
 FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb
 ARG PI_ASSET_MANIFEST_SHA256
+COPY pi_platform/ /opt/verifier/pi_platform/
+COPY requirements-production-linux-x86_64.txt /opt/verifier/requirements-production-linux-x86_64.txt
+ENV PYTHONPATH=/opt/verifier
 COPY pi_platform/deployment/asset_pack.py /opt/seed-verify.py
 COPY tmp/local/asset-pack/ /opt/projectexpert-assets/
-RUN python /opt/seed-verify.py --manifest-sha256 "${PI_ASSET_MANIFEST_SHA256}" --verify-only
+RUN python -m pi_platform.deployment.offline_assets --root /opt/projectexpert-assets --manifest-sha256 "${PI_ASSET_MANIFEST_SHA256}"
 ENTRYPOINT ["python", "/opt/seed-verify.py"]

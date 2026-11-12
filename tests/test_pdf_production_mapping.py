@@ -157,7 +157,8 @@ class PdfProductionMappingTests(unittest.TestCase):
         )
         snapshot = Path(self.temp.name) / "snapshot"
         snapshot.mkdir()
-        with patch.dict("os.environ", {"PI_DOCLING_CACHE": str(Path(self.temp.name) / "cache")}), patch(
+        with patch.dict("os.environ", {"PI_DOCLING_CACHE": str(Path(self.temp.name) / "cache"),
+                "PI_ALLOW_REMOTE_ASSET_DOWNLOADS": "1", "HF_HUB_OFFLINE": "0", "TRANSFORMERS_OFFLINE": "0"}), patch(
                 "huggingface_hub.snapshot_download", return_value=str(snapshot)) as fetch:
             artifacts, ocr = _pinned_pdf_assets(do_ocr=True)
         expected = {

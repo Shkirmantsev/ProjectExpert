@@ -1,5 +1,13 @@
 name: project-intelligence
 services:
+  asset-seed:
+    image: ${PI_ASSET_IMAGE:?Missing reviewed offline asset OCI digest. Upgrade the kit with --upgrade and review preserved deployment.env}
+    platform: linux/amd64
+    command: ["--manifest-sha256", "${PI_ASSET_MANIFEST_SHA256:?Missing reviewed offline asset manifest SHA-256}"]
+    volumes:
+      - model-cache:/models
+    network_mode: none
+    restart: "no"
   production:
     image: ${PI_IMAGE:-ghcr.io/shkirmantsev/project-intelligence:production}
     platform: linux/amd64
@@ -8,7 +16,7 @@ services:
       - python
       - -c
       - |
-        import os
+        import os, sys
         try:
             from pi_platform.adapters.fs.container_identity import prepare_project_user
         except ImportError:
@@ -28,6 +36,9 @@ services:
             configure_container_trust()
         os.environ["PI_RUN_AS_PROJECT_OWNER"] = "1"
         prepare_project_user(os.environ["PI_TARGET_ROOT"])
+        if os.environ.get("PI_REQUIRE_OFFLINE_ASSETS") == "1" and sys.argv[1:2] == ["start"]:
+            from pi_platform.deployment.offline_assets import configure
+            configure(load_models=True)
         from pi_platform.cli.main import main
         raise SystemExit(main())
     extra_hosts:
@@ -51,6 +62,11 @@ services:
       PI_DENSE_INDEX: usearch
       PI_DOCLING_ENABLED: ${PI_DOCLING_ENABLED:-1}
       PI_PREPARE_DOCLING: "1"
+      PI_REQUIRE_OFFLINE_ASSETS: "1"
+      PI_ASSET_MANIFEST_SHA256: ${PI_ASSET_MANIFEST_SHA256:?Missing reviewed offline asset manifest SHA-256}
+      PI_ALLOW_REMOTE_ASSET_DOWNLOADS: "0"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
       PI_INDEX_ENGINE: ${PI_INDEX_ENGINE:-legacy}
       PI_INDEX_PARALLEL: ${PI_INDEX_PARALLEL:-0}
       PI_INDEX_REQUIRE_COMPLETE: ${PI_INDEX_REQUIRE_COMPLETE:-1}
@@ -63,6 +79,9 @@ services:
       HF_HOME: /models/huggingface
       HF_TOKEN: ${HF_TOKEN:-}
       XDG_CACHE_HOME: /models/cache
+    depends_on:
+      asset-seed:
+        condition: service_completed_successfully
     command: ["start", "--target", "/repo", "--host", "0.0.0.0", "--port", "8765"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=4)"]

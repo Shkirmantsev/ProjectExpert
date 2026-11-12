@@ -1,11 +1,3 @@
-# Optional candidate validation only. The default kit cannot use this until
-# complete licensed assets and an actual immutable release digest are pinned.
-services:
-  asset-seed:
-    image: ${PI_ASSET_IMAGE:?Set an immutable reviewed asset image digest}
-    platform: linux/amd64
-    command: ["--manifest-sha256", "${PI_ASSET_MANIFEST_SHA256:?Set reviewed manifest SHA-256}"]
-    volumes:
-      - model-cache:/models
-    network_mode: none
-    restart: "no"
+# Compatibility overlay for earlier operator commands. Asset seeding is now
+# mandatory in compose.yaml for every supported backend and embedding mode.
+services: {}

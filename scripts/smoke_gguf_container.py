@@ -82,7 +82,7 @@ def main():
                 print('PASS: real Gemma multimodal projector, pixel-sensitive image vectors and 512d normalization')
         assert adapter.stats()['real_binding']=='1'
         succeeded = True
-        print('PASS: pinned GGUF download, model identity, authenticated real inference, dimensions and normalization (CPU)')
+        print('PASS: pinned local GGUF checksums, model identity, authenticated real inference, dimensions and normalization (CPU)')
     finally:
         if not (args.keep_running and succeeded):
             subprocess.run(['docker','rm','-f',name],stdout=subprocess.DEVNULL,check=False)

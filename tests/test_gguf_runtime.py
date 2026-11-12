@@ -70,7 +70,7 @@ class GgufRuntimeTests(unittest.TestCase):
     def test_gemma_download_requires_both_model_and_projector(self):
         from pi_platform.adapters.retrieval.gguf_artifacts import GEMMA_FILENAME, GEMMA_PROJECTOR_FILENAME
         with tempfile.TemporaryDirectory() as raw, patch.object(gguf_setup, '_download', side_effect=lambda cache, name, url, sha:cache/name) as download:
-            path = gguf_setup.prepare(Path(raw), 'gemma')
+            path = gguf_setup.prepare(Path(raw), 'gemma', allow_download=True)
             self.assertEqual(path.name, GEMMA_FILENAME)
             self.assertEqual([call.args[1] for call in download.call_args_list], [GEMMA_FILENAME,GEMMA_PROJECTOR_FILENAME])
             self.assertEqual(len((Path(raw)/'llama-api-key').read_text()), 64)
@@ -85,10 +85,10 @@ class GgufRuntimeTests(unittest.TestCase):
                 ('backbone.gguf', 'https://example.invalid/backbone.gguf', hashlib.sha256(body).hexdigest()),
                 ('projector.gguf', 'https://example.invalid/projector.gguf', hashlib.sha256(body).hexdigest()),
             )), patch.object(gguf_setup.urllib.request, 'urlopen', side_effect=lambda *a, **k: io.BytesIO(body)) as download:
-                model = gguf_setup.prepare(cache)
+                model = gguf_setup.prepare(cache, allow_download=True)
                 self.assertEqual(model.read_bytes(), body)
                 key = (cache/'llama-api-key').read_bytes()
-                gguf_setup.prepare(cache)
+                gguf_setup.prepare(cache, allow_download=True)
                 self.assertEqual(download.call_count, 2)
                 self.assertEqual((cache/'llama-api-key').read_bytes(), key)
 
@@ -98,7 +98,7 @@ class GgufRuntimeTests(unittest.TestCase):
             with patch.object(gguf_setup, 'GEMMA_FILES', (
                 ('backbone.gguf', 'https://example.invalid/backbone.gguf', hashlib.sha256(b'expected').hexdigest()),
             )), patch.object(gguf_setup.urllib.request, 'urlopen', side_effect=lambda *a, **k: io.BytesIO(b'bad')):
-                with self.assertRaises(ValueError): gguf_setup.prepare(cache)
+                with self.assertRaises(ValueError): gguf_setup.prepare(cache, allow_download=True)
             self.assertFalse((cache/'backbone.gguf').exists())
             self.assertEqual(list(cache.glob('*.partial')), [])
 

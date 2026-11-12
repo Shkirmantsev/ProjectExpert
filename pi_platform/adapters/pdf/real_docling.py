@@ -73,7 +73,9 @@ def _pinned_pdf_assets(*, do_ocr):
     if os.environ.get("PI_DOCLING_ASSET_ROOT"):
         from .assets import resolve_local_docling_assets
         return resolve_local_docling_assets(Path(os.environ["PI_DOCLING_ASSET_ROOT"]), do_ocr=do_ocr)
-    if os.environ.get("PI_ALLOW_REMOTE_ASSET_DOWNLOADS") == "0":
+    if (os.environ.get("PI_ALLOW_REMOTE_ASSET_DOWNLOADS") != "1"
+        or os.environ.get("HF_HUB_OFFLINE") == "1"
+        or os.environ.get("TRANSFORMERS_OFFLINE") == "1"):
         raise RealDoclingConverterError("local Docling assets required; PI_DOCLING_ASSET_ROOT is unset")
     from huggingface_hub import snapshot_download
 
@@ -215,7 +217,7 @@ class HuggingFaceTokenizerAdapter:
             from transformers import AutoTokenizer
             return AutoTokenizer.from_pretrained(
                 self.tokenizer_id,
-                local_files_only=(os.environ.get("PI_ALLOW_REMOTE_ASSET_DOWNLOADS") == "0"
+                local_files_only=(os.environ.get("PI_ALLOW_REMOTE_ASSET_DOWNLOADS") != "1"
                     or os.environ.get("HF_HUB_OFFLINE") == "1"
                     or bool(os.environ.get("PI_DOCLING_ASSET_ROOT"))),
                 revision=os.environ.get("PI_DOCLING_TOKENIZER_REVISION")

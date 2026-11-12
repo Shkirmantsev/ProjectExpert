@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "release_status": "blocked",
+  "image": null,
+  "manifest_sha256": null,
+  "reason": "Exact materialized inventory, per-artifact redistribution review, real offline smoke and OCI publication are required. No online fallback."
+}

@@ -53,7 +53,7 @@ class DeploymentRuntimeRepairTests(unittest.TestCase):
             self._export_branded_kit(dest)
             result = subprocess.run(['docker', 'compose', '--env-file', str(dest / 'deployment.env'),
                 '-f', str(dest / 'compose.yaml'), '--profile', 'open-webui', 'config', '--format', 'json'],
-                env={k: v for k, v in os.environ.items() if k != 'PI_WEBUI_NAME'},
+                env={**{k: v for k, v in os.environ.items() if k != 'PI_WEBUI_NAME'}, 'PI_ASSET_IMAGE':'ghcr.io/shkirmantsev/project-intelligence-assets@sha256:'+'1'*64, 'PI_ASSET_MANIFEST_SHA256':'2'*64},
                 capture_output=True, text=True, check=True, timeout=30)
             ui = json.loads(result.stdout)['services']['open-webui']
             self.assertEqual(ui['environment']['WEBUI_NAME'], 'ProjectExpert - regression')

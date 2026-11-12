@@ -28,7 +28,7 @@ else ifneq ($(strip $(LLM)),)
 $(error LLM must be 1 to configure/enable, 0 to disable, or omitted to preserve settings)
 endif
 
-.PHONY: help platform-start platform-stop platform-status platform-logs platform-pull platform-restart platform-init platform-hydrate platform-materialise platform-models platform-model-pull platform-reindex platform-doctor platform-llm-configure platform-llm-status platform-llm-test platform-llm-disable eval eval-retrieval eval-chunk-size-sweep invariants metrics-gate
+.PHONY: help platform-start platform-stop platform-status platform-logs platform-pull platform-restart platform-init platform-hydrate platform-materialise platform-models platform-assets platform-model-pull platform-reindex platform-doctor platform-llm-configure platform-llm-status platform-llm-test platform-llm-disable eval eval-retrieval eval-chunk-size-sweep invariants metrics-gate
 
 help: ## List every command with a one-line description (default; changes nothing)
 	@printf '%s\n' "Project Intelligence deployment kit -- available commands"
@@ -68,7 +68,7 @@ platform-materialise: ## Write the reviewed materialisation into the target repo
 	$(CLI) materialise --target /repo --approval-token "$(APPROVAL_TOKEN)"
 platform-models: ## Show the embedding model status of the deployment
 	$(CLI) models status --target /repo
-platform-model-pull: ## Download the selected embedding model into the model cache
+platform-model-pull: ## Explicit developer model pull (disabled for production offline deployments)
 	$(CLI) models pull "$(MODEL)" --target /repo
 platform-reindex: ## Rebuild the retrieval index for the target repository
 	$(CLI) reindex --target /repo
@@ -84,3 +84,7 @@ invariants: ## Check the repository invariants of the target project
 	$(CLI) invariants
 metrics-gate: ## Evaluate the retrieval metrics against the configured gate
 	$(CLI) metrics-gate
+
+platform-assets: ## Show running image IDs and verify the active offline asset manifest
+	$(COMPOSE) images
+	$(COMPOSE) exec -T production python -m pi_platform.deployment.offline_assets

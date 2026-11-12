@@ -28,7 +28,9 @@ class WorkspaceDeploymentTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('docker'), 'Docker Compose CLI required (no daemon)')
     def test_real_compose_profile_matrix_preserves_topology(self):
         env = {**os.environ, 'PI_WORKSPACE_VOLUME': 'test-source', 'PI_RUNTIME_VOLUME': 'test-runtime',
-               'PI_CANONICAL_HOST_DIR': str(ROOT / 'project-knowledge')}
+               'PI_CANONICAL_HOST_DIR': str(ROOT / 'project-knowledge'),
+               'PI_ASSET_IMAGE': 'ghcr.io/shkirmantsev/project-intelligence-assets@sha256:' + '1' * 64,
+               'PI_ASSET_MANIFEST_SHA256': '2' * 64}
         profiles = [[], ['compose.accelerator.yaml', 'compose.cpu.yaml'],
                     ['compose.accelerator.yaml', 'compose.cuda.yaml'],
                     ['compose.accelerator.yaml', 'compose.vulkan.yaml'], ['compose.windows-gpu.yaml']]
@@ -116,6 +118,8 @@ fi
         module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
         with tempfile.TemporaryDirectory() as raw:
             src = Path(raw) / 'source'; shutil.copytree(BUNDLE, src)
+            for name in ('assets-lock.json', 'asset-release.json'):
+                shutil.copy2(ROOT / 'distribution/assets' / name, src / name)
             for name in module.HELPERS:
                 (src / name).write_bytes(b'built helper')
             dest = Path(raw) / 'kit'

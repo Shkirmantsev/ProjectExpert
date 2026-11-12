@@ -95,9 +95,16 @@ RUN mkdir /out && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -buil
 FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS deployment-kit
 WORKDIR /bundle
 COPY distribution/deployment/ /bundle/
+COPY distribution/assets/asset-release.json /bundle/asset-release.json
+COPY distribution/assets/assets-lock.json /bundle/assets-lock.json
+COPY pi_platform/ /opt/verifier/pi_platform/
+ENV PYTHONPATH=/opt/verifier
+RUN python -m pi_platform.deployment.offline_assets --release /bundle/asset-release.json --deployment-env /bundle/deployment.env
 COPY --from=workspace-agent-build /out/ /bundle/
 ARG PI_DEPLOY_IMAGE=ghcr.io/shkirmantsev/project-intelligence:production
-RUN python -c 'import os,pathlib; [p.write_text(p.read_text().replace("ghcr.io/shkirmantsev/project-intelligence:production", os.environ["PI_DEPLOY_IMAGE"])) for p in pathlib.Path(".").glob("compose*.yaml")]'
+ARG PI_KIT_REVISION=source-unbuilt
+RUN python -c 'import os,pathlib; [p.write_text(p.read_text().replace("ghcr.io/shkirmantsev/project-intelligence:production", os.environ["PI_DEPLOY_IMAGE"])) for p in [*pathlib.Path(".").glob("compose*.yaml"), pathlib.Path("setup-windows-accelerator.ps1")]]'
+RUN python -c 'import json,os,pathlib; p=pathlib.Path("asset-release.json"); d=json.loads(p.read_text()); d.update(application_image=os.environ["PI_DEPLOY_IMAGE"],kit_revision=os.environ["PI_KIT_REVISION"]); p.write_text(json.dumps(d,indent=2)+"\n")'
 ENTRYPOINT ["python", "/bundle/export.py"]
 
 # Cache the hash-locked dependency closure independently from application edits.
@@ -134,6 +141,10 @@ ENV PI_STARTUP_PROFILE=production \
     PI_DENSE_INDEX=usearch \
     PI_DOCLING_ENABLED=1 \
     PI_PREPARE_DOCLING=1 \
+    PI_REQUIRE_OFFLINE_ASSETS=1 \
+    PI_ALLOW_REMOTE_ASSET_DOWNLOADS=0 \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1 \
     XDG_CACHE_HOME=/models/cache \
     PI_MODEL_CACHE=/models/huggingface \
     HF_HOME=/models/huggingface

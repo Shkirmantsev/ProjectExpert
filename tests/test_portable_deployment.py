@@ -84,7 +84,7 @@ class DeploymentTests(unittest.TestCase):
         for model in ('gemma', 'gemma-torch'):
             for backend in ('cpu', 'vulkan', 'cuda'):
                 with self.subTest(model=model, backend=backend):
-                    env = {**os.environ, 'PI_EMBEDDING_MODEL':model, 'PI_ACCELERATOR':backend}
+                    env = {**os.environ, 'PI_EMBEDDING_MODEL':model, 'PI_ACCELERATOR':backend, 'PI_ASSET_IMAGE':'ghcr.io/shkirmantsev/project-intelligence-assets@sha256:'+'1'*64, 'PI_ASSET_MANIFEST_SHA256':'2'*64}
                     result = subprocess.run(['bash', str(BUNDLE/'compose.sh'), 'config', '--format', 'json'],
                                             env=env, capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stderr)
@@ -161,6 +161,7 @@ class DeploymentTests(unittest.TestCase):
     @unittest.skipUnless(os.name != 'nt' and shutil.which('docker'), 'Linux Compose config required')
     def test_default_is_gemma_and_explicit_integrated_device_is_preserved(self):
         env = {key: value for key, value in os.environ.items() if not key.startswith('PI_')}
+        env.update(PI_ASSET_IMAGE='ghcr.io/shkirmantsev/project-intelligence-assets@sha256:'+'1'*64, PI_ASSET_MANIFEST_SHA256='2'*64)
         result = subprocess.run(['bash', str(BUNDLE/'compose.sh'), 'config', '--format', 'json'], env=env, capture_output=True, text=True, check=True)
         services = json.loads(result.stdout)['services']
         self.assertEqual(services['production']['environment']['PI_EMBEDDING_MODEL'], 'gemma')
@@ -192,9 +193,9 @@ class DeploymentTests(unittest.TestCase):
             self.assertNotIn('Selected device', result.stderr)
             self.assertIn('cpu', calls)
 
-    def test_windows_gpu_probes_before_download_and_tracks_device(self):
+    def test_windows_gpu_probes_before_model_copy_and_tracks_device(self):
         script = (BUNDLE/'setup-windows-accelerator.ps1').read_text()
-        self.assertLess(script.index("'--list-devices'"), script.index('Get-VerifiedFile $modelSpec.model_url'))
+        self.assertLess(script.index("'--list-devices'"), script.index('Get-VerifiedFile $modelSpec.model_filename'))
         self.assertIn("'device.txt'", script)
         self.assertIn("'backend.txt'", script)
         # The Windows launcher must apply the shared Python decision.
