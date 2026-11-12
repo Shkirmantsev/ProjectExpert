@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `blocked`
-Updated: `2026-11-12T11:42:55+00:00`
+Updated: `2026-11-12T11:49:41+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,15 +19,15 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- Mandatory local-only offline setup and consumers, OCI-only native Windows setup, strict release/promotion gates and upgrade diagnostics implemented and committed; full harness PASS
+- System cleanup reclaimed about 3.7 GiB: Docker unused images/build cache and inspected disposable caches; 8.1 GiB now free; active services, volumes, Gemma weights and installed kernels retained
 
 ## Remaining
 
-- Materialize actual pack on controlled host with at least 8 GiB free; independently review file/license inventory; publish real OCI digest; run complete offline production and Windows acceptance; continue original rollout gates
+- Owner can run prepared sudo-only old-kernel-remnant cleanup; continue real offline asset assembly/review/publication and production acceptance
 
 ## Blocked
 
-- Offline release incomplete: about 4.4 GiB free prevents controlled assembly; actual reviewed file/license inventory and published OCI digest are absent; prior repository write-authentication limitation remains
+- Offline asset release still needs actual pack assembly, independent license inventory and OCI publication; sudo authentication unavailable for leftover kernel-package purge
 
 ## Decisions
 
@@ -45,7 +45,7 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Verification passed
 
-- Full harness PASS: 1947 tests, 15 optional skips, zero failures; focused offline/upgrade/workspace tests and portable PowerShell contracts PASS; real GGUF local-cache CPU text/image smoke PASS (not full pack acceptance)
+- Disk cleanup PASS: 8.1 GiB free, zero unused Docker volumes, zero build cache, all three existing services healthy; source harness previously PASS 1947 tests with 15 optional skips
 
 ## Verification pending
 
@@ -53,7 +53,7 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Next action
 
-Provide reviewed pack/evidence or use controlled build host with sufficient disk, then publish and pin actual asset release and run required promotion checks; source commits are ready for owner push
+Continue controlled asset assembly with the newly available disk space; administrator may run /tmp/projectexpert-clean-old-kernels.sh to purge only already-uninstalled kernel remnants
 
 ## Prerequisites
 
