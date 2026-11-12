@@ -553,6 +553,20 @@ the selected Docker config and the reported helper executable; use a scoped
 
 ## Offline asset release gate
 
+On Windows, CUDA first probes the pinned managed container when the Docker
+engine exposes NVIDIA acceleration. The container carries application runtime
+libraries and uses the host driver; it installs no host toolkit or driver.
+Unavailable container acceleration falls back through the existing validated
+native/CPU policy. Native Vulkan is included in the default asset pack; native
+CUDA is optional and requires a separately reviewed pack. Explicit device pins
+must match a device reported by the selected runtime. Auto retains GPU only
+after the shared CPU comparison passes, and failed GPU startup retries CPU.
+
+Linux selection uses runtime-reported CUDA/Vulkan devices, including supported
+Intel, AMD and NVIDIA GPUs/iGPUs. Hardware and usable host drivers determine
+availability; vendor or card model names are not fixed in the selection policy.
+Vulkan needs the corresponding host driver/device exposure, rather than CUDA.
+
 The standard topology always requires asset-seed before production/model-setup,
 including CPU, CUDA, Vulkan, torch and native Windows modes. Seed and model setup
 run with networking disabled; application model consumers use verified local files

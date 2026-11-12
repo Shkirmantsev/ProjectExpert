@@ -45,3 +45,19 @@ Pack paths are embedding/, transformers/gemma/, docling/artifacts/, docling/ocr/
 and windows/{cuda,vulkan}/. Full tokenizer/native/model loading and egress-denied
 PDF/text/image/restart acceptance remain required release gates. Neither a test
 fixture nor a materialized unreviewed candidate can populate verified release pins.
+
+The user clarified that application runtimes must reuse existing host drivers.
+Windows prefers managed container CUDA when the engine exposes it, then follows
+the existing native/CPU fallback. The default native pack declares Vulkan only;
+native CUDA redistributables are an explicit separately reviewed option. Linux
+selection uses actual runtime device evidence across GPU/iGPU vendors. No route
+installs or replaces host drivers/toolkits. Redistribution review must address
+no-fee enterprise use without company-size or revenue limits and retain required
+notices; technical local-test classifications do not authorize public release.
+
+Local candidate acceptance requires an actual Docker image ID and independent
+manifest hash, without altering canonical release metadata. Isolated HTTP clients
+run inside the test network. Seeded public assets are readable by the application
+UID after atomic publication, including when the seeder has a restrictive umask.
+Installed-wheel checks resolve the lock from the image's explicit application
+home and continue checking its exact hash.

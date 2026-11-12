@@ -7,27 +7,21 @@
     "/tmp/codex-remote-attachments/01a1cc51-96bc-7d71-b479-852d6bdea0de/8d3a836f-f6ae-4cd8-b9ff-e79bbaa8f50a/1-ProjectExpert-fix-plan.md"
   ],
   "decisions": [
-    "Production and kit publication intentionally blocked by real reviewed inventory and actual OCI digest; no placeholder release is promoted"
+    "Installed-wheel asset verification resolves the exact dependency lock from explicit PI_PLATFORM_HOME; wrong/missing locks still fail"
   ],
   "progress": {
-    "blocked": [
-      "Offline asset release still needs actual pack assembly, independent license inventory and OCI publication; sudo authentication unavailable for leftover kernel-package purge"
-    ],
-    "done": [
-      "System cleanup reclaimed about 3.7 GiB: Docker unused images/build cache and inspected disposable caches; 8.1 GiB now free; active services, volumes, Gemma weights and installed kernels retained"
-    ],
-    "todo": [
-      "Owner can run prepared sudo-only old-kernel-remnant cleanup; continue real offline asset assembly/review/publication and production acceptance"
-    ]
+    "blocked": [],
+    "done": [],
+    "todo": []
   },
   "resume": {
-    "next_action": "Continue controlled asset assembly with the newly available disk space; administrator may run /tmp/projectexpert-clean-old-kernels.sh to purge only already-uninstalled kernel remnants",
+    "next_action": "Operator review of canonical redistribution classifications and registry publication prerequisites; local fixes/images and acceptance are ready",
     "prerequisites": []
   },
   "runtime": {
     "last_failure_fingerprint": "",
-    "next_decision": "continue",
-    "no_progress_windows": 0,
+    "next_decision": "reflect",
+    "no_progress_windows": 1,
     "repeated_failure_count": 0
   },
   "schema_version": "1.0",
@@ -35,7 +29,7 @@
     "created_at": "2026-11-11T20:38:02+00:00",
     "id": "production-indexing-resume-v2",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-12T11:49:41+00:00"
+    "updated_at": "2026-11-12T22:12:46+00:00"
   },
   "task": {
     "acceptance": [
@@ -43,28 +37,20 @@
     ],
     "goal": "Implement supplied production indexing resume performance offline asset and resource design on feature/generate-init-project",
     "openspec_change": "implement-production-indexing-resume",
-    "status": "blocked"
+    "status": "reviewing"
   },
   "verification": {
-    "passed": [
-      "Disk cleanup PASS: 8.1 GiB free, zero unused Docker volumes, zero build cache, all three existing services healthy; source harness previously PASS 1947 tests with 15 optional skips"
-    ],
-    "pending": [
-      "Real complete reviewed asset assembly, egress-denied production OCR/table/tokenizer/Torch/GGUF/restart smoke, native Windows/Rancher/Desktop hardware matrix and OCI publication"
-    ]
+    "passed": [],
+    "pending": []
   },
   "working_set": [
     {
-      "path": "distribution/assets/README.md",
-      "sha256": "5097c99c8c9767a462686622453d34165ba09620390ee7ecb05b6fd3a5a72fcb"
-    },
-    {
-      "path": "openspec/changes/implement-production-indexing-resume/verification.md",
-      "sha256": "bf9eed2627476acf866b7045c5836ae7f08f602052cfcdf0fd2e8950fa512354"
-    },
-    {
       "path": "pi_platform/deployment/offline_assets.py",
-      "sha256": "be8ded796627165f598b0a43f3bb4e7ac77f0fe1205f5269bafcd9f1f89fffef"
+      "sha256": "4bbb4f20323016d67ba1fe4633a3fa7e53b7832c4ded7f8d1e34daf8340a5426"
+    },
+    {
+      "path": "tests/test_production_offline_assets.py",
+      "sha256": "a103a628ee3d89ef7e5657a9af6318e0d817a508f45aed3f933a2646203d26f7"
     }
   ]
 }

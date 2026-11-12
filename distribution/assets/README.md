@@ -1,6 +1,7 @@
 # Immutable offline asset release
 
-The release is **BLOCKED**. `assets-lock.json` is not a completed inventory and
+The release is **BLOCKED**. `assets-lock.json` records the materialized file inventory
+but its redistribution classifications remain unapproved, and
 `asset-release.json` has no published digest. The standard deployment now refuses
 missing packs/pins; it never silently falls back to Hugging Face. This source
 change alone does not make a fresh installation usable. The actual reviewed OCI
@@ -19,9 +20,39 @@ The assembler fetches immutable upstream revisions, verifies known GGUF/archive
 hashes, computes each materialized file's SHA-256 and records provenance. It
 includes the full pinned Transformers model/tokenizer (including model and
 processor configs), the custom Docling layout/accurate TableFormer/OCR tree,
-native Windows CUDA/Vulkan archives and extracted files. Its candidate manifest
+native Windows Vulkan archives and extracted files by default. Container CUDA
+uses the separately pinned llama.cpp runtime image and the host NVIDIA driver;
+it does not require installing a CUDA toolkit on the host. Windows native CUDA
+redistributables require an explicit `--native-backends cuda,vulkan` selection
+and their own redistribution review. No pack installs or replaces host drivers.
+Its candidate manifest
 is always `blocked`, with no invented license approval. A partially failed
 assembly cannot be seeded. Never modify an installed pack in place.
+
+An explicit repeatable `--download-cache PATH` reuses a file only after matching
+its expected upstream checksum; it does not trust cache names alone. The
+`candidate` Containerfile target checks provenance and integrity of a blocked
+inventory, but its normal entrypoint still refuses activation. The default
+`verified` target retains the full redistribution and activation gates.
+
+`smoke_production_container.py --candidate-assets` supports local acceptance
+with an actual Docker image ID and independent manifest hash. This is separate
+from registry publication and does not promote the canonical release metadata.
+The smoke uses container-local HTTP on an internal network, so it needs no
+host access to an isolated bridge's published ports.
+
+The local technical redistribution review checks no-fee commercial use at any
+company size. The proposed pack uses Apache-2.0, MIT, CDLA-Permissive-2.0 and the
+retained LLVM/OpenMP/Intel notices. These grants do not impose revenue or company
+size limits; their copyright, license and applicable notice obligations remain.
+The TableFormer declaration includes both CDLA and Apache terms. The bundled
+OpenMP DLL must retain its complete supplied notice rather than being classified
+as blanket MIT. Primary terms: [Apache](https://www.apache.org/licenses/LICENSE-2.0.txt),
+[MIT](https://opensource.org/license/mit),
+[CDLA](https://cdla.dev/permissive-2-0/) and the exact upstream
+[Vulkan archive with OpenMP notice](https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip)
+retained in the Vulkan archive. This technical review of a local test pack does
+not constitute operator approval or canonical release promotion.
 
 Review every file's redistribution terms, including model weights, native DLLs
 and notices. A reviewed manifest must supply `license` and `license_evidence`
@@ -77,3 +108,31 @@ backs up managed files. No user volume is deleted.
 
 Physical Windows GPU, Rancher/Desktop, registry trust and full offline acceptance
 are still release evidence to collect. Unit fixtures are never that evidence.
+
+## Local acceptance evidence — 2026-11-12
+
+The complete production smoke passed with a fresh model volume and an internal
+Docker network: real OCR, tables/figures, local tokenizer, wide text/query,
+pixel-sensitive image vectors, native Torch, indexing, UI, MCP, dependency check,
+repository-owner writes and restart. It found and reproduced two integration
+defects, now fixed: root-only staging permissions and installed-wheel lock lookup.
+The final canonical production-target build passed its parser and license gates.
+
+Local image IDs (these are **not published OCI RepoDigests**):
+
+- `projectexpert:offline-candidate`: `sha256:d01f1db186328b47862fcebad2d15a581c7725daa9f57dcda79776098fc9d14b`
+- `projectexpert-assets:reviewed-local`: `sha256:3a0237d157201d3da14dbbdbc0296c561ed0dae260556530b7b073e8decc84ba`
+- Local test manifest: `47c82e536d1c20460beff86d7d37f1652fe592acb7caabb02bf8469286f2410d`
+
+The factual canonical inventory contains 82 files (2,919,769,070 bytes); the local
+test pack adds seven inventoried notice/review files. Canonical classifications
+remain unset following automatic approval review; local technical review and
+these measurements do not grant public redistribution approval.
+
+A separate real AMD integrated-GPU Vulkan smoke passed inside an internal network
+with the runtime-reported `Vulkan0` device, a 1,507-token document and distinct
+red/blue image vectors. Vendor-neutral unit fixtures cover Intel, AMD, NVIDIA
+and an unknown vendor. Physical Windows CUDA/Vulkan, Rancher/Desktop and the
+published-release identity remain unverified. PowerShell 7 launcher/extraction/
+container-CUDA contracts passed locally; Windows 5.1 execution remains a CI gate.
+The source harness passed 1,955 tests with 16 skips.

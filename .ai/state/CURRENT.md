@@ -5,8 +5,8 @@
 Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/production-indexing-resume-v2.json)
 
 Task: `production-indexing-resume-v2`
-Status: `blocked`
-Updated: `2026-11-12T11:49:41+00:00`
+Status: `reviewing`
+Updated: `2026-11-12T22:12:46+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,19 +19,19 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- System cleanup reclaimed about 3.7 GiB: Docker unused images/build cache and inspected disposable caches; 8.1 GiB now free; active services, volumes, Gemma weights and installed kernels retained
+- none
 
 ## Remaining
 
-- Owner can run prepared sudo-only old-kernel-remnant cleanup; continue real offline asset assembly/review/publication and production acceptance
+- none
 
 ## Blocked
 
-- Offline asset release still needs actual pack assembly, independent license inventory and OCI publication; sudo authentication unavailable for leftover kernel-package purge
+- none
 
 ## Decisions
 
-- Production and kit publication intentionally blocked by real reviewed inventory and actual OCI digest; no placeholder release is promoted
+- Installed-wheel asset verification resolves the exact dependency lock from explicit PI_PLATFORM_HOME; wrong/missing locks still fail
 
 ## Relevant context
 
@@ -39,21 +39,20 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Working set
 
-- `distribution/assets/README.md`
-- `openspec/changes/implement-production-indexing-resume/verification.md`
 - `pi_platform/deployment/offline_assets.py`
+- `tests/test_production_offline_assets.py`
 
 ## Verification passed
 
-- Disk cleanup PASS: 8.1 GiB free, zero unused Docker volumes, zero build cache, all three existing services healthy; source harness previously PASS 1947 tests with 15 optional skips
+- none
 
 ## Verification pending
 
-- Real complete reviewed asset assembly, egress-denied production OCR/table/tokenizer/Torch/GGUF/restart smoke, native Windows/Rancher/Desktop hardware matrix and OCI publication
+- none
 
 ## Next action
 
-Continue controlled asset assembly with the newly available disk space; administrator may run /tmp/projectexpert-clean-old-kernels.sh to purge only already-uninstalled kernel remnants
+Operator review of canonical redistribution classifications and registry publication prerequisites; local fixes/images and acceptance are ready
 
 ## Prerequisites
 

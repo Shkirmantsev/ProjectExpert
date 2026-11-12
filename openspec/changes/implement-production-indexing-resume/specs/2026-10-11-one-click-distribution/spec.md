@@ -20,3 +20,17 @@ assets MUST fail before indexing writes, without deleting existing data.
 #### Scenario: Existing kit is upgraded
 - **WHEN** an operator uses the backed-up kit upgrade path
 - **THEN** managed templates update, deployment.env remains preserved, and missing/mismatched asset pins are explicitly diagnosed
+
+#### Scenario: Managed GPU runtime reuses host drivers
+- **WHEN** the container engine exposes a compatible GPU and host driver
+- **THEN** the launcher probes the pinned application runtime and selects an actual reported device without installing or replacing host drivers or toolkits
+- **AND** unavailable or failed GPU startup follows the validated CPU fallback
+
+#### Scenario: Native runtime inventory is explicit
+- **WHEN** the default Windows asset pack is assembled
+- **THEN** it declares its included Vulkan backend and does not require NVIDIA native CUDA redistributables for container CUDA
+- **AND** requesting an omitted native backend fails with an actionable diagnosis
+
+#### Scenario: Seeder and application use different identities
+- **WHEN** a root seeder publishes verified public model assets with a restrictive umask
+- **THEN** the non-root application can traverse pack directories and read every inventoried asset without modifying their hashes
