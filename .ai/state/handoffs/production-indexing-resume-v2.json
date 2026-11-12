@@ -7,21 +7,27 @@
     "/tmp/codex-remote-attachments/01a1cc51-96bc-7d71-b479-852d6bdea0de/8d3a836f-f6ae-4cd8-b9ff-e79bbaa8f50a/1-ProjectExpert-fix-plan.md"
   ],
   "decisions": [
-    "Installed-wheel asset verification resolves the exact dependency lock from explicit PI_PLATFORM_HOME; wrong/missing locks still fail"
+    "User will push commits to GitHub; finish local changes and verification without requesting further publication authentication. Actual registry digest remains unrecorded until owner publication; no placeholder identity."
   ],
   "progress": {
-    "blocked": [],
-    "done": [],
-    "todo": []
+    "blocked": [
+      "Standard registry release/kit promotion still requires actual published OCI digest; owner will handle GitHub push. Physical Windows hardware acceptance remains unverified."
+    ],
+    "done": [
+      "All authorized local fixes, operator-approved89-file inventory/notices, approved asset image and production image are complete and verified; scoped changes ready for owner push"
+    ],
+    "todo": [
+      "Owner pushes commits and publishes reviewed asset image, then records its real OCI digest; physical Windows and broader production release acceptance remain open"
+    ]
   },
   "resume": {
-    "next_action": "Operator review of canonical redistribution classifications and registry publication prerequisites; local fixes/images and acceptance are ready",
+    "next_action": "Owner pushes local commits; follow committed distribution/assets/README.md to publish approved manifest f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25 and record actual OCI digest",
     "prerequisites": []
   },
   "runtime": {
     "last_failure_fingerprint": "",
-    "next_decision": "reflect",
-    "no_progress_windows": 1,
+    "next_decision": "continue",
+    "no_progress_windows": 0,
     "repeated_failure_count": 0
   },
   "schema_version": "1.0",
@@ -29,7 +35,7 @@
     "created_at": "2026-11-11T20:38:02+00:00",
     "id": "production-indexing-resume-v2",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-12T22:12:46+00:00"
+    "updated_at": "2026-11-12T22:41:39+00:00"
   },
   "task": {
     "acceptance": [
@@ -40,17 +46,21 @@
     "status": "reviewing"
   },
   "verification": {
-    "passed": [],
-    "pending": []
+    "passed": [
+      "Final full harness PASS1955 tests16skips; focused28 PASS; exact approved-image fresh-volume denied-egress production OCR/table/tokenizer/GGUF/Torch/UI/MCP/indexing/repository-owner writes/restart PASS; OpenSpec strict, state, artifact manifest and whitespace validation PASS"
+    ],
+    "pending": [
+      "Actual GHCR publication and ordinary published-image release smoke; native Windows5.1 and physical Windows CUDA/Vulkan/Rancher/Desktop; broader durability and rollout matrix"
+    ]
   },
   "working_set": [
     {
-      "path": "pi_platform/deployment/offline_assets.py",
-      "sha256": "4bbb4f20323016d67ba1fe4633a3fa7e53b7832c4ded7f8d1e34daf8340a5426"
+      "path": "distribution/assets/assets-lock.json",
+      "sha256": "f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25"
     },
     {
-      "path": "tests/test_production_offline_assets.py",
-      "sha256": "a103a628ee3d89ef7e5657a9af6318e0d817a508f45aed3f933a2646203d26f7"
+      "path": "distribution/assets/licenses/asset-review.json",
+      "sha256": "72671b6f965da04b64fbe3e50798cf04c3b15241399c76b213420375acb914e8"
     }
   ]
 }

@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `reviewing`
-Updated: `2026-11-12T22:12:46+00:00`
+Updated: `2026-11-12T22:41:39+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,19 +19,19 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- none
+- All authorized local fixes, operator-approved89-file inventory/notices, approved asset image and production image are complete and verified; scoped changes ready for owner push
 
 ## Remaining
 
-- none
+- Owner pushes commits and publishes reviewed asset image, then records its real OCI digest; physical Windows and broader production release acceptance remain open
 
 ## Blocked
 
-- none
+- Standard registry release/kit promotion still requires actual published OCI digest; owner will handle GitHub push. Physical Windows hardware acceptance remains unverified.
 
 ## Decisions
 
-- Installed-wheel asset verification resolves the exact dependency lock from explicit PI_PLATFORM_HOME; wrong/missing locks still fail
+- User will push commits to GitHub; finish local changes and verification without requesting further publication authentication. Actual registry digest remains unrecorded until owner publication; no placeholder identity.
 
 ## Relevant context
 
@@ -39,20 +39,20 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Working set
 
-- `pi_platform/deployment/offline_assets.py`
-- `tests/test_production_offline_assets.py`
+- `distribution/assets/assets-lock.json`
+- `distribution/assets/licenses/asset-review.json`
 
 ## Verification passed
 
-- none
+- Final full harness PASS1955 tests16skips; focused28 PASS; exact approved-image fresh-volume denied-egress production OCR/table/tokenizer/GGUF/Torch/UI/MCP/indexing/repository-owner writes/restart PASS; OpenSpec strict, state, artifact manifest and whitespace validation PASS
 
 ## Verification pending
 
-- none
+- Actual GHCR publication and ordinary published-image release smoke; native Windows5.1 and physical Windows CUDA/Vulkan/Rancher/Desktop; broader durability and rollout matrix
 
 ## Next action
 
-Operator review of canonical redistribution classifications and registry publication prerequisites; local fixes/images and acceptance are ready
+Owner pushes local commits; follow committed distribution/assets/README.md to publish approved manifest f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25 and record actual OCI digest
 
 ## Prerequisites
 

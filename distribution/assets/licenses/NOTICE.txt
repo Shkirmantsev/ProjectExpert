@@ -1,0 +1,12 @@
+ProjectExpert asset-pack attribution
+
+EmbeddingGemma 2 weights and tokenizer: Google DeepMind; Apache-2.0.
+Pinned GGUF conversion: ggml-org/embeddinggemma-2-GGUF; Apache-2.0.
+Docling Heron and TableFormer: Docling Project; preserve the pinned model declarations and complete Apache/CDLA notices.
+OCR weights: Baidu/PaddleOCR rights holders; Apache-2.0. RapidOCR engineering and registry: RapidOCR Authors; Apache-2.0.
+llama.cpp/ggml Vulkan native components: upstream authors, including Georgi Gerganov; preserve the full MIT notice.
+OpenMP: LLVM/Intel contributors; preserve the entire supplied LLVM/OpenMP multi-license notice and grants.
+
+Unmodified upstream model README declarations are retained. No NVIDIA Windows CUDA DLLs, GPU drivers, or host CUDA toolkit are included in this pack. The optional CUDA container is an independently pinned upstream image using the installed host NVIDIA driver. Host drivers are never replaced.
+
+The operator approved these classifications and retained notices on 2026-11-12. Actual registry publication identity and platform acceptance are recorded separately.

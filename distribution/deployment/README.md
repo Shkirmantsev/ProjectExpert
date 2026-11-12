@@ -574,9 +574,10 @@ with HF/Transformers offline flags. Native Windows extracts the pinned OCI pack
 and verifies it before executing any runtime binary. `compose.assets.yaml` is now
 a compatibility overlay; selecting it manually is unnecessary.
 
-The actual asset release is **BLOCKED**, with no invented license inventory or
-OCI digest. Fresh setup fails explicitly until a complete reviewed pack is
-published. See [controlled assembly and required real-model gates](../assets/README.md).
+The canonical asset inventory and retained notices are operator-approved.
+Registry release remains **BLOCKED** until an actual published OCI digest is
+recorded. Fresh standard setup fails explicitly until that reviewed pack is
+published. See [controlled assembly and real-model evidence](../assets/README.md).
 Production/kit CI promotion checks these identities and actual offline inference.
 
 Upgrade managed kit files using the existing exporter `--upgrade` option. It

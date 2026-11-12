@@ -2,6 +2,6 @@
   "schema_version": 1,
   "release_status": "blocked",
   "image": null,
-  "manifest_sha256": null,
-  "reason": "Exact materialized inventory, per-artifact redistribution review, real offline smoke and OCI publication are required. No online fallback."
+  "manifest_sha256": "f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25",
+  "reason": "Operator-approved per-file inventory and notices; local complete offline acceptance passed. Actual immutable registry publication digest is still required; online fallback remains disabled."
 }

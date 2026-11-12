@@ -113,10 +113,16 @@ class OfflineAssetPackTests(unittest.TestCase):
         with self.assertRaisesRegex(AssetPackError, 'Linked'):
             seed(self.source, self.destination, self.digest)
 
-    def test_repository_manifest_is_honestly_blocked(self):
+    def test_repository_manifest_has_complete_pinned_review_evidence(self):
         path = Path('distribution/assets/assets-lock.json')
-        with self.assertRaisesRegex(AssetPackError, 'blocked'):
-            load_manifest(path, hashlib.sha256(path.read_bytes()).hexdigest())
+        release = json.loads(path.with_name('asset-release.json').read_text())
+        manifest = load_manifest(path, release['manifest_sha256'])
+        for entry in manifest['files']:
+            if entry['path'].startswith('licenses/'):
+                evidence = path.parent / entry['path']
+                self.assertEqual(hashlib.sha256(evidence.read_bytes()).hexdigest(), entry['sha256'], entry['path'])
+        review = json.loads((path.parent / 'licenses/asset-review.json').read_text())
+        self.assertEqual(review['status'], 'operator-approved')
 
 
 class TrustBundleTests(unittest.TestCase):

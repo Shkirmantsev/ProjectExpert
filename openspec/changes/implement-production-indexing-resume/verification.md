@@ -233,3 +233,38 @@ zero failures). Workspace fixtures PASS (4 tests); help/offline regression batch
 PASS (18 tests). Workflow YAML, PowerShell contracts, artifact manifest and
 whitespace checks PASS. Publication gates intentionally refuse the current
 blocked inventory/release; no real asset image was built, published or activated.
+
+## Completed local assembly and operator approval — 2026-11-12
+
+This supersedes the earlier materialization/local-acceptance blockers above.
+The final pack contains 82 pinned artifact files plus seven retained notice/review
+files. Original artifact hashes and provenance are unchanged. The operator
+explicitly approved the canonical license classifications and notices under the
+requirement of no-fee enterprise use without company-size limits. The canonical
+manifest is verified and independently pinned as
+`f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25`.
+The complete review and upstream notices are committed under
+`distribution/assets/licenses/`.
+
+Both actual images were built. Fresh-volume internal-network acceptance passed
+against the final approved pack: real OCR, tables/figures, tokenizer, wide text,
+pixel-sensitive image embeddings, native Torch, indexing, UI, MCP, dependency
+checks, repository-owner writes and restart. It reproduced and fixed root-only
+seed staging permissions and installed-wheel dependency-lock lookup. The locked
+production backend build also removes obsolete core setuptools metadata before
+copying the exact production backend and building without another resolution.
+
+Full final `harness.py check`: PASS, 1,955 tests, 16 skips. Approved-asset focused
+suite: PASS, 28 tests. Actual AMD integrated-GPU Vulkan wide-text/image inference
+also passed with runtime-reported device selection and denied egress. PowerShell
+7 launcher, native extraction and managed-container CUDA fallback contracts
+passed locally; no host driver or toolkit was changed.
+
+Registry publication and standard published-image acceptance remain NOT RUN.
+No actual GHCR digest has been recorded, and the separate registry release remains
+blocked. The owner will push these commits and handle publication; exact input
+hash, image identities and publication steps are in `distribution/assets/README.md`.
+Physical Windows GPU/Rancher/Desktop and broader durability/rollout gates remain
+open; local contract tests do not certify them. Existing user services/volumes
+were preserved, and only disposable fixture volumes and superseded build artifacts
+were removed.

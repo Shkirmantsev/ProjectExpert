@@ -1,8 +1,9 @@
 # Immutable offline asset release
 
-The release is **BLOCKED**. `assets-lock.json` records the materialized file inventory
-but its redistribution classifications remain unapproved, and
-`asset-release.json` has no published digest. The standard deployment now refuses
+Registry release is **BLOCKED** until authenticated publication supplies its actual
+immutable digest. `assets-lock.json` is now verified: the operator approved its
+per-file classifications and retained notices on 2026-11-12. `asset-release.json`
+pins that reviewed manifest but has no published image digest. Standard deployment refuses
 missing packs/pins; it never silently falls back to Hugging Face. This source
 change alone does not make a fresh installation usable. The actual reviewed OCI
 pack must be published before production/kit promotion can pass.
@@ -23,7 +24,7 @@ processor configs), the custom Docling layout/accurate TableFormer/OCR tree,
 native Windows Vulkan archives and extracted files by default. Container CUDA
 uses the separately pinned llama.cpp runtime image and the host NVIDIA driver;
 it does not require installing a CUDA toolkit on the host. Windows native CUDA
-redistributables require an explicit `--native-backends cuda,vulkan` selection
+redistributables require an explicit `--native-backends cuda vulkan` selection
 and their own redistribution review. No pack installs or replaces host drivers.
 Its candidate manifest
 is always `blocked`, with no invented license approval. A partially failed
@@ -41,8 +42,8 @@ from registry publication and does not promote the canonical release metadata.
 The smoke uses container-local HTTP on an internal network, so it needs no
 host access to an isolated bridge's published ports.
 
-The local technical redistribution review checks no-fee commercial use at any
-company size. The proposed pack uses Apache-2.0, MIT, CDLA-Permissive-2.0 and the
+The approved redistribution review checks no-fee commercial use at any
+company size. The pack uses Apache-2.0, MIT, CDLA-Permissive-2.0 and the
 retained LLVM/OpenMP/Intel notices. These grants do not impose revenue or company
 size limits; their copyright, license and applicable notice obligations remain.
 The TableFormer declaration includes both CDLA and Apache terms. The bundled
@@ -51,8 +52,9 @@ as blanket MIT. Primary terms: [Apache](https://www.apache.org/licenses/LICENSE-
 [MIT](https://opensource.org/license/mit),
 [CDLA](https://cdla.dev/permissive-2-0/) and the exact upstream
 [Vulkan archive with OpenMP notice](https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip)
-retained in the Vulkan archive. This technical review of a local test pack does
-not constitute operator approval or canonical release promotion.
+retained in the Vulkan archive. The operator approval and technical evidence are
+recorded in [the retained review](licenses/asset-review.json). Approval of the
+inventory does not claim registry publication or physical-platform certification.
 
 Review every file's redistribution terms, including model weights, native DLLs
 and notices. A reviewed manifest must supply `license` and `license_evidence`
@@ -76,14 +78,33 @@ docker build -f distribution/assets/Containerfile \
 
 The OCI build never fetches models. The `publish-offline-assets` workflow can perform the same controlled assembly,
 build and idempotent offline seeding from the committed independently pinned
-review; it publishes a **candidate** and records the real RepoDigest. It cannot
-run with the current blocked inventory and never self-approves licenses.
+review; it publishes a **candidate** and records the real RepoDigest. The approved
+inventory can now be used as workflow input; the workflow never self-approves licenses.
 
 Publish the reviewed image through authorized
 registry credentials and capture its real RepoDigest. Commit the exact reviewed
 manifest bytes as `assets-lock.json`. Set `asset-release.json` to `verified`,
 with `image: ghcr.io/shkirmantsev/project-intelligence-assets@sha256:<actual digest>`
 and the independent manifest SHA-256. No placeholder digest is acceptable.
+
+For this approved inventory, dispatch `publish-offline-assets` with
+`manifest_sha256=f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25`
+after pushing the commit and making that workflow available on GitHub. The
+workflow summary reports the actual published candidate RepoDigest. Alternatively,
+after logging Docker into GHCR with package-write access, publish the already
+verified local image:
+
+```bash
+docker tag projectexpert-assets:approved ghcr.io/shkirmantsev/project-intelligence-assets:candidate-f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25
+docker push ghcr.io/shkirmantsev/project-intelligence-assets:candidate-f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25
+docker image inspect --format '{{index .RepoDigests 0}}' ghcr.io/shkirmantsev/project-intelligence-assets:candidate-f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25
+```
+
+Record that actual digest in `asset-release.json`, set its status to `verified`,
+retain the approved manifest hash, and run the ordinary production smoke without
+`--candidate-assets`. This proves registry retrieval and the standard release
+path before publishing the application/deployment kit. Pushing source alone does
+not supply a missing OCI identity or make those publication gates pass.
 
 ## Consumers and promotion
 
@@ -106,8 +127,9 @@ The deployment-kit build bakes reviewed pins into fresh deployment.env. Existing
 `--upgrade` preserves operator deployment.env, reports stale/missing pins and
 backs up managed files. No user volume is deleted.
 
-Physical Windows GPU, Rancher/Desktop, registry trust and full offline acceptance
-are still release evidence to collect. Unit fixtures are never that evidence.
+Physical Windows GPU, Rancher/Desktop and published-registry acceptance remain
+release evidence to collect. Complete local offline acceptance is recorded below;
+unit fixtures are never physical-platform or publication evidence.
 
 ## Local acceptance evidence — 2026-11-12
 
@@ -124,10 +146,20 @@ Local image IDs (these are **not published OCI RepoDigests**):
 - `projectexpert-assets:reviewed-local`: `sha256:3a0237d157201d3da14dbbdbc0296c561ed0dae260556530b7b073e8decc84ba`
 - Local test manifest: `47c82e536d1c20460beff86d7d37f1652fe592acb7caabb02bf8469286f2410d`
 
-The factual canonical inventory contains 82 files (2,919,769,070 bytes); the local
-test pack adds seven inventoried notice/review files. Canonical classifications
-remain unset following automatic approval review; local technical review and
-these measurements do not grant public redistribution approval.
+The inventory contains 82 artifact files (2,919,769,070 bytes) plus seven retained
+notice/review files. The operator subsequently approved the classifications and
+notices; the canonical 89-file manifest is
+`f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25`.
+All original artifact hashes and provenance are unchanged. This supersedes the
+earlier local-only review above; its historical image IDs remain local test evidence.
+
+The final approved image `projectexpert-assets:approved` is
+`sha256:b30470440edc1dc84abf6e78d8c97fb1376950746ddc4b42cce3800162e257da`.
+Complete fresh-volume production acceptance and restart passed again against
+this exact approved manifest/image, with external egress denied. Superseded
+local-only candidate images and unused build cache were removed; current images
+and existing user services/volumes were retained. This image ID still is not a
+published registry RepoDigest.
 
 A separate real AMD integrated-GPU Vulkan smoke passed inside an internal network
 with the runtime-reported `Vulkan0` device, a 1,507-token document and distinct

@@ -1,672 +1,724 @@
 {
   "schema_version": 1,
-  "release_status": "blocked",
+  "release_status": "verified",
   "runtime_compatibility": "llama-b11515/docling-production-lock",
   "production_lock_sha256": "d8e295cdaa9fac7dbdc417dfa7ce917584b9918443a7cadbaf8d0632f9935a79",
-  "release_blockers": [
-    "Explicit acceptance of proposed per-file redistribution classifications and notices is pending",
-    "Complete production topology/restart acceptance is pending",
-    "Actual published OCI digest is absent"
-  ],
   "files": [
     {
       "path": "docling/artifacts/docling-project--docling-layout-heron/README.md",
       "sha256": "175700839bc7808eac6af1d0c23e4f483606ab2276fe01122f4093e61a1a65b6",
       "source": "https://huggingface.co/docling-project/docling-layout-heron/resolve/8f39ad3c0b4c58e9c2d2c84a38465abf757272d8/README.md",
       "revision": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/artifacts/docling-project--docling-layout-heron/config.json",
       "sha256": "fdea30805ce2f5666b147fca941dcdd27ad468e27d6ed21902207d3da056a97d",
       "source": "https://huggingface.co/docling-project/docling-layout-heron/resolve/8f39ad3c0b4c58e9c2d2c84a38465abf757272d8/config.json",
       "revision": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/artifacts/docling-project--docling-layout-heron/docling_heron_400.png",
       "sha256": "e7f78610372b32a7938e480d2c7fa1c3037ee170bd82282a5bd026232f6e6f9e",
       "source": "https://huggingface.co/docling-project/docling-layout-heron/resolve/8f39ad3c0b4c58e9c2d2c84a38465abf757272d8/docling_heron_400.png",
       "revision": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/artifacts/docling-project--docling-layout-heron/model.safetensors",
       "sha256": "00333a43451945aaf89db8ca9c0a17e75d1537c17db60fdb91aa95f4c7929e0c",
       "source": "https://huggingface.co/docling-project/docling-layout-heron/resolve/8f39ad3c0b4c58e9c2d2c84a38465abf757272d8/model.safetensors",
       "revision": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/artifacts/docling-project--docling-layout-heron/preprocessor_config.json",
       "sha256": "cd38cd59999e7a95d68e487fbe5132df3d4e5c32a0836add57e6126ba0c4eaf1",
       "source": "https://huggingface.co/docling-project/docling-layout-heron/resolve/8f39ad3c0b4c58e9c2d2c84a38465abf757272d8/preprocessor_config.json",
       "revision": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/artifacts/docling-project--docling-models/README.md",
       "sha256": "638053f2c976547e6d3de9f4ff1efb386715f1795e8fe9500a5150245845b591",
       "source": "https://huggingface.co/docling-project/docling-models/resolve/2199320848bb9a8a519d22e4b528185a4f9a6f64/README.md",
       "revision": "2199320848bb9a8a519d22e4b528185a4f9a6f64",
-      "license": null,
-      "license_evidence": null
+      "license": "CDLA-Permissive-2.0 AND Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/artifacts/docling-project--docling-models/config.json",
       "sha256": "9c34024dc28ff47b75818f415e769809798c29bf9bde6f2ccc63a4acb62396d9",
       "source": "https://huggingface.co/docling-project/docling-models/resolve/2199320848bb9a8a519d22e4b528185a4f9a6f64/config.json",
       "revision": "2199320848bb9a8a519d22e4b528185a4f9a6f64",
-      "license": null,
-      "license_evidence": null
+      "license": "CDLA-Permissive-2.0 AND Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/artifacts/docling-project--docling-models/model_artifacts/tableformer/accurate/tableformer_accurate.safetensors",
       "sha256": "2a7d6c924b3cd12fb99a09280ca9c33a89c5d60b93253617d2e088c1a40374d9",
       "source": "https://huggingface.co/docling-project/docling-models/resolve/2199320848bb9a8a519d22e4b528185a4f9a6f64/model_artifacts/tableformer/accurate/tableformer_accurate.safetensors",
       "revision": "2199320848bb9a8a519d22e4b528185a4f9a6f64",
-      "license": null,
-      "license_evidence": null
+      "license": "CDLA-Permissive-2.0 AND Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/artifacts/docling-project--docling-models/model_artifacts/tableformer/accurate/tm_config.json",
       "sha256": "984e122ceb8ccf84d84c9d2882f6f2302a44b4f1e577babd6289892c36f3cffd",
       "source": "https://huggingface.co/docling-project/docling-models/resolve/2199320848bb9a8a519d22e4b528185a4f9a6f64/model_artifacts/tableformer/accurate/tm_config.json",
       "revision": "2199320848bb9a8a519d22e4b528185a4f9a6f64",
-      "license": null,
-      "license_evidence": null
+      "license": "CDLA-Permissive-2.0 AND Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/ocr/PP-OCRv3/ch_ppocr_mobile_v2.0_cls_train.onnx",
       "sha256": "70581b300b83babd9e0dd1d7d74c5b006869e8796da277a70c2e405bf9d77c82",
       "source": "https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173/PP-OCRv3/ch_ppocr_mobile_v2.0_cls_train.onnx",
       "revision": "1cfba2e90fc938db55889873735088de210cc173",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/ocr/PP-OCRv4/ch_PP-OCRv4_det_infer.onnx",
       "sha256": "d2a7720d45a54257208b1e13e36a8479894cb74155a5efe29462512d42f49da9",
       "source": "https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173/PP-OCRv4/ch_PP-OCRv4_det_infer.onnx",
       "revision": "1cfba2e90fc938db55889873735088de210cc173",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/ocr/PP-OCRv4/ch_PP-OCRv4_rec_infer.onnx",
       "sha256": "48fc40f24f6d2a207a2b1091d3437eb3cc3eb6b676dc3ef9c37384005483683b",
       "source": "https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173/PP-OCRv4/ch_PP-OCRv4_rec_infer.onnx",
       "revision": "1cfba2e90fc938db55889873735088de210cc173",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "docling/ocr/README.md",
       "sha256": "a2aa61e290af1ad9c143ba4212f87c976bc2d756cf676d20bda42d48b5b28b14",
       "source": "https://huggingface.co/SWHL/RapidOCR/resolve/1cfba2e90fc938db55889873735088de210cc173/README.md",
       "revision": "1cfba2e90fc938db55889873735088de210cc173",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "embedding/embeddinggemma-2-Q8_0.gguf",
       "sha256": "2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135",
       "source": "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/58faf90940886df2d62be555c8765d00dac362c5/embeddinggemma-2-Q8_0.gguf",
       "revision": "58faf90940886df2d62be555c8765d00dac362c5",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "embedding/mmproj-embeddinggemma-2-Q8_0.gguf",
       "sha256": "c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f",
       "source": "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/58faf90940886df2d62be555c8765d00dac362c5/mmproj-embeddinggemma-2-Q8_0.gguf",
       "revision": "58faf90940886df2d62be555c8765d00dac362c5",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
+    },
+    {
+      "path": "licenses/Apache-2.0.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "source": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "revision": "sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
+    },
+    {
+      "path": "licenses/CDLA-Permissive-2.0.txt",
+      "sha256": "4531a67d443284d93ffed0803df5b10634aff21c3d77e381f2d48af01d875868",
+      "source": "https://raw.githubusercontent.com/Community-Data-License-Agreements/Releases/main/CDLA-Permissive-2.0.txt",
+      "revision": "sha256:4531a67d443284d93ffed0803df5b10634aff21c3d77e381f2d48af01d875868",
+      "license": "CDLA-Permissive-2.0",
+      "license_evidence": "licenses/asset-review.json"
+    },
+    {
+      "path": "licenses/LLVM-OpenMP.txt",
+      "sha256": "fdad1758a9e1f9d5a81e18879b3406772115edc92c24bfa36b70c654f325e8e4",
+      "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#LICENSE-LLVM-OpenMP",
+      "revision": "sha256:fdad1758a9e1f9d5a81e18879b3406772115edc92c24bfa36b70c654f325e8e4",
+      "license": "(Apache-2.0 WITH LLVM-exception) AND MIT AND LicenseRef-Intel-LLVM-Grant",
+      "license_evidence": "licenses/asset-review.json"
+    },
+    {
+      "path": "licenses/NOTICE.txt",
+      "sha256": "9b7a51d877116b93b815448743480c33908e210fd514f595e0caa9c3510af1c6",
+      "source": "operator-approved-review:enterprise-criteria-2026-11-12",
+      "revision": "operator-approved-2026-11-12",
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
+    },
+    {
+      "path": "licenses/RapidOCR-model-notice.txt",
+      "sha256": "2744fad8f222926b06e7109b359fb5a57d2af3aeedef37bb9f6750cec278ac53",
+      "source": "https://rapidai.github.io/RapidOCRDocs/main/en/model_licenses/",
+      "revision": "sha256:2744fad8f222926b06e7109b359fb5a57d2af3aeedef37bb9f6750cec278ac53",
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
+    },
+    {
+      "path": "licenses/asset-review.json",
+      "sha256": "72671b6f965da04b64fbe3e50798cf04c3b15241399c76b213420375acb914e8",
+      "source": "operator-approved-review:enterprise-criteria-2026-11-12",
+      "revision": "operator-approved-2026-11-12",
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
+    },
+    {
+      "path": "licenses/llama.cpp-MIT.txt",
+      "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+      "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/3d65c90d04d337e88f2b1f7f0061f40a5324e662/LICENSE",
+      "revision": "sha256:94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/1_Pooling/config.json",
       "sha256": "8759bdf7c77efc7df7723f64856a593c8943b71ee38baf2a88771fbaf78438f9",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/1_Pooling/config.json",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/2_Normalize/config.json",
       "sha256": "cdb09dfca347a56aa2d691744e38d5ad3c7cbc2834e7181272b9a15328b82524",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/2_Normalize/config.json",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/README.md",
       "sha256": "b677a0ee2818c36f091b65fd3d9b4baea9f04d53b02b49cae916c74bf9682037",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/README.md",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/chat_template.jinja",
       "sha256": "4b852efc0b9960283e735363331e6f325b33bc74bdbaa076f595bc4e9b94d85e",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/chat_template.jinja",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/config.json",
       "sha256": "b8f1e9931b57fbc054acdb445c41765d55b0074c58d145fa82839941ad1b5bb3",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/config.json",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/config_sentence_transformers.json",
       "sha256": "031e56a498d33c349ab489a21885bcfe25b4fcba841149dc99e1e90d4a7c28f5",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/config_sentence_transformers.json",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/model.safetensors",
       "sha256": "197a32965d4b1105faf060417baa899e193fb73cd401f42ec9295234d5553d79",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/model.safetensors",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/modules.json",
       "sha256": "3d02572a0455b832de67fb8e63a54981bc7e8b46e337c95e917bd8122a533bfd",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/modules.json",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/preprocessor_config.json",
       "sha256": "ea2ae257e901064abdd98dceb19f2b0da06af600bed15e0f99f5c85c37ee9d78",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/preprocessor_config.json",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/processor_config.json",
       "sha256": "168f6a08522f3ce5dea596d94d003af2fd691742d4f41fe1f9d8cce76bfbf69c",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/processor_config.json",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/sentence_bert_config.json",
       "sha256": "b1bcd9f2dce3ae863b359e87d0710b5dbc3314a59ecb4e2f97c7778fc8e4b228",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/sentence_bert_config.json",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/tokenizer.json",
       "sha256": "4d777ef5bdc1aa36227abdfb77c3e49e7b9c892d16e1b6bda41c393504828be4",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/tokenizer.json",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/tokenizer.model",
       "sha256": "e594c8a90eb08d8bda498ff4747977dc827ae0c3c56b5c0d41a605a22d02ef03",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/tokenizer.model",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "transformers/gemma/tokenizer_config.json",
       "sha256": "17bd5d6e9364ca49a534e1502076593317c298d4a663623091ed45388f004874",
       "source": "https://huggingface.co/google/embeddinggemma-2/resolve/914f7f89142e33e77833254d9c9b90c3cef7303b/tokenizer_config.json",
       "revision": "914f7f89142e33e77833254d9c9b90c3cef7303b",
-      "license": null,
-      "license_evidence": null
+      "license": "Apache-2.0",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/archives/llama-b11515-bin-win-vulkan-x64.zip",
       "sha256": "013275bb02719d6de02107d0e1daca91462bfc6385ac56712f43db8418690358",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT AND (Apache-2.0 WITH LLVM-exception) AND MIT AND LicenseRef-Intel-LLVM-Grant",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/LICENSE-LLVM-OpenMP",
       "sha256": "fdad1758a9e1f9d5a81e18879b3406772115edc92c24bfa36b70c654f325e8e4",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#LICENSE-LLVM-OpenMP",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "(Apache-2.0 WITH LLVM-exception) AND MIT AND LicenseRef-Intel-LLVM-Grant",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-base.dll",
       "sha256": "bc5edc35804492f31302b26fdff51933546e5aacd219d7fb5f07541dc5f838cd",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-base.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-alderlake.dll",
       "sha256": "e717a4c91c74827778b1a31c70acdf410483d597c01eb5fc41ee4b0838db73b7",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-alderlake.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-cannonlake.dll",
       "sha256": "5e4207941a9da21f12cab995c209745b42eb0bd0bf03287f79cadffcc1581afb",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-cannonlake.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-cascadelake.dll",
       "sha256": "6b125a4ee01a6e5813c11623573bffea24de452b3199dc0f769021cacf6a061e",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-cascadelake.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-cooperlake.dll",
       "sha256": "df08edc9daaa30217b3a5893fb2775499a51aa0fd95fca749a8c44f9de8cfea8",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-cooperlake.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-haswell.dll",
       "sha256": "2f6828b29338cb9d5c609abcb3efea7f0b0b0fc0b6e1d331686a7c9503b0d8dd",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-haswell.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-icelake.dll",
       "sha256": "dd6dd5c3b5c2125daccae9664db695b046dd5d6f2ddb339f86571c76dd9ea43e",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-icelake.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-ivybridge.dll",
       "sha256": "257c44f000f09e27b02b3f5627f4dd78e871dc62e3dc3fb88dbcf4892bd6342e",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-ivybridge.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-piledriver.dll",
       "sha256": "3ba70adccab2d5d1ab611a2f26dbc99c7ec599aa202cf7dfc0bc220cfc06a67d",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-piledriver.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-sandybridge.dll",
       "sha256": "3c9f8239b8706388ee79c3c14131f3fc4fc2e8821a993414fe961c0ba67cdf32",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-sandybridge.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-sapphirerapids.dll",
       "sha256": "a6aff678747f247512c0c237b27ace4b890ab404cc7c081fbe1df98401feca50",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-sapphirerapids.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-skylakex.dll",
       "sha256": "e356d4fc9cad1a9a83fc68a5fc09052575c184f2ab6f653a7a2a3208cf8ea7cb",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-skylakex.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-sse42.dll",
       "sha256": "19fd7d1fb19a4b31305e3270e1ff6d9073c856d825efa1fc4c24bfef792cab6b",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-sse42.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-x64.dll",
       "sha256": "4b5e8d8382d01e093374f72de49ea752bafe50f13c015c8f47a0e568451f9fe6",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-x64.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-cpu-zen4.dll",
       "sha256": "e04c5ded4f18636d9307b82a5967ac1aec43df9d79c807ceaa84ea4e35249eb6",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-cpu-zen4.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-rpc-server.exe",
       "sha256": "0589ec07deb2b5f61472906cddf413aeb3fc80124fda5abd0d3d427b0f9b34aa",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-rpc-server.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-rpc.dll",
       "sha256": "d50637c9bf017d03a5749113cbea79cd8987007f93c44b47ee8701cc3f4930ef",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-rpc.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml-vulkan.dll",
       "sha256": "83cde1b2754c83dc10979e262f9d21712e0c524b4dccd974b10dbc24070afbe9",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml-vulkan.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/ggml.dll",
       "sha256": "3eb51092f2ccecea2df7548acfc97de9d3ffd173553680c749150e26e1c10da1",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#ggml.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/libomp.dll",
       "sha256": "a12116ba72d1d6820407cf30be23da04ce79d6bb8a71a5ee71759c5a1faa6f1c",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#libomp.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "(Apache-2.0 WITH LLVM-exception) AND MIT AND LicenseRef-Intel-LLVM-Grant",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-batched-bench-impl.dll",
       "sha256": "124238895091bdcb6c63c0521593257262dccb04975c5ae39bf3131c3f42bf6b",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-batched-bench-impl.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-batched-bench.exe",
       "sha256": "6d7ab9ba4176026fac6b631b7a09b4db810d3d2aad2dbec8e4231099c2ff035c",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-batched-bench.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-bench-impl.dll",
       "sha256": "46e14ffd7d8d0a37652598fe6a2ce0b04a7d50add725c1767338c6d6383cbf48",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-bench-impl.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-bench.exe",
       "sha256": "ea3bedbbfb42c8335e8f2b5b050db8a47c645881f2de3010e7b05ed9d2edfce0",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-bench.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-cli-impl.dll",
       "sha256": "dd129587f1b346e53a3e4015f47b6cb95a6ea61ae3013dce891753ab05a52370",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-cli-impl.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-cli.exe",
       "sha256": "feaa72735e95426695ee03676ba64abe200a8a35e5ac65884370244efb029d8c",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-cli.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-common.dll",
       "sha256": "d9c19556c60dd852c222fb90fd941dc0de4fa7248b2ff75942b46d199b3bcade",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-common.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-completion-impl.dll",
       "sha256": "b764318df4dc58b115768607952dd58374976f27fbe6fcdcf1aae44415c91f12",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-completion-impl.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-completion.exe",
       "sha256": "7ebef93bf9ce20203c9ef843e1f5537d3df704d391809258833c987eafd05e9c",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-completion.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-fit-params-impl.dll",
       "sha256": "2007a9a7e46abf819f28c6037ee7a25f02318554062a783c63ebdfe2e6d71f98",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-fit-params-impl.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-fit-params.exe",
       "sha256": "0a2d7fc1f3e2c55dce92ae28bf565733466db78a20c9002dd4b6154cb7e13a45",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-fit-params.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-gemma3-cli.exe",
       "sha256": "3c5b8cf7d55b03be1f0f6c33ac57bb9e818486399c18333092b4256ff48b6757",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-gemma3-cli.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-gguf-split.exe",
       "sha256": "7948ea1d392dc698f4585c4cc60a5e33e5c3570120f1019ef66516998323f59f",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-gguf-split.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-imatrix.exe",
       "sha256": "8d2b62b1c30cb2142dec5c8dc84629394db175a2b2dd7487e80b5d240e0cc14e",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-imatrix.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-llava-cli.exe",
       "sha256": "3c5b8cf7d55b03be1f0f6c33ac57bb9e818486399c18333092b4256ff48b6757",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-llava-cli.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-minicpmv-cli.exe",
       "sha256": "3c5b8cf7d55b03be1f0f6c33ac57bb9e818486399c18333092b4256ff48b6757",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-minicpmv-cli.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-mtmd-cli.exe",
       "sha256": "c627653f40f2ff0b627c333225d92e1da957e5d5550a9dcc95636f45c5befc53",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-mtmd-cli.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-mtmd-debug.exe",
       "sha256": "c4351279ee53424af2a205c64da36f371d77c2a2cd792cc50d01d1182eb7811e",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-mtmd-debug.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-perplexity-impl.dll",
       "sha256": "4c986b946eeb44008e748e68a2390c195d9b2695b41f5f7761ce71e55f351a93",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-perplexity-impl.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-perplexity.exe",
       "sha256": "c5059c2135a66af21b828f498c17f8830fcb3baa8bfed7f4da2dcfe98e29e1df",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-perplexity.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-quantize-impl.dll",
       "sha256": "52d7cd6971cf56ed45cb51ae6f10c73e5cd3e913e8171a6a760cae44dae23d83",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-quantize-impl.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-quantize.exe",
       "sha256": "a63f83a8a0d537bbfad01f2fdd96dfcbd46de2d7928f8c4a45c02943c5cbe293",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-quantize.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-qwen2vl-cli.exe",
       "sha256": "3c5b8cf7d55b03be1f0f6c33ac57bb9e818486399c18333092b4256ff48b6757",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-qwen2vl-cli.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-results.exe",
       "sha256": "c071ec7df38fa176201d2fe04fe65c4a3e2e83917eb324641df8e3ce5d268b22",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-results.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-server-impl.dll",
       "sha256": "53f5c8df7916f726a6b720604376c8690d1d215509155f96bb7ed7b94ad5192b",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-server-impl.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-server.exe",
       "sha256": "fe50fd6a0ee7a4b36d1f678d1643dce50e19677cdeb94fcab2377d70db83e776",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-server.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-tokenize.exe",
       "sha256": "be48a4af04eb5dea9b2e46443b8637eed750c72cbd86b2893de35e8f8b99c8ce",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-tokenize.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama-tts.exe",
       "sha256": "9f2c4bef2ddc6839841a2068431a1fe301a7b1982e425ee2f123d478ef054d4d",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama-tts.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama.dll",
       "sha256": "89475bbf1edde7996ac2882d2903c95bf04283571deeee417ceef578f2cd8afa",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/llama.exe",
       "sha256": "ee8f9adf0a70461f397ce0c5d28da4586cc5851353f74df292d90329d8b9698b",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#llama.exe",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     },
     {
       "path": "windows/vulkan/mtmd.dll",
       "sha256": "6cc324955f84d5eebb31346f5d02e37304fe345128fd4a6126b688d9c01e474d",
       "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#mtmd.dll",
       "revision": "b11515",
-      "license": null,
-      "license_evidence": null
+      "license": "MIT",
+      "license_evidence": "licenses/asset-review.json"
     }
   ],
   "native_backends": [
     "vulkan"
-  ]
+  ],
+  "redistribution_review": "Operator-approved classifications and notices; no fee or company-size restriction in the reviewed grants; retain applicable terms and notices."
 }
