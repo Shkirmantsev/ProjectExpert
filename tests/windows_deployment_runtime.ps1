@@ -25,6 +25,9 @@ try {
     $process.Refresh()
     if ($null -eq $process.ExitCode -or $process.ExitCode -ne 23) { throw 'Probe exit status must be an integer 23' }
     if ((Get-Content -Raw -LiteralPath $stderr) -notmatch 'probe-warning') { throw 'Probe stderr lost' }
+    # Successful assertions must not return the intentional native failure (37)
+    # to the Actions shell wrapper. Exceptions above still fail this script.
+    $global:LASTEXITCODE = 0
     Write-Output 'PASS: native stderr, exit status and preference restoration'
 } finally {
     $env:PATH = $previousPath

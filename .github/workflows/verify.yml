@@ -58,7 +58,8 @@ jobs:
           # Actions executes this script outside the checkout; set the import root.
           # Only the active slow test emits a stack sample; suite age is irrelevant.
           # The Actions job timeout still bounds stalls that hold the GIL.
-          unittest.main(module=None, testRunner=StallRunner, argv=["unittest", "discover", "-s", "tests", "-t", ".", "-v"])
+          if __name__ == "__main__":
+              unittest.main(module=None, testRunner=StallRunner, argv=["unittest", "discover", "-s", "tests", "-t", ".", "-v"])
 
   full-linux:
     timeout-minutes: 20

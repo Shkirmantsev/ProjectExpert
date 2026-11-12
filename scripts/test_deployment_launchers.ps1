@@ -5,12 +5,23 @@ $temp = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $temp | Out-Null
 $global:Calls = New-Object 'System.Collections.Generic.List[string]'
 $global:StartExit = 0
+$global:ComposeModel = $null
+$global:ComposeDevice = $null
 function global:docker {
     $global:Calls.Add(($args -join ' '))
     $global:LASTEXITCODE = 0
-    if (($args -join ' ') -match 'up -d') { $global:LASTEXITCODE = $global:StartExit }
+    if (($args -join ' ') -match 'up -d') {
+        $global:LASTEXITCODE = $global:StartExit
+        $global:ComposeModel = $env:PI_EMBEDDING_MODEL
+        $global:ComposeDevice = $env:PI_EMBEDDING_DEVICE
+    }
 }
 function global:Invoke-WebRequest { return @{ StatusCode = 200 } }
+# This fixture mocks Docker only; managed helpers have their own packaged tests.
+$previousWorkspaceMode = $env:PI_WORKSPACE_MODE
+$previousHostCA = $env:PI_HOST_CA_MODE
+$env:PI_WORKSPACE_MODE = 'bind'
+$env:PI_HOST_CA_MODE = 'off'
 $env:PI_OPEN_BROWSER = '0'
 $env:PI_ACCELERATOR = 'cpu'
 $env:PI_EMBEDDING_MODEL = 'gemma'
@@ -41,13 +52,14 @@ New-Item -ItemType Directory -Force -Path $cache | Out-Null
             $env:PI_ACCELERATOR = $backend
             & (Join-Path $temp 'start.ps1')
             if ($global:SelectedAccelerator -ne "$backend/gemma") { throw 'Windows selected the wrong GPU model' }
-            if ($env:PI_EMBEDDING_MODEL -ne 'gemma') { throw 'Container and native runtime models differ' }
+            if ($global:ComposeModel -ne 'gemma') { throw 'Container and native runtime models differ' }
+            if ($env:PI_EMBEDDING_MODEL -ne $model -or $env:PI_ACCELERATOR -ne $backend) { throw 'Launcher changed the parent model/backend preference' }
         }
     }
     $env:PI_ACCELERATOR = 'cpu'
     $env:PI_EMBEDDING_MODEL = 'gemma'
     & (Join-Path $temp 'start.ps1')
-    if ($env:PI_EMBEDDING_DEVICE -ne 'cpu') { throw 'Explicit Gemma CPU selection was lost' }
+    if ($global:ComposeDevice -ne 'cpu') { throw 'Explicit Gemma CPU selection was lost' }
     $global:SelectedAccelerator = 'not-called'
     & (Join-Path $temp 'compose.ps1') config
     if ($global:SelectedAccelerator -ne 'not-called') { throw 'config unexpectedly started GPU setup' }
@@ -69,6 +81,8 @@ New-Item -ItemType Directory -Force -Path $cache | Out-Null
     $global:LASTEXITCODE = 0
     Write-Host 'PASS: Windows PowerShell launcher defaults, command invocation, readiness and failure propagation'
 } finally {
+    $env:PI_WORKSPACE_MODE = $previousWorkspaceMode
+    $env:PI_HOST_CA_MODE = $previousHostCA
     Remove-Item -Recurse -Force $temp
     Remove-Item Function:\docker
     Remove-Item Function:\Invoke-WebRequest
