@@ -87,7 +87,7 @@ class ProductionOfflineTests(unittest.TestCase):
             path.write_bytes(b'unit fixture')
             entries.append(dict(path=name, sha256=hashlib.sha256(b'unit fixture').hexdigest(),
                                 source='https://example.invalid', revision='test-only', license='test-only', license_evidence='licenses/NOTICE'))
-        manifest = dict(schema_version=1, release_status='verified', runtime_compatibility=COMPATIBILITY,
+        manifest = dict(schema_version=1, release_status='verified', runtime_compatibility=COMPATIBILITY, native_backends=['vulkan'],
                         production_lock_sha256=hashlib.sha256(Path('requirements-production-linux-x86_64.txt').read_bytes()).hexdigest(), files=entries)
         (source / 'manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
         digest = hashlib.sha256((source / 'manifest.json').read_bytes()).hexdigest()
@@ -105,6 +105,18 @@ class ProductionOfflineTests(unittest.TestCase):
             self.assertEqual(os.environ['PI_DOCLING_TOKENIZER'], str(final / 'transformers/gemma'))
             self.assertEqual(os.environ['HF_HUB_OFFLINE'], '1')
 
+    def test_installed_wheel_uses_explicit_application_home_for_exact_lock(self):
+        final, digest = self.make_pack()
+        with patch('pi_platform.deployment.offline_assets.__file__', str(self.root / 'site-packages/pi_platform/deployment/offline_assets.py')), patch.dict(
+            os.environ, {'PI_PLATFORM_HOME': str(Path.cwd())}):
+            verify_pack(final, digest)
+        wrong_home = self.root / 'wrong-home'
+        wrong_home.mkdir()
+        (wrong_home / 'requirements-production-linux-x86_64.txt').write_text('wrong lock')
+        with patch.dict(os.environ, {'PI_PLATFORM_HOME': str(wrong_home)}):
+            with self.assertRaisesRegex(AssetPackError, 'exact production dependency lock'):
+                verify_pack(final, digest)
+
     def test_corrupt_ocr_and_missing_tokenizer_fail_before_loading(self):
         from pi_platform.adapters.pdf.real_docling import DOCLING_OCR_FILES
         final, digest = self.make_pack()
@@ -116,6 +128,21 @@ class ProductionOfflineTests(unittest.TestCase):
         (final / 'transformers/gemma/tokenizer.json').unlink()
         with self.assertRaisesRegex(AssetPackError, 'Missing asset'):
             verify_pack(final, digest)
+
+    def test_candidate_inspection_does_not_grant_seed_or_activation(self):
+        from pi_platform.deployment.offline_assets import verify_candidate
+        root, _ = self.make_pack()
+        path = root / 'manifest.json'
+        data = json.loads(path.read_text())
+        data['release_status'] = 'blocked'
+        path.write_text(json.dumps(data))
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        self.assertEqual(verify_candidate(root, digest)['release_status'], 'blocked')
+        with self.assertRaisesRegex(AssetPackError, 'blocked'):
+            seed(root, self.root / 'unapproved', digest)
+        with self.assertRaisesRegex(AssetPackError, 'blocked'):
+            verify_pack(root, digest)
+        self.assertFalse((self.root / 'unapproved').exists())
 
     def test_every_default_mode_requires_seed_and_offline_environment(self):
         bundle = Path('distribution/deployment')
@@ -134,12 +161,33 @@ class ProductionOfflineTests(unittest.TestCase):
         self.assertIn('--network none', native)
 
 class MaterializationTests(unittest.TestCase):
+    def test_cache_reuse_requires_matching_sha256_and_never_uses_a_bad_copy(self):
+        from scripts import materialize_asset_pack as builder
+        import io
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            cache = root / 'cache'
+            cache.mkdir()
+            good = b'verified bytes'
+            digest = hashlib.sha256(good).hexdigest()
+            (cache / digest).write_bytes(good)
+            destination = root / 'output' / 'weight.bin'
+            with patch.object(builder.urllib.request, 'urlopen', side_effect=AssertionError('network')):
+                builder.fetch('https://example.invalid', destination, digest, cache_roots=[cache])
+            self.assertEqual(destination.read_bytes(), good)
+            destination.unlink()
+            (cache / digest).write_bytes(b'corrupt')
+            with patch.object(builder.urllib.request, 'urlopen', return_value=io.BytesIO(good)) as download:
+                builder.fetch('https://example.invalid', destination, digest, cache_roots=[cache])
+            download.assert_called_once()
+            self.assertEqual(destination.read_bytes(), good)
+
     def test_materialization_never_self_approves_licenses_or_release(self):
         import io
         from scripts import materialize_asset_pack as builder
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw) / 'candidate'
-            def fetch(url, destination, expected=None):
+            def fetch(url, destination, expected=None, **kwargs):
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 if destination.suffix == '.zip':
                     import zipfile
@@ -148,7 +196,7 @@ class MaterializationTests(unittest.TestCase):
                 else:
                     destination.write_bytes(b'fixture')
             def metadata(url, **kwargs):
-                revision = url.rsplit('/', 1)[-1]
+                revision = url.split('?', 1)[0].rsplit('/', 1)[-1]
                 return io.BytesIO(json.dumps({'sha': revision, 'siblings':[{'rfilename':'config.json'}]}).encode())
             with patch.object(builder, 'fetch', side_effect=fetch), patch.object(builder.urllib.request, 'urlopen', side_effect=metadata):
                 manifest = builder.assemble(root)
@@ -158,7 +206,8 @@ class MaterializationTests(unittest.TestCase):
             from pi_platform.deployment.asset_pack import load_manifest, sha256
             with self.assertRaisesRegex(AssetPackError, 'blocked'):
                 load_manifest(root / 'manifest.json', sha256(root / 'manifest.json'))
-            self.assertTrue((root / 'windows/cuda/llama-server.exe').is_file())
+            self.assertTrue((root / 'windows/vulkan/llama-server.exe').is_file())
+            self.assertFalse((root / 'windows/cuda').exists())
             with self.assertRaisesRegex(AssetPackError, 'empty controlled'):
                 builder.assemble(root)
 

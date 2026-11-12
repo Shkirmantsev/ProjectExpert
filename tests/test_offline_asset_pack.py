@@ -43,6 +43,18 @@ class OfflineAssetPackTests(unittest.TestCase):
         self.assertTrue((first / 'embedding/model.gguf').is_file())
         self.assertEqual((self.destination / 'active-asset-pack').read_text().strip(), self.digest)
 
+    @unittest.skipIf(os.name == 'nt', 'POSIX application UID permissions')
+    def test_published_pack_is_readable_after_dropping_root_with_private_umask(self):
+        self.destination.mkdir()
+        previous = os.umask(0o077)
+        try:
+            final = seed(self.source, self.destination, self.digest)
+        finally:
+            os.umask(previous)
+        self.assertEqual((self.destination / 'asset-packs').stat().st_mode & 0o777, 0o755)
+        for path in [final, *final.rglob('*')]:
+            self.assertEqual(path.stat().st_mode & 0o777, 0o755 if path.is_dir() else 0o644, str(path))
+
     def test_damaged_installed_pack_is_not_silently_accepted_or_overwritten(self):
         final = seed(self.source, self.destination, self.digest)
         model = final / 'embedding/model.gguf'

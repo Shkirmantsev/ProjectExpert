@@ -26,14 +26,24 @@ from pi_platform.deployment.asset_pack import AssetPackError, sha256, load_manif
 from pi_platform.deployment.offline_assets import COMPATIBILITY, verify_pack
 
 
-def fetch(url, destination, expected=None):
+def fetch(url, destination, expected=None, *, cache_roots=()):
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.is_file() and expected and sha256(destination) == expected:
         return
+    cached = None
+    if expected:
+        for root in cache_roots:
+            for candidate in (root / destination.name, root / expected):
+                if candidate.is_file() and not candidate.is_symlink() and sha256(candidate) == expected:
+                    cached = candidate
+                    break
+            if cached is not None:
+                break
+    print(('Reusing verified cache: ' if cached else 'Downloading: ') + destination.name, flush=True)
     descriptor, temporary = tempfile.mkstemp(prefix='.download-', dir=destination.parent)
     import os
     try:
-        with os.fdopen(descriptor, 'wb') as target, urllib.request.urlopen(url, timeout=120) as source:
+        with os.fdopen(descriptor, 'wb') as target, (cached.open('rb') if cached else urllib.request.urlopen(url, timeout=120)) as source:
             shutil.copyfileobj(source, target)
         if expected and sha256(Path(temporary)) != expected:
             raise AssetPackError('Build-time download checksum mismatch: ' + destination.name)
@@ -42,7 +52,7 @@ def fetch(url, destination, expected=None):
         Path(temporary).unlink(missing_ok=True)
 
 
-def assemble(destination: Path):
+def assemble(destination: Path, *, cache_roots=(), native_backends=('vulkan',)):
     if destination.exists() and any(destination.iterdir()):
         raise AssetPackError('Use an empty controlled output directory; existing packs are never modified')
     destination.mkdir(parents=True, exist_ok=True)
@@ -52,7 +62,7 @@ def assemble(destination: Path):
                             source=url, revision=revision, license=None, license_evidence=None))
     for name, url, digest in GEMMA_FILES:
         path = destination / 'embedding' / name
-        fetch(url, path, digest)
+        fetch(url, path, digest, cache_roots=cache_roots)
         record(path, url, GEMMA_REVISION)
     specs = (
         ('google/embeddinggemma-2', '914f7f89142e33e77833254d9c9b90c3cef7303b', 'transformers/gemma', None),
@@ -62,7 +72,7 @@ def assemble(destination: Path):
         ('SWHL/RapidOCR', DOCLING_OCR_REVISION, 'docling/ocr', (*DOCLING_OCR_FILES, 'README.md', 'LICENSE')),
     )
     for repo, revision, prefix, patterns in specs:
-        with urllib.request.urlopen('https://huggingface.co/api/models/' + repo + '/revision/' + revision, timeout=120) as source:
+        with urllib.request.urlopen('https://huggingface.co/api/models/' + repo + '/revision/' + revision + '?blobs=true', timeout=120) as source:
             info = json.load(source)
         if info['sha'] != revision:
             raise AssetPackError('Upstream revision identity mismatch: ' + repo)
@@ -75,14 +85,15 @@ def assemble(destination: Path):
                 continue
             url = 'https://huggingface.co/' + repo + '/resolve/' + revision + '/' + urllib.parse.quote(name)
             path = destination / prefix / name
-            fetch(url, path)
+            expected = (entry.get('lfs') or {}).get('sha256')
+            fetch(url, path, expected, cache_roots=cache_roots)
             record(path, url, revision)
     lock = json.loads((ROOT / 'distribution/deployment/accelerator-lock.json').read_text())
-    for backend in ('vulkan', 'cuda'):
+    for backend in native_backends:
         for asset in lock['windows'][backend]:
             url = 'https://github.com/ggml-org/llama.cpp/releases/download/' + lock['runtime_version'] + '/' + asset['name']
             archive = destination / 'windows/archives' / asset['name']
-            fetch(url, archive, asset['sha256'])
+            fetch(url, archive, asset['sha256'], cache_roots=cache_roots)
             record(archive, url, lock['runtime_version'])
             with zipfile.ZipFile(archive) as bundle:
                 for member in bundle.infolist():
@@ -106,6 +117,7 @@ def assemble(destination: Path):
                     record(path, url + '#' + member.filename, lock['runtime_version'])
     manifest = dict(schema_version=1, release_status='blocked', runtime_compatibility=COMPATIBILITY,
                     production_lock_sha256=sha256(ROOT / 'requirements-production-linux-x86_64.txt'),
+                    native_backends=list(native_backends),
                     release_blockers=['Per-file redistribution licenses and evidence require independent review',
                                       'Real egress-denied model loading/conversion and OCI publication required'],
                     files=sorted(entries, key=lambda entry: entry['path']))
@@ -116,6 +128,8 @@ def assemble(destination: Path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=ROOT / 'tmp/local/asset-pack')
+    parser.add_argument('--native-backends', nargs='+', choices=('vulkan', 'cuda'), default=['vulkan'], help='Windows fallback binaries; container CUDA uses the pinned upstream CUDA image and host driver')
+    parser.add_argument('--download-cache', type=Path, action='append', default=[], help='Explicit read-only cache; reuse requires an upstream SHA-256 match')
     parser.add_argument('--reviewed-manifest', type=Path)
     parser.add_argument('--license-evidence', type=Path, help='Explicit local review evidence directory to copy into licenses/')
     parser.add_argument('--reviewed-manifest-sha256')
@@ -129,7 +143,7 @@ def main():
     args.output.parent.mkdir(parents=True, exist_ok=True)
     if shutil.disk_usage(args.output.parent).free < 8 * 1024 ** 3:
         raise AssetPackError('Controlled asset assembly requires at least 8 GiB free disk; no downloads started')
-    candidate = assemble(args.output)
+    candidate = assemble(args.output, cache_roots=args.download_cache, native_backends=args.native_backends)
     if args.reviewed_manifest:
         if args.license_evidence:
             evidence = args.license_evidence.resolve()

@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import socket
 import stat
@@ -22,13 +23,35 @@ def run(*args, **kwargs):
     return subprocess.run(args, check=True, **kwargs)
 
 
-def request(base, path, payload=None):
+class ContainerEndpoint:
+    """Use an in-network HTTP client; an internal bridge need not expose ports."""
+    def __init__(self, container):
+        self.container = container
+
+    def fetch(self, path, payload=None):
+        program = ("import json,sys,urllib.request; "
+                   "body=None if sys.argv[2]=='null' else sys.argv[2].encode(); "
+                   "request=urllib.request.Request('http://127.0.0.1:8765'+sys.argv[1],data=body,headers={'Content-Type':'application/json'}); "
+                   "response=urllib.request.urlopen(request,timeout=60); sys.stdout.buffer.write(response.read())")
+        result = subprocess.run(['docker','exec',self.container,'python','-c',program,path,json.dumps(payload)],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
+        if result.returncode:
+            raise RuntimeError('In-network HTTP request failed: ' + result.stderr.decode(errors='replace')[-4096:])
+        return result.stdout
+
+
+def request_bytes(base, path, payload=None):
+    if isinstance(base, ContainerEndpoint):
+        return base.fetch(path, payload)
     data = None if payload is None else json.dumps(payload).encode()
-    req = urllib.request.Request(base + path, data=data,
-                                 headers={'Content-Type': 'application/json'})
+    req = urllib.request.Request(base + path, data=data, headers={'Content-Type':'application/json'})
+    with urllib.request.urlopen(req, timeout=60) as response:
+        return response.read()
+
+
+def request(base, path, payload=None):
     try:
-        with urllib.request.urlopen(req, timeout=60) as response:
-            return json.load(response)
+        return json.loads(request_bytes(base, path, payload))
     except urllib.error.HTTPError as exc:
         raise RuntimeError(f"{path}: HTTP {exc.code}: {exc.read(4096).decode(errors='replace')}") from exc
 
@@ -37,11 +60,21 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--image', required=True)
     parser.add_argument('--timeout', type=int, default=1800)
+    parser.add_argument('--candidate-assets', action='store_true', help='Explicit local-only acceptance using a Docker image ID; does not certify registry publication')
     parser.add_argument('--asset-image')
     parser.add_argument('--manifest-sha256')
     parser.add_argument('--minimal', action='store_true', help='test common core only; never production inference evidence')
     args = parser.parse_args()
-    if not args.minimal:
+    if args.candidate_assets and args.minimal:
+        parser.error('Local asset acceptance cannot be combined with the model-free minimal smoke')
+    if args.candidate_assets:
+        if not re.fullmatch(r'sha256:[0-9a-f]{64}', args.asset_image or '') or not re.fullmatch(r'[0-9a-f]{64}', args.manifest_sha256 or ''):
+            parser.error('Local acceptance requires the actual immutable Docker image ID and independent manifest SHA-256')
+        actual = subprocess.check_output(['docker','image','inspect','--format','{{.Id}}',args.asset_image],text=True).strip()
+        if actual != args.asset_image:
+            parser.error('Local candidate image identity mismatch')
+        print('LOCAL CANDIDATE ACCEPTANCE: published OCI identity remains unverified')
+    elif not args.minimal:
         import sys
         sys.path.insert(0, str(ROOT))
         from pi_platform.deployment.offline_assets import release_identity
@@ -92,23 +125,26 @@ def main():
         try:
             if not args.minimal:
                 # Pull all registry dependencies before denying runtime egress.
-                run(*compose, 'pull', 'asset-seed', 'embeddings', env=env)
+                if args.candidate_assets:
+                    run(*compose, 'pull', 'embeddings', env=env)
+                else:
+                    run(*compose, 'pull', 'asset-seed', 'embeddings', env=env)
                 denied = root / 'egress-denied.json'
                 denied.write_text(json.dumps({'networks': {'default': {'internal': True}}}))
                 compose.extend(['-f', str(denied)])
             run(*compose, 'up', '-d', '--wait', '--wait-timeout', str(args.timeout), env=env)
             if not args.minimal:
                 container = subprocess.check_output([*compose, 'ps', '-q', 'production'], env=env, text=True).strip()
+                base = ContainerEndpoint(container)
                 for directory in ('tests', 'scripts'):
                     run('docker', 'exec', container, 'mkdir', '-p', '/tmp/offline-acceptance/' + directory)
                 for name in ('tests/__init__.py', 'tests/test_docling_production_binding.py',
-                             'scripts/__init__.py', 'scripts/generate_pdf_fixtures.py', 'scripts/verify_offline_runtime.py'):
+                             'scripts/generate_pdf_fixtures.py', 'scripts/verify_offline_runtime.py'):
                     run('docker', 'cp', str(ROOT / name), container + ':/tmp/offline-acceptance/' + name)
                 run(*compose, 'exec', '-T', '-e', 'PI_RUN_PDF_TESTS=1', '-e', 'PYTHONPATH=/tmp/offline-acceptance',
                     'production', 'python', '/tmp/offline-acceptance/scripts/verify_offline_runtime.py', env=env)
             assert request(base, '/health/ready')['ready']
-            with urllib.request.urlopen(base + '/', timeout=10) as page:
-                assert b'Project Intelligence' in page.read()
+            assert b'Project Intelligence' in request_bytes(base, '/')
             result = request(base, '/api/v1/query', {'text': 'invoice billing', 'top_k': 3})
             assert result.get('results'), result
             python_result = request(base, '/api/v1/query', {'text': 'httpx Python billing dependency', 'top_k': 10})
@@ -179,7 +215,6 @@ def main():
             profile = 'minimal core only' if args.minimal else 'egress-denied immutable asset setup'
             if not args.minimal:
                 logs = subprocess.check_output([*compose, 'logs', '--no-color'], env=env, text=True)
-                import re
                 assert not re.search(r'https?://(?:[a-z0-9-]+\.)?(?:huggingface\.co|hf\.co)', logs, re.I), 'Unexpected Hugging Face request in offline logs'
             print(f'PASS: {profile}, readiness, query, UI, MCP, dependency check and restart')
         finally:

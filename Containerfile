@@ -123,8 +123,14 @@ RUN python -m pip install --no-cache-dir --require-hashes --prefix=/opt/producti
 FROM core AS production
 COPY requirements-production-linux-x86_64.txt ./requirements-production-linux-x86_64.txt
 COPY requirements-production-java-linux-x86_64.txt ./requirements-production-java-linux-x86_64.txt
+# COPY overlays package files but cannot remove the core image's older metadata.
+# Remove its build backend first so the locked backend has one package identity.
+RUN python -m pip uninstall -y setuptools
 COPY --from=production-dependencies /opt/production/ /usr/local/
-RUN python -m pip install --no-cache-dir --no-deps ".[production]" \
+# The hash-locked closure already supplies the exact PEP 517 build backend.
+# Validate it before building without a second, unpinned network resolution.
+RUN python -c 'import importlib.metadata,tomllib; r=tomllib.load(open("pyproject.toml","rb"))["build-system"]["requires"]; assert r == ["setuptools=="+importlib.metadata.version("setuptools")], r' \
+    && python -m pip install --no-cache-dir --no-deps --no-build-isolation ".[production]" \
     && python -m pip check \
     && python -c 'from pathlib import Path; from pi_platform.adapters.java.parser_subprocess import TreeSitterJavaSubprocess; from pi_platform.ports.ingest.java_parser import JavaParseRequest; TreeSitterJavaSubprocess(required=True).parse(JavaParseRequest(source="class StartupProbe { int value; }", file_path=Path("StartupProbe.java")))' \
     && python -m pi_platform.cli license-gate \
