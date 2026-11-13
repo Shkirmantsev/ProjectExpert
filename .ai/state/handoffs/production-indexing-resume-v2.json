@@ -12,14 +12,14 @@
   "progress": {
     "blocked": [],
     "done": [
-      "PR24 model factory identity repaired; stable semantic BM25 ties and offline tokenizer test isolation verified; historical comparator explicitly preserved"
+      "Committed PR24 runtime repair as dc71c41 on feature/generate-init-project; all scoped local implementation and verification completed"
     ],
     "todo": [
-      "Commit scoped PR24 repair on feature/generate-init-project"
+      "Observe remote PR CI and authenticated merge publication after push"
     ]
   },
   "resume": {
-    "next_action": "Commit verified PR24 repair on existing feature branch",
+    "next_action": "Push feature/generate-init-project and inspect fresh PR24 checks; retain broader release gates as pending",
     "prerequisites": []
   },
   "runtime": {
@@ -33,7 +33,7 @@
     "created_at": "2026-11-11T20:38:02+00:00",
     "id": "production-indexing-resume-v2",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-13T20:57:59+00:00"
+    "updated_at": "2026-11-13T20:58:21+00:00"
   },
   "task": {
     "acceptance": [
@@ -45,10 +45,10 @@
   },
   "verification": {
     "passed": [
-      "Full harness PASS: 1986 tests / 16 skips, Wiki/OpenSpec/artifact/MCP checks; actual strict gate7 PASS; actual real-model suite70 tests1skip PASS; focused79 and benchmark32 PASS; Tier3 evaluation/sweep PASS"
+      "Full harness PASS: 1986 tests / 16 skips; actual strict gate7 PASS; actual real-model suite70 tests1skip PASS; focused79 and benchmark32 PASS; Tier3 evaluation/sweep PASS; final Wiki/OpenSpec/artifact/session/diff checks PASS"
     ],
     "pending": [
-      "Remote PR CI and authenticated merge publication remain pending push; no new registry publication claimed"
+      "Remote GitHub CI against dc71c41 and merge publication have not run; no new registry publication claimed"
     ]
   },
   "working_set": [
@@ -57,12 +57,12 @@
       "sha256": "3dc1ac055bc44fc8247ef29ab86224d5070ae7b31b7da4c20276539918419163"
     },
     {
-      "path": "openspec/changes/implement-production-indexing-resume/tasks.md",
-      "sha256": "7e97116d6c5aa7a1112eaff7e3c33b2628a5cfcf7132eac8f6139077268a5e74"
+      "path": "pi_platform/core/orchestration/production_capability_gate.py",
+      "sha256": "9f6cc2684cc8bcffd9048a2e777d75e4f642e6a71cefbb8ca10b08bccd1228b4"
     },
     {
-      "path": "openspec/changes/implement-production-indexing-resume/verification.md",
-      "sha256": "85ca4b654d057a2080f36adb7b1bcb4d209031ba39a213fa3e070498e4cf0aa6"
+      "path": "pi_platform/core/retrieval/reranker.py",
+      "sha256": "4d3c388d19478c0df8971824cfd6b9f07f35c18a6dc3a3eabb3bf8b445d2d355"
     }
   ]
 }

@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `verifying`
-Updated: `2026-11-13T20:57:59+00:00`
+Updated: `2026-11-13T20:58:21+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,11 +19,11 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- PR24 model factory identity repaired; stable semantic BM25 ties and offline tokenizer test isolation verified; historical comparator explicitly preserved
+- Committed PR24 runtime repair as dc71c41 on feature/generate-init-project; all scoped local implementation and verification completed
 
 ## Remaining
 
-- Commit scoped PR24 repair on feature/generate-init-project
+- Observe remote PR CI and authenticated merge publication after push
 
 ## Blocked
 
@@ -40,20 +40,20 @@ Implement supplied production indexing resume performance offline asset and reso
 ## Working set
 
 - `ARTIFACT_MANIFEST.sha256`
-- `openspec/changes/implement-production-indexing-resume/tasks.md`
-- `openspec/changes/implement-production-indexing-resume/verification.md`
+- `pi_platform/core/orchestration/production_capability_gate.py`
+- `pi_platform/core/retrieval/reranker.py`
 
 ## Verification passed
 
-- Full harness PASS: 1986 tests / 16 skips, Wiki/OpenSpec/artifact/MCP checks; actual strict gate7 PASS; actual real-model suite70 tests1skip PASS; focused79 and benchmark32 PASS; Tier3 evaluation/sweep PASS
+- Full harness PASS: 1986 tests / 16 skips; actual strict gate7 PASS; actual real-model suite70 tests1skip PASS; focused79 and benchmark32 PASS; Tier3 evaluation/sweep PASS; final Wiki/OpenSpec/artifact/session/diff checks PASS
 
 ## Verification pending
 
-- Remote PR CI and authenticated merge publication remain pending push; no new registry publication claimed
+- Remote GitHub CI against dc71c41 and merge publication have not run; no new registry publication claimed
 
 ## Next action
 
-Commit verified PR24 repair on existing feature branch
+Push feature/generate-init-project and inspect fresh PR24 checks; retain broader release gates as pending
 
 ## Prerequisites
 
