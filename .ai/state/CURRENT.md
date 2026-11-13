@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `reviewing`
-Updated: `2026-11-13T17:59:55+00:00`
+Updated: `2026-11-13T18:10:17+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,11 +19,11 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- Committed automatic one-merge offline asset bootstrap as 08442cf on codex/production-readiness-remediation
+- At user request, fast-forwarded feature/generate-init-project to include remediation commits 3ebbfbf,0505893,08442cf,3770d00; original hashes preserved and feature branch checked out
 
 ## Remaining
 
-- Push and merge source commit08442cf into dev/development; observe actual authenticated GHCR publication and independent emitted-kit pull. Broader release hardware/performance gates remain unverified.
+- Push feature/generate-init-project and merge into dev/development; observe authenticated registry workflow and independent kit installation
 
 ## Blocked
 
@@ -31,7 +31,7 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Decisions
 
-- No manual workflow, copied checksum or second metadata PR: CI computes reviewed manifest hash and hands real registry identity to consumers and kit. Source release metadata is an unbound template.
+- User requires work on feature/generate-init-project; continue on that branch rather than codex/production-readiness-remediation
 
 ## Relevant context
 
@@ -50,15 +50,15 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Verification passed
 
-- Full harness PASS1980 tests16skips; focused37 PASS; actual network-none asset verification and real fixture kit binding/export/negative build PASS; artifact/YAML/Bash/Wiki/OpenSpec/whitespace validation PASS
+- Branch transfer fast-forward PASS; feature tree identical to prior remediation branch. Existing source verification remains PASS1980 tests16skips; no code changed by branch transfer.
 
 ## Verification pending
 
-- Actual GitHub merge-run, registry publication and independent released-kit install not executed locally; no actual published digest claimed
+- Actual remote registry run and broader release acceptance remain unverified; no new publication claimed
 
 ## Next action
 
-Push/review 08442cf and merge into dev/development; monitor published-assets then production-and-deployment jobs
+Push/review feature/generate-init-project; run automatic pipeline by merge into dev/development
 
 ## Prerequisites
 
