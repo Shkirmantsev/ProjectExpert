@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `reviewing`
-Updated: `2026-11-13T17:59:29+00:00`
+Updated: `2026-11-13T17:59:55+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,11 +19,11 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- Automatic merge bootstrap implemented: reviewed manifest SHA computed locally; matching GHCR payload reused; explicit missing/mismatched payload rebuilt/published; real immutable output passed into smoke and matching kit without manual hash or second PR
+- Committed automatic one-merge offline asset bootstrap as 08442cf on codex/production-readiness-remediation
 
 ## Remaining
 
-- Push/review automatic merge pipeline change and observe authenticated dev/development run; independently verify published kit. Broader hardware/corporate/large-corpus gates remain separate.
+- Push and merge source commit08442cf into dev/development; observe actual authenticated GHCR publication and independent emitted-kit pull. Broader release hardware/performance gates remain unverified.
 
 ## Blocked
 
@@ -31,7 +31,7 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Decisions
 
-- User-requested one-merge flow supersedes manual dispatch/hash-copy/second metadata PR. Source asset release JSON is unbound template; verified identities are generated CI artifacts and embedded kit metadata. Auth/TLS/network errors still fail closed.
+- No manual workflow, copied checksum or second metadata PR: CI computes reviewed manifest hash and hands real registry identity to consumers and kit. Source release metadata is an unbound template.
 
 ## Relevant context
 
@@ -50,15 +50,15 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Verification passed
 
-- Full python3 harness.py check PASS1980 tests16skips; focused37 PASS; current verifier against actual approved asset image with network none PASS; real synthetic fixture kit build/export/Compose pin binding PASS; actual unbound kit refusal PASS; YAML/Bash/whitespace/artifact validation PASS
+- Full harness PASS1980 tests16skips; focused37 PASS; actual network-none asset verification and real fixture kit binding/export/negative build PASS; artifact/YAML/Bash/Wiki/OpenSpec/whitespace validation PASS
 
 ## Verification pending
 
-- Authenticated GHCR publication and remote reusable-workflow execution not run locally; no published RepoDigest fabricated or client HF download enabled
+- Actual GitHub merge-run, registry publication and independent released-kit install not executed locally; no actual published digest claimed
 
 ## Next action
 
-Commit and review scoped automatic merge bootstrap, then push/merge into dev or development for actual GHCR execution
+Push/review 08442cf and merge into dev/development; monitor published-assets then production-and-deployment jobs
 
 ## Prerequisites
 
