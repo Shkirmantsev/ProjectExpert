@@ -44,6 +44,13 @@ class EnterpriseCAHandshakeTests(unittest.TestCase):
                     self.assertEqual(connection.getresponse().status, 200)
                 finally:
                     connection.close()
+                wrong_host = http.client.HTTPSConnection('127.0.0.1', server.server_port,
+                    context=ssl.create_default_context(cafile=str(merged)), timeout=4)
+                try:
+                    with self.assertRaises(ssl.SSLCertVerificationError):
+                        wrong_host.request('GET', '/')
+                finally:
+                    wrong_host.close()
                 unknown = http.client.HTTPSConnection('localhost', server.server_port, context=ssl.create_default_context(), timeout=4)
                 try:
                     with self.assertRaises(ssl.SSLCertVerificationError):

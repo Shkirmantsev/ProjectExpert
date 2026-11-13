@@ -27,10 +27,13 @@ unless explicitly allowed by the operator. DB corruption, disk errors, immutable
 address conflicts and stale fences fail closed; state is never deleted to retry.
 
 ## Rollout
-PI_INDEX_ENGINE=legacy|resumable is explicit, without silent fallback. Keep new
-engine opt-in until migration/restore and packaged SQLite release proof pass.
-PI_INDEX_PARALLEL and PI_EMBED_BATCHING stay individually gated. Offline asset
-requirements cannot be enabled by default until a real pinned pack is published.
+Fresh defaults are PI_INDEX_ENGINE=resumable, PI_INDEX_PARALLEL=1 and
+PI_EMBED_BATCHING=1. Explicit legacy/serial overrides remain supported without
+silent fallback. Existing environments are preserved; explicit selective migration
+previews changes and atomically applies them with an exact backup. PDF concurrency
+remains one until real RSS admission is validated. Production promotion still
+requires packaged-model performance, recovery and physical-platform acceptance.
+Offline assets are mandatory and fail closed until the real digest is published.
 No test fixture or fake embedding is evidence of actual hardware throughput.
 
 ## Offline release remediation (2026-11-12)

@@ -11,6 +11,9 @@ source ./workspace.sh
 if [[ " $* " == *" up "* ]] && [ "${PI_HOST_CA_MODE:-$(workspace_value PI_HOST_CA_MODE)}" != off ]; then
   bash ./host-trust.sh
 fi
+if [[ " $* " == *" up "* ]]; then
+  bash ./registry-preflight.sh "${PI_ASSET_IMAGE:-$(workspace_value PI_ASSET_IMAGE)}"
+fi
 workspace_before "$@"
 
 read_env() { sed -n "s/^$1=//p" deployment.env | tail -1; }

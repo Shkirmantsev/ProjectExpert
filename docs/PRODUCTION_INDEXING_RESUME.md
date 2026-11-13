@@ -4,8 +4,9 @@ This is a staged implementation of the user-supplied production indexing V2
 design. The active change is
 [implement-production-indexing-resume](../openspec/changes/implement-production-indexing-resume/proposal.md).
 Existing accepted requirements remain in [CURRENT](../openspec/CURRENT.md).
-The new engine is opt-in pending the release gates below; it never silently
-falls back to a full legacy rebuild.
+Fresh source and kit defaults select the resumable engine, parallel source
+parsing and embedding batches. Production promotion is still blocked by the
+release gates below; the engine never silently falls back to a legacy rebuild.
 
 ## Run and observe
 
@@ -18,8 +19,11 @@ export PI_EMBED_BATCHING=1
 ```
 
 Compose operators set the corresponding values in `deployment.env`; the kit
-forwards these switches into the application. Defaults remain `legacy`, `0`,
-and `0` until migration/restore, pinned server and target-platform acceptance.
+forwards these switches into the application. Fresh defaults are `resumable`, `1`,
+and `1`; explicit operator settings remain effective. Existing environments are
+preserved. See the [selective migration procedure](../distribution/deployment/README.md#selective-environment-migration)
+for preview, backup and rollback. Source defaults are not a claim of completed
+pinned-model performance or target-platform acceptance.
 `PI_INDEX_REQUIRE_COMPLETE=1` is the resumable default: failed sources or
 unsupported images block the candidate. An explicit `0` allows incomplete
 results with `source_failures`; it does not convert failures into successes.

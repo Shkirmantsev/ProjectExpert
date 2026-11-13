@@ -2,11 +2,22 @@ name: verify-production-runtime
 
 # Heavy real-model verification is deliberately separate from the model-free CI.
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-production-runtime.yml'
+      - 'scripts/smoke_gguf_container.py'
+      - 'pi_platform/deployment/**'
+      - 'distribution/assets/**'
   push:
     branches: [dev, development, main]
   schedule:
     - cron: "23 2 * * *"
   workflow_dispatch:
+    inputs:
+      candidate_assets:
+        description: Verify an unpromoted reviewed candidate (never publish)
+        type: boolean
+        default: false
   release:
     types: [published]
 
@@ -15,7 +26,11 @@ permissions:
   packages: write
 
 jobs:
+  full-regression:
+    uses: ./.github/workflows/verify.yml
+
   real-production-runtime:
+    needs: [full-regression]
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -24,14 +39,50 @@ jobs:
       PI_EMBEDDING_DEVICE: cpu
       HF_HOME: ${{ github.workspace }}/tmp/local/model-cache
       PI_MODEL_CACHE: ${{ github.workspace }}/tmp/local/model-cache
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      PI_ASSET_CACHE: ${{ github.workspace }}/tmp/local/model-cache
+      PI_REQUIRE_OFFLINE_ASSETS: "1"
+      PI_ALLOW_REMOTE_ASSET_DOWNLOADS: "0"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
       PI_LLAMA_ENDPOINT: http://127.0.0.1:8769
-      PI_LLAMA_API_KEY_FILE: ${{ github.workspace }}/tmp/local/gguf-validation/llama-api-key
+      PI_LLAMA_API_KEY_FILE: ${{ github.workspace }}/tmp/local/model-cache/llama-api-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Prepare reviewed candidate or require the published immutable asset release
+        env:
+          CANDIDATE_ASSETS: ${{ github.event_name == 'pull_request' || inputs.candidate_assets == true }}
+          # Upstream access exists only in this controlled asset-build step.
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_OFFLINE: "0"
+          TRANSFORMERS_OFFLINE: "0"
+        run: |
+          args=()
+          if [ "$CANDIDATE_ASSETS" = true ]; then args+=(--candidate); fi
+          python scripts/prepare_ci_assets.py "${args[@]}" --env-output "$RUNNER_TEMP/asset-env"
+          cat "$RUNNER_TEMP/asset-env" >> "$GITHUB_ENV"
+      - name: Seed clean runtime cache twice without networking
+        run: |
+          mkdir -p "$PI_ASSET_CACHE"
+          for pass in 1 2; do
+            docker run --rm --network none \
+              -v "$PI_ASSET_CACHE:/models" "$PI_ASSET_IMAGE" \
+              --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256"
+          done
+          # Source-image files may be root-only. Seed as root, then give only
+          # this isolated runner cache back to the host test process.
+          docker run --rm --network none --entrypoint chown \
+            -v "$PI_ASSET_CACHE:/models" "$PI_ASSET_IMAGE" -R "$(id -u):$(id -g)" /models
+          python - <<'PY'
+          import os
+          from pi_platform.deployment.offline_assets import configure
+          configure()
+          with open(os.environ['GITHUB_ENV'], 'a') as stream:
+              for key in ('PI_DOCLING_ASSET_ROOT', 'PI_DOCLING_TOKENIZER', 'PI_TRANSFORMERS_ASSET_ROOT'):
+                  stream.write(key + '=' + os.environ[key] + '\n')
+          PY
       - name: Install the hashed production dependency closure
         run: |
           python -m pip install --require-hashes -r requirements-production-linux-x86_64.txt -r requirements-production-java-linux-x86_64.txt
@@ -40,7 +91,7 @@ jobs:
       - name: Review licenses against the actual production closure
         run: python -m pi_platform.cli license-gate --inventory distribution/licenses/production-dependency-inventory.json --production-lock requirements-production-linux-x86_64.txt --license-review distribution/licenses/production-license-review.json --license-evidence distribution/licenses/production-license-evidence.json --sbom-output .
       - name: Start and verify the pinned GGUF CPU runtime
-        run: python scripts/smoke_gguf_container.py --keep-running --name pi-runtime-ci --port 8769
+        run: python scripts/smoke_gguf_container.py --cache "$PI_ASSET_CACHE" --keep-running --name pi-runtime-ci --port 8769
       - name: Strict production capability gate (loads the configured model snapshot)
         run: python -m pi_platform.cli.production_capability_gate
       - name: Real embedding, ANN, and PDF regression suites
@@ -67,6 +118,13 @@ jobs:
         run: |
           docker run --rm --entrypoint python '${{ steps.image.outputs.name }}:production-candidate' -m pip check
           docker run --rm --entrypoint python '${{ steps.image.outputs.name }}:production-candidate' -c 'import sentence_transformers, transformers, torch, usearch; from docling.document_converter import DocumentConverter; from transformers.models.embedding_gemma2 import EmbeddingGemma2Config'
+      - name: Real offline installation and restart on an internal network
+        run: |
+          args=()
+          if [ "$PI_ASSET_MODE" = candidate ]; then
+            args+=(--candidate-assets --asset-image "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256")
+          fi
+          python scripts/smoke_production_container.py --image '${{ steps.image.outputs.name }}:production-candidate' "${args[@]}"
       - name: Log in to GHCR for release publication
         if: github.event_name == 'release'
         uses: docker/login-action@v3

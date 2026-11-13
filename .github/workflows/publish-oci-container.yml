@@ -26,6 +26,10 @@ env:
   IMAGE_NAME: project-intelligence
 
 jobs:
+  full-regression:
+    name: Full Linux and Windows acceptance before production publication
+    uses: ./.github/workflows/verify.yml
+
   windows-launchers:
     name: Windows PowerShell deployment contract
     runs-on: windows-latest
@@ -208,7 +212,7 @@ jobs:
 
   production-and-deployment:
     name: Verify and publish production with deployment kit
-    needs: [verify-platform, windows-launchers]
+    needs: [verify-platform, windows-launchers, full-regression]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

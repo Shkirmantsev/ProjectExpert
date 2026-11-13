@@ -80,7 +80,7 @@ runtime buffers do not fit a small integrated-GPU allocation safely.
 optimisation, so the launcher measures it: the CPU baseline and every
 validated GPU candidate are started, measured with the same fixed corpus and
 stopped again before the winner is started for real. A GPU candidate is only
-selected when it is at least **1.10x faster** than the CPU baseline. A GPU
+selected when it is at least **as fast** than the CPU baseline. A GPU
 that works but is slower is rejected with that reason and the CPU profile is
 used.
 
@@ -140,7 +140,7 @@ carve-out, Mesa 25.2.8, Vulkan 1.4.318, llama.cpp b11515:
 | CPU / Vulkan cosine parity (text, image, audio, video) | 0.999945 / 0.999929 / 0.999911 / 0.999953 (gate: >= 0.995) |
 | Vulkan embedding latency (median of 30) | 30.77 ms -> 32.50 emb/s |
 | CPU embedding latency (median of 30) | 22.19 ms -> 45.06 emb/s |
-| Measured speed-up | 0.72x -- **below the 1.10x gate, so the CPU profile is selected** |
+| Measured speed-up | 0.72x -- **slower than the CPU baseline, so the CPU profile is selected** |
 
 The integrated GPU produces numerically equivalent embeddings but is slower
 than the CPU for this workload, so the automatic selection keeps the CPU
@@ -447,7 +447,7 @@ GPU failure at launch retains the existing CPU fallback policy; an unavailable
 explicit UI GPU selection reports a failure instead of claiming success.
 
 Auto compares CPU/GPU median latency using the launcher's fixed query corpus,
-keeping GPU only at >=1.10x speedup. A later refresh reuses this result while the
+keeping GPU only at >=1.0x measured speedup. A later refresh reuses this result while the
 controller generation is unchanged. **Active mode** reads the current process:
 CPU, or Hybrid for a GPU backend with CPU projector. It does not promise a measured
 GPU layer count. Legacy remote endpoints and native Windows GPU services have no
@@ -587,3 +587,33 @@ reviewed release pins into the preserved operator environment. Never delete
 volumes to fix missing assets. `make platform-assets` shows running image IDs and
 verifies the active pinned pack. Roll back with matching image/kit/pins; retain
 active/previous pack directories and existing index data.
+
+## Selective environment migration
+
+Fresh kits use `PI_INDEX_ENGINE=resumable`, `PI_INDEX_PARALLEL=1` and
+`PI_EMBED_BATCHING=1`. PDF workers remain one by default. An ordinary `--upgrade`
+preserves your environment and warns when legacy indexing remains selected.
+Stop indexing before applying a migration. From the project directory, preview:
+
+```bash
+docker run --rm -v "$PWD:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev --migrate-indexing --dry-run
+```
+
+Apply by removing `--dry-run`. Only those three keys change; an exact backup is
+written under `.project-intelligence-deploy/.kit-backups/environment-*/deployment.env`.
+PowerShell users replace `$PWD` with `${PWD}` in the volume argument. Restore that
+backup to roll back settings; no model volume, index or legacy ingestion file is
+deleted. Explicit `legacy`, parallel `0`, and batching `0` remain supported.
+For an upgraded kit with a verified published asset release, `--migrate-assets
+--dry-run` previews reconciliation of only `PI_ASSET_IMAGE` and
+`PI_ASSET_MANIFEST_SHA256`; remove `--dry-run` to apply with backup. Blocked or
+mismatched release metadata refuses migration. No migration makes an unpublished
+release usable.
+
+On startup the read-only registry preflight reports the selected Docker context.
+Cached assets need no remote probe. For uncached assets it checks host registry
+HTTPS when available; this is **not proof of engine trust**. The actual image pull
+remains authoritative. Docker Desktop, Rancher Desktop/WSL and Linux engines have
+separate trust configuration. Follow approved administrator procedures and the
+[Docker registry certificate guide](https://docs.docker.com/engine/security/certificates/).
+Preflight never changes roots, drivers, daemon settings or TLS verification.

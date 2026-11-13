@@ -301,3 +301,46 @@ push; candidate-preparation subprocess orchestration is covered by the regressio
 suite, and the unchanged approved pack has the prior full real offline/restart
 acceptance recorded above. Registry publication and physical Windows hardware
 certification remain separate outstanding release gates.
+
+## Production remediation follow-up — 2026-11-13
+
+Baseline reconciled by HTTPS fetch: dev `7099677ffd049cbcfccafff68dabe81b195bd148`,
+identical tree to starting local `1d69ead`. SSH retrieval failed authentication.
+The [acceptance report](../../../docs/PRODUCTION_REMEDIATION_ACCEPTANCE.md) records
+the source fixes, exact model/runtime identities, measured fixture outcomes and
+remaining physical-platform/registry/performance gates.
+
+- PASS: initial 42 focused tests, selective migration/CI diagnostics regressions,
+  Linux Compose profile matrix and real TLS root/unknown-root/wrong-host handshake.
+- PASS: changed-source fresh-volume egress-denied real OCR/table/figure/tokenizer,
+  wide text/image/native Torch inference, optimized engine status, UI/MCP and restart.
+  Dependency-reusing validation image: `sha256:1b23a4f0b5b0433e70ccc420e72dc0068a17bc334fd30ede54bc987f82025045`.
+- PASS: actual pinned Gemma CPU/AMD Vulkan individual and combined numerical/top-k
+  parity. Joint admission rejected slower combination. Exploratory document-fixture
+  rates do not establish whole-pipeline gains. No new backend adapter is certified.
+- PASS: first socket-enabled full harness test phase (1968 tests); final artifact
+  verification initially failed because source hashes had not yet been regenerated.
+- Environment limitation: sandbox-only test run could not bind local HTTP/TLS
+  sockets. Repeated with local socket access instead of weakening/skipping tests.
+- PASS: direct repaired host-cache CI route, root seeding twice with network none,
+  ownership repair of only the isolated runner cache, then authenticated real CPU
+  GGUF inference (1507-token document, actual pixel-sensitive images). A failed
+  non-root source-image experiment exposed root-only original asset files; the
+  workflow was corrected before completion and regression proof added.
+- PASS: canonical production build and full repeated fresh-volume egress-denied
+  real acceptance with image
+  `sha256:72493341f0934201e297aa3c591d86c9d59cb1c8b8e9ddb41eb5a3b2ae7d249a`.
+  Installed `pip check`, parser/import and license gates passed. RepoDigests remains
+  empty: this is local image evidence, not publication.
+- PASS: subsequent full test phase, 1970 tests; final manifest gate initially
+  raced concurrent documentation edits, then hashes were refreshed and verified.
+- PASS: final `python3 harness.py check`, 1970 tests / 16 skips, zero failures,
+  final artifact manifest PASS. Wiki validation, strict OpenSpec validation
+  (94 items), workflow YAML/Bash syntax, launcher ordering regression and
+  `git diff --check` passed. Documentation-only final evidence updates were
+  followed by manifest regeneration/verification.
+- Pending: remote workflows, authenticated published asset digest/matching kit, independent
+  installation, physical Windows/corporate-network and original large corpus.
+
+Source defaults implement the supplied optimized target. Production promotion
+remains blocked; accepted current specs were not silently rewritten or archived.

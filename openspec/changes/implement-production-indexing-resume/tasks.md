@@ -18,3 +18,14 @@
 - [x] Execute complete fresh-volume egress-denied production OCR/table/tokenizer/text/image/Torch/UI/MCP/indexing/restart acceptance with the exact operator-approved pack.
 - [x] Verify reviewed PR/source candidates before publication, with candidate-kit helper/export checks and unchanged strict production release gates.
 - [ ] Publish reviewed asset OCI image and record actual immutable image/manifest identities.
+
+## Production remediation follow-up — 2026-11-13
+- [x] Require the reusable full Linux/Windows verification matrix before production image/kit publication.
+- [x] Seed reviewed offline assets in real GGUF CI; separate explicit candidate and published modes.
+- [x] Bound Compose render time and capture version/context/stderr diagnostics without speculative retries.
+- [x] Align optimized fresh defaults and retain explicit rollback with selective preview/backup migration.
+- [x] Add read-only registry diagnostics and distinguish host HTTPS from engine trust.
+- [x] Repeat fresh-volume real offline acceptance with changed source and optimized defaults, using the previously verified unchanged dependency image.
+- [x] Finish canonical fresh production build and repeat fresh-volume real offline acceptance with that exact image (72493341f093).
+- [ ] Validate original large corpus performance and physical Windows/heterogeneous device matrix.
+- [ ] Record real published asset RepoDigest and matched released kit; independent enterprise acceptance.

@@ -39,3 +39,16 @@ assets MUST fail before indexing writes, without deleting existing data.
 - **WHEN** source or PR verification runs before the asset image is published
 - **THEN** it builds the approved independently pinned inventory as a local image and exercises offline seeding and actual production acceptance without changing canonical publication metadata
 - **AND** source workspace/export checks use the candidate kit while production publication and normal release-kit builds still require the actual immutable registry digest
+
+#### Scenario: selective operator environment migration
+- **WHEN** an operator previews migration of indexing defaults or verified asset pins
+- **THEN** no files are changed
+- **WHEN** the operator explicitly applies the selected migration
+- **THEN** only the selected keys change atomically with an exact environment backup
+- **AND** blocked or mismatched asset metadata is refused before environment mutation
+
+#### Scenario: registry trust diagnosis before launcher pulls
+- **WHEN** startup needs an uncached asset image
+- **THEN** a read-only preflight reports Docker context and separate host/engine trust guidance
+- **AND** no CA store, system driver or daemon setting is changed
+- **AND** cached-image startup does not depend on remote registry preflight success

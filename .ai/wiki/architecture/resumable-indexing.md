@@ -3,7 +3,7 @@ id: architecture.resumable-indexing
 title: Resumable production indexing
 kind: architecture
 status: active
-summary: Opt-in SQLite source checkpoints, generation readers and resumable artifacts with explicit production release limits.
+summary: Default SQLite source checkpoints, generation readers and resumable artifacts with explicit production release limits.
 ---
 
 # Resumable production indexing
@@ -25,9 +25,11 @@ batches use the existing profile namespaces. Prior artifacts and legacy input
 remain retained; no automatic GC or silent legacy fallback runs. SQLite backup
 and journaled restore operate on generated state, never canonical sources.
 
-The default engine remains legacy during rollout. Source deployment now requires
+Fresh source and kit defaults now use resumable indexing, parallel parsing and
+bounded embedding batches; explicit legacy settings remain supported. Existing
+operator environments remain preserved, with an explicit preview/backup migration. Source deployment now requires
 verified offline asset seeding and fails closed when release pins/files are
-missing. The real licensed/published asset pack remains blocked;
+missing. The licensed inventory is reviewed; published registry identity remains blocked;
 [release assembly](../../../distribution/assets/README.md) records the workflow.
 Full offline OCI asset release,
 hardware acceptance, automatic artifact GC

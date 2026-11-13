@@ -5,9 +5,69 @@ import os
 import shutil
 import stat
 import tempfile
+import json
+import re
 
 HELPERS = ('workspace-agent-go-LICENSE.txt', 'workspace-agent-build.txt', 'workspace-agent-linux-amd64', 'workspace-agent-windows-amd64.exe', 'workspace-agent-SHA256SUMS')
-FILES = ('container-cuda.ps1', 'assets-lock.json', 'asset-release.json', 'compose.assets.yaml', 'host-trust.sh', 'host-trust.ps1', 'compose.host-trust.yaml', 'wait-ready.sh', 'wait-ready.ps1', 'compose.workspace-volume.yaml', 'workspace.sh', 'workspace.ps1', 'workspace-autostart.sh', 'workspace-autostart.ps1', 'runtime-entrypoint.sh', 'runtime_supervisor.py', 'compose.ui-vulkan.yaml', 'compose.yaml', 'deployment.env', 'Makefile', 'start.sh', 'start.ps1', 'stop.ps1', 'README.md', 'compose.sh', 'compose.ps1', 'compose.accelerator.yaml', 'compose.vulkan.yaml', 'compose.cuda.yaml', 'compose.cpu.yaml', 'compose.windows-gpu.yaml', 'accelerator-lock.json', 'setup-windows-accelerator.ps1', 'url.sh', 'url.ps1', '.gitignore')
+FILES = ('registry-preflight.sh', 'registry-preflight.ps1', 'container-cuda.ps1', 'assets-lock.json', 'asset-release.json', 'compose.assets.yaml', 'host-trust.sh', 'host-trust.ps1', 'compose.host-trust.yaml', 'wait-ready.sh', 'wait-ready.ps1', 'compose.workspace-volume.yaml', 'workspace.sh', 'workspace.ps1', 'workspace-autostart.sh', 'workspace-autostart.ps1', 'runtime-entrypoint.sh', 'runtime_supervisor.py', 'compose.ui-vulkan.yaml', 'compose.yaml', 'deployment.env', 'Makefile', 'start.sh', 'start.ps1', 'stop.ps1', 'README.md', 'compose.sh', 'compose.ps1', 'compose.accelerator.yaml', 'compose.vulkan.yaml', 'compose.cuda.yaml', 'compose.cpu.yaml', 'compose.windows-gpu.yaml', 'accelerator-lock.json', 'setup-windows-accelerator.ps1', 'url.sh', 'url.ps1', '.gitignore')
+
+
+def migrate_environment(destination: Path, *, indexing=False, assets=False, dry_run=False):
+    """Explicit selective migration; preserve all other operator bytes and modes."""
+    path = destination / 'deployment.env'
+    if path.is_symlink() or not path.is_file():
+        raise ValueError('Migration requires a regular deployment.env')
+    updates = {}
+    if indexing:
+        updates.update(PI_INDEX_ENGINE='resumable', PI_INDEX_PARALLEL='1', PI_EMBED_BATCHING='1')
+    if assets:
+        release = json.loads((destination / 'asset-release.json').read_text())
+        manifest = destination / 'assets-lock.json'
+        import hashlib
+        if (release.get('release_status') != 'verified' or
+            not re.fullmatch(r'ghcr\.io/shkirmantsev/project-intelligence-assets@sha256:[0-9a-f]{64}', release.get('image') or '') or
+            not re.fullmatch(r'[0-9a-f]{64}', release.get('manifest_sha256') or '') or
+            hashlib.sha256(manifest.read_bytes()).hexdigest() != release['manifest_sha256']):
+            raise ValueError('Asset migration requires the verified published release and matching manifest')
+        updates.update(PI_ASSET_IMAGE=release['image'], PI_ASSET_MANIFEST_SHA256=release['manifest_sha256'])
+    original = path.read_bytes()
+    content = original.decode('utf-8')
+    newline = '\r\n' if '\r\n' in content else '\n'
+    for key, value in updates.items():
+        pattern = r'^' + key + r'=[^\r\n]*'
+        if re.search(pattern, content, flags=re.M):
+            content = re.sub(pattern, key + '=' + value, content, flags=re.M)
+        else:
+            if content and not content.endswith(('\r', '\n')):
+                content += newline
+            content += key + '=' + value + newline
+        print(f'{"Preview" if dry_run else "Requested"}: {key}={value}')
+    if dry_run or content.encode('utf-8') == original:
+        return
+    backup_root = destination / '.kit-backups'
+    if backup_root.is_symlink():
+        raise ValueError('Refusing symlinked kit backup directory')
+    backup_root.mkdir(exist_ok=True)
+    backup = Path(tempfile.mkdtemp(prefix='environment-', dir=backup_root)) / path.name
+    shutil.copy2(path, backup)
+    descriptor, temporary = tempfile.mkstemp(prefix='.environment-', dir=destination)
+    try:
+        with os.fdopen(descriptor, 'wb') as stream:
+            stream.write(content.encode('utf-8'))
+            stream.flush()
+            os.fsync(stream.fileno())
+        shutil.copystat(path, temporary)
+        if hasattr(os, 'chown') and os.getuid() == 0:
+            owner = path.stat()
+            os.chown(temporary, owner.st_uid, owner.st_gid)
+            os.chown(backup, owner.st_uid, owner.st_gid)
+            os.chown(backup.parent, owner.st_uid, owner.st_gid)
+            os.chown(backup_root, owner.st_uid, owner.st_gid)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    print('Environment backup: ' + str(backup))
 
 
 def _repair_root_owner(path: Path, owner, *, directory: bool = False) -> None:
@@ -113,6 +173,8 @@ def export(source: Path, destination: Path, *, upgrade: bool = False) -> None:
         print('Kit offline asset release: ' + str(release.get('image') or 'BLOCKED / unpublished'))
         print('Kit asset manifest: ' + str(release.get('manifest_sha256') or 'unavailable'))
         env_path = destination / 'deployment.env'
+        if re.search(r'^PI_INDEX_ENGINE=legacy\s*$', env_path.read_text(encoding='utf-8'), re.M):
+            print('WARNING: preserved legacy indexing. Preview --migrate-indexing --dry-run; apply --migrate-indexing for backed-up optimized defaults.')
         values = dict(line.split('=', 1) for line in env_path.read_text(encoding='utf-8').splitlines()
                       if line.startswith(('PI_ASSET_IMAGE=', 'PI_ASSET_MANIFEST_SHA256=', 'PI_IMAGE=')))
         requested_image = os.environ.get('PI_IMAGE') or values.get('PI_IMAGE')
@@ -127,5 +189,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--upgrade', action='store_true',
                         help='Update managed templates with backups; preserve deployment.env')
+    parser.add_argument('--migrate-indexing', action='store_true', help='Explicitly update only the three indexing defaults with backup')
+    parser.add_argument('--migrate-assets', action='store_true', help='Explicitly reconcile only asset pins with the verified kit release')
+    parser.add_argument('--dry-run', action='store_true', help='Preview selective environment migration without writing any files')
     args = parser.parse_args()
-    export(Path('/bundle'), Path('/deployment/.project-intelligence-deploy'), upgrade=args.upgrade)
+    destination = Path('/deployment/.project-intelligence-deploy')
+    if args.dry_run and not (args.migrate_indexing or args.migrate_assets):
+        parser.error('--dry-run requires a migration option')
+    if not args.dry_run:
+        export(Path('/bundle'), destination, upgrade=args.upgrade)
+    if args.migrate_indexing or args.migrate_assets:
+        migrate_environment(destination, indexing=args.migrate_indexing, assets=args.migrate_assets, dry_run=args.dry_run)

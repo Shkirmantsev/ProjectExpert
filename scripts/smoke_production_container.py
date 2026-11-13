@@ -106,6 +106,9 @@ def main():
                'PI_EMBEDDING_DEVICE': 'cpu', 'PI_DOCLING_ENABLED': '1',
                'PI_ASSET_IMAGE': args.asset_image or args.image,
                'PI_ASSET_MANIFEST_SHA256': args.manifest_sha256 or '0' * 64}
+        # Acceptance exercises the fresh optimized profile even when the caller
+        # uses explicit legacy overrides in their own deployment.
+        env.update(PI_INDEX_ENGINE='resumable', PI_INDEX_PARALLEL='1', PI_EMBED_BATCHING='1')
         compose = ['docker', 'compose', '--project-name', f'pi-smoke-{os.getpid()}',
                    '--env-file', str(ROOT / 'distribution/deployment/deployment.env'),
                    '-f', str(ROOT / 'distribution/deployment/compose.yaml')]
@@ -153,6 +156,7 @@ def main():
             assert status['indexes']['cache_entries'] > 0, status
             if not args.minimal:
                 assert not status['indexes']['retrieval']['source_failures'], status
+                assert status['indexes']['retrieval']['index_engine'] == 'resumable', status
             version = request(base, '/api/v1/project-version')
             assert version['fingerprint'] and version['embedding_model_version'], version
             tools = request(base, '/mcp', {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list'})

@@ -79,6 +79,9 @@ try {
     if ($composeArgs -contains 'up' -and (Get-WorkspaceValue 'PI_HOST_CA_MODE') -ne 'off') {
         & (Join-Path $PSScriptRoot 'host-trust.ps1')
     }
+    if ($composeArgs -contains 'up') {
+        & (Join-Path $PSScriptRoot 'registry-preflight.ps1') -Image (Get-WorkspaceValue 'PI_ASSET_IMAGE')
+    }
     Initialize-Workspace $composeArgs
     $backend = $env:PI_ACCELERATOR
     if (-not $backend) {

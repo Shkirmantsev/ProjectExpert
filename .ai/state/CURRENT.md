@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `reviewing`
-Updated: `2026-11-12T23:05:46+00:00`
+Updated: `2026-11-13T16:52:54+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,41 +19,42 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- PR23 CI bootstrap fix implemented and verified: reviewed local assets for PR/source checks, candidate kit for workspace/export checks, strict immutable published-release gates retained; ready for owner push
+- Production remediation source fixes ready on codex/production-readiness-remediation: offline seeded CI and full-matrix publication prerequisites, optimized fresh defaults/status, safe selective migrations, bounded Compose diagnostics and early registry preflight
 
 ## Remaining
 
-- Owner pushes CI fix and reruns PR23 checks; actual registry publication/digest recording and physical Windows matrix remain separate release follow-up
+- none
 
 ## Blocked
 
-- Actual production registry publication still requires owner-provided published OCI digest; no remaining local CI implementation blocker
+- none
 
 ## Decisions
 
-- Candidate kit retains original publication metadata; default deployment-kit is derived from it and still runs release_identity before exportable production promotion. CI-owned raw pack is removed only after actual built image ID is verified.
+- Source defaults are resumable/1/1 with preserved explicit rollback. Local smoke success is not production release readiness; no registry identity or performance gain was fabricated
 
 ## Relevant context
 
-- `/tmp/codex-remote-attachments/01a1cc51-96bc-7d71-b479-852d6bdea0de/8d3a836f-f6ae-4cd8-b9ff-e79bbaa8f50a/1-ProjectExpert-fix-plan.md`
+- `/home/dmytro/Downloads/ProjectExpert-dev-production-remediation-agent-task-2026-11-13.md`
 
 ## Working set
 
-- `Containerfile`
-- `scripts/prepare_ci_assets.py`
-- `tests/test_ci_offline_assets.py`
+- `ARTIFACT_MANIFEST.sha256`
+- `docs/PRODUCTION_REMEDIATION_ACCEPTANCE.md`
+- `openspec/changes/implement-production-indexing-resume/verification.md`
+- `tests/test_workspace_deployment.py`
 
 ## Verification passed
 
-- Full harness PASS1961 tests16skips; final six candidate regression tests PASS after publication-independent fixture adjustment; initial focused32 PASS; real kit build/helper hashes/export/Compose fallback PASS; normal release target expected refusal PASS; workflow YAML/Bash, Wiki, OpenSpec, state/artifact/whitespace validation PASS
+- Final python3 harness.py check PASS1970 tests16skips; actual canonical offline smoke PASS with image72493341f093; direct CI-cache GGUF PASS; local CPU/iGPU numerical and top-k parity PASS with slower joint dispatch correctly rejected; artifact/Wiki/OpenSpec/Bash and whitespace checks PASS
 
 ## Verification pending
 
-- Remote GitHub controlled assembly and job reruns after owner push; actual published-image acceptance and physical Windows hardware matrix
+- none
 
 ## Next action
 
-Owner pushes CI fix on feature/generate-init-project and reruns the listed PR23/source checks; publish approved pack and record actual OCI digest for production promotion separately
+Review and push scoped source fixes; authorized publisher supplies actual verified GHCR digest and completes outstanding production acceptance
 
 ## Prerequisites
 

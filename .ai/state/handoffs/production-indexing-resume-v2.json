@@ -4,24 +4,20 @@
     "steps_used": 0
   },
   "context": [
-    "/tmp/codex-remote-attachments/01a1cc51-96bc-7d71-b479-852d6bdea0de/8d3a836f-f6ae-4cd8-b9ff-e79bbaa8f50a/1-ProjectExpert-fix-plan.md"
+    "/home/dmytro/Downloads/ProjectExpert-dev-production-remediation-agent-task-2026-11-13.md"
   ],
   "decisions": [
-    "Candidate kit retains original publication metadata; default deployment-kit is derived from it and still runs release_identity before exportable production promotion. CI-owned raw pack is removed only after actual built image ID is verified."
+    "Source defaults are resumable/1/1 with preserved explicit rollback. Local smoke success is not production release readiness; no registry identity or performance gain was fabricated"
   ],
   "progress": {
-    "blocked": [
-      "Actual production registry publication still requires owner-provided published OCI digest; no remaining local CI implementation blocker"
-    ],
+    "blocked": [],
     "done": [
-      "PR23 CI bootstrap fix implemented and verified: reviewed local assets for PR/source checks, candidate kit for workspace/export checks, strict immutable published-release gates retained; ready for owner push"
+      "Production remediation source fixes ready on codex/production-readiness-remediation: offline seeded CI and full-matrix publication prerequisites, optimized fresh defaults/status, safe selective migrations, bounded Compose diagnostics and early registry preflight"
     ],
-    "todo": [
-      "Owner pushes CI fix and reruns PR23 checks; actual registry publication/digest recording and physical Windows matrix remain separate release follow-up"
-    ]
+    "todo": []
   },
   "resume": {
-    "next_action": "Owner pushes CI fix on feature/generate-init-project and reruns the listed PR23/source checks; publish approved pack and record actual OCI digest for production promotion separately",
+    "next_action": "Review and push scoped source fixes; authorized publisher supplies actual verified GHCR digest and completes outstanding production acceptance",
     "prerequisites": []
   },
   "runtime": {
@@ -35,7 +31,7 @@
     "created_at": "2026-11-11T20:38:02+00:00",
     "id": "production-indexing-resume-v2",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-12T23:05:46+00:00"
+    "updated_at": "2026-11-13T16:52:54+00:00"
   },
   "task": {
     "acceptance": [
@@ -47,24 +43,26 @@
   },
   "verification": {
     "passed": [
-      "Full harness PASS1961 tests16skips; final six candidate regression tests PASS after publication-independent fixture adjustment; initial focused32 PASS; real kit build/helper hashes/export/Compose fallback PASS; normal release target expected refusal PASS; workflow YAML/Bash, Wiki, OpenSpec, state/artifact/whitespace validation PASS"
+      "Final python3 harness.py check PASS1970 tests16skips; actual canonical offline smoke PASS with image72493341f093; direct CI-cache GGUF PASS; local CPU/iGPU numerical and top-k parity PASS with slower joint dispatch correctly rejected; artifact/Wiki/OpenSpec/Bash and whitespace checks PASS"
     ],
-    "pending": [
-      "Remote GitHub controlled assembly and job reruns after owner push; actual published-image acceptance and physical Windows hardware matrix"
-    ]
+    "pending": []
   },
   "working_set": [
     {
-      "path": "Containerfile",
-      "sha256": "f713240176f626f0a40f7d0c95aecc95e8d6f63f84a388287c90d3d4847e7e6a"
+      "path": "ARTIFACT_MANIFEST.sha256",
+      "sha256": "3e6ea7962ba0bfd59f86d7e8ea584165ace60ce09a6f9cd753861b51198421fe"
     },
     {
-      "path": "scripts/prepare_ci_assets.py",
-      "sha256": "016065e3b10890c072a1d3ca0a8e8f5aa85ff2117be3ee5e7f5bca77a223bec7"
+      "path": "docs/PRODUCTION_REMEDIATION_ACCEPTANCE.md",
+      "sha256": "d3dca976723057d81b0f47ecaabd0822cde5f78a83b2268f1b03a8f5be9e62cd"
     },
     {
-      "path": "tests/test_ci_offline_assets.py",
-      "sha256": "07944515b0a2aa7ac00861d1e15fa501695a855ea63223272178f82feae7f096"
+      "path": "openspec/changes/implement-production-indexing-resume/verification.md",
+      "sha256": "82488b303ff2d7228525edb0ad78f860a67fdd611cde9d115ad47255effeb72b"
+    },
+    {
+      "path": "tests/test_workspace_deployment.py",
+      "sha256": "28c7292061ab934207112ff8dd1ee4602fb07568f9188e9b3ce7e75f61633bd1"
     }
   ]
 }
