@@ -31,3 +31,17 @@ failures and degradation, and never equate liveness with retrieval readiness.
 - **WHEN** complete indexing is required
 - **THEN** candidate construction fails with an actionable diagnostic
 - **AND** the last published runtime is preserved
+
+### Requirement: Optimized fresh-install defaults and reversible migration
+Fresh kits and application fallback configuration MUST use resumable indexing,
+parallel source parsing and bounded embedding batching. Explicit legacy settings
+MUST remain effective for rollback. Existing operator environments MUST remain
+unchanged unless a selective migration is explicitly requested.
+
+#### Scenario: selective migration preserves operator configuration
+- **GIVEN** an existing environment with legacy indexing and customized ports
+- **WHEN** the operator previews an indexing migration
+- **THEN** no files are modified
+- **WHEN** the operator explicitly applies that migration
+- **THEN** only the three indexing switches change with an exact backup
+- **AND** repeating the migration makes no additional changes

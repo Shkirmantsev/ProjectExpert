@@ -4,8 +4,9 @@ This is a staged implementation of the user-supplied production indexing V2
 design. The active change is
 [implement-production-indexing-resume](../openspec/changes/implement-production-indexing-resume/proposal.md).
 Existing accepted requirements remain in [CURRENT](../openspec/CURRENT.md).
-The new engine is opt-in pending the release gates below; it never silently
-falls back to a full legacy rebuild.
+Fresh source and kit defaults select the resumable engine, parallel source
+parsing and embedding batches. Production promotion is still blocked by the
+release gates below; the engine never silently falls back to a legacy rebuild.
 
 ## Run and observe
 
@@ -18,8 +19,11 @@ export PI_EMBED_BATCHING=1
 ```
 
 Compose operators set the corresponding values in `deployment.env`; the kit
-forwards these switches into the application. Defaults remain `legacy`, `0`,
-and `0` until migration/restore, pinned server and target-platform acceptance.
+forwards these switches into the application. Fresh defaults are `resumable`, `1`,
+and `1`; explicit operator settings remain effective. Existing environments are
+preserved. See the [selective migration procedure](../distribution/deployment/README.md#selective-environment-migration)
+for preview, backup and rollback. Source defaults are not a claim of completed
+pinned-model performance or target-platform acceptance.
 `PI_INDEX_REQUIRE_COMPLETE=1` is the resumable default: failed sources or
 unsupported images block the candidate. An explicit `0` allows incomplete
 results with `source_failures`; it does not convert failures into successes.
@@ -132,12 +136,12 @@ choose the managed volume; explicit workspace configuration retains precedence.
 The offline remediation now requires mandatory digest-addressed seeding before
 setup and startup, local-only model/PDF/tokenizer/torch consumers, native Windows
 OCI extraction, and network-denied production promotion gates. The
-[asset lock](../distribution/assets/assets-lock.json) and
-[release identity](../distribution/assets/asset-release.json) remain honestly
-blocked: the actual complete reviewed pack and published OCI digest are still
-missing. Default installation therefore fails with a missing offline asset
-message; it no longer downloads as a fallback. This is not yet a usable offline
-release. See [assembly/review instructions](../distribution/assets/README.md).
+[asset lock](../distribution/assets/assets-lock.json) is reviewed. Trusted CI now
+resolves/builds/publishes its image and generates the immutable release record
+automatically; the Git release JSON is an unbound source template. Real registry
+publication remains unverified locally, but no manual hash entry or metadata PR
+is required. Deployed clients still fail closed on missing assets and never
+download upstream weights. See [release instructions](../distribution/assets/README.md).
 Existing data is preserved, and explicit kit upgrades preserve deployment.env
 while diagnosing missing or mismatched release pins.
 
@@ -171,3 +175,13 @@ Markdown input across legacy, resumable serial and resumable parallel modes, wit
 cold/warm runs and canonical-generation equivalence checks. The fixture explicitly
 uses hashing embeddings; its wall times do not represent production Gemma/Docling
 or EdkWmsXTotal throughput. Reports stay under `tmp/local/indexing-benchmark/`.
+
+## Automatic CI asset resolution
+
+Trusted merges now resolve or build/publish the reviewed asset pack automatically
+and hand off its actual registry digest to smoke and kit builds in the same run.
+No manual checksum entry or second release-metadata PR is needed. See the
+[automatic release flow](../distribution/assets/README.md#automatic-release-after-merge).
+The source release JSON is an unbound template; generated CI/kit records carry
+the actual immutable identity. Successful remote publication remains observed
+evidence, not something inferred from source changes.

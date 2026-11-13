@@ -635,6 +635,7 @@ class PublishedRetrieval:
         return {"indexing_progress": progress, "execution": observed_execution(saved) if saved else embedding_execution_status(self.runtime.embedding_model),
                 **self.runtime.multi_stage_retrieval.stats(), **self.runtime.stage_report(),
                 "source_failures": list(self.runtime.extra.get("source_failures", ())),
+                "index_engine": self.runtime.extra.get("index_engine", "unknown"),
                 "active_chunks": len(self.runtime.extra.get("chunk_ids", ())),
                 "active_sources": len(getattr(self.runtime.extra.get("source_inventory"), "entries", ())),
                 "embedding_model_version": self.runtime.embedding_model.profile().model_revision,

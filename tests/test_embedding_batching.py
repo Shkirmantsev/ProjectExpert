@@ -1,5 +1,6 @@
 """Regression evidence for bounded end-to-end embedding batches."""
 from dataclasses import replace
+import os
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -131,10 +132,13 @@ class LlamaBatchTests(unittest.TestCase):
         model._request = request
         return model, calls
 
-    def test_batching_is_gated_off_by_default_and_environment_can_enable_it(self):
+    def test_batching_default_is_enabled_with_explicit_serial_rollback(self):
         with patch.dict('os.environ', {'PI_EMBED_BATCHING': '0'}):
             self.assertEqual(LlamaCppEmbeddingModel()._batch_size, 1)
         with patch.dict('os.environ', {'PI_EMBED_BATCHING': '1'}):
+            self.assertEqual(LlamaCppEmbeddingModel()._batch_size, 32)
+        with patch.dict('os.environ'):
+            os.environ.pop('PI_EMBED_BATCHING', None)
             self.assertEqual(LlamaCppEmbeddingModel()._batch_size, 32)
         self.assertEqual(LlamaCppEmbeddingModel(batch_size=3)._batch_size, 3)
 

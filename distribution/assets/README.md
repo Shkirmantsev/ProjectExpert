@@ -1,12 +1,12 @@
 # Immutable offline asset release
 
-Registry release is **BLOCKED** until authenticated publication supplies its actual
-immutable digest. `assets-lock.json` is now verified: the operator approved its
-per-file classifications and retained notices on 2026-11-12. `asset-release.json`
-pins that reviewed manifest but has no published image digest. Standard deployment refuses
-missing packs/pins; it never silently falls back to Hugging Face. This source
-change alone does not make a fresh installation usable. The actual reviewed OCI
-pack must be published before production/kit promotion can pass.
+Trusted merges automatically resolve or publish reviewed model assets and embed
+their actual immutable registry identity in the tested deployment kit. No manual
+checksum input or second metadata PR is required. `assets-lock.json` contains the
+operator-reviewed per-file inventory/notices. The Git `asset-release.json` is an
+unbound source template; CI generates the concrete release record. Clients still
+refuse missing/corrupt packs and never fall back to Hugging Face. Successful remote
+publication must be observed; this local source change does not claim it happened.
 
 ## Controlled assembly and review
 
@@ -42,22 +42,21 @@ from registry publication and does not promote the canonical release metadata.
 The smoke uses container-local HTTP on an internal network, so it needs no
 host access to an isolated bridge's published ports.
 
-PR CI invokes `scripts/prepare_ci_assets.py --candidate`: it checks the approved
-canonical manifest against its independent pin, dependency lock and retained
-notices, materializes that exact pack in the controlled build job, and returns
-its actual local Docker image ID for offline seeding and production acceptance.
-It removes only its own raw pack after successful image verification to bound
-disk use; an existing build directory is rejected rather than overwritten.
-The default preparer mode requires and pulls the immutable published release.
-Source `verify-asset-pack` jobs exercise reviewed candidates on both push and PR.
-Production publication still uses the default published-release mode and fails
-when registry identity is missing. No workflow invents or rewrites release pins.
+PR CI invokes `scripts/prepare_ci_assets.py --candidate`: it computes SHA-256
+from the committed reviewed inventory, checks dependency compatibility and retained
+notices, materializes that exact pack on the controlled build runner, and returns
+an actual local Docker image ID for offline acceptance. It removes only its own
+raw pack after image verification; existing build directories are never overwritten.
+PR jobs cannot publish or activate a production kit.
 
-`deployment-kit-candidate` supports PR export and workspace-helper checks while
-retaining the source publication metadata. It cannot activate a blocked release.
-The normal `deployment-kit` target derives from it and requires the verified
-published identity before baking usable production pins. Candidate-kit builds
-are not published as release kits.
+Trusted merge pipelines call the reusable `publish-offline-assets` workflow
+automatically. See the automatic release flow below. The source
+`asset-release.json` remains an unbound template; its `blocked` status does not
+require a second metadata PR. The normal `deployment-kit` target accepts the
+CI-verified immutable asset image and computed manifest hash as build arguments,
+validates them against the reviewed inventory, and embeds the matching actual
+asset/app identities. Without either those verified inputs or an existing
+verified release record it still fails closed. Candidate kits remain unpromoted.
 
 The approved redistribution review checks no-fee commercial use at any
 company size. The pack uses Apache-2.0, MIT, CDLA-Permissive-2.0 and the
@@ -93,35 +92,50 @@ docker build -f distribution/assets/Containerfile \
   -t ghcr.io/shkirmantsev/project-intelligence-assets:reviewed-candidate .
 ```
 
-The OCI build never fetches models. The `publish-offline-assets` workflow can perform the same controlled assembly,
-build and idempotent offline seeding from the committed independently pinned
-review; it publishes a **candidate** and records the real RepoDigest. The approved
-inventory can now be used as workflow input; the workflow never self-approves licenses.
+## Automatic release after merge
 
-Publish the reviewed image through authorized
-registry credentials and capture its real RepoDigest. Commit the exact reviewed
-manifest bytes as `assets-lock.json`. Set `asset-release.json` to `verified`,
-with `image: ghcr.io/shkirmantsev/project-intelligence-assets@sha256:<actual digest>`
-and the independent manifest SHA-256. No placeholder digest is acceptable.
+Merge the reviewed changes into `dev` or `development` (also supported: `main`).
+No manual workflow run, copied checksum or second metadata PR is needed.
 
-For this approved inventory, dispatch `publish-offline-assets` with
-`manifest_sha256=f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25`
-after pushing the commit and making that workflow available on GitHub. The
-workflow summary reports the actual published candidate RepoDigest. Alternatively,
-after logging Docker into GHCR with package-write access, publish the already
-verified local image:
+1. `publish-oci-container` invokes reusable `publish-offline-assets`. Its
+   `GITHUB_TOKEN` authenticates to GHCR with package-write permission.
+2. The resolver computes SHA-256 from the exact bytes of committed
+   `distribution/assets/assets-lock.json`. This is a checksum, not an SSH key
+   or a value an operator must obtain from an AI. The inventory must already
+   carry per-file hashes, license evidence, review status and compatible locks.
+   Computing its checksum never approves new licenses automatically.
+3. It checks `ghcr.io/shkirmantsev/project-intelligence-assets:manifest-<computed-sha>`.
+   A matching pack is verified with the current source verifier and reused
+   without upstream model downloads. Explicit absence or a mismatched payload
+   triggers controlled pinned materialization, verified image build and push.
+   Authentication, TLS, daemon and network errors fail clearly; they are not
+   interpreted as missing models. Publishers are serialized across workflows.
+4. The actual observed registry RepoDigest becomes a job output. The consuming
+   job pulls/verifies that immutable image and generates
+   `tmp/local/ci-assets/{asset-release,assets-lock}.json`. These generated records
+   are retained as a workflow artifact; the Git source template is not rewritten.
+5. Full Linux/Windows tests and real egress-denied OCR/tokenizer/GGUF/indexing/
+   restart acceptance gate application and deployment-kit promotion. The kit
+   embeds this same asset digest and the actual published application digest.
+
+`verify-production-runtime` consumes the same reusable resolver. PRs and explicit
+manual candidate tests remain unpromoted and never publish model images.
+The standalone `publish-offline-assets` UI button remains available for diagnostics
+without a required hash input; ordinary merges invoke it automatically.
+
+For a personal/development PC, after authenticating Docker to GHCR with package
+write permission, the same resolver is available explicitly:
 
 ```bash
-docker tag projectexpert-assets:approved ghcr.io/shkirmantsev/project-intelligence-assets:candidate-f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25
-docker push ghcr.io/shkirmantsev/project-intelligence-assets:candidate-f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25
-docker image inspect --format '{{index .RepoDigests 0}}' ghcr.io/shkirmantsev/project-intelligence-assets:candidate-f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25
+python3 scripts/prepare_ci_assets.py --ensure-published --env-output tmp/local/asset-env
 ```
 
-Record that actual digest in `asset-release.json`, set its status to `verified`,
-retain the approved manifest hash, and run the ordinary production smoke without
-`--candidate-assets`. This proves registry retrieval and the standard release
-path before publishing the application/deployment kit. Pushing source alone does
-not supply a missing OCI identity or make those publication gates pass.
+Only the personal PC/controlled builder may execute this upstream-build command.
+Enterprise installation continues to pull prebuilt immutable OCI images and
+seed locally with networking disabled; it never materializes models from HF.
+A denied GHCR token/package policy still requires repository/package access to
+be corrected; the pipeline cannot manufacture registry permissions. No published
+identity or successful remote run is claimed until actually observed.
 
 ## Consumers and promotion
 
@@ -140,7 +154,7 @@ volume twice without networking, then runs the exact application image on an
 internal Compose network. Real OCR, table/figure detection, tokenizer, wide-text,
 query/image embeddings, indexing and restart must pass. `verify-asset-pack` also
 runs automatically for relevant changes; it is no longer a manual-only gate.
-The deployment-kit build bakes reviewed pins into fresh deployment.env. Existing
+The deployment-kit build bakes the automatically resolved immutable pins into fresh deployment.env. Existing
 `--upgrade` preserves operator deployment.env, reports stale/missing pins and
 backs up managed files. No user volume is deleted.
 
@@ -185,3 +199,8 @@ and an unknown vendor. Physical Windows CUDA/Vulkan, Rancher/Desktop and the
 published-release identity remain unverified. PowerShell 7 launcher/extraction/
 container-CUDA contracts passed locally; Windows 5.1 execution remains a CI gate.
 The source harness passed 1,955 tests with 16 skips.
+
+Implementation references: GitHub documents [reusable workflow outputs and inherited secrets](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows)
+and [repository/package linking for workflow access](https://docs.github.com/en/packages/learn-github-packages/connecting-a-repository-to-a-package).
+The asset image carries the repository source label; the workflow retains explicit
+package-write permission and does not bypass repository/package access policy.

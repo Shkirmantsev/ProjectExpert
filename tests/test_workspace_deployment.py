@@ -6,12 +6,39 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = ROOT / 'distribution/deployment'
+
+
+def compose_config(args, env):
+    """Static rendering needs no registry/daemon; retain diagnostics on stalls."""
+    started = time.monotonic()
+    try:
+        result = subprocess.run(args + ['config', '--format', 'json'], env=env,
+                                capture_output=True, text=True, timeout=120)
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        failure = f'exit={result.returncode}; stderr={result.stderr[-4096:]}'
+    except subprocess.TimeoutExpired as exc:
+        stderr = exc.stderr or ''
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode(errors='replace')
+        failure = f'timed out after {exc.timeout}s; stderr={stderr[-4096:]}'
+    diagnostics = []
+    for command in (['docker', 'version'], ['docker', 'compose', 'version'],
+                    ['docker', 'context', 'show']):
+        try:
+            probe = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+            diagnostics.append(f'{command}: exit={probe.returncode}; {probe.stdout[-2048:]} {probe.stderr[-2048:]}')
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            diagnostics.append(f'{command}: {type(exc).__name__}')
+    raise AssertionError(f'Compose render {failure}; elapsed={time.monotonic() - started:.1f}s; '
+                         + '\n'.join(diagnostics))
 
 
 class WorkspaceDeploymentTests(unittest.TestCase):
@@ -40,12 +67,14 @@ class WorkspaceDeploymentTests(unittest.TestCase):
                 for name in profile:
                     args += ['-f', str(BUNDLE / name)]
                 def render(extra):
-                    result = subprocess.run(args + extra + ['config', '--format', 'json'], env=env,
-                                            capture_output=True, text=True, timeout=30)
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    return json.loads(result.stdout)
+                    return compose_config(args + extra, env)
                 ordinary = render([])
                 managed = render(['-f', str(BUNDLE / 'compose.workspace-volume.yaml')])
+                self.assertEqual(ordinary['services']['production']['depends_on']['asset-seed']['condition'],
+                                 'service_completed_successfully')
+                if profile and profile != ['compose.windows-gpu.yaml']:
+                    self.assertEqual(ordinary['services']['embeddings']['depends_on']['model-setup']['condition'],
+                                     'service_completed_successfully')
                 mounts = {v['target']: v for v in managed['services']['production'].pop('volumes')}
                 original = {v['target']: v for v in ordinary['services']['production'].pop('volumes')}
                 self.assertEqual(managed['services'], ordinary['services'])
@@ -104,6 +133,14 @@ fi
             self.assertTrue(calls[0].startswith('helper backup '))
             self.assertTrue(calls[1].startswith('helper stop '))
             self.assertIn('compose.accelerator.yaml', calls[-1])
+            # Workspace preparation can pull the application image implicitly.
+            # Diagnose registry trust before invoking that helper as well.
+            env.update(PI_ASSET_IMAGE='ghcr.io/example/assets@sha256:' + '1' * 64,
+                       PI_HOST_CA_MODE='off')
+            calls = run(['up', '-d'])
+            registry = calls.index('docker context show')
+            prepare = next(i for i, call in enumerate(calls) if call.startswith('helper prepare '))
+            self.assertLess(registry, prepare)
             helper.write_text('tampered')
             result = subprocess.run(['bash', 'compose.sh', 'run', 'production', 'health'], cwd=kit, env=env, capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)

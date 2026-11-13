@@ -26,6 +26,15 @@ env:
   IMAGE_NAME: project-intelligence
 
 jobs:
+  full-regression:
+    name: Full Linux and Windows acceptance before production publication
+    uses: ./.github/workflows/verify.yml
+
+  published-assets:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/publish-offline-assets.yml
+    secrets: inherit
+
   windows-launchers:
     name: Windows PowerShell deployment contract
     runs-on: windows-latest
@@ -208,18 +217,37 @@ jobs:
 
   production-and-deployment:
     name: Verify and publish production with deployment kit
-    needs: [verify-platform, windows-launchers]
+    needs: [verify-platform, windows-launchers, full-regression, published-assets]
+    # A PR intentionally skips registry publication, but still tests its local
+    # reviewed candidate. Failed full tests must never be hidden by this guard.
+    if: >-
+      ${{ !cancelled() && needs.verify-platform.result == 'success' &&
+          needs.windows-launchers.result == 'success' && needs.full-regression.result == 'success' &&
+          (github.event_name == 'pull_request' || needs.published-assets.result == 'success') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Prepare reviewed PR assets or require the immutable published release
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare reviewed PR assets or consume the automatic registry output
+        env:
+          PUBLISHED_ASSET_IMAGE: ${{ needs.published-assets.outputs.image }}
         run: |
           args=()
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then args+=(--candidate); fi
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            args+=(--candidate)
+          else
+            test -n "$PUBLISHED_ASSET_IMAGE"
+            args+=(--published-image "$PUBLISHED_ASSET_IMAGE")
+          fi
           python scripts/prepare_ci_assets.py "${args[@]}" --env-output "$RUNNER_TEMP/asset-env"
           cat "$RUNNER_TEMP/asset-env" >> "$GITHUB_ENV"
         # GITHUB_ENV is visible in subsequent steps.
@@ -263,15 +291,22 @@ jobs:
           args=()
           if [ "$PI_ASSET_MODE" = candidate ]; then
             args+=(--candidate-assets --asset-image "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256")
+          else
+            args+=(--asset-release "$PI_ASSET_RELEASE_FILE")
           fi
           python scripts/smoke_production_container.py --image '${{ steps.names.outputs.image }}:candidate-${{ github.sha }}' "${args[@]}"
       - name: Build and test deployment kit export
         run: |
           target=deployment-kit
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then target=deployment-kit-candidate; fi
+          asset_args=()
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            target=deployment-kit-candidate
+          else
+            asset_args+=(--build-arg "PI_ASSET_IMAGE=$PI_ASSET_IMAGE" --build-arg "PI_ASSET_MANIFEST_SHA256=$PI_ASSET_MANIFEST_SHA256")
+          fi
           docker build -f Containerfile --target "$target" -t deployment-kit:test \
             --build-arg 'PI_DEPLOY_IMAGE=${{ steps.names.outputs.image }}:candidate-${{ github.sha }}' \
-            --build-arg 'PI_KIT_REVISION=${{ github.sha }}' .
+            --build-arg 'PI_KIT_REVISION=${{ github.sha }}' "${asset_args[@]}" .
           destination="$(mktemp -d)"
           docker run --rm -v "$destination:/deployment" deployment-kit:test
           test -f "$destination/.project-intelligence-deploy/Makefile"
@@ -285,12 +320,6 @@ jobs:
           assert services['production']['image'] == sys.argv[2]
           assert services['model-setup']['image'] == sys.argv[2]
           PY
-      - uses: docker/login-action@v3
-        if: github.event_name != 'pull_request' && (github.ref_name == 'dev' || github.ref_name == 'development' || github.ref_name == 'main')
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push the tested image and capture its immutable digest
         id: published
         if: github.event_name != 'pull_request' && (github.ref_name == 'dev' || github.ref_name == 'development' || github.ref_name == 'main')
@@ -315,6 +344,8 @@ jobs:
           build-args: |
             PI_DEPLOY_IMAGE=${{ steps.published.outputs.reference }}
             PI_KIT_REVISION=${{ github.sha }}
+            PI_ASSET_IMAGE=${{ env.PI_ASSET_IMAGE }}
+            PI_ASSET_MANIFEST_SHA256=${{ env.PI_ASSET_MANIFEST_SHA256 }}
           tags: |
             ${{ steps.names.outputs.kit }}:sha-${{ github.sha }}
             ${{ steps.names.outputs.kit }}:${{ steps.names.outputs.channel }}

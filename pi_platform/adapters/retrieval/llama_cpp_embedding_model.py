@@ -108,7 +108,7 @@ class LlamaCppEmbeddingModel(EmbeddingModelPort):
                 "the GGUF binding supports cpu, cuda, vulkan or auto"
             )
         if batch_size is None:
-            batch_size = 32 if os.environ.get("PI_EMBED_BATCHING", "0") == "1" else 1
+            batch_size = 32 if os.environ.get("PI_EMBED_BATCHING", "1") == "1" else 1
         if not 1 <= batch_size <= 64 or min(max_input_tokens, max_batch_tokens) < 1:
             raise ValueError("invalid embedding batch limits")
         self._batch_size = batch_size

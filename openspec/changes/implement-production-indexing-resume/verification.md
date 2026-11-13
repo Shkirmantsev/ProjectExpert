@@ -301,3 +301,130 @@ push; candidate-preparation subprocess orchestration is covered by the regressio
 suite, and the unchanged approved pack has the prior full real offline/restart
 acceptance recorded above. Registry publication and physical Windows hardware
 certification remain separate outstanding release gates.
+
+## Production remediation follow-up — 2026-11-13
+
+Baseline reconciled by HTTPS fetch: dev `7099677ffd049cbcfccafff68dabe81b195bd148`,
+identical tree to starting local `1d69ead`. SSH retrieval failed authentication.
+The [acceptance report](../../../docs/PRODUCTION_REMEDIATION_ACCEPTANCE.md) records
+the source fixes, exact model/runtime identities, measured fixture outcomes and
+remaining physical-platform/registry/performance gates.
+
+- PASS: initial 42 focused tests, selective migration/CI diagnostics regressions,
+  Linux Compose profile matrix and real TLS root/unknown-root/wrong-host handshake.
+- PASS: changed-source fresh-volume egress-denied real OCR/table/figure/tokenizer,
+  wide text/image/native Torch inference, optimized engine status, UI/MCP and restart.
+  Dependency-reusing validation image: `sha256:1b23a4f0b5b0433e70ccc420e72dc0068a17bc334fd30ede54bc987f82025045`.
+- PASS: actual pinned Gemma CPU/AMD Vulkan individual and combined numerical/top-k
+  parity. Joint admission rejected slower combination. Exploratory document-fixture
+  rates do not establish whole-pipeline gains. No new backend adapter is certified.
+- PASS: first socket-enabled full harness test phase (1968 tests); final artifact
+  verification initially failed because source hashes had not yet been regenerated.
+- Environment limitation: sandbox-only test run could not bind local HTTP/TLS
+  sockets. Repeated with local socket access instead of weakening/skipping tests.
+- PASS: direct repaired host-cache CI route, root seeding twice with network none,
+  ownership repair of only the isolated runner cache, then authenticated real CPU
+  GGUF inference (1507-token document, actual pixel-sensitive images). A failed
+  non-root source-image experiment exposed root-only original asset files; the
+  workflow was corrected before completion and regression proof added.
+- PASS: canonical production build and full repeated fresh-volume egress-denied
+  real acceptance with image
+  `sha256:72493341f0934201e297aa3c591d86c9d59cb1c8b8e9ddb41eb5a3b2ae7d249a`.
+  Installed `pip check`, parser/import and license gates passed. RepoDigests remains
+  empty: this is local image evidence, not publication.
+- PASS: subsequent full test phase, 1970 tests; final manifest gate initially
+  raced concurrent documentation edits, then hashes were refreshed and verified.
+- PASS: final `python3 harness.py check`, 1970 tests / 16 skips, zero failures,
+  final artifact manifest PASS. Wiki validation, strict OpenSpec validation
+  (94 items), workflow YAML/Bash syntax, launcher ordering regression and
+  `git diff --check` passed. Documentation-only final evidence updates were
+  followed by manifest regeneration/verification.
+- Pending: remote workflows, authenticated published asset digest/matching kit, independent
+  installation, physical Windows/corporate-network and original large corpus.
+
+Source defaults implement the supplied optimized target. Production promotion
+remains blocked; accepted current specs were not silently rewritten or archived.
+
+## Automatic merge-time asset bootstrap — follow-up
+
+The operator explicitly replaced the manual dispatch/hash-copy/second-PR sequence
+with automatic trusted merge behavior. The source release record is now documented
+as an unbound template; generated verified CI/kit records carry actual registry
+identity. Source status is not proof of absent registry artifacts.
+
+- PASS: 37 focused automatic-publication/CI/offline/migration regressions. Matching
+  registry content avoids upstream assembly; missing/mismatched payload rebuilds
+  once; unreviewed manifests and auth/TLS/network/daemon failures fail closed.
+  Generated kit binding preserves app/revision and rejects tags/local IDs/wrong hashes.
+- PASS: current verifier against the actual complete approved local model image,
+  with network none; manifest hash computed from Git inventory bytes.
+- PASS: real Docker kit build/export/Compose with explicitly synthetic fixture
+  pins. Automatic asset/app/manifest identity propagation and optimized defaults
+  match. This fixture is not a published image and was not launched as a release.
+- PASS: real kit build without bound immutable inputs still refuses the source
+  unbound release; workflow YAML and embedded Bash syntax checks pass.
+- PASS: `python3 harness.py check`: 1980 tests / 16 skips; artifact, Wiki and strict
+  OpenSpec checks passed. All changed source/workflow/test diffs were reviewed.
+- Pending: actual authenticated GitHub merge-run publication/independent pull.
+  No new registry image/digest is fabricated.
+
+## PR24 strict model gate repair — 2026-11-13
+
+Observed job: https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43480335715/job/132081904366
+Actual seeding, GGUF checksum verification, 1507-token inference and image pixel
+sensitivity passed. The following strict capability gate failed both embeddings:
+GGUF provider `llama.cpp-embeddinggemma2` is not a factory alias; native provider
+`embeddinggemma2` resolves to the GGUF alias and therefore the wrong revision.
+Both errors came from using provider labels instead of canonical model IDs.
+
+Regression tests reproduce both failures with the actual factory and model
+profiles, isolating inference only. The previous factory mock bypassed alias
+resolution and hid the defect. The gate now resolves the inventory model ID,
+retaining normalization/dimension/revision checks and real inference requirements.
+
+- PASS: red reproduction of both exact CI errors before the production edit.
+- PASS: all 22 gate tests after correction, including wrong-revision rejection.
+- PASS: actual strict gate on an internal Docker network, preseeded approved
+  assets, actual GGUF and native Torch inference: all seven checks passed.
+- Intentional: both published-assets jobs skip PR publication; their skips are
+  not the reported failure and remain unchanged.
+- Subsequent downstream verification is recorded below.
+
+The first downstream run executed 69 real-model tests and exposed eight failures
+beyond the original job stop: three default-tokenizer assertions inherited the
+CI offline override, and five end-to-end subtests lost relevance to BM25 ties.
+An isolated end-to-end run reproduced the ranking failure, so this was not
+dismissed as cross-module interference. Two red tie-order tests reproduce the
+loss of semantic order; stable score sorting fixes both. The offline mapping
+fixture isolates only PI_DOCLING_TOKENIZER and adds an explicit override case.
+All 79 focused gate/rerank/profile tests pass, as do mapping tests with the
+offline override present. The subsequent full real suite retained its original thresholds.
+The initial full harness encountered the newly added tie tests during their red
+phase; a final stable run is required after all implementation changes.
+
+Corrected downstream run: PASS, 70 tests / one existing opt-in multimodal skip,
+with actual GGUF/native Torch models and real PDF/OCR/table conversion on an
+internal network. Model-switch/UI/MCP equality, source-cache reuse and the
+original multilingual recall/MRR thresholds passed without relaxation.
+
+The reranker version change also exposed a historical-comparator mismatch in
+`test_evaluation_baseline`: current hashing-fixture recall was 0.115 versus the
+recorded pre-change 0.125. The historical JSON was not rewritten or relaxed.
+The test-only benchmark fixture now offers explicit historical tie-breaking for
+pre_change reproduction; the default benchmark retains current ranking. Baseline
+reload/rerun explicitly selects that historical comparator. The full baseline,
+current benchmark and reranking tests pass (32 tests). No hashing-fixture
+improvement or universal retrieval gain is claimed from this repair.
+
+A final stable full harness follows all code/test changes. Earlier harness runs
+captured the new tie tests in their red phase and the historical mismatch; both
+failures are retained in local evidence rather than described as successful runs.
+
+Final stable verification: PASS, `python3 harness.py check` (1986 tests / 16
+skips), including artifact manifest, Wiki, strict OpenSpec and MCP core checks.
+Tier3 retrieval evaluation (`eval-retrieval --no-baseline`) and chunk-size sweep
+CLI commands also passed. Full source diffs were reviewed; pre_change JSON is
+unchanged. Actual runtime verification used current source mounted over the
+existing locked-dependency candidate image with reviewed approved assets; no new
+registry image was published. The original GitHub job has not been rerun against
+these local changes; remote PR/merge acceptance remains pending push.

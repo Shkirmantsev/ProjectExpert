@@ -4,24 +4,22 @@
     "steps_used": 0
   },
   "context": [
-    "/tmp/codex-remote-attachments/01a1cc51-96bc-7d71-b479-852d6bdea0de/8d3a836f-f6ae-4cd8-b9ff-e79bbaa8f50a/1-ProjectExpert-fix-plan.md"
+    "https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43480335715/job/132081904366"
   ],
   "decisions": [
-    "Candidate kit retains original publication metadata; default deployment-kit is derived from it and still runs release_identity before exportable production promotion. CI-owned raw pack is removed only after actual built image ID is verified."
+    "Root cause is provider labels incorrectly passed as factory aliases, hidden by unit factory mock; preserve actual factory in regression tests"
   ],
   "progress": {
-    "blocked": [
-      "Actual production registry publication still requires owner-provided published OCI digest; no remaining local CI implementation blocker"
-    ],
+    "blocked": [],
     "done": [
-      "PR23 CI bootstrap fix implemented and verified: reviewed local assets for PR/source checks, candidate kit for workspace/export checks, strict immutable published-release gates retained; ready for owner push"
+      "Committed PR24 runtime repair as dc71c41 on feature/generate-init-project; all scoped local implementation and verification completed"
     ],
     "todo": [
-      "Owner pushes CI fix and reruns PR23 checks; actual registry publication/digest recording and physical Windows matrix remain separate release follow-up"
+      "Observe remote PR CI and authenticated merge publication after push"
     ]
   },
   "resume": {
-    "next_action": "Owner pushes CI fix on feature/generate-init-project and reruns the listed PR23/source checks; publish approved pack and record actual OCI digest for production promotion separately",
+    "next_action": "Push feature/generate-init-project and inspect fresh PR24 checks; retain broader release gates as pending",
     "prerequisites": []
   },
   "runtime": {
@@ -35,7 +33,7 @@
     "created_at": "2026-11-11T20:38:02+00:00",
     "id": "production-indexing-resume-v2",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-12T23:05:46+00:00"
+    "updated_at": "2026-11-13T20:58:21+00:00"
   },
   "task": {
     "acceptance": [
@@ -43,28 +41,28 @@
     ],
     "goal": "Implement supplied production indexing resume performance offline asset and resource design on feature/generate-init-project",
     "openspec_change": "implement-production-indexing-resume",
-    "status": "reviewing"
+    "status": "verifying"
   },
   "verification": {
     "passed": [
-      "Full harness PASS1961 tests16skips; final six candidate regression tests PASS after publication-independent fixture adjustment; initial focused32 PASS; real kit build/helper hashes/export/Compose fallback PASS; normal release target expected refusal PASS; workflow YAML/Bash, Wiki, OpenSpec, state/artifact/whitespace validation PASS"
+      "Full harness PASS: 1986 tests / 16 skips; actual strict gate7 PASS; actual real-model suite70 tests1skip PASS; focused79 and benchmark32 PASS; Tier3 evaluation/sweep PASS; final Wiki/OpenSpec/artifact/session/diff checks PASS"
     ],
     "pending": [
-      "Remote GitHub controlled assembly and job reruns after owner push; actual published-image acceptance and physical Windows hardware matrix"
+      "Remote GitHub CI against dc71c41 and merge publication have not run; no new registry publication claimed"
     ]
   },
   "working_set": [
     {
-      "path": "Containerfile",
-      "sha256": "f713240176f626f0a40f7d0c95aecc95e8d6f63f84a388287c90d3d4847e7e6a"
+      "path": "ARTIFACT_MANIFEST.sha256",
+      "sha256": "3dc1ac055bc44fc8247ef29ab86224d5070ae7b31b7da4c20276539918419163"
     },
     {
-      "path": "scripts/prepare_ci_assets.py",
-      "sha256": "016065e3b10890c072a1d3ca0a8e8f5aa85ff2117be3ee5e7f5bca77a223bec7"
+      "path": "pi_platform/core/orchestration/production_capability_gate.py",
+      "sha256": "9f6cc2684cc8bcffd9048a2e777d75e4f642e6a71cefbb8ca10b08bccd1228b4"
     },
     {
-      "path": "tests/test_ci_offline_assets.py",
-      "sha256": "07944515b0a2aa7ac00861d1e15fa501695a855ea63223272178f82feae7f096"
+      "path": "pi_platform/core/retrieval/reranker.py",
+      "sha256": "4d3c388d19478c0df8971824cfd6b9f07f35c18a6dc3a3eabb3bf8b445d2d355"
     }
   ]
 }

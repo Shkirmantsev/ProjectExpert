@@ -34,6 +34,19 @@ class ResumableRepositoryTests(unittest.TestCase):
             inventory=inventory or RepositorySourceDiscovery().discover(self.root),
             previous_inventory=None, settings=RetrievalSettings())
 
+    def test_fresh_fallback_defaults_build_resumable_without_flags(self):
+        for key in ('PI_INDEX_ENGINE', 'PI_INDEX_PARALLEL', 'PI_EMBED_BATCHING'):
+            os.environ.pop(key, None)
+        runtime = self.build()
+        self.assertTrue((self.cache / 'indexing-state.sqlite').is_file())
+        self.assertFalse((self.cache / 'ingestion.json').exists())
+        self.assertTrue(runtime.extra['chunk_ids'])
+        self.assertEqual(indexing_progress(self.cache / 'indexing-state.sqlite')['state'], 'ready')
+        from pi_platform.adapters.ui.composition import PublishedRetrieval
+        published = PublishedRetrieval(None)
+        published.runtime = runtime
+        self.assertEqual(published.stats()['index_engine'], 'resumable')
+
     def test_dense_failure_does_not_lose_completed_parsing(self):
         with patch('pi_platform.core.orchestration.repository_indexing._index_dense_generation',
                    side_effect=RuntimeError('model interrupted')):

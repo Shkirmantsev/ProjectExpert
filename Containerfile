@@ -110,7 +110,13 @@ ENTRYPOINT ["python", "/bundle/export.py"]
 # candidate retains source publication metadata without baking release pins.
 # Every publishable kit still passes the immutable published-release gate.
 FROM deployment-kit-candidate AS deployment-kit
-RUN python -m pi_platform.deployment.offline_assets --release /bundle/asset-release.json --deployment-env /bundle/deployment.env
+ARG PI_ASSET_IMAGE
+ARG PI_ASSET_MANIFEST_SHA256
+RUN if [ -n "$PI_ASSET_IMAGE" ]; then \
+      python -m pi_platform.deployment.offline_assets --release /bundle/asset-release.json \
+        --bind-image "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256"; \
+    fi \
+    && python -m pi_platform.deployment.offline_assets --release /bundle/asset-release.json --deployment-env /bundle/deployment.env
 
 # Cache the hash-locked dependency closure independently from application edits.
 FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS production-dependencies

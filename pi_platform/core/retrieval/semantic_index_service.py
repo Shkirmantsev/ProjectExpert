@@ -288,7 +288,7 @@ class SemanticIndexService:
         progress_callback: Callable[[int, int], None] | None = None,
     ) -> None:
         if batch_size is None:
-            batch_size = 32 if os.environ.get("PI_EMBED_BATCHING", "0") == "1" else 1
+            batch_size = 32 if os.environ.get("PI_EMBED_BATCHING", "1") == "1" else 1
         if batch_size < 1:
             raise ValueError("batch_size must be positive")
         self._batch_size = batch_size

@@ -5,8 +5,8 @@
 Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/production-indexing-resume-v2.json)
 
 Task: `production-indexing-resume-v2`
-Status: `reviewing`
-Updated: `2026-11-12T23:05:46+00:00`
+Status: `verifying`
+Updated: `2026-11-13T20:58:21+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,41 +19,41 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- PR23 CI bootstrap fix implemented and verified: reviewed local assets for PR/source checks, candidate kit for workspace/export checks, strict immutable published-release gates retained; ready for owner push
+- Committed PR24 runtime repair as dc71c41 on feature/generate-init-project; all scoped local implementation and verification completed
 
 ## Remaining
 
-- Owner pushes CI fix and reruns PR23 checks; actual registry publication/digest recording and physical Windows matrix remain separate release follow-up
+- Observe remote PR CI and authenticated merge publication after push
 
 ## Blocked
 
-- Actual production registry publication still requires owner-provided published OCI digest; no remaining local CI implementation blocker
+- none
 
 ## Decisions
 
-- Candidate kit retains original publication metadata; default deployment-kit is derived from it and still runs release_identity before exportable production promotion. CI-owned raw pack is removed only after actual built image ID is verified.
+- Root cause is provider labels incorrectly passed as factory aliases, hidden by unit factory mock; preserve actual factory in regression tests
 
 ## Relevant context
 
-- `/tmp/codex-remote-attachments/01a1cc51-96bc-7d71-b479-852d6bdea0de/8d3a836f-f6ae-4cd8-b9ff-e79bbaa8f50a/1-ProjectExpert-fix-plan.md`
+- `https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43480335715/job/132081904366`
 
 ## Working set
 
-- `Containerfile`
-- `scripts/prepare_ci_assets.py`
-- `tests/test_ci_offline_assets.py`
+- `ARTIFACT_MANIFEST.sha256`
+- `pi_platform/core/orchestration/production_capability_gate.py`
+- `pi_platform/core/retrieval/reranker.py`
 
 ## Verification passed
 
-- Full harness PASS1961 tests16skips; final six candidate regression tests PASS after publication-independent fixture adjustment; initial focused32 PASS; real kit build/helper hashes/export/Compose fallback PASS; normal release target expected refusal PASS; workflow YAML/Bash, Wiki, OpenSpec, state/artifact/whitespace validation PASS
+- Full harness PASS: 1986 tests / 16 skips; actual strict gate7 PASS; actual real-model suite70 tests1skip PASS; focused79 and benchmark32 PASS; Tier3 evaluation/sweep PASS; final Wiki/OpenSpec/artifact/session/diff checks PASS
 
 ## Verification pending
 
-- Remote GitHub controlled assembly and job reruns after owner push; actual published-image acceptance and physical Windows hardware matrix
+- Remote GitHub CI against dc71c41 and merge publication have not run; no new registry publication claimed
 
 ## Next action
 
-Owner pushes CI fix on feature/generate-init-project and reruns the listed PR23/source checks; publish approved pack and record actual OCI digest for production promotion separately
+Push feature/generate-init-project and inspect fresh PR24 checks; retain broader release gates as pending
 
 ## Prerequisites
 

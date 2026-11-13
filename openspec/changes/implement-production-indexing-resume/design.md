@@ -27,10 +27,13 @@ unless explicitly allowed by the operator. DB corruption, disk errors, immutable
 address conflicts and stale fences fail closed; state is never deleted to retry.
 
 ## Rollout
-PI_INDEX_ENGINE=legacy|resumable is explicit, without silent fallback. Keep new
-engine opt-in until migration/restore and packaged SQLite release proof pass.
-PI_INDEX_PARALLEL and PI_EMBED_BATCHING stay individually gated. Offline asset
-requirements cannot be enabled by default until a real pinned pack is published.
+Fresh defaults are PI_INDEX_ENGINE=resumable, PI_INDEX_PARALLEL=1 and
+PI_EMBED_BATCHING=1. Explicit legacy/serial overrides remain supported without
+silent fallback. Existing environments are preserved; explicit selective migration
+previews changes and atomically applies them with an exact backup. PDF concurrency
+remains one until real RSS admission is validated. Production promotion still
+requires packaged-model performance, recovery and physical-platform acceptance.
+Offline assets are mandatory and fail closed until the real digest is published.
 No test fixture or fake embedding is evidence of actual hardware throughput.
 
 ## Offline release remediation (2026-11-12)
@@ -69,3 +72,27 @@ image ID to denied-egress acceptance. It does not rewrite release metadata.
 Workspace/export checks use `deployment-kit-candidate`; published kit builds
 continue through the separate strict `deployment-kit` release gate. Non-PR
 production promotion still requires the actual immutable registry identity.
+
+## Automatic merge-time publication follow-up
+Trusted dev/development/main runs call the reusable asset publisher. It computes
+the reviewed manifest hash; uses a content-keyed registry tag only as a lookup
+hint; and verifies the immutable RepoDigest against current source/lock policy
+with network none. Explicit absence or payload mismatch rebuilds once on CI;
+authentication/TLS/network/daemon failures do not trigger upstream assembly.
+Publishers serialize across callers. Unreviewed inventories fail before network work.
+The resulting immutable image is passed as a job output; consumers independently
+pull/verify it and generate release evidence under tmp/local/ci-assets. Smoke
+reads that generated record and kit build arguments bind the same image/hash
+against the reviewed manifest. Source release metadata remains unbound rather
+than requiring a circular second PR. Full tests and real offline smoke precede
+application/kit promotion. PR jobs build local candidates and never publish.
+
+## PR24 runtime-gate and ranking repair
+The strict model gate resolves inventory model IDs rather than provider labels,
+so native/GGUF profiles keep their own revisions. Runtime tests retain the actual
+factory and mock only expensive inference. Actual downstream suites also exposed
+BM25-light destroying semantic order on equal (including zero) lexical evidence;
+stable score sorting now preserves the incoming fusion order on ties, with
+version bm25-light-1.1.1. Quality thresholds remain unchanged. Default tokenizer
+mapping tests isolate the explicit offline tokenizer environment setting and
+separately test that override; production offline configuration is preserved.

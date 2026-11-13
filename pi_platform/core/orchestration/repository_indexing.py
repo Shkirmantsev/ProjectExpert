@@ -162,7 +162,7 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
     if os.environ.get('PI_REQUIRE_OFFLINE_ASSETS') == '1':
         from pi_platform.deployment.offline_assets import configure
         configure()
-    engine = os.environ.get('PI_INDEX_ENGINE', 'legacy').strip().lower()
+    engine = os.environ.get('PI_INDEX_ENGINE', 'resumable').strip().lower()
     if engine not in {'legacy', 'resumable'}:
         raise ValueError('PI_INDEX_ENGINE must be legacy or resumable')
     arguments = dict(target=target, cache_root=cache_root, inventory=inventory,
@@ -252,7 +252,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         # Canonical chunks are model-independent. Tokenizer-specific splitting
         # remains a projection at the embedding adapter boundary.
         chunkers.register(PdfStructuralChunker())
-    parallel = durable_cache is not None and os.environ.get('PI_INDEX_PARALLEL', '0') == '1'
+    parallel = durable_cache is not None and os.environ.get('PI_INDEX_PARALLEL', '1') == '1'
     driver = LocalPipelineDriver(parser_registry=parsers, chunker_registry=chunkers, cache=cache,
                                  parse_workers=None if parallel else 1, parallel_safe_registry=True)
     failures, sources = [], []

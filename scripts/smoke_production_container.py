@@ -63,6 +63,8 @@ def main():
     parser.add_argument('--candidate-assets', action='store_true', help='Explicit local-only acceptance using a Docker image ID; does not certify registry publication')
     parser.add_argument('--asset-image')
     parser.add_argument('--manifest-sha256')
+    parser.add_argument('--asset-release', type=Path, default=ROOT / 'distribution/assets/asset-release.json',
+                        help='Verified generated release record from the trusted asset job')
     parser.add_argument('--minimal', action='store_true', help='test common core only; never production inference evidence')
     args = parser.parse_args()
     if args.candidate_assets and args.minimal:
@@ -78,7 +80,7 @@ def main():
         import sys
         sys.path.insert(0, str(ROOT))
         from pi_platform.deployment.offline_assets import release_identity
-        identity = release_identity(ROOT / 'distribution/assets/asset-release.json')
+        identity = release_identity(args.asset_release)
         if args.asset_image and args.asset_image != identity['image']:
             parser.error('Asset image differs from the independently reviewed release')
         if args.manifest_sha256 and args.manifest_sha256 != identity['manifest_sha256']:
@@ -106,6 +108,9 @@ def main():
                'PI_EMBEDDING_DEVICE': 'cpu', 'PI_DOCLING_ENABLED': '1',
                'PI_ASSET_IMAGE': args.asset_image or args.image,
                'PI_ASSET_MANIFEST_SHA256': args.manifest_sha256 or '0' * 64}
+        # Acceptance exercises the fresh optimized profile even when the caller
+        # uses explicit legacy overrides in their own deployment.
+        env.update(PI_INDEX_ENGINE='resumable', PI_INDEX_PARALLEL='1', PI_EMBED_BATCHING='1')
         compose = ['docker', 'compose', '--project-name', f'pi-smoke-{os.getpid()}',
                    '--env-file', str(ROOT / 'distribution/deployment/deployment.env'),
                    '-f', str(ROOT / 'distribution/deployment/compose.yaml')]
@@ -153,6 +158,7 @@ def main():
             assert status['indexes']['cache_entries'] > 0, status
             if not args.minimal:
                 assert not status['indexes']['retrieval']['source_failures'], status
+                assert status['indexes']['retrieval']['index_engine'] == 'resumable', status
             version = request(base, '/api/v1/project-version')
             assert version['fingerprint'] and version['embedding_model_version'], version
             tools = request(base, '/mcp', {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list'})

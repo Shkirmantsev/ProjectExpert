@@ -14,18 +14,35 @@ from pi_platform.adapters.retrieval.gguf_artifacts import GEMMA_FILENAME, GEMMA_
 COMPATIBILITY = 'llama-b11515/docling-production-lock'
 
 
-def release_identity(path: Path) -> dict:
-    data = json.loads(path.read_text(encoding='utf-8'))
+def _checked_release(data: dict, manifest: Path) -> dict:
     if data.get('release_status') != 'verified':
         raise AssetPackError('Offline asset release is blocked: complete the actual file/license review and publish an immutable asset image; online fallback is disabled')
     if not re.fullmatch(r'ghcr\.io/shkirmantsev/project-intelligence-assets@sha256:[0-9a-f]{64}', data.get('image') or ''):
         raise AssetPackError('Offline asset image must be pinned by its published OCI digest')
     if not re.fullmatch(r'[0-9a-f]{64}', data.get('manifest_sha256') or ''):
         raise AssetPackError('Offline asset manifest SHA-256 is missing')
-    inventory = load_manifest(path.with_name('assets-lock.json'), data['manifest_sha256'])
+    inventory = load_manifest(manifest, data['manifest_sha256'])
     if inventory['runtime_compatibility'] != COMPATIBILITY:
         raise AssetPackError('Reviewed release inventory is incompatible with this runtime')
     return data
+
+
+def release_identity(path: Path) -> dict:
+    return _checked_release(json.loads(path.read_text(encoding='utf-8')), path.with_name('assets-lock.json'))
+
+
+def bind_published_release(path: Path, image: str, digest: str) -> dict:
+    """Bind CI's observed registry output to the reviewed kit inventory.
+
+    The caller owns registry retrieval/verification and offline acceptance. This
+    never approves an unreviewed manifest or accepts a tag/local Docker image ID.
+    """
+    data = _checked_release(dict(schema_version=1, release_status='verified', image=image,
+        manifest_sha256=digest, reason='Bound to the verified CI registry output'), path.with_name('assets-lock.json'))
+    previous = json.loads(path.read_text(encoding='utf-8'))
+    previous.update(data)  # Retain matching application image and kit revision.
+    path.write_text(json.dumps(previous, indent=2) + '\n', encoding='utf-8')
+    return previous
 
 
 def verify_candidate(root: Path, digest: str) -> dict:
@@ -113,10 +130,15 @@ def main():
     parser.add_argument('--root', type=Path)
     parser.add_argument('--candidate', action='store_true', help='Integrity inspection only; does not permit seeding or production activation')
     parser.add_argument('--manifest-sha256')
+    parser.add_argument('--bind-image', help='Immutable registry output from the trusted release job; requires --release and --manifest-sha256')
     args = parser.parse_args()
+    if args.bind_image and (not args.release or not args.manifest_sha256 or args.candidate or args.root):
+        parser.error('--bind-image requires --release and --manifest-sha256')
     if args.candidate and (not args.root or args.release or args.load_models):
         parser.error('--candidate requires --root and cannot activate models or releases')
     if args.release:
+        if args.bind_image:
+            bind_published_release(args.release, args.bind_image, args.manifest_sha256)
         identity = release_identity(args.release)
         if args.deployment_env:
             content = args.deployment_env.read_text(encoding='utf-8')
