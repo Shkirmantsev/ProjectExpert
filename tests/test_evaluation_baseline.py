@@ -131,7 +131,9 @@ class EvaluationBaselineTests(unittest.TestCase):
         # stores.
         trials = []
         for _ in range(3):
-            report = RetrievalBenchmarkFixture().run()
+            # Reproduce the historical comparator; current ranking is exercised
+            # separately by the benchmark and real-model quality gates.
+            report = RetrievalBenchmarkFixture(historical_rerank=True).run()
             trials.append(
                 {k: v for k, v in report.items() if k != "per_query"}
             )

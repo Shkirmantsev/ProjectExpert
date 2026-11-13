@@ -367,3 +367,64 @@ identity. Source status is not proof of absent registry artifacts.
   OpenSpec checks passed. All changed source/workflow/test diffs were reviewed.
 - Pending: actual authenticated GitHub merge-run publication/independent pull.
   No new registry image/digest is fabricated.
+
+## PR24 strict model gate repair — 2026-11-13
+
+Observed job: https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43480335715/job/132081904366
+Actual seeding, GGUF checksum verification, 1507-token inference and image pixel
+sensitivity passed. The following strict capability gate failed both embeddings:
+GGUF provider `llama.cpp-embeddinggemma2` is not a factory alias; native provider
+`embeddinggemma2` resolves to the GGUF alias and therefore the wrong revision.
+Both errors came from using provider labels instead of canonical model IDs.
+
+Regression tests reproduce both failures with the actual factory and model
+profiles, isolating inference only. The previous factory mock bypassed alias
+resolution and hid the defect. The gate now resolves the inventory model ID,
+retaining normalization/dimension/revision checks and real inference requirements.
+
+- PASS: red reproduction of both exact CI errors before the production edit.
+- PASS: all 22 gate tests after correction, including wrong-revision rejection.
+- PASS: actual strict gate on an internal Docker network, preseeded approved
+  assets, actual GGUF and native Torch inference: all seven checks passed.
+- Intentional: both published-assets jobs skip PR publication; their skips are
+  not the reported failure and remain unchanged.
+- Subsequent downstream verification is recorded below.
+
+The first downstream run executed 69 real-model tests and exposed eight failures
+beyond the original job stop: three default-tokenizer assertions inherited the
+CI offline override, and five end-to-end subtests lost relevance to BM25 ties.
+An isolated end-to-end run reproduced the ranking failure, so this was not
+dismissed as cross-module interference. Two red tie-order tests reproduce the
+loss of semantic order; stable score sorting fixes both. The offline mapping
+fixture isolates only PI_DOCLING_TOKENIZER and adds an explicit override case.
+All 79 focused gate/rerank/profile tests pass, as do mapping tests with the
+offline override present. The subsequent full real suite retained its original thresholds.
+The initial full harness encountered the newly added tie tests during their red
+phase; a final stable run is required after all implementation changes.
+
+Corrected downstream run: PASS, 70 tests / one existing opt-in multimodal skip,
+with actual GGUF/native Torch models and real PDF/OCR/table conversion on an
+internal network. Model-switch/UI/MCP equality, source-cache reuse and the
+original multilingual recall/MRR thresholds passed without relaxation.
+
+The reranker version change also exposed a historical-comparator mismatch in
+`test_evaluation_baseline`: current hashing-fixture recall was 0.115 versus the
+recorded pre-change 0.125. The historical JSON was not rewritten or relaxed.
+The test-only benchmark fixture now offers explicit historical tie-breaking for
+pre_change reproduction; the default benchmark retains current ranking. Baseline
+reload/rerun explicitly selects that historical comparator. The full baseline,
+current benchmark and reranking tests pass (32 tests). No hashing-fixture
+improvement or universal retrieval gain is claimed from this repair.
+
+A final stable full harness follows all code/test changes. Earlier harness runs
+captured the new tie tests in their red phase and the historical mismatch; both
+failures are retained in local evidence rather than described as successful runs.
+
+Final stable verification: PASS, `python3 harness.py check` (1986 tests / 16
+skips), including artifact manifest, Wiki, strict OpenSpec and MCP core checks.
+Tier3 retrieval evaluation (`eval-retrieval --no-baseline`) and chunk-size sweep
+CLI commands also passed. Full source diffs were reviewed; pre_change JSON is
+unchanged. Actual runtime verification used current source mounted over the
+existing locked-dependency candidate image with reviewed approved assets; no new
+registry image was published. The original GitHub job has not been rerun against
+these local changes; remote PR/merge acceptance remains pending push.

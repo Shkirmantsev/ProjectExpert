@@ -53,7 +53,7 @@ __all__ = [
 
 BM25_LIGHT_K1 = 1.5
 BM25_LIGHT_B = 0.75
-BM25_LIGHT_VERSION = "bm25-light-1.1.0"
+BM25_LIGHT_VERSION = "bm25-light-1.1.1"
 BM25_LIGHT_LICENSE = "Apache-2.0"
 _TOKEN_RE = re.compile(r"[\w\u0400-\u04FF]+", flags=re.UNICODE)
 
@@ -92,7 +92,10 @@ class Bm25LightRerankerCore(RerankerPort):
 
         # Text candidates are scored by BM25-light.
         scored = [(self.score(query, hit), hit) for hit in text_hits]
-        scored.sort(key=lambda pair: (-pair[0], pair[1].chunkId))
+        # Stable ties retain the upstream semantic/fusion order. With no
+        # lexical evidence (e.g. translated queries), chunk IDs convey no
+        # relevance and must not replace the embedding rank.
+        scored.sort(key=lambda pair: -pair[0])
         ordered_text = [hit for _, hit in scored]
         text_scores = [score for score, _ in scored]
 

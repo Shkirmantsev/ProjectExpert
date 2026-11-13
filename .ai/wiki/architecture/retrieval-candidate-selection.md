@@ -157,3 +157,15 @@ For pure `"ILO-5193"`:
 [Selection port](../interfaces/selection.md) ·
 [Hybrid retrieval](../interfaces/hybrid-retrieval.md) ·
 [ADR 0025](../adr/0025-rerank-direct-before-graph-expansion.md)
+
+## Equal lexical evidence
+
+BM25-light 1.1.1 preserves incoming semantic/fusion order on tied lexical scores,
+including no overlap for translated or synonym queries. Chunk IDs do not carry
+relevance. Non-tied scores still reorder candidates and explicit rerank ranks
+still survive selection. The real-model quality thresholds remain unchanged.
+
+The historical hashing benchmark remains an explicit pre-change comparator:
+its test-only legacy mode preserves the recorded chunk-ID ties, without changing
+the baseline JSON. The default fixture and real-model gates exercise current
+ranking; historical fixture reproduction is not current production quality proof.

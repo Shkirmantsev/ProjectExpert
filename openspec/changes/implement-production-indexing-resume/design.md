@@ -86,3 +86,13 @@ reads that generated record and kit build arguments bind the same image/hash
 against the reviewed manifest. Source release metadata remains unbound rather
 than requiring a circular second PR. Full tests and real offline smoke precede
 application/kit promotion. PR jobs build local candidates and never publish.
+
+## PR24 runtime-gate and ranking repair
+The strict model gate resolves inventory model IDs rather than provider labels,
+so native/GGUF profiles keep their own revisions. Runtime tests retain the actual
+factory and mock only expensive inference. Actual downstream suites also exposed
+BM25-light destroying semantic order on equal (including zero) lexical evidence;
+stable score sorting now preserves the incoming fusion order on ties, with
+version bm25-light-1.1.1. Quality thresholds remain unchanged. Default tokenizer
+mapping tests isolate the explicit offline tokenizer environment setting and
+separately test that override; production offline configuration is preserved.

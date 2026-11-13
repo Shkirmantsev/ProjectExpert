@@ -17,6 +17,9 @@ Usage:
   baseline after a model / corpus change; never run automatically
   by CI.
 
+The pre-change comparator explicitly retains historical chunk-ID tie-breaking;
+current ranking is measured by the default benchmark and real-model gates.
+
 The script is intentionally thin: it imports the benchmark
 fixture from ``tests.test_retrieval_benchmark`` and writes the
 result through an atomic rename so concurrent readers always see
@@ -70,7 +73,7 @@ def _run_fixture() -> dict:
 
     trials: list[dict] = []
     for _ in range(3):
-        report = RetrievalBenchmarkFixture().run()
+        report = RetrievalBenchmarkFixture(historical_rerank=True).run()
         agg = {k: v for k, v in report.items() if k != "per_query"}
         trials.append(agg)
     keys = (
@@ -89,7 +92,7 @@ def _per_tag_breakdown() -> dict[str, dict]:
     sys.path.insert(0, str(ROOT))
     from tests.test_retrieval_benchmark import RetrievalBenchmarkFixture
 
-    report = RetrievalBenchmarkFixture().run()
+    report = RetrievalBenchmarkFixture(historical_rerank=True).run()
     bucket: dict[str, dict] = {}
     for entry in report["per_query"]:
         tag = entry["tag"]

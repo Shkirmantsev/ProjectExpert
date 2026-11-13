@@ -39,3 +39,12 @@
 - [x] Complete focused automatic publication and real verifier/kit binding/export/negative checks.
 - [x] Complete final full harness: 1980 tests / 16 skips, artifact/Wiki/OpenSpec gates PASS.
 - [ ] Observe authenticated GitHub merge-run publication and independently pull the emitted kit.
+
+## PR24 strict capability regression
+- [x] Retrieve exact failed job logs and reproduce both embedding verdict failures.
+- [x] Resolve canonical inventory model IDs using the actual factory; preserve strict revision/inference checks.
+- [x] Verify regression tests and actual offline strict gate (seven checks).
+- [x] Reproduce downstream zero-overlap rerank and offline tokenizer fixture failures; add red/green regression proof.
+- [x] Verify corrected downstream real-model suites: 70 tests / one existing opt-in skip, unchanged quality thresholds.
+- [x] Preserve historical pre_change baseline JSON and explicitly reproduce its legacy tie comparator; current benchmark remains current.
+- [x] Complete final stable full harness: 1986 tests / 16 skips; artifact, Wiki and strict OpenSpec gates PASS.

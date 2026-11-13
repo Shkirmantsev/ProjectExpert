@@ -205,6 +205,37 @@ class ProductionEnabledBoundaryTests(unittest.TestCase):
         )
 
 
+class ProductionInventoryFactoryTests(unittest.TestCase):
+    """Keep the actual factory/profile resolution; isolate only model inference."""
+
+    def probe(self, model_id, *, revision=None):
+        import math
+        from pi_platform.adapters.retrieval.llama_cpp_embedding_model import LlamaCppEmbeddingModel
+        from pi_platform.core.orchestration.production_capability_gate import _probe_embedding_record
+        record = next(dict(row) for row in _load_inventory()['models'] if row['model_id'] == model_id)
+        if revision is not None:
+            record['revision'] = revision
+        vector = [1 / math.sqrt(512)] * 512
+        with mock.patch.object(EmbeddingGemma2EmbeddingModel, 'embed', return_value=vector), mock.patch.object(
+            LlamaCppEmbeddingModel, 'embed', return_value=vector):
+            return _probe_embedding_record(record)
+
+    def test_gguf_inventory_record_resolves_through_real_factory(self):
+        verdict = self.probe(GEMMA_GGUF_MODEL_ID)
+        self.assertEqual(verdict.state, 'PASS', verdict.detail)
+
+    def test_native_inventory_record_keeps_its_own_revision_through_real_factory(self):
+        verdict = self.probe(GEMMA_MODEL_ID)
+        self.assertEqual(verdict.state, 'PASS', verdict.detail)
+
+    def test_wrong_inventory_revision_remains_a_release_failure(self):
+        for model_id in (GEMMA_MODEL_ID, GEMMA_GGUF_MODEL_ID):
+            with self.subTest(model_id=model_id):
+                verdict = self.probe(model_id, revision='0' * 40)
+                self.assertEqual(verdict.state, 'FAIL')
+                self.assertIn('revision does not match', verdict.detail)
+
+
 class ProductionCapabilityGateTests(unittest.TestCase):
     """Behavioural tests for :func:`run_production_capability_gate`."""
 
@@ -231,7 +262,7 @@ class ProductionCapabilityGateTests(unittest.TestCase):
         def build(provider, **kwargs):
             # The two remaining production providers: the native
             # Transformers binding and the pinned llama.cpp GGUF binding.
-            if provider == "embeddinggemma2":
+            if provider == GEMMA_MODEL_ID:
                 adapter = EmbeddingGemma2EmbeddingModel()
                 dim = adapter.dimension()
                 adapter._model = SimpleNamespace(encode=lambda texts, **kw: [Row([1 / math.sqrt(dim)] * dim) for _ in texts])

@@ -234,11 +234,13 @@ def _probe_embedding_record(record: Mapping) -> GateVerdict:
 
     model_id = record.get("model_id", "<unknown>")
     profile = record.get("profile", "<unknown>")
-    provider = record.get("provider", "")
     name = f"embedding:{model_id}"
 
     try:
-        adapter = EmbeddingModelFactory().build(provider, device=_PROBE_DEVICE)
+        # Inventory providers describe implementation families, not factory
+        # aliases. Resolve the canonical model ID so native and GGUF records
+        # retain their distinct bindings and pinned revisions.
+        adapter = EmbeddingModelFactory().build(model_id, device=_PROBE_DEVICE)
     except EmbeddingModelError as exc:
         return GateVerdict(
             state="FAIL",

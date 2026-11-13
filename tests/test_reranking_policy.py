@@ -132,6 +132,20 @@ def build_pipeline(hits, reranker=None, policy=None, selection="default"):
 
 
 class ScorePropagationTests(unittest.TestCase):
+    def test_no_lexical_evidence_preserves_semantic_candidate_order(self):
+        candidates = [
+            hit('z-refund', 0.9, 'Card refunds return money to customers'),
+            hit('a-shipping', 0.5, 'Warehouse dispatches delivery trucks'),
+        ]
+        result = build_pipeline(candidates).retrieve(
+            RetrievalQuery(text='Як повернути гроші?', top_k=2))
+        self.assertEqual([h.chunkId for h in result.hits], ['z-refund', 'a-shipping'])
+
+    def test_equal_lexical_evidence_preserves_upstream_relevance_order(self):
+        candidates = [hit('z', 0.9, 'refund payment'), hit('a', 0.5, 'refund payment')]
+        reranked = Bm25LightRerankerCore().rerank('refund', candidates, top_k=2)
+        self.assertEqual([h.chunkId for h in reranked], ['z', 'a'])
+
     def test_rerank_decision_survives_the_selection_stage(self):
         """The regression: a reranker that prefers B must yield B first."""
 

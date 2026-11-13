@@ -21,6 +21,8 @@ delta:
 from __future__ import annotations
 
 import unittest
+import os
+from unittest.mock import patch
 
 from pi_platform.adapters.pdf.docling_pdf_adapter import (
     DoclingMapper,
@@ -54,6 +56,19 @@ class DoclingAvailabilityTests(unittest.TestCase):
 
 class HybridChunkerAlignmentTests(unittest.TestCase):
     """The chunker MUST align with the active embedding model."""
+
+    def setUp(self):
+        environment = patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        # These cases exercise default mapping, independently of CI's explicit
+        # reviewed offline tokenizer. Other offline settings remain effective.
+        os.environ.pop('PI_DOCLING_TOKENIZER', None)
+
+    def test_explicit_offline_tokenizer_override_takes_precedence(self):
+        with patch.dict(os.environ, {'PI_DOCLING_TOKENIZER': '/reviewed/local/tokenizer'}):
+            chunker = build_docling_chunker(embedding_model_id='google/embeddinggemma-2')
+            self.assertEqual(chunker.tokenizer_alignment, '/reviewed/local/tokenizer')
 
     def test_gemma_chunker_uses_gemma_tokenizer(self) -> None:
         chunker = build_docling_chunker(

@@ -48,7 +48,9 @@ a separate policy gate; see `docs/PRODUCTION_LICENSE_REVIEW.md`.
 
 4. **Embedding probe** — for every production-enabled profile
    the gate instantiates the embedding model and asks for a
-   finite, normalized probe vector. Missing weights, incompatible loaders,
+   finite, normalized probe vector. Factory resolution uses the canonical inventory
+   model ID, preserving separate GGUF/native bindings and pinned revisions; the
+   inventory provider label is not a factory alias. Missing weights, incompatible loaders,
    unsupported devices and inference errors are hard failures. No failed
    production embedding probe is converted into a skip.
 

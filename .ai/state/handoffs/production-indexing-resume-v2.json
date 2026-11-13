@@ -4,22 +4,22 @@
     "steps_used": 0
   },
   "context": [
-    "/home/dmytro/Downloads/ProjectExpert-dev-production-remediation-agent-task-2026-11-13.md"
+    "https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43480335715/job/132081904366"
   ],
   "decisions": [
-    "User requires work on feature/generate-init-project; continue on that branch rather than codex/production-readiness-remediation"
+    "Root cause is provider labels incorrectly passed as factory aliases, hidden by unit factory mock; preserve actual factory in regression tests"
   ],
   "progress": {
     "blocked": [],
     "done": [
-      "At user request, fast-forwarded feature/generate-init-project to include remediation commits 3ebbfbf,0505893,08442cf,3770d00; original hashes preserved and feature branch checked out"
+      "PR24 model factory identity repaired; stable semantic BM25 ties and offline tokenizer test isolation verified; historical comparator explicitly preserved"
     ],
     "todo": [
-      "Push feature/generate-init-project and merge into dev/development; observe authenticated registry workflow and independent kit installation"
+      "Commit scoped PR24 repair on feature/generate-init-project"
     ]
   },
   "resume": {
-    "next_action": "Push/review feature/generate-init-project; run automatic pipeline by merge into dev/development",
+    "next_action": "Commit verified PR24 repair on existing feature branch",
     "prerequisites": []
   },
   "runtime": {
@@ -33,7 +33,7 @@
     "created_at": "2026-11-11T20:38:02+00:00",
     "id": "production-indexing-resume-v2",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-13T18:10:17+00:00"
+    "updated_at": "2026-11-13T20:57:59+00:00"
   },
   "task": {
     "acceptance": [
@@ -41,48 +41,28 @@
     ],
     "goal": "Implement supplied production indexing resume performance offline asset and resource design on feature/generate-init-project",
     "openspec_change": "implement-production-indexing-resume",
-    "status": "reviewing"
+    "status": "verifying"
   },
   "verification": {
     "passed": [
-      "Branch transfer fast-forward PASS; feature tree identical to prior remediation branch. Existing source verification remains PASS1980 tests16skips; no code changed by branch transfer."
+      "Full harness PASS: 1986 tests / 16 skips, Wiki/OpenSpec/artifact/MCP checks; actual strict gate7 PASS; actual real-model suite70 tests1skip PASS; focused79 and benchmark32 PASS; Tier3 evaluation/sweep PASS"
     ],
     "pending": [
-      "Actual remote registry run and broader release acceptance remain unverified; no new publication claimed"
+      "Remote PR CI and authenticated merge publication remain pending push; no new registry publication claimed"
     ]
   },
   "working_set": [
     {
-      "path": ".github/workflows/publish-oci-container.yml",
-      "sha256": "599ede4a767618e85fa8c14a2eae13e334824c0b1ea1545bb3901a79adec90b7"
-    },
-    {
-      "path": ".github/workflows/publish-offline-assets.yml",
-      "sha256": "71df1f8bac373edbccc6231a22c2be95c9ce79e1abe6dbd93abd529d6d924572"
-    },
-    {
-      "path": ".github/workflows/verify-production-runtime.yml",
-      "sha256": "c3244218d0a48c5f5ad894642bdba5a374047d6b91db38f66132b640cd5ff9d0"
-    },
-    {
       "path": "ARTIFACT_MANIFEST.sha256",
-      "sha256": "55185e8c5645c3867005e520a680851c73bc3d10af5293b4b8b72cb5755ab869"
+      "sha256": "3dc1ac055bc44fc8247ef29ab86224d5070ae7b31b7da4c20276539918419163"
     },
     {
-      "path": "Containerfile",
-      "sha256": "0a6bc6345e525ad17c36cb9bfef15842a3a1606d348998c2aa6d79848c5cbba2"
+      "path": "openspec/changes/implement-production-indexing-resume/tasks.md",
+      "sha256": "7e97116d6c5aa7a1112eaff7e3c33b2628a5cfcf7132eac8f6139077268a5e74"
     },
     {
-      "path": "pi_platform/deployment/offline_assets.py",
-      "sha256": "546a7a6dbfa693a6c29ff5f2107fad1564c9612bdbb727a2d3532043a4ffc475"
-    },
-    {
-      "path": "scripts/prepare_ci_assets.py",
-      "sha256": "3de1d8a8e5d76d626c6efc08386842cb35b6542d9acc19e85d48aed84316667b"
-    },
-    {
-      "path": "tests/test_automatic_asset_publication.py",
-      "sha256": "a86c23f1ebd6aae00be16d6352f09b6ec0dc6f86eb798762c9b9d933ab976b09"
+      "path": "openspec/changes/implement-production-indexing-resume/verification.md",
+      "sha256": "85ca4b654d057a2080f36adb7b1bcb4d209031ba39a213fa3e070498e4cf0aa6"
     }
   ]
 }

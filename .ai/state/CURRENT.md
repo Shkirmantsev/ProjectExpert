@@ -5,8 +5,8 @@
 Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/production-indexing-resume-v2.json)
 
 Task: `production-indexing-resume-v2`
-Status: `reviewing`
-Updated: `2026-11-13T18:10:17+00:00`
+Status: `verifying`
+Updated: `2026-11-13T20:57:59+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,11 +19,11 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- At user request, fast-forwarded feature/generate-init-project to include remediation commits 3ebbfbf,0505893,08442cf,3770d00; original hashes preserved and feature branch checked out
+- PR24 model factory identity repaired; stable semantic BM25 ties and offline tokenizer test isolation verified; historical comparator explicitly preserved
 
 ## Remaining
 
-- Push feature/generate-init-project and merge into dev/development; observe authenticated registry workflow and independent kit installation
+- Commit scoped PR24 repair on feature/generate-init-project
 
 ## Blocked
 
@@ -31,34 +31,29 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Decisions
 
-- User requires work on feature/generate-init-project; continue on that branch rather than codex/production-readiness-remediation
+- Root cause is provider labels incorrectly passed as factory aliases, hidden by unit factory mock; preserve actual factory in regression tests
 
 ## Relevant context
 
-- `/home/dmytro/Downloads/ProjectExpert-dev-production-remediation-agent-task-2026-11-13.md`
+- `https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43480335715/job/132081904366`
 
 ## Working set
 
-- `.github/workflows/publish-oci-container.yml`
-- `.github/workflows/publish-offline-assets.yml`
-- `.github/workflows/verify-production-runtime.yml`
 - `ARTIFACT_MANIFEST.sha256`
-- `Containerfile`
-- `pi_platform/deployment/offline_assets.py`
-- `scripts/prepare_ci_assets.py`
-- `tests/test_automatic_asset_publication.py`
+- `openspec/changes/implement-production-indexing-resume/tasks.md`
+- `openspec/changes/implement-production-indexing-resume/verification.md`
 
 ## Verification passed
 
-- Branch transfer fast-forward PASS; feature tree identical to prior remediation branch. Existing source verification remains PASS1980 tests16skips; no code changed by branch transfer.
+- Full harness PASS: 1986 tests / 16 skips, Wiki/OpenSpec/artifact/MCP checks; actual strict gate7 PASS; actual real-model suite70 tests1skip PASS; focused79 and benchmark32 PASS; Tier3 evaluation/sweep PASS
 
 ## Verification pending
 
-- Actual remote registry run and broader release acceptance remain unverified; no new publication claimed
+- Remote PR CI and authenticated merge publication remain pending push; no new registry publication claimed
 
 ## Next action
 
-Push/review feature/generate-init-project; run automatic pipeline by merge into dev/development
+Commit verified PR24 repair on existing feature branch
 
 ## Prerequisites
 

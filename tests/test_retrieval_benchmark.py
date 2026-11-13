@@ -161,10 +161,21 @@ class _InMemoryCorpus:
             ))
 
 
+class _HistoricalBm25LightReranker(Bm25LightRerankerAdapter):
+    """Test-only pre-change comparator; never selected by product code."""
+
+    def rerank(self, query, candidates, *, top_k=10):
+        # The recorded baseline used chunk-ID ties. Presort only the bounded
+        # legacy fixture so stable score sorting reproduces that historical rule.
+        bounded = sorted(candidates[:self.budget], key=lambda hit: hit.chunkId)
+        return super().rerank(query, bounded, top_k=top_k)
+
+
 class RetrievalBenchmarkFixture:
     """The §49 evaluation fixture the benchmark runs against."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, historical_rerank=False) -> None:
+        self.historical_rerank = historical_rerank
         self._stats: dict[str, int] = {
             "plugin_setup_total": 0,
             "plugin_setup_ok": 0,
@@ -240,7 +251,8 @@ class RetrievalBenchmarkFixture:
             self._stats["plugin_setup_failed"] += 1
             raise
         try:
-            reranker = Bm25LightRerankerAdapter()
+            reranker = (_HistoricalBm25LightReranker() if self.historical_rerank
+                        else Bm25LightRerankerAdapter())
             self._stats["plugin_setup_ok"] += 1
         except Exception:
             self._stats["plugin_setup_failed"] += 1

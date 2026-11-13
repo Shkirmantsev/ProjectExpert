@@ -17,6 +17,8 @@ and add verified offline asset and enterprise trust deployment support.
 ## Affected capabilities
 Ingestion pipeline driver, semantic index service, document source adapters,
 resumable document ingestion, portable inference runtime and one-click distribution.
+PR24 follow-up also repairs production capability model resolution and BM25-light
+tie handling without lowering the real-model quality gates.
 Current accepted specs remain authoritative until release gates are verified.
 
 ## Compatibility and release
