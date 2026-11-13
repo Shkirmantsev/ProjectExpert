@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `reviewing`
-Updated: `2026-11-13T16:52:54+00:00`
+Updated: `2026-11-13T16:53:27+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,7 +19,7 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- Production remediation source fixes ready on codex/production-readiness-remediation: offline seeded CI and full-matrix publication prerequisites, optimized fresh defaults/status, safe selective migrations, bounded Compose diagnostics and early registry preflight
+- Committed verified source remediation as 3ebbfbf on codex/production-readiness-remediation; retained all unrelated untracked files
 
 ## Remaining
 
@@ -54,7 +54,7 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Next action
 
-Review and push scoped source fixes; authorized publisher supplies actual verified GHCR digest and completes outstanding production acceptance
+Review/push source commit 3ebbfbf; obtain actual authenticated asset publication digest and complete remaining release/platform/performance gates
 
 ## Prerequisites
 
