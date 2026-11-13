@@ -29,3 +29,13 @@
 - [x] Finish canonical fresh production build and repeat fresh-volume real offline acceptance with that exact image (72493341f093).
 - [ ] Validate original large corpus performance and physical Windows/heterogeneous device matrix.
 - [ ] Record real published asset RepoDigest and matched released kit; independent enterprise acceptance.
+
+## Automatic merge bootstrap follow-up
+- [x] Compute inventory SHA-256 automatically from reviewed Git bytes.
+- [x] Reuse matching registry payload; rebuild/publish explicit missing or mismatched pack once.
+- [x] Fail closed on auth/TLS/network/daemon errors and unreviewed inventories.
+- [x] Add reusable serialized publisher and immutable output dependencies to trusted merge/runtime jobs; keep PRs unpromoted.
+- [x] Pass generated release evidence to real smoke and bind matching asset/app identities into the kit without source metadata edits.
+- [x] Complete focused automatic publication and real verifier/kit binding/export/negative checks.
+- [x] Complete final full harness: 1980 tests / 16 skips, artifact/Wiki/OpenSpec gates PASS.
+- [ ] Observe authenticated GitHub merge-run publication and independently pull the emitted kit.

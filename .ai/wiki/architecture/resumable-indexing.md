@@ -29,8 +29,10 @@ Fresh source and kit defaults now use resumable indexing, parallel parsing and
 bounded embedding batches; explicit legacy settings remain supported. Existing
 operator environments remain preserved, with an explicit preview/backup migration. Source deployment now requires
 verified offline asset seeding and fails closed when release pins/files are
-missing. The licensed inventory is reviewed; published registry identity remains blocked;
-[release assembly](../../../distribution/assets/README.md) records the workflow.
+missing. The licensed inventory is reviewed; actual registry publication remains unverified locally;
+[release assembly](../../../distribution/assets/README.md) records the automatic
+trusted-merge flow: computed reviewed-manifest hash, reuse/build/push, immutable
+job outputs and generated matching-kit binding without a second metadata PR.
 Full offline OCI asset release,
 hardware acceptance, automatic artifact GC
 and stale-version-safe last-good UI serving remain unverified or unimplemented;

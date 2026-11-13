@@ -72,3 +72,17 @@ image ID to denied-egress acceptance. It does not rewrite release metadata.
 Workspace/export checks use `deployment-kit-candidate`; published kit builds
 continue through the separate strict `deployment-kit` release gate. Non-PR
 production promotion still requires the actual immutable registry identity.
+
+## Automatic merge-time publication follow-up
+Trusted dev/development/main runs call the reusable asset publisher. It computes
+the reviewed manifest hash; uses a content-keyed registry tag only as a lookup
+hint; and verifies the immutable RepoDigest against current source/lock policy
+with network none. Explicit absence or payload mismatch rebuilds once on CI;
+authentication/TLS/network/daemon failures do not trigger upstream assembly.
+Publishers serialize across callers. Unreviewed inventories fail before network work.
+The resulting immutable image is passed as a job output; consumers independently
+pull/verify it and generate release evidence under tmp/local/ci-assets. Smoke
+reads that generated record and kit build arguments bind the same image/hash
+against the reviewed manifest. Source release metadata remains unbound rather
+than requiring a circular second PR. Full tests and real offline smoke precede
+application/kit promotion. PR jobs build local candidates and never publish.

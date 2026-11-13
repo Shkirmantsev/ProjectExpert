@@ -7,17 +7,19 @@
     "/home/dmytro/Downloads/ProjectExpert-dev-production-remediation-agent-task-2026-11-13.md"
   ],
   "decisions": [
-    "Source defaults are resumable/1/1 with preserved explicit rollback. Local smoke success is not production release readiness; no registry identity or performance gain was fabricated"
+    "User-requested one-merge flow supersedes manual dispatch/hash-copy/second metadata PR. Source asset release JSON is unbound template; verified identities are generated CI artifacts and embedded kit metadata. Auth/TLS/network errors still fail closed."
   ],
   "progress": {
     "blocked": [],
     "done": [
-      "Committed verified source remediation as 3ebbfbf on codex/production-readiness-remediation; retained all unrelated untracked files"
+      "Automatic merge bootstrap implemented: reviewed manifest SHA computed locally; matching GHCR payload reused; explicit missing/mismatched payload rebuilt/published; real immutable output passed into smoke and matching kit without manual hash or second PR"
     ],
-    "todo": []
+    "todo": [
+      "Push/review automatic merge pipeline change and observe authenticated dev/development run; independently verify published kit. Broader hardware/corporate/large-corpus gates remain separate."
+    ]
   },
   "resume": {
-    "next_action": "Review/push source commit 3ebbfbf; obtain actual authenticated asset publication digest and complete remaining release/platform/performance gates",
+    "next_action": "Commit and review scoped automatic merge bootstrap, then push/merge into dev or development for actual GHCR execution",
     "prerequisites": []
   },
   "runtime": {
@@ -31,7 +33,7 @@
     "created_at": "2026-11-11T20:38:02+00:00",
     "id": "production-indexing-resume-v2",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-13T16:53:27+00:00"
+    "updated_at": "2026-11-13T17:59:29+00:00"
   },
   "task": {
     "acceptance": [
@@ -43,26 +45,44 @@
   },
   "verification": {
     "passed": [
-      "Final python3 harness.py check PASS1970 tests16skips; actual canonical offline smoke PASS with image72493341f093; direct CI-cache GGUF PASS; local CPU/iGPU numerical and top-k parity PASS with slower joint dispatch correctly rejected; artifact/Wiki/OpenSpec/Bash and whitespace checks PASS"
+      "Full python3 harness.py check PASS1980 tests16skips; focused37 PASS; current verifier against actual approved asset image with network none PASS; real synthetic fixture kit build/export/Compose pin binding PASS; actual unbound kit refusal PASS; YAML/Bash/whitespace/artifact validation PASS"
     ],
-    "pending": []
+    "pending": [
+      "Authenticated GHCR publication and remote reusable-workflow execution not run locally; no published RepoDigest fabricated or client HF download enabled"
+    ]
   },
   "working_set": [
     {
+      "path": ".github/workflows/publish-oci-container.yml",
+      "sha256": "599ede4a767618e85fa8c14a2eae13e334824c0b1ea1545bb3901a79adec90b7"
+    },
+    {
+      "path": ".github/workflows/publish-offline-assets.yml",
+      "sha256": "71df1f8bac373edbccc6231a22c2be95c9ce79e1abe6dbd93abd529d6d924572"
+    },
+    {
+      "path": ".github/workflows/verify-production-runtime.yml",
+      "sha256": "c3244218d0a48c5f5ad894642bdba5a374047d6b91db38f66132b640cd5ff9d0"
+    },
+    {
       "path": "ARTIFACT_MANIFEST.sha256",
-      "sha256": "3e6ea7962ba0bfd59f86d7e8ea584165ace60ce09a6f9cd753861b51198421fe"
+      "sha256": "55185e8c5645c3867005e520a680851c73bc3d10af5293b4b8b72cb5755ab869"
     },
     {
-      "path": "docs/PRODUCTION_REMEDIATION_ACCEPTANCE.md",
-      "sha256": "d3dca976723057d81b0f47ecaabd0822cde5f78a83b2268f1b03a8f5be9e62cd"
+      "path": "Containerfile",
+      "sha256": "0a6bc6345e525ad17c36cb9bfef15842a3a1606d348998c2aa6d79848c5cbba2"
     },
     {
-      "path": "openspec/changes/implement-production-indexing-resume/verification.md",
-      "sha256": "82488b303ff2d7228525edb0ad78f860a67fdd611cde9d115ad47255effeb72b"
+      "path": "pi_platform/deployment/offline_assets.py",
+      "sha256": "546a7a6dbfa693a6c29ff5f2107fad1564c9612bdbb727a2d3532043a4ffc475"
     },
     {
-      "path": "tests/test_workspace_deployment.py",
-      "sha256": "28c7292061ab934207112ff8dd1ee4602fb07568f9188e9b3ce7e75f61633bd1"
+      "path": "scripts/prepare_ci_assets.py",
+      "sha256": "3de1d8a8e5d76d626c6efc08386842cb35b6542d9acc19e85d48aed84316667b"
+    },
+    {
+      "path": "tests/test_automatic_asset_publication.py",
+      "sha256": "a86c23f1ebd6aae00be16d6352f09b6ec0dc6f86eb798762c9b9d933ab976b09"
     }
   ]
 }

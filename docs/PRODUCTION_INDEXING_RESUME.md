@@ -136,12 +136,12 @@ choose the managed volume; explicit workspace configuration retains precedence.
 The offline remediation now requires mandatory digest-addressed seeding before
 setup and startup, local-only model/PDF/tokenizer/torch consumers, native Windows
 OCI extraction, and network-denied production promotion gates. The
-[asset lock](../distribution/assets/assets-lock.json) and
-[release identity](../distribution/assets/asset-release.json) remain honestly
-blocked: the actual complete reviewed pack and published OCI digest are still
-missing. Default installation therefore fails with a missing offline asset
-message; it no longer downloads as a fallback. This is not yet a usable offline
-release. See [assembly/review instructions](../distribution/assets/README.md).
+[asset lock](../distribution/assets/assets-lock.json) is reviewed. Trusted CI now
+resolves/builds/publishes its image and generates the immutable release record
+automatically; the Git release JSON is an unbound source template. Real registry
+publication remains unverified locally, but no manual hash entry or metadata PR
+is required. Deployed clients still fail closed on missing assets and never
+download upstream weights. See [release instructions](../distribution/assets/README.md).
 Existing data is preserved, and explicit kit upgrades preserve deployment.env
 while diagnosing missing or mismatched release pins.
 
@@ -175,3 +175,13 @@ Markdown input across legacy, resumable serial and resumable parallel modes, wit
 cold/warm runs and canonical-generation equivalence checks. The fixture explicitly
 uses hashing embeddings; its wall times do not represent production Gemma/Docling
 or EdkWmsXTotal throughput. Reports stay under `tmp/local/indexing-benchmark/`.
+
+## Automatic CI asset resolution
+
+Trusted merges now resolve or build/publish the reviewed asset pack automatically
+and hand off its actual registry digest to smoke and kit builds in the same run.
+No manual checksum entry or second release-metadata PR is needed. See the
+[automatic release flow](../distribution/assets/README.md#automatic-release-after-merge).
+The source release JSON is an unbound template; generated CI/kit records carry
+the actual immutable identity. Successful remote publication remains observed
+evidence, not something inferred from source changes.

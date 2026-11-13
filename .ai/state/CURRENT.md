@@ -6,7 +6,7 @@ Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/produc
 
 Task: `production-indexing-resume-v2`
 Status: `reviewing`
-Updated: `2026-11-13T16:53:27+00:00`
+Updated: `2026-11-13T17:59:29+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,11 +19,11 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- Committed verified source remediation as 3ebbfbf on codex/production-readiness-remediation; retained all unrelated untracked files
+- Automatic merge bootstrap implemented: reviewed manifest SHA computed locally; matching GHCR payload reused; explicit missing/mismatched payload rebuilt/published; real immutable output passed into smoke and matching kit without manual hash or second PR
 
 ## Remaining
 
-- none
+- Push/review automatic merge pipeline change and observe authenticated dev/development run; independently verify published kit. Broader hardware/corporate/large-corpus gates remain separate.
 
 ## Blocked
 
@@ -31,7 +31,7 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Decisions
 
-- Source defaults are resumable/1/1 with preserved explicit rollback. Local smoke success is not production release readiness; no registry identity or performance gain was fabricated
+- User-requested one-merge flow supersedes manual dispatch/hash-copy/second metadata PR. Source asset release JSON is unbound template; verified identities are generated CI artifacts and embedded kit metadata. Auth/TLS/network errors still fail closed.
 
 ## Relevant context
 
@@ -39,22 +39,26 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Working set
 
+- `.github/workflows/publish-oci-container.yml`
+- `.github/workflows/publish-offline-assets.yml`
+- `.github/workflows/verify-production-runtime.yml`
 - `ARTIFACT_MANIFEST.sha256`
-- `docs/PRODUCTION_REMEDIATION_ACCEPTANCE.md`
-- `openspec/changes/implement-production-indexing-resume/verification.md`
-- `tests/test_workspace_deployment.py`
+- `Containerfile`
+- `pi_platform/deployment/offline_assets.py`
+- `scripts/prepare_ci_assets.py`
+- `tests/test_automatic_asset_publication.py`
 
 ## Verification passed
 
-- Final python3 harness.py check PASS1970 tests16skips; actual canonical offline smoke PASS with image72493341f093; direct CI-cache GGUF PASS; local CPU/iGPU numerical and top-k parity PASS with slower joint dispatch correctly rejected; artifact/Wiki/OpenSpec/Bash and whitespace checks PASS
+- Full python3 harness.py check PASS1980 tests16skips; focused37 PASS; current verifier against actual approved asset image with network none PASS; real synthetic fixture kit build/export/Compose pin binding PASS; actual unbound kit refusal PASS; YAML/Bash/whitespace/artifact validation PASS
 
 ## Verification pending
 
-- none
+- Authenticated GHCR publication and remote reusable-workflow execution not run locally; no published RepoDigest fabricated or client HF download enabled
 
 ## Next action
 
-Review/push source commit 3ebbfbf; obtain actual authenticated asset publication digest and complete remaining release/platform/performance gates
+Commit and review scoped automatic merge bootstrap, then push/merge into dev or development for actual GHCR execution
 
 ## Prerequisites
 

@@ -27,3 +27,8 @@ backed-up command. Production promotion remains blocked until actual pinned-mode
 restore and Windows/Rancher/Desktop release gates pass. No performance or hardware result is
 inferred from architecture. External assets must have real hashes, licenses and
 an immutable OCI release; absent release evidence is recorded as blocked.
+
+The merge-time publication follow-up removes manual bootstrap: trusted CI
+computes the reviewed inventory hash, reuses or builds/publishes compatible assets,
+and binds the actual registry digest into the tested matching kit in the same run.
+The source release JSON is an unbound template, not a manual approval bottleneck.

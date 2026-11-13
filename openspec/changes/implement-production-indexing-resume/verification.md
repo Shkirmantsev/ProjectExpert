@@ -344,3 +344,26 @@ remaining physical-platform/registry/performance gates.
 
 Source defaults implement the supplied optimized target. Production promotion
 remains blocked; accepted current specs were not silently rewritten or archived.
+
+## Automatic merge-time asset bootstrap — follow-up
+
+The operator explicitly replaced the manual dispatch/hash-copy/second-PR sequence
+with automatic trusted merge behavior. The source release record is now documented
+as an unbound template; generated verified CI/kit records carry actual registry
+identity. Source status is not proof of absent registry artifacts.
+
+- PASS: 37 focused automatic-publication/CI/offline/migration regressions. Matching
+  registry content avoids upstream assembly; missing/mismatched payload rebuilds
+  once; unreviewed manifests and auth/TLS/network/daemon failures fail closed.
+  Generated kit binding preserves app/revision and rejects tags/local IDs/wrong hashes.
+- PASS: current verifier against the actual complete approved local model image,
+  with network none; manifest hash computed from Git inventory bytes.
+- PASS: real Docker kit build/export/Compose with explicitly synthetic fixture
+  pins. Automatic asset/app/manifest identity propagation and optimized defaults
+  match. This fixture is not a published image and was not launched as a release.
+- PASS: real kit build without bound immutable inputs still refuses the source
+  unbound release; workflow YAML and embedded Bash syntax checks pass.
+- PASS: `python3 harness.py check`: 1980 tests / 16 skips; artifact, Wiki and strict
+  OpenSpec checks passed. All changed source/workflow/test diffs were reviewed.
+- Pending: actual authenticated GitHub merge-run publication/independent pull.
+  No new registry image/digest is fabricated.

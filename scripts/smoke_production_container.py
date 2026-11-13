@@ -63,6 +63,8 @@ def main():
     parser.add_argument('--candidate-assets', action='store_true', help='Explicit local-only acceptance using a Docker image ID; does not certify registry publication')
     parser.add_argument('--asset-image')
     parser.add_argument('--manifest-sha256')
+    parser.add_argument('--asset-release', type=Path, default=ROOT / 'distribution/assets/asset-release.json',
+                        help='Verified generated release record from the trusted asset job')
     parser.add_argument('--minimal', action='store_true', help='test common core only; never production inference evidence')
     args = parser.parse_args()
     if args.candidate_assets and args.minimal:
@@ -78,7 +80,7 @@ def main():
         import sys
         sys.path.insert(0, str(ROOT))
         from pi_platform.deployment.offline_assets import release_identity
-        identity = release_identity(ROOT / 'distribution/assets/asset-release.json')
+        identity = release_identity(args.asset_release)
         if args.asset_image and args.asset_image != identity['image']:
             parser.error('Asset image differs from the independently reviewed release')
         if args.manifest_sha256 and args.manifest_sha256 != identity['manifest_sha256']:

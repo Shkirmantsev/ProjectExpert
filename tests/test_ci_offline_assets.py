@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from pi_platform.deployment.asset_pack import AssetPackError
-from scripts.prepare_ci_assets import prepare
+from scripts.prepare_ci_assets import prepare, reviewed_inventory
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,21 +52,29 @@ class CiOfflineAssetsTests(unittest.TestCase):
         self.assertIn('--license-evidence', assembly)
         self.assertEqual(assembly[assembly.index('--native-backends') + 1:], ['vulkan'])
 
-    def test_wrong_independent_pin_or_changed_notice_fails_before_download(self):
-        for tamper in ('pin', 'notice'):
+    def test_incompatible_inventory_or_changed_notice_fails_before_download(self):
+        manifest_path = self.root / 'distribution/assets/assets-lock.json'
+        for tamper in ('inventory', 'notice'):
             with self.subTest(tamper=tamper):
-                original = self.release.read_bytes()
-                if tamper == 'pin':
+                original = manifest_path.read_bytes()
+                if tamper == 'inventory':
                     data = json.loads(original)
-                    data['manifest_sha256'] = '0' * 64
-                    self.release.write_text(json.dumps(data))
+                    data['production_lock_sha256'] = '0' * 64
+                    manifest_path.write_text(json.dumps(data))
                 else:
                     (self.root / 'distribution/assets/licenses/NOTICE.txt').write_text('changed')
                 with patch('scripts.prepare_ci_assets.subprocess.run') as run:
                     with self.assertRaises(AssetPackError):
                         prepare(self.root, candidate=True)
                 run.assert_not_called()
-                self.release.write_bytes(original)
+                manifest_path.write_bytes(original)
+
+    def test_ci_computes_inventory_hash_without_manual_release_metadata_edit(self):
+        release = json.loads(self.release.read_text())
+        release['manifest_sha256'] = '0' * 64  # Stale source release template is not the CI input.
+        self.release.write_text(json.dumps(release))
+        digest, _ = reviewed_inventory(self.root)
+        self.assertEqual(digest, hashlib.sha256((self.root / 'distribution/assets/assets-lock.json').read_bytes()).hexdigest())
 
     def test_existing_pack_is_neither_overwritten_nor_removed(self):
         pack = self.root / 'tmp/local/asset-pack'

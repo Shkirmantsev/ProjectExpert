@@ -52,3 +52,31 @@ assets MUST fail before indexing writes, without deleting existing data.
 - **THEN** a read-only preflight reports Docker context and separate host/engine trust guidance
 - **AND** no CA store, system driver or daemon setting is changed
 - **AND** cached-image startup does not depend on remote registry preflight success
+
+### Requirement: Automatic merge-time offline asset publication
+Trusted merges into dev/development MUST automatically resolve the reviewed model
+asset image before application and deployment-kit publication. The pipeline MUST
+compute SHA-256 from the committed reviewed inventory without operator hash entry.
+It MUST reuse a matching registry image or build/publish missing or mismatched
+assets only on the controlled release runner, then pass the actual immutable
+registry digest to offline acceptance and the matching kit in the same run.
+No second source edit or PR MUST be required to record that generated identity.
+Human inventory/license review, real offline acceptance and immutable pin checks
+MUST remain enforced. PRs MUST NOT publish assets or promote a release.
+
+#### Scenario: matching published pack exists
+- **WHEN** a trusted merge finds a verified matching content-keyed registry image
+- **THEN** it uses that image by actual registry digest without upstream downloads
+
+#### Scenario: pack is missing or its payload does not match
+- **WHEN** the registry explicitly reports the pack missing or verification detects a mismatched payload
+- **THEN** controlled CI materializes the reviewed pinned files and publishes a verified replacement
+- **AND** subsequent consumers use its observed immutable registry digest
+
+#### Scenario: authentication or network failure
+- **WHEN** registry access is denied or unavailable
+- **THEN** CI fails with an actionable error rather than treating that condition as absent models or bypassing verification
+
+#### Scenario: automatic matched kit
+- **WHEN** full tests and actual offline application acceptance pass
+- **THEN** the kit embeds the same verified asset digest and actual published application digest without a manual metadata PR

@@ -1,5 +1,12 @@
 # Production remediation acceptance — 2026-11-13
 
+Follow-up: merge-time publication is now automatic; the manual hash-entry and
+second-PR instructions from the initial remediation are superseded by the
+[automatic release flow](../distribution/assets/README.md#automatic-release-after-merge).
+Local follow-up validation passed: full harness 1980 tests / 16 skips, actual
+network-disabled asset verifier and real fixture kit build/export/negative gates.
+Actual authenticated remote execution is still unverified locally.
+
 Release status: **NOT PRODUCTION-READY**. Source corrections do not promote the
 blocked asset release or certify an independent enterprise installation.
 
@@ -17,7 +24,7 @@ The configured SSH remote could not authenticate, so retrieval used public HTTPS
 | Optimized fresh defaults and status | `deployment.env`, `compose.yaml`, coordinator, semantic service, llama adapter, UI composition | `python3 -m unittest tests.test_resumable_repository_indexing tests.test_embedding_batching -q`; real offline smoke below | PASS: fresh `resumable/1/1`, explicit rollback, durable recovery/parity; effective engine visible in status. PDF workers remain one. | Actual Linux; shared Windows/Linux templates | Original large-corpus performance and Windows physical acceptance pending. |
 | Preserve existing environments | `distribution/deployment/export.py` | `python3 -m unittest tests.test_remediation_contract -q` | PASS: preserved upgrade, selective preview, exact backup, atomic replacement, idempotency and blocked/tampered asset refusal. No volume/index deletion. | Actual POSIX tests; portable exporter | Migration does not make an unpublished release usable. |
 | Host/engine trust distinction | `registry-preflight.sh`, `registry-preflight.ps1`, launchers | `python3 -m unittest tests.test_enterprise_ca_handshake tests.test_remediation_contract -q` | PASS: Linux preflight fixtures, valid-root success, unknown-root/wrong-host rejection. Cached assets skip HTTPS. No CA/daemon changes. | Actual Linux TLS/Bash; PowerShell source only | Host HTTPS cannot certify daemon trust; real Zscaler/Desktop/Rancher unverified. |
-| Actual OCI assets and matching kit | `distribution/assets/asset-release.json` retained unchanged | Anonymous `docker buildx imagetools inspect <documented-candidate-tag>` | BLOCKED: GHCR 403; release remains blocked and RepoDigest absent. This does not prove absence of a private candidate. | No published release certified | Authenticated publication, immutable pin, matching kit and independent install needed. |
+| Actual OCI assets and matching kit | `publish-offline-assets.yml`, generated CI/kit release record | Anonymous `docker buildx imagetools inspect <documented-candidate-tag>` | Initial anonymous GHCR inspection returned 403; no published digest was observed locally. Trusted merge jobs now resolve/build/publish and pass the real digest automatically. | No published release certified | Observe authenticated automatic merge run and independently install its emitted matching kit. |
 | Other APIs and heterogeneous work | Investigation and measured experiment below | `python3 tmp/local/remediation/run_device_benchmark.py` (local experiment) | CPU/iGPU parity PASS; slower joint work correctly rejected. | Actual Ryzen CPU / AMD Vulkan iGPU | Automatic full-pipeline combination selection, other hardware and reviewed alternative adapters incomplete. |
 
 ## Model and local hardware identities
