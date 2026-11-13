@@ -1,10 +1,7 @@
-"""Download and verify the pinned EmbeddingGemma 2 artefacts before startup.
+"""Verify installed EmbeddingGemma assets and provision the private runtime key.
 
-The setup step is the only place that downloads model files. It fetches the
-pinned ``Q8_0`` backbone and the pinned ``Q8_0`` multimodal projector,
-verifies both checksums, and provisions the runtime key. Nothing is fetched
-implicitly at runtime and a failed download never leaves a partial file
-behind.
+Normal setup never downloads. Only explicit developer callers may opt into
+pinned, checksum-verified downloads; production always requires its OCI pack.
 """
 
 from __future__ import annotations
@@ -14,6 +11,7 @@ import hashlib
 import os
 from pathlib import Path
 import secrets
+import shutil
 import tempfile
 import urllib.request
 
@@ -64,8 +62,8 @@ def _download(cache: Path, filename: str, url: str, sha256: str) -> Path:
     return model
 
 
-def prepare(cache: Path, model_alias: str = "gemma") -> Path:
-    """Install the pinned artefacts and return the backbone path.
+def prepare(cache: Path, model_alias: str = "gemma", *, allow_download: bool = False) -> Path:
+    """Verify local pinned artefacts and return the backbone path.
 
     ``model_alias`` accepts ``gemma`` (the pinned GGUF binding, the only
     supported production alias). The retired alias is rejected with an
@@ -81,10 +79,36 @@ def prepare(cache: Path, model_alias: str = "gemma") -> Path:
         raise RetiredEmbeddingAliasError(
             f"unknown GGUF model alias {model_alias!r}; expected {GEMMA_ALIAS!r}"
         )
+    pack = None
+    if os.environ.get('PI_STARTUP_PROFILE') == 'production' or os.environ.get('PI_ASSET_MANIFEST_SHA256'):
+        from pi_platform.deployment.offline_assets import configure
+        pack = configure(cache)
+        if allow_download:
+            raise ValueError('Production setup forbids remote model downloads')
+    # Validate all inputs before creating keys or touching existing cache files.
+    for filename, url, digest in GEMMA_FILES:
+        candidate = pack / 'embedding' / filename if pack else cache / filename
+        if not candidate.is_file() or file_hash(candidate) != digest:
+            if not allow_download or pack:
+                raise ValueError('Missing or corrupt offline embedding asset: ' + filename + '; install the reviewed OCI asset pack. Developer downloads require explicit opt-in.')
     cache.mkdir(parents=True, exist_ok=True)
     model = None
     for filename, url, sha256 in GEMMA_FILES:
-        path = _download(cache, filename, url, sha256)
+        path = cache / filename
+        if pack is not None and (not path.is_file() or file_hash(path) != sha256):
+            descriptor, temporary = tempfile.mkstemp(prefix='gguf-', suffix='.partial', dir=cache)
+            try:
+                with os.fdopen(descriptor, 'wb') as target, (pack / 'embedding' / filename).open('rb') as source:
+                    shutil.copyfileobj(source, target)
+                    target.flush()
+                    os.fsync(target.fileno())
+                if file_hash(Path(temporary)) != sha256:
+                    raise ValueError('Offline embedding asset changed during provisioning')
+                os.replace(temporary, path)
+            finally:
+                Path(temporary).unlink(missing_ok=True)
+        elif allow_download:
+            path = _download(cache, filename, url, sha256)
         if model is None:
             model = path
     key = cache / "llama-api-key"
@@ -107,6 +131,9 @@ def main():
     parser.add_argument("--model", default="gemma")
     args = parser.parse_args()
     from pi_platform.cli.runtime_python import bundle_python
+    if os.environ.get('PI_ASSET_MANIFEST_SHA256'):
+        from pi_platform.deployment.offline_assets import configure
+        configure(args.cache, load_models=True)
     bundle_python(args.cache)
     print(f"Verified GGUF model: {prepare(args.cache, args.model)}")
 

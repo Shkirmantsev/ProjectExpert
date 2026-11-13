@@ -113,6 +113,7 @@ def resolve_local_docling_assets(root, *, do_ocr):
         "docling-project--docling-layout-heron/preprocessor_config.json",
         "docling-project--docling-layout-heron/model.safetensors",
         "docling-project--docling-models/config.json",
+        "docling-project--docling-models/model_artifacts/tableformer/accurate/tm_config.json",
     )
     missing = [name for name in required if not (artifacts / name).is_file()]
     table = artifacts / "docling-project--docling-models/model_artifacts/tableformer/accurate"

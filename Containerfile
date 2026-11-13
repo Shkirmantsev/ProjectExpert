@@ -92,13 +92,25 @@ RUN mkdir /out && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -buil
     && cd /out && sha256sum workspace-agent-linux-amd64 workspace-agent-windows-amd64.exe > workspace-agent-SHA256SUMS
 
 # Runnable OCI deployment artifact: docker run exports files; no Docker socket.
-FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS deployment-kit
+FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS deployment-kit-candidate
 WORKDIR /bundle
 COPY distribution/deployment/ /bundle/
+COPY distribution/assets/asset-release.json /bundle/asset-release.json
+COPY distribution/assets/assets-lock.json /bundle/assets-lock.json
+COPY pi_platform/ /opt/verifier/pi_platform/
+ENV PYTHONPATH=/opt/verifier
 COPY --from=workspace-agent-build /out/ /bundle/
 ARG PI_DEPLOY_IMAGE=ghcr.io/shkirmantsev/project-intelligence:production
-RUN python -c 'import os,pathlib; [p.write_text(p.read_text().replace("ghcr.io/shkirmantsev/project-intelligence:production", os.environ["PI_DEPLOY_IMAGE"])) for p in pathlib.Path(".").glob("compose*.yaml")]'
+ARG PI_KIT_REVISION=source-unbuilt
+RUN python -c 'import os,pathlib; [p.write_text(p.read_text().replace("ghcr.io/shkirmantsev/project-intelligence:production", os.environ["PI_DEPLOY_IMAGE"])) for p in [*pathlib.Path(".").glob("compose*.yaml"), pathlib.Path("setup-windows-accelerator.ps1")]]'
+RUN python -c 'import json,os,pathlib; p=pathlib.Path("asset-release.json"); d=json.loads(p.read_text()); d.update(application_image=os.environ["PI_DEPLOY_IMAGE"],kit_revision=os.environ["PI_KIT_REVISION"]); p.write_text(json.dumps(d,indent=2)+"\n")'
 ENTRYPOINT ["python", "/bundle/export.py"]
+
+# Source/PR helper and export contracts need no published model release. The
+# candidate retains source publication metadata without baking release pins.
+# Every publishable kit still passes the immutable published-release gate.
+FROM deployment-kit-candidate AS deployment-kit
+RUN python -m pi_platform.deployment.offline_assets --release /bundle/asset-release.json --deployment-env /bundle/deployment.env
 
 # Cache the hash-locked dependency closure independently from application edits.
 FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS production-dependencies
@@ -116,8 +128,14 @@ RUN python -m pip install --no-cache-dir --require-hashes --prefix=/opt/producti
 FROM core AS production
 COPY requirements-production-linux-x86_64.txt ./requirements-production-linux-x86_64.txt
 COPY requirements-production-java-linux-x86_64.txt ./requirements-production-java-linux-x86_64.txt
+# COPY overlays package files but cannot remove the core image's older metadata.
+# Remove its build backend first so the locked backend has one package identity.
+RUN python -m pip uninstall -y setuptools
 COPY --from=production-dependencies /opt/production/ /usr/local/
-RUN python -m pip install --no-cache-dir --no-deps ".[production]" \
+# The hash-locked closure already supplies the exact PEP 517 build backend.
+# Validate it before building without a second, unpinned network resolution.
+RUN python -c 'import importlib.metadata,tomllib; r=tomllib.load(open("pyproject.toml","rb"))["build-system"]["requires"]; assert r == ["setuptools=="+importlib.metadata.version("setuptools")], r' \
+    && python -m pip install --no-cache-dir --no-deps --no-build-isolation ".[production]" \
     && python -m pip check \
     && python -c 'from pathlib import Path; from pi_platform.adapters.java.parser_subprocess import TreeSitterJavaSubprocess; from pi_platform.ports.ingest.java_parser import JavaParseRequest; TreeSitterJavaSubprocess(required=True).parse(JavaParseRequest(source="class StartupProbe { int value; }", file_path=Path("StartupProbe.java")))' \
     && python -m pi_platform.cli license-gate \
@@ -134,6 +152,10 @@ ENV PI_STARTUP_PROFILE=production \
     PI_DENSE_INDEX=usearch \
     PI_DOCLING_ENABLED=1 \
     PI_PREPARE_DOCLING=1 \
+    PI_REQUIRE_OFFLINE_ASSETS=1 \
+    PI_ALLOW_REMOTE_ASSET_DOWNLOADS=0 \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1 \
     XDG_CACHE_HOME=/models/cache \
     PI_MODEL_CACHE=/models/huggingface \
     HF_HOME=/models/huggingface

@@ -1,8 +1,12 @@
 **
 !pi_platform/
-!pi_platform/deployment/
-!pi_platform/deployment/asset_pack.py
+!pi_platform/**
 !tmp/
 !tmp/local/
 !tmp/local/asset-pack/
 !tmp/local/asset-pack/**
+
+!requirements-production-linux-x86_64.txt
+
+**/__pycache__/
+**/*.pyc

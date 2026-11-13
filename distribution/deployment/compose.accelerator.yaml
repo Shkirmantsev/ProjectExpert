@@ -41,6 +41,14 @@ services:
         main()
     environment:
       PI_HOST_CA_MODE: ${PI_HOST_CA_MODE:-auto}
+      PI_ASSET_MANIFEST_SHA256: ${PI_ASSET_MANIFEST_SHA256:?Missing reviewed offline asset manifest SHA-256}
+      PI_ALLOW_REMOTE_ASSET_DOWNLOADS: "0"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    network_mode: none
+    depends_on:
+      asset-seed:
+        condition: service_completed_successfully
     command: ["--cache", "/models", "--model", "gemma"]
     volumes:
       - model-cache:/models

@@ -5,8 +5,8 @@
 Structured source: [handoffs/production-indexing-resume-v2.json](handoffs/production-indexing-resume-v2.json)
 
 Task: `production-indexing-resume-v2`
-Status: `blocked`
-Updated: `2026-11-12T07:15:16+00:00`
+Status: `reviewing`
+Updated: `2026-11-12T23:05:46+00:00`
 Active OpenSpec change: `implement-production-indexing-resume`
 
 ## Objective
@@ -19,41 +19,41 @@ Implement supplied production indexing resume performance offline asset and reso
 
 ## Completed
 
-- Third-round Windows crashed-pipe polling repaired; actual spawned-worker regression verifies checkpoints, sibling completion, cleanup and recovery
+- PR23 CI bootstrap fix implemented and verified: reviewed local assets for PR/source checks, candidate kit for workspace/export checks, strict immutable published-release gates retained; ready for owner push
 
 ## Remaining
 
-- Owner pushes third-round repair and reruns native Windows CI; continue remaining original production rollout gates separately
+- Owner pushes CI fix and reruns PR23 checks; actual registry publication/digest recording and physical Windows matrix remain separate release follow-up
 
 ## Blocked
 
-- Cannot publish PR repair: configured Git SSH authentication unavailable; GitHub integration Git-tree write returns HTTP403
+- Actual production registry publication still requires owner-provided published OCI digest; no remaining local CI implementation blocker
 
 ## Decisions
 
-- Acquire Windows byte-range lock without reading locked byte; resolve ambiguous UTF8 bounds with pinned runtime tokenizer including special tokens
+- Candidate kit retains original publication metadata; default deployment-kit is derived from it and still runs release_identity before exportable production promotion. CI-owned raw pack is removed only after actual built image ID is verified.
 
 ## Relevant context
 
-- `/home/dmytro/Downloads/ProjectExpert-production-indexing-resume-performance-design-v2.md`
+- `/tmp/codex-remote-attachments/01a1cc51-96bc-7d71-b479-852d6bdea0de/8d3a836f-f6ae-4cd8-b9ff-e79bbaa8f50a/1-ProjectExpert-fix-plan.md`
 
 ## Working set
 
-- `openspec/changes/implement-production-indexing-resume/verification.md`
-- `pi_platform/adapters/pdf/process_sources.py`
-- `tests/test_pdf_process_sources.py`
+- `Containerfile`
+- `scripts/prepare_ci_assets.py`
+- `tests/test_ci_offline_assets.py`
 
 ## Verification passed
 
-- Full harness PASS: 1937 tests, 15 optional skips, zero failures; 37 focused tests PASS
+- Full harness PASS1961 tests16skips; final six candidate regression tests PASS after publication-independent fixture adjustment; initial focused32 PASS; real kit build/helper hashes/export/Compose fallback PASS; normal release target expected refusal PASS; workflow YAML/Bash, Wiki, OpenSpec, state/artifact/whitespace validation PASS
 
 ## Verification pending
 
-- Native Windows 3.11/3.13 PR CI after publishing third-round repair
+- Remote GitHub controlled assembly and job reruns after owner push; actual published-image acceptance and physical Windows hardware matrix
 
 ## Next action
 
-Owner pushes feature/generate-init-project and reruns PR22 Windows matrix
+Owner pushes CI fix on feature/generate-init-project and reruns the listed PR23/source checks; publish approved pack and record actual OCI digest for production promotion separately
 
 ## Prerequisites
 

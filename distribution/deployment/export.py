@@ -7,7 +7,7 @@ import stat
 import tempfile
 
 HELPERS = ('workspace-agent-go-LICENSE.txt', 'workspace-agent-build.txt', 'workspace-agent-linux-amd64', 'workspace-agent-windows-amd64.exe', 'workspace-agent-SHA256SUMS')
-FILES = ('compose.assets.yaml', 'host-trust.sh', 'host-trust.ps1', 'compose.host-trust.yaml', 'wait-ready.sh', 'wait-ready.ps1', 'compose.workspace-volume.yaml', 'workspace.sh', 'workspace.ps1', 'workspace-autostart.sh', 'workspace-autostart.ps1', 'runtime-entrypoint.sh', 'runtime_supervisor.py', 'compose.ui-vulkan.yaml', 'compose.yaml', 'deployment.env', 'Makefile', 'start.sh', 'start.ps1', 'stop.ps1', 'README.md', 'compose.sh', 'compose.ps1', 'compose.accelerator.yaml', 'compose.vulkan.yaml', 'compose.cuda.yaml', 'compose.cpu.yaml', 'compose.windows-gpu.yaml', 'accelerator-lock.json', 'setup-windows-accelerator.ps1', 'url.sh', 'url.ps1', '.gitignore')
+FILES = ('container-cuda.ps1', 'assets-lock.json', 'asset-release.json', 'compose.assets.yaml', 'host-trust.sh', 'host-trust.ps1', 'compose.host-trust.yaml', 'wait-ready.sh', 'wait-ready.ps1', 'compose.workspace-volume.yaml', 'workspace.sh', 'workspace.ps1', 'workspace-autostart.sh', 'workspace-autostart.ps1', 'runtime-entrypoint.sh', 'runtime_supervisor.py', 'compose.ui-vulkan.yaml', 'compose.yaml', 'deployment.env', 'Makefile', 'start.sh', 'start.ps1', 'stop.ps1', 'README.md', 'compose.sh', 'compose.ps1', 'compose.accelerator.yaml', 'compose.vulkan.yaml', 'compose.cuda.yaml', 'compose.cpu.yaml', 'compose.windows-gpu.yaml', 'accelerator-lock.json', 'setup-windows-accelerator.ps1', 'url.sh', 'url.ps1', '.gitignore')
 
 
 def _repair_root_owner(path: Path, owner, *, directory: bool = False) -> None:
@@ -59,7 +59,10 @@ def export(source: Path, destination: Path, *, upgrade: bool = False) -> None:
         path = destination / name
         if name in HELPERS and not (source / name).exists():
             continue  # Source-only developer exports; release images contain all helpers.
-        content = (source / name).read_bytes()
+        origin = source / name
+        if name in ('asset-release.json', 'assets-lock.json') and not origin.exists():
+            origin = source.parent / 'assets' / name
+        content = origin.read_bytes()
         if upgrade and name != 'deployment.env' and path.exists():
             if path.read_bytes() == content:
                 print(f'Unchanged {name}')
@@ -100,6 +103,24 @@ def export(source: Path, destination: Path, *, upgrade: bool = False) -> None:
             print(f'Created {name}')
         except FileExistsError:
             print(f'Preserved {name}')
+
+    import json
+    release_path = destination / 'asset-release.json'
+    if release_path.is_file():
+        release = json.loads(release_path.read_text(encoding='utf-8'))
+        print('Kit revision: ' + str(release.get('kit_revision') or 'source/unbuilt'))
+        print('Kit application image: ' + str(release.get('application_image') or 'source template'))
+        print('Kit offline asset release: ' + str(release.get('image') or 'BLOCKED / unpublished'))
+        print('Kit asset manifest: ' + str(release.get('manifest_sha256') or 'unavailable'))
+        env_path = destination / 'deployment.env'
+        values = dict(line.split('=', 1) for line in env_path.read_text(encoding='utf-8').splitlines()
+                      if line.startswith(('PI_ASSET_IMAGE=', 'PI_ASSET_MANIFEST_SHA256=', 'PI_IMAGE=')))
+        requested_image = os.environ.get('PI_IMAGE') or values.get('PI_IMAGE')
+        if requested_image and release.get('application_image') and requested_image != release['application_image']:
+            print('WARNING: PI_IMAGE differs from the application image matched to this kit; verify compatibility before starting.')
+        if (not values.get('PI_ASSET_IMAGE') or not values.get('PI_ASSET_MANIFEST_SHA256') or
+            values['PI_ASSET_IMAGE'] != release.get('image') or values['PI_ASSET_MANIFEST_SHA256'] != release.get('manifest_sha256')):
+            print('WARNING: offline asset pins are missing or differ from this kit. deployment.env was preserved; review it before starting. Online fallback is disabled.')
 
 
 if __name__ == '__main__':

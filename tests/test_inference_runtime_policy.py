@@ -114,6 +114,13 @@ class SelectionPolicyTests(unittest.TestCase):
         self.assertEqual(profile.device, "CUDA0")
         self.assertIn("CUDA0", profile.reason)
 
+    def test_vulkan_selection_uses_reported_device_for_any_vendor(self):
+        for vendor in ('Intel Arc', 'AMD Radeon', 'NVIDIA RTX', 'FutureVendor GPU'):
+            with self.subTest(vendor=vendor):
+                output = f'Available devices:\n  Vulkan3: {vendor} (8192 MiB, 4096 MiB free)\n'
+                profile = select_profile([candidate('vulkan', output), candidate('cpu', NO_DEVICES_OUTPUT)])
+                self.assertEqual((profile.backend, profile.device), ('vulkan', 'Vulkan3'))
+
     def test_vulkan_is_used_when_cuda_reports_no_device(self):
         profile = select_profile([
             candidate("cuda", NO_DEVICES_OUTPUT),

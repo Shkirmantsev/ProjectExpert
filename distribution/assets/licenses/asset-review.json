@@ -1,0 +1,49 @@
+{
+  "status": "operator-approved",
+  "user_requirement": "The licences must allow free using on the enterprise , in the corporate big company",
+  "checks": [
+    {
+      "license": "Apache-2.0",
+      "enterprise_use": "No-charge grants to individuals and legal entities; no company-size/revenue limit",
+      "conditions": "Retain license, attribution and applicable NOTICE; mark modifications; observe patent/trademark terms"
+    },
+    {
+      "license": "MIT",
+      "enterprise_use": "Free-of-charge use, modification and distribution including commercial sale; no company-size limit",
+      "conditions": "Retain copyright and permission notice"
+    },
+    {
+      "license": "CDLA-Permissive-2.0",
+      "enterprise_use": "Use, modification and sharing permitted; no restriction on results and no entity-size or fee condition",
+      "conditions": "Provide the agreement text when sharing the data"
+    },
+    {
+      "license": "LLVM/OpenMP bundled notice",
+      "enterprise_use": "Apache-2.0 with LLVM exceptions, legacy MIT/NCSA alternatives and Intel no-charge grants; no enterprise-size or royalty condition identified",
+      "conditions": "Retain the complete upstream notice; no blanket MIT classification of libomp.dll"
+    }
+  ],
+  "excluded": [
+    "NVIDIA Windows CUDA runtime DLLs",
+    "Host GPU drivers",
+    "Host CUDA toolkits"
+  ],
+  "scope": "Per-file license identification, enterprise-use criteria and retained redistribution notices for this exact inventory; OCI publication identity and physical-platform acceptance are recorded separately.",
+  "reviewer": "Codex technical license-text and notice review",
+  "publication": "Finishing release steps authorized by the operator; do not claim publication without an actual registry digest",
+  "evidence_sources": {
+    "Apache-2.0.txt": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+    "CDLA-Permissive-2.0.txt": "https://raw.githubusercontent.com/Community-Data-License-Agreements/Releases/main/CDLA-Permissive-2.0.txt",
+    "LLVM-OpenMP.txt": "https://github.com/ggml-org/llama.cpp/releases/download/b11515/llama-b11515-bin-win-vulkan-x64.zip#LICENSE-LLVM-OpenMP",
+    "RapidOCR-model-notice.txt": "https://rapidai.github.io/RapidOCRDocs/main/en/model_licenses/",
+    "llama.cpp-MIT.txt": "https://raw.githubusercontent.com/ggml-org/llama.cpp/3d65c90d04d337e88f2b1f7f0061f40a5324e662/LICENSE",
+    "NOTICE.txt": "local-review:asset-attribution-2026-11-12",
+    "asset-review.json": "local-review:enterprise-criteria-2026-11-12"
+  },
+  "raw_rapidocr_notice_sha256": "c45999c058a43d63a87d89ce6b100bf8d892abc4552a28dd2be53be4aae4529b",
+  "operator_approval": {
+    "date": "2026-11-12",
+    "instruction": "yes, do it to the end. finish your work",
+    "approved_action": "Apply the reviewed license classifications and retained notices to the canonical inventory"
+  }
+}

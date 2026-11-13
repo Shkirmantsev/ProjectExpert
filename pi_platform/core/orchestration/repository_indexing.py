@@ -159,6 +159,9 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
     """Return an unpublished candidate; explicit resumable mode never falls back."""
     import os
     from pi_platform.adapters.runtime.sqlite_ingestion_cache import SqliteIngestionCache, exclusive_indexer
+    if os.environ.get('PI_REQUIRE_OFFLINE_ASSETS') == '1':
+        from pi_platform.deployment.offline_assets import configure
+        configure()
     engine = os.environ.get('PI_INDEX_ENGINE', 'legacy').strip().lower()
     if engine not in {'legacy', 'resumable'}:
         raise ValueError('PI_INDEX_ENGINE must be legacy or resumable')

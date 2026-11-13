@@ -1,7 +1,17 @@
 # Build from a reviewed local pack. This target never fetches model files.
-FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb
+FROM python:3.11-slim-bookworm@sha256:2333bd330d12de02514770b3585cad313644316047cdee24a7acfdece6de6efb AS candidate
 ARG PI_ASSET_MANIFEST_SHA256
-COPY pi_platform/deployment/asset_pack.py /opt/seed-verify.py
+# Keep multi-gigabyte model layers reusable when only the verifier changes.
 COPY tmp/local/asset-pack/ /opt/projectexpert-assets/
-RUN python /opt/seed-verify.py --manifest-sha256 "${PI_ASSET_MANIFEST_SHA256}" --verify-only
+COPY pi_platform/ /opt/verifier/pi_platform/
+COPY requirements-production-linux-x86_64.txt /opt/verifier/requirements-production-linux-x86_64.txt
+ENV PYTHONPATH=/opt/verifier
+COPY pi_platform/deployment/asset_pack.py /opt/seed-verify.py
+RUN python -m pi_platform.deployment.offline_assets --candidate --root /opt/projectexpert-assets --manifest-sha256 "${PI_ASSET_MANIFEST_SHA256}"
 ENTRYPOINT ["python", "/opt/seed-verify.py"]
+
+# The default target remains release-gated; candidate is explicit and cannot seed
+# an unreviewed manifest through the normal entrypoint.
+FROM candidate AS verified
+ARG PI_ASSET_MANIFEST_SHA256
+RUN python -m pi_platform.deployment.offline_assets --root /opt/projectexpert-assets --manifest-sha256 "${PI_ASSET_MANIFEST_SHA256}"

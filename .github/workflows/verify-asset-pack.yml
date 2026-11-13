@@ -3,49 +3,55 @@ on:
   push:
     paths:
       - 'distribution/deployment/**'
+      - 'distribution/assets/**'
+      - 'scripts/materialize_asset_pack.py'
+      - 'scripts/prepare_ci_assets.py'
+      - 'tests/test_ci_offline_assets.py'
+      - 'scripts/verify_offline_runtime.py'
       - 'pi_platform/deployment/**'
       - 'tests/windows_deployment_runtime.ps1'
+      - 'tests/windows_offline_assets.ps1'
+      - 'tests/windows_container_cuda.ps1'
       - '.github/workflows/verify-asset-pack.yml'
   pull_request:
     paths:
       - 'distribution/deployment/**'
+      - 'distribution/assets/**'
+      - 'scripts/materialize_asset_pack.py'
+      - 'scripts/prepare_ci_assets.py'
+      - 'tests/test_ci_offline_assets.py'
+      - 'scripts/verify_offline_runtime.py'
       - 'pi_platform/deployment/**'
       - 'tests/windows_deployment_runtime.ps1'
+      - 'tests/windows_offline_assets.ps1'
+      - 'tests/windows_container_cuda.ps1'
       - '.github/workflows/verify-asset-pack.yml'
   workflow_dispatch:
-    inputs:
-      asset_image:
-        description: Reviewed asset OCI image with immutable sha256 digest
-        required: true
-      manifest_sha256:
-        description: Independently reviewed manifest SHA-256
-        required: true
 permissions:
   contents: read
 jobs:
   verify-seeding-offline:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    env:
-      ASSET_IMAGE: ${{ inputs.asset_image }}
-      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
     steps:
       - uses: actions/checkout@v4
-      - name: Validate immutable identities before pull
-        shell: bash
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build the pinned reviewed asset candidate for source verification
         run: |
-          [[ "$ASSET_IMAGE" =~ ^ghcr.io/shkirmantsev/project-intelligence-assets@sha256:[0-9a-f]{64}$ ]]
-          [[ "$MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
-      - name: Pull candidate through engine registry trust
-        run: docker pull "$ASSET_IMAGE"
+          python scripts/prepare_ci_assets.py --candidate --env-output "$RUNNER_TEMP/asset-env"
+          cat "$RUNNER_TEMP/asset-env" >> "$GITHUB_ENV"
       - name: Seed twice with networking denied
         run: |
           docker volume create candidate-assets
-          docker run --rm --network none -v candidate-assets:/models "$ASSET_IMAGE" --manifest-sha256 "$MANIFEST_SHA256"
-          docker run --rm --network none -v candidate-assets:/models "$ASSET_IMAGE" --manifest-sha256 "$MANIFEST_SHA256"
+          docker run --rm --network none -v candidate-assets:/models "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256"
+          docker run --rm --network none -v candidate-assets:/models "$PI_ASSET_IMAGE" --manifest-sha256 "$PI_ASSET_MANIFEST_SHA256"
       - name: Remove isolated candidate cache
         if: always()
-        run: docker volume rm candidate-assets
+        run: |
+          if docker volume inspect candidate-assets >/dev/null 2>&1; then
+            docker volume rm candidate-assets
+          fi
   windows-launcher-contract:
     runs-on: windows-latest
     steps:
@@ -56,3 +62,15 @@ jobs:
       - name: PowerShell 7 native stderr and exit contract
         shell: pwsh
         run: ./tests/windows_deployment_runtime.ps1
+      - name: Windows PowerShell 5.1 offline native extraction contract
+        shell: powershell
+        run: ./tests/windows_offline_assets.ps1
+      - name: PowerShell 7 offline native extraction contract
+        shell: pwsh
+        run: ./tests/windows_offline_assets.ps1
+      - name: Windows PowerShell 5.1 container CUDA preference and fallback
+        shell: powershell
+        run: ./tests/windows_container_cuda.ps1
+      - name: PowerShell 7 container CUDA preference and fallback
+        shell: pwsh
+        run: ./tests/windows_container_cuda.ps1

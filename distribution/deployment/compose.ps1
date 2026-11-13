@@ -16,6 +16,7 @@ $savedEnvironment = @{}
 foreach ($item in Get-ChildItem Env:) { $savedEnvironment[$item.Name] = $item.Value }
 $composeArgs = $args
 . (Join-Path $PSScriptRoot 'workspace.ps1')
+. (Join-Path $PSScriptRoot 'container-cuda.ps1')
 
 
 function Measure-Endpoint([string]$Endpoint, [string[]]$Files) {
@@ -118,7 +119,9 @@ try {
             $savedPlan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
             $savedBackend = $savedPlan.backend
         }
-        if ($savedBackend -eq 'cpu') {
+        if ($savedBackend -eq 'cuda' -and $savedPlan.transport -eq 'container') {
+            $files += @('-f','compose.accelerator.yaml','-f','compose.cuda.yaml')
+        } elseif ($savedBackend -eq 'cpu') {
             $files += @('-f','compose.accelerator.yaml','-f','compose.cpu.yaml')
         } else {
             $files += @('-f','compose.windows-gpu.yaml')
@@ -129,14 +132,23 @@ try {
         exit 0
     }
     if (Test-Path -LiteralPath $planPath) { Remove-Item -LiteralPath $planPath -Force }
-    # The setup script detects the backend, applies the shared Python policy
-    # and starts the native service when a GPU candidate validates.
-    try {
-        & (Join-Path $PSScriptRoot 'setup-windows-accelerator.ps1') -Backend $backend -Model 'gemma'
-    } catch {
-        Write-Warning "Native GPU setup failed; using the CPU sidecar. $_"
-        & (Join-Path $PSScriptRoot 'stop.ps1') -KeepWorkspaceSupervisor
-        if (Test-Path -LiteralPath $planPath) { Remove-Item -LiteralPath $planPath -Force }
+    $containerPlan = Get-ContainerCudaPlan $backend
+    if ($containerPlan) {
+        if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'accelerator/runtime.pid')) {
+            & (Join-Path $PSScriptRoot 'stop.ps1') -KeepWorkspaceSupervisor
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $planPath) | Out-Null
+        $containerPlan | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $planPath -Encoding UTF8
+        Write-Output 'Selected CUDA transport: container runtime with the existing host NVIDIA driver'
+    } else {
+        # Native fallback is needed only when managed GPU passthrough is absent.
+        try {
+            & (Join-Path $PSScriptRoot 'setup-windows-accelerator.ps1') -Backend $backend -Model 'gemma'
+        } catch {
+            Write-Warning "Native GPU setup failed; using the CPU sidecar. $_"
+            & (Join-Path $PSScriptRoot 'stop.ps1') -KeepWorkspaceSupervisor
+            if (Test-Path -LiteralPath $planPath) { Remove-Item -LiteralPath $planPath -Force }
+        }
     }
     $plan = $null
     if (Test-Path -LiteralPath $planPath) {
@@ -145,13 +157,20 @@ try {
     if ($backend -eq 'auto' -and $plan -and $plan.backend -ne 'cpu') {
         # The GPU works. Measure it against the CPU baseline: a GPU that is
         # not measurably faster is not worth its complexity.
-        $gpuMedian = Measure-Endpoint 'http://host.docker.internal:8769' @('-f','compose.yaml','-f','compose.windows-gpu.yaml')
+        if ($plan.transport -eq 'container') {
+            $gpuMedian = $null
+            if (Start-ContainerCudaRuntime $plan) {
+                $gpuMedian = Measure-Endpoint 'http://embeddings:8769' @('-f','compose.yaml','-f','compose.accelerator.yaml','-f','compose.cuda.yaml')
+            }
+        } else {
+            $gpuMedian = Measure-Endpoint 'http://host.docker.internal:8769' @('-f','compose.yaml','-f','compose.windows-gpu.yaml')
+        }
         $cpuMedian = Measure-CpuSidecar
         if ($gpuMedian -and $cpuMedian) {
             $measurements = @{ cpu = [double]$cpuMedian; $plan.backend = [double]$gpuMedian }
             $decision = Resolve-PlanWithMeasurements $plan $measurements
             if (-not $decision -or -not $decision.ok -or $decision.backend -eq 'cpu') {
-                Write-Output "The $plan.backend profile is not faster than the CPU baseline; using the CPU profile."
+                Write-Output "The $($plan.backend) profile is not faster than the CPU baseline; using the CPU profile."
                 Write-Output "Rejected inference candidates: $($plan.backend) (not faster than the cpu baseline)"
                 & (Join-Path $PSScriptRoot 'stop.ps1') -KeepWorkspaceSupervisor
                 $plan = [pscustomobject]@{ ok = $true; backend = 'cpu'; device = $null; fit_target_mib = 192 }
@@ -179,7 +198,11 @@ try {
         $env:PI_GPU_DEVICE = $plan.device
         $env:PI_FIT_TARGET = "$($plan.fit_target_mib)"
         $env:PI_EMBEDDING_DEVICE = $plan.backend
-        $files += @('-f','compose.windows-gpu.yaml')
+        if ($plan.transport -eq 'container') {
+            $files += @('-f','compose.accelerator.yaml','-f','compose.cuda.yaml')
+        } else {
+            $files += @('-f','compose.windows-gpu.yaml')
+        }
     } else {
         # The plan could not be produced: fall back to the CPU sidecar.
         $env:PI_ACCELERATOR = 'cpu'
@@ -188,8 +211,27 @@ try {
         $env:PI_EMBEDDING_DEVICE = 'cpu'
         $files += @('-f','compose.accelerator.yaml','-f','compose.cpu.yaml')
     }
-    Invoke-WorkspaceCompose --env-file deployment.env @files @composeArgs
-    if ($LASTEXITCODE -ne 0) { throw 'Docker Compose failed' }
+    $startupFailed = $false
+    try {
+        Invoke-WorkspaceCompose --env-file deployment.env @files @composeArgs
+        $startupFailed = ($LASTEXITCODE -ne 0)
+    } catch {
+        if (-not $plan -or $plan.transport -ne 'container') { throw }
+        $startupFailed = $true
+    }
+    if ($startupFailed -and $plan -and $plan.transport -eq 'container') {
+        Write-Warning 'Container CUDA startup failed; retrying the CPU profile with the same verified model cache.'
+        $env:PI_ACCELERATOR = 'cpu'
+        $env:PI_EMBEDDING_DEVICE = 'cpu'
+        $env:PI_GPU_DEVICE = 'none'
+        $env:PI_FIT_TARGET = '192'
+        $plan = [pscustomobject]@{ok=$true;backend='cpu';device='none';fit_target_mib=192}
+        $plan | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $planPath -Encoding UTF8
+        $files = @('-f','compose.yaml','-f','compose.accelerator.yaml','-f','compose.cpu.yaml')
+        Invoke-WorkspaceCompose --env-file deployment.env @files @composeArgs
+        $startupFailed = ($LASTEXITCODE -ne 0)
+    }
+    if ($startupFailed) { throw 'Docker Compose failed' }
 } finally {
     foreach ($item in Get-ChildItem Env:) {
         if (-not $savedEnvironment.ContainsKey($item.Name)) { [Environment]::SetEnvironmentVariable($item.Name, $null, 'Process') }

@@ -108,6 +108,15 @@ exposes three subcommands:
 
 ## Launch contract
 
+Windows first probes managed container CUDA using the pinned llama.cpp image
+and the host driver. `container-cuda.ps1` collects evidence and uses the shared
+Python planner; it does not install host CUDA or drivers. The saved transport
+selects the same Compose overlay on later operations. Explicit device pins must
+be present in the probe; failed startup downgrades to CPU. The default native
+Windows pack declares Vulkan only; optional native CUDA needs its own reviewed
+asset inventory. Linux Vulkan discovery remains vendor-neutral and accepts
+usable Intel, AMD, NVIDIA or other runtime-reported devices.
+
 - The multimodal projector always stays on the CPU: the argument
   vector ends with `--no-mmproj-offload` exactly once.
 - Runtime flags are passed as an EXPLICIT argument vector, not

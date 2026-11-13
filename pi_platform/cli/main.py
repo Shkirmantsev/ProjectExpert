@@ -2635,12 +2635,15 @@ def _cmd_models_pull(args: argparse.Namespace) -> int:
     if alias == 'gemma':
         from .gguf_setup import prepare
         try:
-            path = prepare(Path(os.environ.get('PI_GGUF_CACHE', '/models')), alias)
+            path = prepare(Path(os.environ.get('PI_GGUF_CACHE', '/models')), alias, allow_download=True)
         except (OSError, ValueError) as exc:
             print(json.dumps({'ok': False, 'error': str(exc)}))
             return 1
         print(json.dumps({'ok': True, 'alias': alias, 'path': str(path)}))
         return 0
+    if os.environ.get('PI_REQUIRE_OFFLINE_ASSETS') == '1' or os.environ.get('PI_ALLOW_REMOTE_ASSET_DOWNLOADS') == '0':
+        print(json.dumps({'ok': False, 'error': 'Production model pulls are disabled; install the reviewed offline OCI asset pack'}))
+        return 1
     try:
         from huggingface_hub import snapshot_download
     except ImportError as exc:

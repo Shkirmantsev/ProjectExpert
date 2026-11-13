@@ -189,8 +189,9 @@ class EmbeddingGemma2EmbeddingModel(EmbeddingModelPort):
             # downstream ``encode`` call also passes the same
             # value for the runtime sanity check.
             self._model = SentenceTransformer(
-                    self._model_id,
-                    revision=self._revision,
+                    os.environ.get('PI_TRANSFORMERS_ASSET_ROOT', self._model_id),
+                    revision=None if os.environ.get('PI_TRANSFORMERS_ASSET_ROOT') else self._revision,
+                    local_files_only=os.environ.get('PI_ALLOW_REMOTE_ASSET_DOWNLOADS') != '1',
                     device=self._device,
                     cache_folder=self._cache_folder,
                     config_kwargs={"audio_config": None},

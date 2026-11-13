@@ -160,3 +160,144 @@ skips, zero failures), artifact manifest PASS, and `git diff --check` PASS.
 The existing repository publishing authentication limitation remains; this
 session creates local commits for the owner to push. Original rollout limits
 above are unchanged.
+
+
+## Mandatory offline distribution remediation — 2026-11-12
+
+The follow-up audit correctly identified that the previous optional asset pack
+was not a self-contained default installation. The source now requires mandatory
+asset seeding and local-only model consumers; it does not claim that a completed
+licensed asset release has been published. Active accepted specs remain unchanged
+pending actual release adoption; the proposed one-click-distribution delta records
+the stricter contract.
+
+Implemented the common pinned pack verifier/preflight, exact dependency-lock and
+GGUF identities, Docling accurate-table configuration checks, local tokenizer and
+native Torch routing, default no-download GGUF/Docling/Torch behavior, explicit
+developer pulls, and pre-index rejection before canonical cache/lock mutations.
+Normal setup verifies all pack inputs before generating keys/provisioning models.
+
+Mandatory seed now precedes model-setup and production for every exported mode.
+Seed/setup have no network. Native Windows obtains the full pack only through
+immutable OCI extraction and verifies it before native planning/execution. Existing
+native key/reuse/device policy remains. Standard TLS and registry trust remain
+unchanged; no proxy or certificate-verification bypass was introduced.
+
+The controlled assembler computes actual per-file hashes/provenance and leaves
+unreviewed output blocked. An independently pinned reviewed manifest is necessary
+for a publishable pack; no license approval or OCI identity is invented. A separate
+candidate-publication workflow is gated by that review. Production and kit
+promotion require the real reviewed inventory, immutable OCI digest, no-network
+idempotent seeding and exact-production-image internal-network smoke with actual
+OCR/table/figure/tokenizer/GGUF/image/Torch inference and restart. The previous
+online-download smoke is removed from production promotion.
+
+Fresh kits bake reviewed pins and show kit revision/application/asset identities.
+Explicit --upgrade retains operator environment/data, backs up managed templates
+and diagnoses missing/mismatched pins. platform-assets displays running image IDs
+and verifies the independently pinned active pack. No operator volume was deleted.
+
+Verification evidence: 70 focused tests PASS (2 optional skips); 19 PDF/offline
+regressions PASS; portable PowerShell 7 parser/launcher and actual-script mocked
+native extraction/fail-closed ordering PASS. Full harness first found an old test
+relying on implicit online defaults; its explicit developer-download case now
+retains pinned-revision assertions. Second run found the new Make target missing
+from the primary public declaration; the implementation declaration was corrected
+without weakening help coverage.
+
+Release evidence still BLOCKED / NOT RUN: complete actual asset materialization,
+independent per-file redistribution review, asset OCI publication, real egress-denied
+production model acceptance, and native Windows/Rancher/Desktop/physical GPU matrix.
+Upstream pinned revisions were verified via official HF API. Size observations:
+selected HF files total 1,926,526,077 bytes, native archives 690,085,633 bytes,
+plus extracted runtimes and approximately 865 MB of GGUF/projector. The controlled
+assembler refused this host before downloading: approximately 4.4 GiB free is
+below its 8 GiB minimum. No unrelated disk contents were deleted. Existing
+repository write-authentication limitations remain. Default setup now fails clearly
+when the reviewed pack/pins are absent; the fresh offline release is not yet usable.
+
+Additional compatibility proof PASS: existing checksum-verified local GGUF cache
+with the new default no-download setup, real pinned CPU inference, 1,507-token
+document, pixel-sensitive image vectors and 512d normalization. This developer
+local-cache check does not certify the complete mandatory production pack.
+
+A final workspace-fixture migration was also necessary: copied release-kit sources
+now include managed asset-release/inventory metadata, and syntax-only Compose
+topology tests supply clearly synthetic pins without fetching any image. All
+workspace regression assertions remain enabled and pass. The common lesson is
+to migrate every isolated kit/config fixture alongside mandatory deployment
+metadata, rather than injecting fake release pins into global test/runtime state.
+
+Final source verification: `harness.py check` PASS (1,947 tests, 15 optional skips,
+zero failures). Workspace fixtures PASS (4 tests); help/offline regression batch
+PASS (18 tests). Workflow YAML, PowerShell contracts, artifact manifest and
+whitespace checks PASS. Publication gates intentionally refuse the current
+blocked inventory/release; no real asset image was built, published or activated.
+
+## Completed local assembly and operator approval — 2026-11-12
+
+This supersedes the earlier materialization/local-acceptance blockers above.
+The final pack contains 82 pinned artifact files plus seven retained notice/review
+files. Original artifact hashes and provenance are unchanged. The operator
+explicitly approved the canonical license classifications and notices under the
+requirement of no-fee enterprise use without company-size limits. The canonical
+manifest is verified and independently pinned as
+`f3bd07b7dc304c73d5166a447fd50280fdf5e69cb9de9f7075f3c354b0db2f25`.
+The complete review and upstream notices are committed under
+`distribution/assets/licenses/`.
+
+Both actual images were built. Fresh-volume internal-network acceptance passed
+against the final approved pack: real OCR, tables/figures, tokenizer, wide text,
+pixel-sensitive image embeddings, native Torch, indexing, UI, MCP, dependency
+checks, repository-owner writes and restart. It reproduced and fixed root-only
+seed staging permissions and installed-wheel dependency-lock lookup. The locked
+production backend build also removes obsolete core setuptools metadata before
+copying the exact production backend and building without another resolution.
+
+Full final `harness.py check`: PASS, 1,955 tests, 16 skips. Approved-asset focused
+suite: PASS, 28 tests. Actual AMD integrated-GPU Vulkan wide-text/image inference
+also passed with runtime-reported device selection and denied egress. PowerShell
+7 launcher, native extraction and managed-container CUDA fallback contracts
+passed locally; no host driver or toolkit was changed.
+
+Registry publication and standard published-image acceptance remain NOT RUN.
+No actual GHCR digest has been recorded, and the separate registry release remains
+blocked. The owner will push these commits and handle publication; exact input
+hash, image identities and publication steps are in `distribution/assets/README.md`.
+Physical Windows GPU/Rancher/Desktop and broader durability/rollout gates remain
+open; local contract tests do not certify them. Existing user services/volumes
+were preserved, and only disposable fixture volumes and superseded build artifacts
+were removed.
+
+## PR 23 CI bootstrap follow-up
+
+All five reported failures shared the unpublished asset-release gate. Production
+and seeding jobs called `release_identity` while metadata was still blocked;
+workspace Go tests passed, but its helper-contract job unnecessarily built the
+release-gated deployment kit. Logs: jobs 131549258687, 131549096396,
+131548404102, 131549096201 and 131548403868.
+
+PR/source validation now explicitly prepares the operator-approved independently
+pinned candidate, checking the lock and notice hashes before materialization.
+Only an actual inspected local Docker image ID is passed to candidate offline
+acceptance. The preparer refuses an existing raw-pack directory and removes only
+its own successful assembly after the image build. Default/non-PR preparation
+still requires the published immutable release. Source seeding cleanup also
+checks volume existence so an earlier error does not cause a second cleanup error.
+
+The real `deployment-kit-candidate` target built both cross-platform helpers;
+their SHA-256 checks passed. Actual kit export, complete Compose configuration
+and application-image fallback checks passed with the verified local pack, while
+the kit retained blocked publication metadata. Building ordinary `deployment-kit`
+still failed with the expected blocked-release error. No OCI digest or release
+status was fabricated, and no candidate-kit publication path was added.
+
+Verification: six candidate-preparation regressions PASS; the initial 32-test focused
+CI/packaging/workspace tests PASS; workflow YAML and every Linux run-step Bash
+syntax PASS; full `harness.py check` PASS (1,961 tests, 16 skips). The candidate
+Docker build/export and strict-gate checks above are actual local execution.
+Fresh controlled assembly on GitHub and remote job reruns remain pending owner
+push; candidate-preparation subprocess orchestration is covered by the regression
+suite, and the unchanged approved pack has the prior full real offline/restart
+acceptance recorded above. Registry publication and physical Windows hardware
+certification remain separate outstanding release gates.

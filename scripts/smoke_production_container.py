@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import socket
 import stat
@@ -22,13 +23,35 @@ def run(*args, **kwargs):
     return subprocess.run(args, check=True, **kwargs)
 
 
-def request(base, path, payload=None):
+class ContainerEndpoint:
+    """Use an in-network HTTP client; an internal bridge need not expose ports."""
+    def __init__(self, container):
+        self.container = container
+
+    def fetch(self, path, payload=None):
+        program = ("import json,sys,urllib.request; "
+                   "body=None if sys.argv[2]=='null' else sys.argv[2].encode(); "
+                   "request=urllib.request.Request('http://127.0.0.1:8765'+sys.argv[1],data=body,headers={'Content-Type':'application/json'}); "
+                   "response=urllib.request.urlopen(request,timeout=60); sys.stdout.buffer.write(response.read())")
+        result = subprocess.run(['docker','exec',self.container,'python','-c',program,path,json.dumps(payload)],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
+        if result.returncode:
+            raise RuntimeError('In-network HTTP request failed: ' + result.stderr.decode(errors='replace')[-4096:])
+        return result.stdout
+
+
+def request_bytes(base, path, payload=None):
+    if isinstance(base, ContainerEndpoint):
+        return base.fetch(path, payload)
     data = None if payload is None else json.dumps(payload).encode()
-    req = urllib.request.Request(base + path, data=data,
-                                 headers={'Content-Type': 'application/json'})
+    req = urllib.request.Request(base + path, data=data, headers={'Content-Type':'application/json'})
+    with urllib.request.urlopen(req, timeout=60) as response:
+        return response.read()
+
+
+def request(base, path, payload=None):
     try:
-        with urllib.request.urlopen(req, timeout=60) as response:
-            return json.load(response)
+        return json.loads(request_bytes(base, path, payload))
     except urllib.error.HTTPError as exc:
         raise RuntimeError(f"{path}: HTTP {exc.code}: {exc.read(4096).decode(errors='replace')}") from exc
 
@@ -37,9 +60,30 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--image', required=True)
     parser.add_argument('--timeout', type=int, default=1800)
-    parser.add_argument('--model-cache', type=Path, help='optional verified Gemma Q8_0 backbone/projector cache to reuse; omit for a cold-download test')
+    parser.add_argument('--candidate-assets', action='store_true', help='Explicit local-only acceptance using a Docker image ID; does not certify registry publication')
+    parser.add_argument('--asset-image')
+    parser.add_argument('--manifest-sha256')
     parser.add_argument('--minimal', action='store_true', help='test common core only; never production inference evidence')
     args = parser.parse_args()
+    if args.candidate_assets and args.minimal:
+        parser.error('Local asset acceptance cannot be combined with the model-free minimal smoke')
+    if args.candidate_assets:
+        if not re.fullmatch(r'sha256:[0-9a-f]{64}', args.asset_image or '') or not re.fullmatch(r'[0-9a-f]{64}', args.manifest_sha256 or ''):
+            parser.error('Local acceptance requires the actual immutable Docker image ID and independent manifest SHA-256')
+        actual = subprocess.check_output(['docker','image','inspect','--format','{{.Id}}',args.asset_image],text=True).strip()
+        if actual != args.asset_image:
+            parser.error('Local candidate image identity mismatch')
+        print('LOCAL CANDIDATE ACCEPTANCE: published OCI identity remains unverified')
+    elif not args.minimal:
+        import sys
+        sys.path.insert(0, str(ROOT))
+        from pi_platform.deployment.offline_assets import release_identity
+        identity = release_identity(ROOT / 'distribution/assets/asset-release.json')
+        if args.asset_image and args.asset_image != identity['image']:
+            parser.error('Asset image differs from the independently reviewed release')
+        if args.manifest_sha256 and args.manifest_sha256 != identity['manifest_sha256']:
+            parser.error('Asset manifest differs from the independently reviewed release')
+        args.asset_image, args.manifest_sha256 = identity['image'], identity['manifest_sha256']
     with tempfile.TemporaryDirectory(prefix='pi-container-smoke-') as raw:
         root = Path(raw)
         repo = root / 'target repository'
@@ -59,7 +103,9 @@ def main():
             port = sock.getsockname()[1]
         env = {**os.environ, 'PI_IMAGE': args.image, 'PI_TARGET_REPO': str(repo),
                'PI_CONTROL_PORT': str(port), 'PI_EMBEDDING_MODEL': 'gemma',
-               'PI_EMBEDDING_DEVICE': 'cpu', 'PI_DOCLING_ENABLED': '1'}
+               'PI_EMBEDDING_DEVICE': 'cpu', 'PI_DOCLING_ENABLED': '1',
+               'PI_ASSET_IMAGE': args.asset_image or args.image,
+               'PI_ASSET_MANIFEST_SHA256': args.manifest_sha256 or '0' * 64}
         compose = ['docker', 'compose', '--project-name', f'pi-smoke-{os.getpid()}',
                    '--env-file', str(ROOT / 'distribution/deployment/deployment.env'),
                    '-f', str(ROOT / 'distribution/deployment/compose.yaml')]
@@ -67,8 +113,8 @@ def main():
             override = root / 'minimal.json'
             override.write_text(json.dumps({'services': {'production': {
                 'environment': {'PI_STARTUP_PROFILE': 'minimal', 'PI_DOCLING_ENABLED': '0',
-                                'PI_EMBEDDING_MODEL': 'hashing', 'PI_DENSE_INDEX': 'flat'}
-            }}}))
+                                'PI_EMBEDDING_MODEL': 'hashing', 'PI_DENSE_INDEX': 'flat', 'PI_REQUIRE_OFFLINE_ASSETS':'0'}
+            }, 'asset-seed': {'image':args.image, 'entrypoint':['python', '-c', 'pass'], 'command':[]}}}))
             compose.extend(['-f', str(override)])
             run('docker', 'run', '--rm', '-v', f'{repo}:/repo', args.image,
                 'init-project', '--target', '/repo')
@@ -77,19 +123,28 @@ def main():
                             '-f', str(ROOT / 'distribution/deployment/compose.cpu.yaml')])
         base = f'http://127.0.0.1:{port}'
         try:
-            if args.model_cache and not args.minimal:
-                # Seed only model bytes; setup still checks their hash and creates its own key.
-                volume = f'pi-smoke-{os.getpid()}_model-cache'
-                run(*compose, 'create', 'model-setup', env=env)
-                run('docker', 'run', '--rm', '--entrypoint', 'python',
-                    '-v', str(args.model_cache.resolve()) + ':/seed:ro', '-v', volume + ':/models',
-                    args.image, '-c',
-                    'from pi_platform.adapters.retrieval.gguf_artifacts import GEMMA_FILENAME, GEMMA_PROJECTOR_FILENAME; '
-                    'import shutil; [shutil.copyfile("/seed/"+name, "/models/"+name) for name in (GEMMA_FILENAME, GEMMA_PROJECTOR_FILENAME)]')
+            if not args.minimal:
+                # Pull all registry dependencies before denying runtime egress.
+                if args.candidate_assets:
+                    run(*compose, 'pull', 'embeddings', env=env)
+                else:
+                    run(*compose, 'pull', 'asset-seed', 'embeddings', env=env)
+                denied = root / 'egress-denied.json'
+                denied.write_text(json.dumps({'networks': {'default': {'internal': True}}}))
+                compose.extend(['-f', str(denied)])
             run(*compose, 'up', '-d', '--wait', '--wait-timeout', str(args.timeout), env=env)
+            if not args.minimal:
+                container = subprocess.check_output([*compose, 'ps', '-q', 'production'], env=env, text=True).strip()
+                base = ContainerEndpoint(container)
+                for directory in ('tests', 'scripts'):
+                    run('docker', 'exec', container, 'mkdir', '-p', '/tmp/offline-acceptance/' + directory)
+                for name in ('tests/__init__.py', 'tests/test_docling_production_binding.py',
+                             'scripts/generate_pdf_fixtures.py', 'scripts/verify_offline_runtime.py'):
+                    run('docker', 'cp', str(ROOT / name), container + ':/tmp/offline-acceptance/' + name)
+                run(*compose, 'exec', '-T', '-e', 'PI_RUN_PDF_TESTS=1', '-e', 'PYTHONPATH=/tmp/offline-acceptance',
+                    'production', 'python', '/tmp/offline-acceptance/scripts/verify_offline_runtime.py', env=env)
             assert request(base, '/health/ready')['ready']
-            with urllib.request.urlopen(base + '/', timeout=10) as page:
-                assert b'Project Intelligence' in page.read()
+            assert b'Project Intelligence' in request_bytes(base, '/')
             result = request(base, '/api/v1/query', {'text': 'invoice billing', 'top_k': 3})
             assert result.get('results'), result
             python_result = request(base, '/api/v1/query', {'text': 'httpx Python billing dependency', 'top_k': 10})
@@ -157,7 +212,10 @@ def main():
                 assert 'Updated invoice explanation.' in page.read_text()
                 assert page.stat().st_uid == repo.stat().st_uid
                 assert stat.S_IMODE(page.stat().st_mode) == 0o644
-            profile = 'minimal core only' if args.minimal else 'real model setup'
+            profile = 'minimal core only' if args.minimal else 'egress-denied immutable asset setup'
+            if not args.minimal:
+                logs = subprocess.check_output([*compose, 'logs', '--no-color'], env=env, text=True)
+                assert not re.search(r'https?://(?:[a-z0-9-]+\.)?(?:huggingface\.co|hf\.co)', logs, re.I), 'Unexpected Hugging Face request in offline logs'
             print(f'PASS: {profile}, readiness, query, UI, MCP, dependency check and restart')
         finally:
             subprocess.run([*compose, 'logs', '--tail', '80'], env=env)

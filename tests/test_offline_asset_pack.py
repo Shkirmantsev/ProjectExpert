@@ -43,6 +43,18 @@ class OfflineAssetPackTests(unittest.TestCase):
         self.assertTrue((first / 'embedding/model.gguf').is_file())
         self.assertEqual((self.destination / 'active-asset-pack').read_text().strip(), self.digest)
 
+    @unittest.skipIf(os.name == 'nt', 'POSIX application UID permissions')
+    def test_published_pack_is_readable_after_dropping_root_with_private_umask(self):
+        self.destination.mkdir()
+        previous = os.umask(0o077)
+        try:
+            final = seed(self.source, self.destination, self.digest)
+        finally:
+            os.umask(previous)
+        self.assertEqual((self.destination / 'asset-packs').stat().st_mode & 0o777, 0o755)
+        for path in [final, *final.rglob('*')]:
+            self.assertEqual(path.stat().st_mode & 0o777, 0o755 if path.is_dir() else 0o644, str(path))
+
     def test_damaged_installed_pack_is_not_silently_accepted_or_overwritten(self):
         final = seed(self.source, self.destination, self.digest)
         model = final / 'embedding/model.gguf'
@@ -101,10 +113,16 @@ class OfflineAssetPackTests(unittest.TestCase):
         with self.assertRaisesRegex(AssetPackError, 'Linked'):
             seed(self.source, self.destination, self.digest)
 
-    def test_repository_manifest_is_honestly_blocked(self):
+    def test_repository_manifest_has_complete_pinned_review_evidence(self):
         path = Path('distribution/assets/assets-lock.json')
-        with self.assertRaisesRegex(AssetPackError, 'blocked'):
-            load_manifest(path, hashlib.sha256(path.read_bytes()).hexdigest())
+        release = json.loads(path.with_name('asset-release.json').read_text())
+        manifest = load_manifest(path, release['manifest_sha256'])
+        for entry in manifest['files']:
+            if entry['path'].startswith('licenses/'):
+                evidence = path.parent / entry['path']
+                self.assertEqual(hashlib.sha256(evidence.read_bytes()).hexdigest(), entry['sha256'], entry['path'])
+        review = json.loads((path.parent / 'licenses/asset-review.json').read_text())
+        self.assertEqual(review['status'], 'operator-approved')
 
 
 class TrustBundleTests(unittest.TestCase):

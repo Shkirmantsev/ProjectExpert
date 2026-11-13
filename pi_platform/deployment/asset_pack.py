@@ -92,6 +92,7 @@ def seed(source: Path, destination: Path, expected_digest: str) -> Path:
     if packs.is_symlink():
         raise AssetPackError('Refusing symlinked asset pack directory')
     packs.mkdir(exist_ok=True)
+    os.chmod(packs, 0o755)
     final = packs / expected_digest
     if final.exists():
         if final.is_symlink():
@@ -107,13 +108,18 @@ def seed(source: Path, destination: Path, expected_digest: str) -> Path:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with local_file(source, entry['path']).open('rb') as reader, target.open('xb') as writer:
                     shutil.copyfileobj(reader, writer)
+                    os.chmod(target, 0o644)
                     writer.flush()
                     os.fsync(writer.fileno())
             with (staging / 'manifest.json').open('xb') as stream:
                 stream.write((source / 'manifest.json').read_bytes())
+                os.chmod(staging / 'manifest.json', 0o644)
                 stream.flush()
                 os.fsync(stream.fileno())
             for directory in [*sorted((path for path in staging.rglob('*') if path.is_dir()), reverse=True), staging]:
+                # Models/notices are public assets, consumed after dropping root.
+                # mkdtemp is 0700; a restrictive operator umask also affects children.
+                os.chmod(directory, 0o755)
                 sync_directory(directory)
             load_manifest(staging / 'manifest.json', expected_digest)
             verify(staging, manifest)
