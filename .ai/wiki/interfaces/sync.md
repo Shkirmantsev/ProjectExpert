@@ -221,3 +221,15 @@ requiring private binary assets has no cold-clone promise. See
 [operator guide](../../../docs/GIT_PORTABLE_CANONICAL_SYNC.md),
 [evidence](../../../docs/GIT_PORTABLE_CANONICAL_EVIDENCE.md) and
 [ADR 0034](../adr/0034-portable-production-canonical-snapshots.md).
+
+
+## Legacy Windows manifest compatibility
+
+V1 manifest shard paths may contain native backslashes from older Windows
+writers. Hydration normalizes those separators at the legacy read boundary,
+then applies the same traversal, absolute-path, link and checksum checks.
+Family routing uses the normalized path as well. The stored manifest and its
+self-hash are not rewritten. V2 paths continue to reject backslashes strictly.
+The regression suite also exercises an aliased temporary repository root so
+approval scopes and injected write failures use the same resolved identity as
+production; no trusted approval checks are relaxed.

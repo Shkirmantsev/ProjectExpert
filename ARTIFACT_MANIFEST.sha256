@@ -240,7 +240,7 @@ f645683d86c8988ad15498d253d4130cbff42cd4c54330ec29bb663ac5db21b0  ./.ai/wiki/int
 c0c03c29cbfd5ad23375fde283c54c84786bf4c4db7b01a69b0214fcfee1d58e  ./.ai/wiki/interfaces/skill-distribution.md
 2c1b4c56fa47886f7ea0929ebbed2a6b4ac43556f5e0786c318917d5aa16613f  ./.ai/wiki/interfaces/source-adapters.md
 7d0998662e329e995f483dd0324c13218ea8accdaa7b181577ee2925840c86d9  ./.ai/wiki/interfaces/sparse-index.md
-389379df4aec45c0d91bbad8f2e3ac1618d594ed8e5e7a63c90d3c7e592bab8f  ./.ai/wiki/interfaces/sync.md
+77e43fd3509b19469de1d86b0c639e3f46e9e8229e77b6221ab3daec18247fa5  ./.ai/wiki/interfaces/sync.md
 5ba9020effe570e6c51f40ddfc738907b1deb329d67dc032281c0394559d8588  ./.ai/wiki/interfaces/tokenizer.md
 543771bc94fbec5f39864ee5e930800ae6c60726c4caa22746bc92289e7e8745  ./.ai/wiki/interfaces/trusted-approval-boundary.md
 b06a8623c0c7ccee1cce813491f51602bcbdcd403c4a19c160f477033e9a9951  ./.ai/wiki/interfaces/ui-extension.md
@@ -259,7 +259,7 @@ f777eba155c1b52d569c18ceb5935110b679e039410418678f97545bcbf0225d  ./.ai/wiki/mod
 7ddcee601d6327caa8bc7cab7389a17835617905d1ed82027f63d543fd5dc2b4  ./.ai/wiki/modules/embeddings.md
 0ad3ac5cb9415275f31f5046cc7cc84bb93d2ed35732276e612a4fb9a2ddd731  ./.ai/wiki/modules/eval.md
 f616c0166928d683645645044650b283cf2916fa435de8a5696f1f114587bd88  ./.ai/wiki/modules/feature-flags.md
-4c2fa85c9248fb70ff90dc55446bbe01edd9ff33dd2dc70216c836fc12a11d06  ./.ai/wiki/modules/graph.md
+788d00db76a19051a781aed2c113cad467d996e29dcd540fd896d961b944716f  ./.ai/wiki/modules/graph.md
 6a776f5dc6d8160cc929a25a507066a20c868785a5f6b7e81a6836e50241b181  ./.ai/wiki/modules/hooks.md
 df9f2dc4ea1d0503d5514ae85efd0769e796ebfb2307c4d308c6997e86a163a5  ./.ai/wiki/modules/host-embedding-accelerator.md
 d3fffadcd8a2b74e1d2f07b5c763182ed8615d52f06e00d983ea0d3c7a06d1d5  ./.ai/wiki/modules/inference-runtime.md
@@ -404,7 +404,7 @@ d65ee06372237610b0ce03b33586f464903982fbc0b1dce4a0b28e92b3a87c4a  ./docs/CONFIGU
 e71e75e5a88f659b83e5a2c9eaa0bf0bf0734186c4dd085a01428c16ff0c2d7c  ./docs/CONTAINER_SEARCH_REPAIR.md
 60d597ac5d73ab2f20d1798dd86ae0ff8cc57ff3c02a9729da583923a1fdffc7  ./docs/DEPENDENCY_RESEARCH.md
 47502b4b95948280494a724e2137161dcc4dea7002c0a74259e85f089ddd887a  ./docs/FAST_WORKSPACE.md
-2b803b90aa759ac5c8c815eb4ba110223293dfd2c2ada8fcfb98948eac1a8918  ./docs/GIT_PORTABLE_CANONICAL_EVIDENCE.md
+647725fd12f366a13fdb9101a7c4d36040791105fe654317debd3e8194b98a1d  ./docs/GIT_PORTABLE_CANONICAL_EVIDENCE.md
 5ec6a2652edb311fc561d471dea14857be4e50d292e564643cb91ca611455838  ./docs/GIT_PORTABLE_CANONICAL_SYNC.md
 e52992a9e8ae5d45841b381abc4b50055a8a02395b371df32211821a648d3e2d  ./docs/HARNESS_COMMANDS.md
 b3d845c0978db7bdecd71f13c359d6d58c48c3faf05359c044afeb3f9270a7be  ./docs/HERMES_NATIVE_SETUP.md
@@ -821,7 +821,7 @@ dc989c155f08992905bcc8653b4678c73a9cd22649e7b24308ae56f4fbdbc84b  ./openspec/cha
 222fcb881332621589c27dfda7dd16cfb25261c8f24037cc15adab98935c0887  ./openspec/changes/implement-git-portable-canonical-sync/design.md
 8c09c0e3126a83c6d0e6d1346e359eac9947f7c60fa0ebdccde95a15ed845d07  ./openspec/changes/implement-git-portable-canonical-sync/proposal.md
 8fb0a5c7fcb97f7619bbe59b1d8e5a383570f7f804f84b0953e12868c1a1b235  ./openspec/changes/implement-git-portable-canonical-sync/specs/2026-10-04-bidirectional-canonical-runtime-sync/spec.md
-d8596ffd61150d97ae02260516e57b798e1258196b0023d1a780153bcc13f3ac  ./openspec/changes/implement-git-portable-canonical-sync/tasks.md
+4c0b41af901317684c6456d81ae736c9ee2241117237ced804c5ecda07c658ee  ./openspec/changes/implement-git-portable-canonical-sync/tasks.md
 a43b472ae3c9c4ad2d3080b63e4c3843685c600852823b88a4ba384a00511220  ./openspec/changes/implement-production-indexing-resume/context-impact.md
 d9973d8f085205d1bf35fb4a059f80a5c2914ced460a32864c6a3827fc8ca23c  ./openspec/changes/implement-production-indexing-resume/design.md
 62c17fc810303318d51888c7bc28599cc38a7e098b29db9c4f8de1f47d5a200f  ./openspec/changes/implement-production-indexing-resume/proposal.md
@@ -1222,7 +1222,7 @@ c64288ff4fe36c6a595e0fbfa34bb3e5250351b92606ca236f2c9b6dd5138d6e  ./pi_platform/
 6eefad3533e9224691fdb5c88f231624d2e739ed4ccc5fb2b79c7c3e00c777a0  ./pi_platform/core/security/permission.py
 3cf3a6afda79e2fa6ec2098e5dd739dcc63edb463d52620a9f4996c0360461aa  ./pi_platform/core/security/redaction.py
 4a46d485b526ad1b66f0b16369158aeb5857b02bf37e65f47db1770a4aa7f336  ./pi_platform/core/sync/__init__.py
-147a8449f4abdebd000dce9d6126d5537842178968ac2e8fea76a5c328271908  ./pi_platform/core/sync/hydrate.py
+15b230153784bfcb34ecdac9adc9afccd49785af946b32127aaa468e7e2f3b4a  ./pi_platform/core/sync/hydrate.py
 005ef90c3f2dcbb74a5c4384d19bc4d4a0b3fd916495871ff01e8966dd12295c  ./pi_platform/core/sync/materialise.py
 2071f18fa69388bf01829b7f15420086efe3c64894bd196109f2f23ecb1e6fa0  ./pi_platform/core/sync/policy_stub.py
 9e6c8d05fbb6c994a175fb410532589de98cb8ddec1ef38cde77de5183376c64  ./pi_platform/core/sync/project_lock.py
@@ -1435,7 +1435,7 @@ ec76132bb7c8ea6276730199beafd0415d4e7ab98786993198c003f73a8b3f7a  ./tests/test_e
 87910879187013e5c1be20b06acfdae348a40af052f6555ef8c07e37cf774828  ./tests/test_first_start_wizard.py
 c6733bdfde6dff89feaf62d760b494a1bd033706fff6febdc603bba72118fe50  ./tests/test_generation_gc.py
 7c0b8838684d48a7b7aa0dea6597c8e945c51c8ee88222180493bed2d76551e9  ./tests/test_gguf_runtime.py
-897b096bdefe268e637d16f7a36eb160a9d0b5dc5d188e8ec560846929f12e9b  ./tests/test_graph_50k.py
+89d58149e5e9b2c024a3d40f34d219912818b0192c1d5f35698deb8d3426f3ed  ./tests/test_graph_50k.py
 8ae0e2fc531459d605c3368165983730d007b5561f8d49f336994c02a0326622  ./tests/test_harness_commands.py
 e4c5c6c3599d006208297c0e4073f4695081781f55bd8f066c94562cf89c9cdf  ./tests/test_harness_init.py
 6dc0d1b4b0498b8f11f98e6b450bc07795c8ea5f42864cfa32893ac3852234af  ./tests/test_hashing_embedding_fallback.py
@@ -1496,7 +1496,7 @@ f390ee56efdbddbd87997b94f6887aa15b6a1e207cfa557df02ed28dff542604  ./tests/test_p
 272b6c6197ac3c014b9b84fb169a6683b4b041f57d8cc1f3c88da12acff17585  ./tests/test_platform_phase2.py
 5d2ad719f5ed3a22a1ad1bcb8089298413363804d87561c8943775a4a2874703  ./tests/test_platform_phase3.py
 a80d89d9a8796b383c21875dad475b8cf415e71d2968a910171332ebb84f94e9  ./tests/test_platform_phase4.py
-6fa714bff0d4790f57e760888d2be813f67f92f90b46243c662dee1650b93f3e  ./tests/test_portable_canonical_sync.py
+d6c13c3523b1f7f0e81f08ab743e3b19b6769df3040bf507aa3c94abf33af9c6  ./tests/test_portable_canonical_sync.py
 4babef22d6c0a01d8ec3fee05a4eed1e8b4f8380136b540f2ca222eccd5d5be9  ./tests/test_portable_deployment.py
 c885d10b293a739a1de9e65c71ed88008b7197b6c7b9c84e3ea6d085d5f50e24  ./tests/test_prerun_chat_and_tmp.py
 7f541c4c27cfe4c39497f218c14ae4eb746414e018126f38e4ef3e52b0ad0138  ./tests/test_production_capability_gate.py
@@ -1545,6 +1545,7 @@ ff0bb6f006170cd51b96d896e584c0c237d5da59cd925774ad4e041716aea5d5  ./tests/test_t
 0f8610d7ebb34fbcad08a00fb4f1939f37893a4fa6c2535d056f9f5935c26655  ./tests/test_version_compatibility.py
 42499517a953bf78d7a473f951e08e06bbf171550dae0339aa01235e79438b1f  ./tests/test_wiki_durability.py
 cc47419b341b8790a174b8b99651929c2b29f8065924282034ad670ee7acd543  ./tests/test_wiki_research_enrichment.py
+fcc344db330ba7ea20d6d5c85e84364cefc76c360eca70691ed22da5d3ce3884  ./tests/test_windows_canonical_paths.py
 28c7292061ab934207112ff8dd1ee4602fb07568f9188e9b3ce7e75f61633bd1  ./tests/test_workspace_deployment.py
 50a525cf6bcee310ab0507384b6c36b3700fdc229aa0049afa38e3c6bdf42733  ./tests/test_workspace_importer.py
 7f80b8645828179e1ab4942c997aafc0fffe2b617af2e842783dcb2419b0796c  ./tests/test_workspace_sync_contract.py

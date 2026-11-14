@@ -16,3 +16,11 @@
 See docs/GIT_PORTABLE_CANONICAL_EVIDENCE.md for executed checks, partial acceptance,
 compatibility deviations and unexecuted release gates. Current specs are not
 silently adopted or archives marked complete.
+
+
+## PR25 hosted Windows follow-up
+- [x] Reproduce v1 native separators, aliased roots and scale-write amplification.
+- [x] Repair legacy compatibility without relaxing v2 paths or approval scope.
+- [x] Keep the 50k scale dataset and assertions while reusing the production bulk builder.
+- [x] Run the complete local harness without graph skips (2,018 tests, 20 skips).
+- [ ] Verify fresh hosted Windows 3.11/3.13 checks for the repair commit.

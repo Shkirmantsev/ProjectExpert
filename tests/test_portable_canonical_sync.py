@@ -35,7 +35,8 @@ class PortableProductionTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.base = Path(self.temp.name)
+        # Windows TEMP may use an 8.3 alias; tokens and writers bind resolve().
+        self.base = Path(self.temp.name).resolve()
         self.root = self.base / 'original'
         self.root.mkdir()
         git(self.root, 'init', '-b', 'main')

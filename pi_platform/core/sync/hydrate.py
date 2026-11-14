@@ -114,7 +114,10 @@ class HydrateService(HydratePort):
         from pi_platform.adapters.sync.portable_format import confined, read_bounded, sha
         for shard in manifest.shards:
             try:
-                shard_path = confined(knowledge_root, shard.path)
+                # v1 writers persisted native Windows separators. Normalize only
+                # at this legacy read boundary, before the same confinement and
+                # traversal checks; v2 source/shard paths remain strictly POSIX.
+                shard_path = confined(knowledge_root, shard.path.replace("\\", "/"))
                 raw = read_bounded(shard_path, 32 * 1024 * 1024)
                 if shard_path.suffix == '.jsonl':
                     bodies = [canonical_load_json(line) for line in raw.splitlines() if line.strip()]
@@ -145,8 +148,9 @@ def _family_from_manifest_path(path: Path) -> str:
 
 
 def _family_for_shard(shard: Shard) -> str:
-    if "/" in shard.path:
-        return shard.path.split("/", 1)[0]
+    path = shard.path.replace("\\", "/")
+    if "/" in path:
+        return path.split("/", 1)[0]
     return "objects"
 
 

@@ -4,22 +4,22 @@
     "steps_used": 0
   },
   "context": [
-    "/home/dmytro/Downloads/ProjectExpert-Git-Portable-Canonical-Sync-Implementation-Design-2026-11-14.md"
+    "https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43610912090"
   ],
   "decisions": [
-    "First harness attempt reached HTTP tests then failed because sandbox forbids creating sockets; rerun full harness with approved local-test permissions"
+    "Keep HMAC and v2 path checks strict; normalize only legacy shard separators and test fixture roots. Reuse the existing production bulk graph builder instead of adding another graph API or increasing CI timeouts."
   ],
   "progress": {
     "blocked": [],
     "done": [
-      "Committed opt-in portable production sync, strict readers, policy-safe root-last publication, source/vector reuse, parallel scheduling guards and bounded import performance fixes as 2baeb36; contract is b707a91"
+      "Fixed v1 native Windows shard paths and family routing, canonicalized aliased temp fixtures, and reused the production bulk builder for complete 50k graph acceptance without timeout increases"
     ],
     "todo": [
-      "Complete remaining media portability, managed-volume host write-back and external cross-OS/model/scale release gates listed in the active OpenSpec change"
+      "Push verified PR25 repair and inspect fresh hosted Windows 3.11/3.13 checks; retain broader original media/volume/hardware gates"
     ]
   },
   "resume": {
-    "next_action": "Review committed evidence matrix before production promotion; remaining release work stays explicit in OpenSpec",
+    "next_action": "Commit and push verified repair; watch fresh PR25 checks",
     "prerequisites": []
   },
   "runtime": {
@@ -33,7 +33,7 @@
     "created_at": "2026-11-14T14:36:26+00:00",
     "id": "git-portable-canonical-sync",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-14T15:28:25+00:00"
+    "updated_at": "2026-11-14T21:06:26+00:00"
   },
   "task": {
     "acceptance": [
@@ -45,7 +45,7 @@
   },
   "verification": {
     "passed": [
-      "Full harness PASS: 2013 tests across 154 suites, 17 skips (already passed 50k graph fixture skipped on repeat); final focused 52 tests PASS; million format and 50-source Git/SQLite benchmarks PASS; OpenSpec95, manifest, session and diff gates PASS"
+      "Full harness PASS:2018 tests/155 suites/20 skips with full50k test active (3.7s build,5.0s cleanup); focused104 PASS; regressions failed before fixes; safety gates unchanged"
     ],
     "pending": [
       "Physical Windows/Rancher/CUDA/Vulkan, real offline model/assets and large production/media/host-volume acceptance remain unexecuted or unsupported; active OpenSpec and evidence matrix retain limits"
@@ -53,12 +53,20 @@
   },
   "working_set": [
     {
-      "path": "docs/GIT_PORTABLE_CANONICAL_EVIDENCE.md",
-      "sha256": "2b803b90aa759ac5c8c815eb4ba110223293dfd2c2ada8fcfb98948eac1a8918"
+      "path": "pi_platform/core/sync/hydrate.py",
+      "sha256": "15b230153784bfcb34ecdac9adc9afccd49785af946b32127aaa468e7e2f3b4a"
     },
     {
-      "path": "openspec/changes/implement-git-portable-canonical-sync/tasks.md",
-      "sha256": "d8596ffd61150d97ae02260516e57b798e1258196b0023d1a780153bcc13f3ac"
+      "path": "tests/test_graph_50k.py",
+      "sha256": "89d58149e5e9b2c024a3d40f34d219912818b0192c1d5f35698deb8d3426f3ed"
+    },
+    {
+      "path": "tests/test_portable_canonical_sync.py",
+      "sha256": "d6c13c3523b1f7f0e81f08ab743e3b19b6769df3040bf507aa3c94abf33af9c6"
+    },
+    {
+      "path": "tests/test_windows_canonical_paths.py",
+      "sha256": "fcc344db330ba7ea20d6d5c85e84364cefc76c360eca70691ed22da5d3ce3884"
     }
   ]
 }

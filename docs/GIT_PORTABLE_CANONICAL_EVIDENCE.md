@@ -142,3 +142,32 @@ it does not certify million-source production parsing, graph activation or queri
 The supplied Definition of Done therefore remains open for those media, volume,
 scale, cross-OS and real-model release gates. No PR URLs, registry publication or
 physical hardware results are fabricated.
+
+
+## PR25 Windows CI repair — 2026-11-14
+
+The first hosted Windows runs exposed three mechanisms missed by the initial
+Linux acceptance. Evidence: [Windows 3.13 unit job](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43610912090/job/132495534117)
+and [cancelled Windows 3.11 full job](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43610912090/job/132495533938).
+All seven failed jobs showed the same graph-path error; unit jobs additionally
+reported legacy hydration and portable-fixture failures. The cancelled full job
+spent 970 seconds building the graph, then timed out during cleanup.
+
+| Cause | Narrow correction | Regression evidence |
+|---|---|---|
+| Windows TEMP reports RUNNER~1 while Path.resolve expands runneradmin | Resolve fixture roots once; inspect graph files relative to graph.root | Symlinked-root regression models the alias on Linux; existing signed auto/REST and interrupted-publication tests stay enabled |
+| V1 manifests contain native backslashes, rejected by new strict path validation | Normalize only legacy shard separators and family routing before unchanged confinement checks | Native Windows graph manifest restores cold/warm and correct family; drive, UNC, absolute and traversal paths remain rejected; v2 remains strict |
+| Scale fixture calls single-record atomic mutation 50,000 times | Use the already-shipped production bulk builder; retain all 50k records and file/count/hash/size/sample-read assertions | 258 atomic replacements, local build 4.0 s / total 5.3 s; budget fails if construction returns to per-entity writes |
+
+Before implementation, the new alias and legacy-path regressions and scale I/O
+budget failed (3 failures / 4 tests, about 7 seconds). After the correction,
+`python3 -m unittest tests.test_windows_canonical_paths tests.test_graph_50k tests.test_platform_phase1 tests.test_portable_canonical_sync tests.test_platform_phase3.GraphTests tests.test_candidate_artifacts -q`
+passed 104 tests, including the complete 50k fixture, in 31.064 seconds. Unlike the
+historical slow fixture above, this run did not skip or shrink the scale dataset.
+The HMAC boundary, v2 path validator, production source concurrency and CI timeouts
+are unchanged. Hosted rerun results are recorded after publication of this repair.
+
+The repaired branch also passed `python3 harness.py check` with no graph skip:
+2,018 tests across 155 suites, 20 skips. The full-run graph fixture built in 3.7 s
+and cleaned up by 5.0 s. This is local Linux evidence; fresh hosted Windows
+acceptance is still pending at this commit.
