@@ -6,7 +6,7 @@ Structured source: [handoffs/git-portable-canonical-sync.json](handoffs/git-port
 
 Task: `git-portable-canonical-sync`
 Status: `verifying`
-Updated: `2026-11-14T21:06:26+00:00`
+Updated: `2026-11-14T21:11:24+00:00`
 Active OpenSpec change: `implement-git-portable-canonical-sync`
 
 ## Objective
@@ -19,19 +19,19 @@ Implement Git portable canonical sync design on current branch and commit logica
 
 ## Completed
 
-- Fixed v1 native Windows shard paths and family routing, canonicalized aliased temp fixtures, and reused the production bulk builder for complete 50k graph acceptance without timeout increases
+- Committed Windows path and scale-timeout repair as 92de34f; full local harness and focused regressions pass; no remote branch update occurred
 
 ## Remaining
 
-- Push verified PR25 repair and inspect fresh hosted Windows 3.11/3.13 checks; retain broader original media/volume/hardware gates
+- Await approval to publish verified repair to existing PR25 branch; then inspect fresh hosted Windows checks. Preserve broader media/volume/hardware release gates.
 
 ## Blocked
 
-- none
+- PR25 publication awaits explicit user approval after GitHub API upload was rejected by automatic approval review; SSH authentication is unavailable
 
 ## Decisions
 
-- Keep HMAC and v2 path checks strict; normalize only legacy shard separators and test fixture roots. Reuse the existing production bulk graph builder instead of adding another graph API or increasing CI timeouts.
+- Do not bypass rejected GitHub upload through alternative publication routes; all code and tests are already reviewable in the local repair commit
 
 ## Relevant context
 
@@ -54,7 +54,7 @@ Implement Git portable canonical sync design on current branch and commit logica
 
 ## Next action
 
-Commit and push verified repair; watch fresh PR25 checks
+Await the pending user publication approval; do not retry remote writes before approval
 
 ## Prerequisites
 

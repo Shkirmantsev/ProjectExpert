@@ -171,3 +171,10 @@ The repaired branch also passed `python3 harness.py check` with no graph skip:
 2,018 tests across 155 suites, 20 skips. The full-run graph fixture built in 3.7 s
 and cleaned up by 5.0 s. This is local Linux evidence; fresh hosted Windows
 acceptance is still pending at this commit.
+
+Publication status: repair commit `92de34f` remains local. SSH push failed because
+this session has no usable GitHub public-key authentication. The connected app's
+tree upload was then rejected by automatic approval review, which required explicit
+permission for publishing the source/documentation/task-state payload to PR25.
+Permission has been requested; no alternative upload or fresh Windows success is
+claimed while that approval is pending.

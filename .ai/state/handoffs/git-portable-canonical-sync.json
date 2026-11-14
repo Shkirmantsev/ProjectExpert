@@ -7,19 +7,21 @@
     "https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43610912090"
   ],
   "decisions": [
-    "Keep HMAC and v2 path checks strict; normalize only legacy shard separators and test fixture roots. Reuse the existing production bulk graph builder instead of adding another graph API or increasing CI timeouts."
+    "Do not bypass rejected GitHub upload through alternative publication routes; all code and tests are already reviewable in the local repair commit"
   ],
   "progress": {
-    "blocked": [],
+    "blocked": [
+      "PR25 publication awaits explicit user approval after GitHub API upload was rejected by automatic approval review; SSH authentication is unavailable"
+    ],
     "done": [
-      "Fixed v1 native Windows shard paths and family routing, canonicalized aliased temp fixtures, and reused the production bulk builder for complete 50k graph acceptance without timeout increases"
+      "Committed Windows path and scale-timeout repair as 92de34f; full local harness and focused regressions pass; no remote branch update occurred"
     ],
     "todo": [
-      "Push verified PR25 repair and inspect fresh hosted Windows 3.11/3.13 checks; retain broader original media/volume/hardware gates"
+      "Await approval to publish verified repair to existing PR25 branch; then inspect fresh hosted Windows checks. Preserve broader media/volume/hardware release gates."
     ]
   },
   "resume": {
-    "next_action": "Commit and push verified repair; watch fresh PR25 checks",
+    "next_action": "Await the pending user publication approval; do not retry remote writes before approval",
     "prerequisites": []
   },
   "runtime": {
@@ -33,7 +35,7 @@
     "created_at": "2026-11-14T14:36:26+00:00",
     "id": "git-portable-canonical-sync",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-14T21:06:26+00:00"
+    "updated_at": "2026-11-14T21:11:24+00:00"
   },
   "task": {
     "acceptance": [
