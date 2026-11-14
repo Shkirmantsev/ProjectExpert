@@ -7,21 +7,19 @@
     "https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43610912090"
   ],
   "decisions": [
-    "Do not bypass rejected GitHub upload through alternative publication routes; all code and tests are already reviewable in the local repair commit"
+    "User explicitly requested local commits only and will handle pushing and merging; do not retry GitHub publication."
   ],
   "progress": {
-    "blocked": [
-      "PR25 publication awaits explicit user approval after GitHub API upload was rejected by automatic approval review; SSH authentication is unavailable"
-    ],
+    "blocked": [],
     "done": [
-      "Committed Windows path and scale-timeout repair as 92de34f; full local harness and focused regressions pass; no remote branch update occurred"
+      "Repair committed locally as 92de34f with verification checkpoint 847dc7e; all source changes are committed and user owns publication"
     ],
     "todo": [
-      "Await approval to publish verified repair to existing PR25 branch; then inspect fresh hosted Windows checks. Preserve broader media/volume/hardware release gates."
+      "User will push and merge PR25; agent publication is not authorized. Broader media/volume/hardware release gates remain in OpenSpec."
     ]
   },
   "resume": {
-    "next_action": "Await the pending user publication approval; do not retry remote writes before approval",
+    "next_action": "User pushes and merges the committed PR25 repair; inspect new CI results only when requested",
     "prerequisites": []
   },
   "runtime": {
@@ -35,7 +33,7 @@
     "created_at": "2026-11-14T14:36:26+00:00",
     "id": "git-portable-canonical-sync",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-14T21:11:24+00:00"
+    "updated_at": "2026-11-14T21:12:46+00:00"
   },
   "task": {
     "acceptance": [

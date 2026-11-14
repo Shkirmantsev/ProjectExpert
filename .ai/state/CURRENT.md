@@ -6,7 +6,7 @@ Structured source: [handoffs/git-portable-canonical-sync.json](handoffs/git-port
 
 Task: `git-portable-canonical-sync`
 Status: `verifying`
-Updated: `2026-11-14T21:11:24+00:00`
+Updated: `2026-11-14T21:12:46+00:00`
 Active OpenSpec change: `implement-git-portable-canonical-sync`
 
 ## Objective
@@ -19,19 +19,19 @@ Implement Git portable canonical sync design on current branch and commit logica
 
 ## Completed
 
-- Committed Windows path and scale-timeout repair as 92de34f; full local harness and focused regressions pass; no remote branch update occurred
+- Repair committed locally as 92de34f with verification checkpoint 847dc7e; all source changes are committed and user owns publication
 
 ## Remaining
 
-- Await approval to publish verified repair to existing PR25 branch; then inspect fresh hosted Windows checks. Preserve broader media/volume/hardware release gates.
+- User will push and merge PR25; agent publication is not authorized. Broader media/volume/hardware release gates remain in OpenSpec.
 
 ## Blocked
 
-- PR25 publication awaits explicit user approval after GitHub API upload was rejected by automatic approval review; SSH authentication is unavailable
+- none
 
 ## Decisions
 
-- Do not bypass rejected GitHub upload through alternative publication routes; all code and tests are already reviewable in the local repair commit
+- User explicitly requested local commits only and will handle pushing and merging; do not retry GitHub publication.
 
 ## Relevant context
 
@@ -54,7 +54,7 @@ Implement Git portable canonical sync design on current branch and commit logica
 
 ## Next action
 
-Await the pending user publication approval; do not retry remote writes before approval
+User pushes and merges the committed PR25 repair; inspect new CI results only when requested
 
 ## Prerequisites
 
