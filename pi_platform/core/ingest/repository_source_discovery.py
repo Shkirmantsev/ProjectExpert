@@ -77,6 +77,10 @@ DEFAULT_EXCLUDE_PATTERNS: tuple[str, ...] = (
     "distribution/sbom/**",
     # Generated / vendor directories
     "vendor/**", "third_party/**", "generated/**", ".generated/**",
+    # Derived canonical output; authored Wiki remains an intentional input.
+    "project-knowledge/chunks/**", "project-knowledge/graph/**",
+    "project-knowledge/objects/**", "project-knowledge/manifests/**",
+    "project-knowledge/sources/**", "project-knowledge/vectors/**",
     # Local scratch
     "tmp/local/**", "*.pyc", "*.class", "*.o", "*.so",
 )

@@ -565,7 +565,10 @@ def _post_route(
         )
     if path == "/api/v1/materialize":
         return server.service.materialize(
-            actor, MaterializeRequest(approval_token=body.get("approval_token"))
+            actor, MaterializeRequest(approval_token=body.get("approval_token"),
+                from_active_index=body.get("from_active_index") is True,
+                preview=body.get("preview") is True, include_vectors=body.get("include_vectors") is True,
+                staging_id=body.get("staging_id"))
         )
     if path == "/api/v1/agent-delegation":
         return server.service.agent_delegation(

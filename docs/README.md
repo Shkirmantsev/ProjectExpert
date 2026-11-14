@@ -4,6 +4,8 @@
 
 ## Setup and daily work
 
+- [Git-portable canonical snapshots](GIT_PORTABLE_CANONICAL_SYNC.md): approved production export, cold-clone import, textual vectors and release limits.
+
 - [Production remediation acceptance](PRODUCTION_REMEDIATION_ACCEPTANCE.md): source fixes, actual CPU/iGPU measurements and outstanding release gates.
 
 - [Production indexing recovery](PRODUCTION_INDEXING_RESUME.md): default durable sources, resumable artifacts, batching and release limits.

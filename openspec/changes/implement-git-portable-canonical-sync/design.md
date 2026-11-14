@@ -15,8 +15,9 @@ with bounded total bytes/files and explicit oversize-record failure. A separate
 8 MiB cap and atomic replacement protect the legacy graph writer.
 
 Verified readers spool all records and validate complete membership before any
-import. Import is inside the existing exclusive indexer and per-source fenced
-transactions. Candidate FTS/graph/dense publication remains caller-owned. Incompatible
+import. Import is inside the existing exclusive indexer and fenced commit groups (64 sources / 16 MiB target) with per-source savepoints.
+Only portable text imports are grouped; original parse checkpoints remain
+independently durable. One read-only verified plan serves both import stages. Candidate FTS/graph/dense publication remains caller-owned. Incompatible
 sources are misses; corrupt snapshots fail closed. Vectors enter the normal store
 before normal profile validation. Historical outputs remain available for branches.
 
@@ -24,8 +25,9 @@ Export is off by default; PI_PORTABLE_EXPORT=review enables portable identity an
 post-publication private proposals. Presence of a v2 root also enables identity and
 import. Full vectors require an explicit option. Publication requires signed scope
 for snapshotId, current source version and published generation, plus existing OKF
-and license gates. Approved-auto is deferred until a persistent scoped capability
-exists; no string token shortcut. Managed volume write-back remains owned by its
+and license gates. Approved-auto requires PI_PORTABLE_APPROVAL_TOKEN, an HMAC-signed materialise
+capability scoped to this repository and an explicit validity window; every
+publication re-verifies it. No string token shortcut is accepted. Managed volume write-back remains owned by its
 existing synchronizer; do not add an independent volume-to-host writer.
 
 Security: constrain all paths without symlinks/hardlinks, disallow traversal,

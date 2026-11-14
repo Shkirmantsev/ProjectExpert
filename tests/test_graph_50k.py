@@ -6,7 +6,6 @@ on a 50 000-entity fixture.
 
 from __future__ import annotations
 
-import gzip
 import json
 import os
 import shutil
@@ -56,19 +55,18 @@ class GraphSharding50KTests(unittest.TestCase):
             shards = sorted(p for p in nodes_dir.iterdir() if p.is_dir())
             self.assertGreaterEqual(len(shards), 1)
             self.assertLessEqual(len(shards), 256)
-            max_uncompressed_bytes = 32 * 1024 * 1024
-            for shard_dir in shards:
-                for jsonl_gz in shard_dir.glob("entities.jsonl.gz"):
-                    with gzip.open(jsonl_gz, "rb") as fh:
-                        total = 0
-                        for _ in fh:
-                            total += 1
-                        self.assertGreater(total, 0)
-                    self.assertLessEqual(
-                        jsonl_gz.stat().st_size,
-                        max_uncompressed_bytes * 2,
-                        f"shard file {jsonl_gz} exceeds the 32 MiB cap",
-                    )
+            max_uncompressed_bytes = 8 * 1024 * 1024
+            files = sorted(nodes_dir.glob("*/shard.jsonl"))
+            self.assertEqual(len(files), len(manifest.shards))
+            actual_count = 0
+            import hashlib
+            for path in files:
+                with path.open("rb") as handle:
+                    actual_count += sum(1 for _ in handle)
+                self.assertLessEqual(path.stat().st_size, max_uncompressed_bytes)
+                shard = next(s for s in manifest.shards if s.path == path.relative_to(graph.root).as_posix())
+                self.assertEqual(shard.contentHash, hashlib.sha256(path.read_bytes()).hexdigest())
+            self.assertEqual(actual_count, 50_000)
         finally:
             print('\n50k graph: removing temporary graph and content-addressed objects',
                   file=sys.stderr, flush=True)

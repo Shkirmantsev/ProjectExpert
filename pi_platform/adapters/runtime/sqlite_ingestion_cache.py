@@ -159,13 +159,21 @@ class SqliteIngestionCache:
         # Begin before reading the fence: a deferred SELECT followed by a write
         # leaves a lease-takeover race for non-cooperating callers.
         with self._lock:
+            nested = self._db.in_transaction
             try:
-                self._db.execute('BEGIN IMMEDIATE')
+                self._db.execute('SAVEPOINT source_write' if nested else 'BEGIN IMMEDIATE')
                 self._assert_fence()
                 yield
-                self._db.commit()
+                if nested:
+                    self._db.execute('RELEASE SAVEPOINT source_write')
+                else:
+                    self._db.commit()
             except BaseException:
-                self._db.rollback()
+                if nested:
+                    self._db.execute('ROLLBACK TO SAVEPOINT source_write')
+                    self._db.execute('RELEASE SAVEPOINT source_write')
+                else:
+                    self._db.rollback()
                 raise
 
     @staticmethod
@@ -294,6 +302,31 @@ class SqliteIngestionCache:
                 (self.generation,)).fetchone()
             self._db.execute("""UPDATE index_stages SET completed_items=?,degraded_items=?,updated_at=?
                 WHERE job_id=? AND stage='sources'""", (*counts, time.time(), self.generation))
+
+    def import_portable_sources(self, sources):
+        """Stream verified text in bounded commit groups, never parsed work.
+
+        Each source retains a savepoint and complete membership. At most 64
+        sources / a 16 MiB target share a durable commit (one larger source may
+        exceed the target). Interrupted groups replay text; parser completions
+        outside this explicit API retain their immediate durability.
+        """
+        iterator, imported = iter(sources), 0
+        while True:
+            source = next(iterator, None)
+            if source is None:
+                return imported
+            with self._write():
+                size = 0
+                for position in range(64):
+                    self.complete_source_atomic(*source)
+                    size += sum(len(payload) for payload in source[-1].values())
+                    imported += 1
+                    if size >= 16 * 1024 * 1024 or position == 63:
+                        break
+                    source = next(iterator, None)
+                    if source is None:
+                        return imported
 
     def import_legacy(self, path):
         """One-time import preserves the JSON; ignore orphaned historic records."""

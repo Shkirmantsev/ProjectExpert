@@ -5,6 +5,10 @@ kind: interfaces
 status: active
 summary: Reference for the hydrate, reconcile, materialise, WAL, project lock, persisted runtime snapshot and version monitor interfaces implemented by Phase 1 / production semantic search.
 sourceRefs:
+  - pi_platform/adapters/sync/portable_format.py
+  - pi_platform/adapters/sync/portable_snapshot_reader.py
+  - pi_platform/adapters/sync/portable_snapshot_exporter.py
+  - pi_platform/adapters/sync/portable_snapshot_importer.py
   - pi_platform/core/sync/hydrate.py
   - pi_platform/core/sync/reconcile.py
   - pi_platform/core/sync/materialise.py
@@ -182,3 +186,38 @@ files locked. Adapters given an existing connection preserve the caller's
 transaction and ownership. PDF figure lookup also closes its temporary handle.
 `tests/test_vector_record_store.py` exercises closure, errors and file rename;
 Windows CI additionally verifies target repository teardown.
+
+
+## Opt-in portable production snapshots
+
+`MaterialiseService.stage_active_index(repo_root, cache_root, include_vectors=False)`
+projects only the published resumable generation into private staging.
+`publish_active_index(..., staging_id, approval_token)` verifies exact snapshot
+scope, source version, source policy, OKF and licensing before root-last canonical
+publication. `PI_PORTABLE_EXPORT=review` stages automatically after indexing;
+`approved-auto` requires a valid time/repository-scoped signed capability on every
+publication. Neither route runs Git commands. Export status is independent of
+query readiness and appears with source parse/import counts in runtime status.
+
+The v2 reader validates bounded content-addressed JSONL shards/pages, complete
+source ownership, document/graph references, hashes and exact optional vectors.
+The production coordinator imports sources into indexing-state.sqlite under its
+exclusive lock before parsing; profile-compatible vectors enter the normal vector
+store before dense candidate construction. Current membership handles deletions
+and branch returns while historical source results remain immutable. RuntimeCache
+continues to serve the legacy read model, not production source reuse.
+
+Legacy hydrate now defaults to strict errors and reports cold misses as zero hits;
+`strict=False` explicitly retains permissive legacy skips. JSONL shards require
+actual byte SHA256 and record counts. Generated canonical output is excluded from
+source discovery; authored Wiki remains eligible. V2 immutable shards are not
+walked on each monitor tick; root identity triggers refresh and explicit verify or
+startup detects shard corruption.
+
+Portable source identities are opt-in and relative; old absolute-path cache keys
+are preserved until one deliberate feature-enabling reparse. One source result
+is bounded at 64 MiB, files default to 8 MiB, vectors are text opt-in, and media
+requiring private binary assets has no cold-clone promise. See
+[operator guide](../../../docs/GIT_PORTABLE_CANONICAL_SYNC.md),
+[evidence](../../../docs/GIT_PORTABLE_CANONICAL_EVIDENCE.md) and
+[ADR 0034](../adr/0034-portable-production-canonical-snapshots.md).

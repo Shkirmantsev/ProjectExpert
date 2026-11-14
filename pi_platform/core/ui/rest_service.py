@@ -359,6 +359,18 @@ class RestService(RestApiPort):
             ApprovalRequest(action="materialise", repo_root=str(self._repo_root)),
             token,
         )
+        if request.from_active_index:
+            cache_root = self._repo_root / ".project-intelligence-cache"
+            if request.preview:
+                proposal = self._materialise.stage_active_index(self._repo_root,
+                    cache_root=cache_root, include_vectors=request.include_vectors)
+                return MaterializeResult(materialized=False, proposal=proposal, reason="pending review")
+            if not request.staging_id:
+                raise UiOperationDenied("materialize", "staging_id required for portable publication")
+            proposal = self._materialise.publish_active_index(self._repo_root,
+                cache_root=cache_root, staging_id=request.staging_id, approval_token=token)
+            return MaterializeResult(materialized=bool(proposal["changedPaths"]),
+                files=tuple(proposal["changedPaths"]), proposal=proposal)
         report = self._materialise.materialise_durable_changes(
             self._repo_root,
             cache_root=self._repo_root / ".project-intelligence-cache",
@@ -373,7 +385,9 @@ class RestService(RestApiPort):
                 reason="okf validation failed",
             )
         return MaterializeResult(
-            materialized=True, files=tuple(getattr(report, "diff_files", ()) or ())
+            materialized=bool(getattr(report, "diff_files", ())),
+            files=tuple(getattr(report, "diff_files", ()) or ()),
+            reason="" if getattr(report, "diff_files", ()) else "no durable changes supplied"
         )
 
     def agent_delegation(

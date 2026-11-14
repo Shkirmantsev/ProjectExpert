@@ -37,7 +37,8 @@ class LayeredContextEnricher(ContextEnricherPort):
                 chunk.metadata,
                 contentHash=chunk_content_address(chunk),
                 documentId=document.id if document else chunk.metadata.documentId,
-                sourcePath=source.uri if source else chunk.metadata.sourcePath,
+                sourcePath=(source.metadata.sourcePath if source and source.metadata.extensions.get("portable_identity") == "v2"
+                            else source.uri if source else chunk.metadata.sourcePath),
                 version=source.metadata.version if source else chunk.metadata.version,
                 gitCommit=version.gitHead if version else chunk.metadata.gitCommit,
                 line=chunk.metadata.line or chunk.metadata.extensions.get("line"),

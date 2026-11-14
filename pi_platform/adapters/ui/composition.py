@@ -382,6 +382,7 @@ def hydrate_and_reconcile_target(
     *,
     lock_held: bool = False,
     persist_state: bool = True,
+    defer_portable_to_indexer: bool = False,
 ) -> Optional[HydrateReport]:
     """Hydrate and reconcile ``repo_root`` into ``cache_root`` and mark ``readiness`` ready.
 
@@ -427,7 +428,8 @@ def hydrate_and_reconcile_target(
                 except OSError:
                     pass
             try:
-                hydrate_report = HydrateService(filesystem=fs).restore_runtime(
+                hydrate_report = HydrateService(filesystem=fs,
+                    verify_portable=not defer_portable_to_indexer).restore_runtime(
                     repo_root, cache_root=cache_root,
                 )
             except GitPortError:
@@ -636,6 +638,10 @@ class PublishedRetrieval:
                 **self.runtime.multi_stage_retrieval.stats(), **self.runtime.stage_report(),
                 "source_failures": list(self.runtime.extra.get("source_failures", ())),
                 "index_engine": self.runtime.extra.get("index_engine", "unknown"),
+                "portable_import": self.runtime.extra.get("portable_import", {}),
+                "portable_export": self.runtime.extra.get("portable_export", {"state": "off"}),
+                "source_parse_hits": self.runtime.extra.get("source_parse_hits", 0),
+                "source_parse_misses": self.runtime.extra.get("source_parse_misses", 0),
                 "active_chunks": len(self.runtime.extra.get("chunk_ids", ())),
                 "active_sources": len(getattr(self.runtime.extra.get("source_inventory"), "entries", ())),
                 "embedding_model_version": self.runtime.embedding_model.profile().model_revision,

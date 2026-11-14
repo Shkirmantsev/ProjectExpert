@@ -18,6 +18,7 @@ import abc
 import hashlib
 import json
 import logging
+import os
 import subprocess
 from datetime import datetime, timezone
 import threading
@@ -157,7 +158,7 @@ class ProjectVersionMonitorStub(ProjectVersionMonitor):
         return None
 
 
-def read_project_version(repo_root: Path) -> ProjectVersionState:
+def read_project_version(repo_root: Path, *, include_portable: bool = True) -> ProjectVersionState:
     """Read content identity, including edits that leave Git status unchanged.
 
     The discovery inventory excludes generated files and the runtime cache, so
@@ -191,10 +192,10 @@ def read_project_version(repo_root: Path) -> ProjectVersionState:
     hashes = {entry.path: entry.content_hash for entry in inventory.entries}
     if managed is not None:
         hashes["@workspace-generation"] = managed["generation"]
-    canonical = root / "project-knowledge"
-    if canonical.is_dir():
-        for path in sorted(path for path in canonical.rglob("*") if path.is_file() and path.suffix in {".json", ".jsonl"}):
-            hashes[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+    canonical_hashes = canonical_fingerprints(root)
+    if not include_portable:
+        canonical_hashes.pop("project-knowledge/manifests/portable-v2.json", None)
+    hashes.update(canonical_hashes)
     settings_path = root / ".project-intelligence-cache" / "retrieval-settings.json"
     if settings_path.is_file():
         settings = json.loads(settings_path.read_text(encoding="utf-8"))
@@ -204,6 +205,23 @@ def read_project_version(repo_root: Path) -> ProjectVersionState:
         }
     fingerprint = hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()
     return ProjectVersionState(head, branch, fingerprint)
+
+
+def canonical_fingerprints(root):
+    """Hash legacy canonical files and the v2 root without walking v2 data."""
+    hashes = {}
+    canonical = root / "project-knowledge"
+    if canonical.is_dir():
+        for directory, dirs, names in os.walk(canonical):
+            relative_dir = Path(directory).relative_to(canonical).as_posix()
+            dirs[:] = [name for name in dirs if not (Path(directory) / name).is_symlink()
+                       and f"{relative_dir}/{name}" not in
+                       {'objects/portable-v2', 'manifests/portable-v2'}]
+            for name in sorted(names):
+                path = Path(directory) / name
+                if path.is_file() and not path.is_symlink() and path.suffix in {'.json', '.jsonl'}:
+                    hashes[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashes
 
 
 class PollingProjectVersionMonitor(ProjectVersionMonitor):
