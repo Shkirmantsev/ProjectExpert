@@ -218,3 +218,5 @@ When `project-context-mcp` is configured:
 - [ADR 0031: Cross-language research tooling policy](adr/0031-cross-language-research-tooling-policy.md)
 - [Dependency research interfaces](interfaces/dependency-research.md)
 - [Dependency research service](modules/dependency-research.md)
+
+- [ADR 0034: Portable production snapshots](adr/0034-portable-production-canonical-snapshots.md)

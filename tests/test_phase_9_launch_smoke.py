@@ -285,7 +285,8 @@ class InProcessServerSmokeTests(unittest.TestCase):
         result = self._service.materialize(
             actor, MaterializeRequest(approval_token=token)
         )
-        self.assertTrue(result.materialized, result)
+        self.assertFalse(result.materialized, result)
+        self.assertEqual(result.reason, "no durable changes supplied")
         # The foreign-token branch must close.
         foreign = HmacTrustedApprovalBoundary(key=b"other-key").issue(
             ApprovalRequest(

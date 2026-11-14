@@ -3,11 +3,12 @@ id: modules.graph
 title: Phase 3 sharded graph module map
 kind: modules
 status: active
-summary: Canonical knowledge graph with hash-prefix shards and 32 MiB per-file cap.
+summary: Hash-prefix graph storage, strict 8 MiB mutable shards and bulk production-candidate scale verification.
 sourceRefs:
   - pi_platform/ports/runtime/graph.py
   - pi_platform/core/runtime/graph.py
   - pi_platform/adapters/runtime/sharded_graph.py
+  - pi_platform/adapters/runtime/candidate_artifacts.py
   - tests/test_graph_50k.py
 maintenance:
   mode: authored
@@ -50,17 +51,24 @@ prefixes (256 by default).
 
 ## Per-file cap
 
-Every shard JSONL file is held under the §66 documented 32 MiB
-uncompressed budget. The `tests/test_graph_50k.py` property test
-asserts both the shard count distribution and the 32 MiB cap with a
-50 000-entity fixture.
+Mutable canonical shard writes enforce an 8 MiB cap, within the original 32 MiB
+upper budget. The `tests/test_graph_50k.py` property test builds all 50,000 entities
+through the existing production `build_graph_shards()` path and checks the actual
+JSONL files, exact record counts, SHA256 values, 8 MiB fixture limits and sample
+entity reads. This derived generation is distinct from portable Git snapshots,
+whose writer independently enforces its configured shard/manifest caps.
 
-The test writes 50 000 content-addressed objects and then removes them; both
-phases can be slow on Windows filesystems. It reports progress every 10 000
-entities and identifies cleanup explicitly. CI stack diagnostics are armed per
-test, rather than once for the whole suite, so an old suite does not produce
-misleading timeout samples during otherwise short tests. These samples report
-where execution is spending time; they do not themselves fail or stop a test.
+The scale test uses the adapter's resolved root for file inspection, so Windows
+8.3 TEMP aliases and long paths cannot disagree in `relative_to()`. It enforces an
+atomic-replacement budget proportional to shard count: it must not regress to one
+fsynced replacement per entity. The earlier single-upsert construction took
+10–16 minutes on Windows and could time out during cleanup. Small GraphPort tests
+continue to exercise single-entity updates and atomic cap rejection; the scale
+fixture keeps its full dataset and coverage without creating 50,000 redundant
+content-addressed object files for a disposable production candidate.
+
+CI stack diagnostics remain armed per test, so an old suite does not produce
+misleading timeout samples during otherwise short tests.
 
 ## Content-addressed entity bodies
 

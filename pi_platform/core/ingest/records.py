@@ -151,7 +151,8 @@ def document_result(
         source.metadata,
         documentId=doc_id,
         language=language,
-        sourcePath=source.uri,
+        sourcePath=(source.metadata.sourcePath if source.metadata.extensions.get("portable_identity") == "v2"
+                    else source.uri),
         contentHash=source.contentHash,
     )
     doc = Document(doc_id, Path(source.uri).stem, metadata=meta)

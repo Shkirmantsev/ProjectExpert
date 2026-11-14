@@ -50,6 +50,7 @@ class LocalShardedGraph(GraphPort):
     EDGES_DIR = "edges"
     OBJECTS_DIR = "objects"
     SHARDS_PER_PREFIX = 256
+    MAX_SHARD_BYTES = 8 * 1024 * 1024
 
     def __init__(self, root: Path):
         self.root = Path(root).resolve()
@@ -89,7 +90,7 @@ class LocalShardedGraph(GraphPort):
         relative = shard_path.relative_to(self.root)
         return Shard(
             id=f"nodes/{content_hash[:2]}",
-            path=str(relative),
+            path=relative.as_posix(),
             contentHash=content_hash,
         )
 
@@ -97,6 +98,8 @@ class LocalShardedGraph(GraphPort):
         new_line = new_line.rstrip(b"\n")
         existing: list[bytes] = []
         if shard_path.exists():
+            if shard_path.stat().st_size > self.MAX_SHARD_BYTES:
+                raise GraphPortError("Existing graph shard exceeds hard cap")
             existing = [line for line in shard_path.read_bytes().splitlines() if line.strip()]
         target_key = key_fn(new_line)
         kept: list[bytes] = []
@@ -114,10 +117,16 @@ class LocalShardedGraph(GraphPort):
                 kept.append(line)
         if not replaced:
             kept.append(new_line)
-        shard_path.write_bytes(b"\n".join(kept) + b"\n")
+        payload = b"\n".join(kept) + b"\n"
+        if len(payload) > self.MAX_SHARD_BYTES:
+            raise GraphPortError("Graph shard exceeds 8 MiB cap; use portable segmented export")
+        from pi_platform.core.canonical.durable_write import atomic_write_bytes
+        atomic_write_bytes(shard_path, payload)
 
     def upsert_entity(self, entity: Entity) -> None:
         body = to_canonical_json(entity)
+        if len(body) > self.MAX_SHARD_BYTES:
+            raise GraphPortError("Entity exceeds graph shard hard cap")
         content_address = content_address_bytes(body)
         canonical_obj_path = self.root / object_path(content_address)
         canonical_obj_path.parent.mkdir(parents=True, exist_ok=True)
@@ -132,6 +141,8 @@ class LocalShardedGraph(GraphPort):
 
     def upsert_relation(self, relation: Relation) -> None:
         body = to_canonical_json(relation)
+        if len(body) > self.MAX_SHARD_BYTES:
+            raise GraphPortError("Relation exceeds graph shard hard cap")
         content_address = content_address_bytes(body)
         canonical_obj_path = self.root / object_path(content_address)
         canonical_obj_path.parent.mkdir(parents=True, exist_ok=True)
@@ -149,7 +160,7 @@ class LocalShardedGraph(GraphPort):
         )
         index_record = canonical_dump_json({
             "sourceId": relation.sourceId,
-            "shardPath": str(shard_path.relative_to(self.root)),
+            "shardPath": shard_path.relative_to(self.root).as_posix(),
         })
         with self._edge_index_path.open("ab") as fh:
             fh.write(index_record)
@@ -224,8 +235,8 @@ class LocalShardedGraph(GraphPort):
                 entity_count += count
                 shards.append(Shard(
                     id=f"nodes/{prefix_dir.name}",
-                    path=str(shard_file.relative_to(self.root)),
-                    contentHash=prefix_dir.name,
+                    path=shard_file.relative_to(self.root).as_posix(),
+                    contentHash=hashlib.sha256(shard_file.read_bytes()).hexdigest(),
                     count=count,
                 ))
         for prefix_dir in sorted((self.root / self.EDGES_DIR).iterdir()):
@@ -236,8 +247,8 @@ class LocalShardedGraph(GraphPort):
                 relation_count += count
                 shards.append(Shard(
                     id=f"edges/{prefix_dir.name}",
-                    path=str(shard_file.relative_to(self.root)),
-                    contentHash=prefix_dir.name,
+                    path=shard_file.relative_to(self.root).as_posix(),
+                    contentHash=hashlib.sha256(shard_file.read_bytes()).hexdigest(),
                     count=count,
                 ))
         manifest = GraphManifest(

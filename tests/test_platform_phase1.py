@@ -502,7 +502,9 @@ class HydrateTests(unittest.TestCase):
                      manifest)
         report = HydrateService().restore_runtime(self.tmp, cache_root=self.cache)
         self.assertEqual(report.families["objects"], 1)
-        self.assertEqual(report.cache_hit_rates["objects"], 1.0)
+        self.assertEqual(report.cache_hit_rates["objects"], 0.0)
+        warm = HydrateService().restore_runtime(self.tmp, cache_root=self.cache)
+        self.assertEqual(warm.cache_hit_rates["objects"], 1.0)
 
 
 class MaterialiseTests(unittest.TestCase):

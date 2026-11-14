@@ -161,6 +161,33 @@ class MaterialiseService(MaterialisePort):
             okf_validation_errors=(),
         )
 
+    def stage_active_index(self, repo_root: Path, *, cache_root: Path,
+                           include_vectors: bool = False) -> dict:
+        """Private proposal only; no canonical writes or approval consumption."""
+        deny_if_denied(self.policy, "materialise")
+        from ...adapters.sync.portable_snapshot_exporter import stage_export
+        return stage_export(repo_root, cache_root, include_vectors=include_vectors)
+
+    def publish_active_index(self, repo_root: Path, *, cache_root: Path,
+                             staging_id: str, approval_token: Optional[str] = None) -> dict:
+        from ...adapters.sync.portable_snapshot_exporter import publish_export
+        fs = self.filesystem or LocalFilesystemAdapter(repo_root, cache_root=cache_root)
+        def authorize(snapshot_id):
+            deny_if_denied(self.policy, "materialise")
+            if self.policy.decide("materialise") is PolicyDecision.REQUIRE_APPROVAL:
+                if not approval_token:
+                    raise ApprovalRequired("portable publication requires a signed approval token")
+                self.boundary.verify(ApprovalRequest(action="materialise",
+                    repo_root=str(repo_root.resolve()), change_ids=(snapshot_id,)), approval_token)
+            errors = self._okf_validation_errors(fs)
+            if errors:
+                raise ValueError(f"OKF validation blocked portable publication: {len(errors)} errors")
+            if self.license_gate is not None:
+                passed, _ = self.license_gate.run(_empty_dependencies())
+                if not passed:
+                    raise ValueError("License gate blocked portable publication")
+        return publish_export(repo_root, cache_root, staging_id, authorize=authorize)
+
     # ------------------------------------------------------------------
     # helpers
     # ------------------------------------------------------------------
@@ -225,10 +252,11 @@ class MaterialiseService(MaterialisePort):
                 sourceHash=change.source.contentHash,
                 count=1,
             )
-            (fs.knowledge_root / shard_path).parent.mkdir(parents=True,
-                                                          exist_ok=True)
+            from pi_platform.adapters.sync.portable_format import confined
+            target = confined(fs.knowledge_root, shard_path)
+            target.parent.mkdir(parents=True, exist_ok=True)
             from ..canonical.durable_write import atomic_write_bytes
-            atomic_write_bytes(fs.knowledge_root / shard_path, payload_bytes)
+            atomic_write_bytes(target, payload_bytes)
             by_family[family].append(shard)
             yield DiffEntry(path=shard_path, status="added")
 
@@ -247,7 +275,8 @@ class MaterialiseService(MaterialisePort):
 
 def _is_local_only(change: RuntimeChange) -> bool:
     meta = change.source.metadata
-    return (meta.businessDomain or "").upper() == "LOCAL_ONLY"
+    return ((meta.policy or "").upper() == "LOCAL_ONLY"
+            or (meta.businessDomain or "").upper() == "LOCAL_ONLY")
 
 
 def _payload_to_shard_path(payload: dict, payload_bytes: bytes) -> str:

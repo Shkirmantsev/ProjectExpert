@@ -67,6 +67,10 @@ class WikiRequest:
 @dataclass(frozen=True)
 class MaterializeRequest:
     approval_token: Optional[str] = None
+    from_active_index: bool = False
+    preview: bool = False
+    include_vectors: bool = False
+    staging_id: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -151,6 +155,7 @@ class MaterializeResult:
     files: Sequence[str] = ()
     okf_validation_errors: Sequence[str] = ()
     reason: str = ""
+    proposal: Optional[Any] = None
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,72 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43610912090"
+  ],
+  "decisions": [
+    "User explicitly requested local commits only and will handle pushing and merging; do not retry GitHub publication."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Repair committed locally as 92de34f with verification checkpoint 847dc7e; all source changes are committed and user owns publication"
+    ],
+    "todo": [
+      "User will push and merge PR25; agent publication is not authorized. Broader media/volume/hardware release gates remain in OpenSpec."
+    ]
+  },
+  "resume": {
+    "next_action": "User pushes and merges the committed PR25 repair; inspect new CI results only when requested",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-14T14:36:26+00:00",
+    "id": "git-portable-canonical-sync",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-14T21:12:46+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Production generation export; strict bounded text snapshots; pre-parse resumable import; policy and v1 compatibility; vectors opt-in; Git roundtrip tests; harness check; scoped commits"
+    ],
+    "goal": "Implement Git portable canonical sync design on current branch and commit logical verified changes",
+    "openspec_change": "implement-git-portable-canonical-sync",
+    "status": "verifying"
+  },
+  "verification": {
+    "passed": [
+      "Full harness PASS:2018 tests/155 suites/20 skips with full50k test active (3.7s build,5.0s cleanup); focused104 PASS; regressions failed before fixes; safety gates unchanged"
+    ],
+    "pending": [
+      "Physical Windows/Rancher/CUDA/Vulkan, real offline model/assets and large production/media/host-volume acceptance remain unexecuted or unsupported; active OpenSpec and evidence matrix retain limits"
+    ]
+  },
+  "working_set": [
+    {
+      "path": "pi_platform/core/sync/hydrate.py",
+      "sha256": "15b230153784bfcb34ecdac9adc9afccd49785af946b32127aaa468e7e2f3b4a"
+    },
+    {
+      "path": "tests/test_graph_50k.py",
+      "sha256": "89d58149e5e9b2c024a3d40f34d219912818b0192c1d5f35698deb8d3426f3ed"
+    },
+    {
+      "path": "tests/test_portable_canonical_sync.py",
+      "sha256": "d6c13c3523b1f7f0e81f08ab743e3b19b6769df3040bf507aa3c94abf33af9c6"
+    },
+    {
+      "path": "tests/test_windows_canonical_paths.py",
+      "sha256": "fcc344db330ba7ea20d6d5c85e84364cefc76c360eca70691ed22da5d3ce3884"
+    }
+  ]
+}

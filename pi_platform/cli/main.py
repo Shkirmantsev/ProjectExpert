@@ -90,6 +90,18 @@ def build_parser() -> argparse.ArgumentParser:
     materialise.add_argument("--cache-root", type=Path,
                             default=DEFAULT_RUNTIME_CACHE)
     materialise.add_argument("--approval-token", type=str, default=None)
+    materialise.add_argument("--from-active-index", action="store_true")
+    materialise.add_argument("--preview", action="store_true")
+    materialise.add_argument("--include-vectors", action="store_true")
+    materialise.add_argument("--staging-id")
+
+    canonical = sub.add_parser("canonical", help="verify, stage and publish portable production snapshots")
+    canonical.add_argument("operation", choices=("verify", "status", "export", "publish", "hydrate", "repair"))
+    canonical.add_argument("--target", type=Path, default=Path("."))
+    canonical.add_argument("--cache-root", type=Path, default=DEFAULT_RUNTIME_CACHE)
+    canonical.add_argument("--include-vectors", action="store_true")
+    canonical.add_argument("--staging-id")
+    canonical.add_argument("--approval-token")
 
     gate = sub.add_parser("license-gate",
                           help="run the license gate against the dependency inventory")
@@ -594,6 +606,9 @@ def _cmd_hydrate(args: argparse.Namespace) -> int:
 
 
 def _cmd_materialise(args: argparse.Namespace) -> int:
+    if getattr(args, "from_active_index", False):
+        args.operation = "export" if args.preview else "publish"
+        return _cmd_canonical(args)
     target = args.target.resolve()
     cache_root = _resolve_cache_root(args)
     with ProjectLock(_project_id(target), root=cache_root / "locks").acquire():
@@ -617,6 +632,38 @@ def _cmd_materialise(args: argparse.Namespace) -> int:
         "excluded_local_only": list(report.excluded_local_only),
         "okf_validation_errors": [str(e) for e in report.okf_validation_errors],
     }, indent=2))
+    return 0
+
+
+def _cmd_canonical(args: argparse.Namespace) -> int:
+    from ..adapters.sync.portable_format import ROOT
+    from ..adapters.sync.portable_snapshot_reader import verified_snapshot
+    from ..core.sync.trusted_approval import HmacTrustedApprovalBoundary
+    target, cache_root = args.target.resolve(), _resolve_cache_root(args)
+    if args.operation == "hydrate":
+        summary = _bootstrap_and_index_target(target, cache_root=cache_root)
+        print(json.dumps(summary, indent=2))
+        return 0
+    with ProjectLock(_project_id(target), root=cache_root / "locks").acquire():
+        service = MaterialiseService(boundary=HmacTrustedApprovalBoundary(),
+            license_gate=LicenseGate(LicensePolicy()))
+        if args.operation in {"verify", "status"}:
+            if not (target / "project-knowledge" / ROOT).exists():
+                if args.operation == "verify":
+                    raise ValueError("No portable v2 snapshot; legacy hydrate remains available")
+                result = {"present": False}
+            else:
+                with verified_snapshot(target / "project-knowledge", cache_root) as (_, report):
+                    result = {"present": True, **{k: v for k, v in report.items() if k not in {"children", "paths"}}}
+        elif args.operation == "export":
+            result = service.stage_active_index(target, cache_root=cache_root,
+                                                 include_vectors=args.include_vectors)
+        else:
+            if not args.staging_id:
+                raise ValueError("Portable publish/repair requires --staging-id and signed approval")
+            result = service.publish_active_index(target, cache_root=cache_root,
+                staging_id=args.staging_id, approval_token=args.approval_token)
+    print(json.dumps(result, indent=2))
     return 0
 
 
@@ -1742,6 +1789,7 @@ _DISPATCH = {
     "init-project": _cmd_init_project,
     "hydrate": _cmd_hydrate,
     "materialise": _cmd_materialise,
+    "canonical": _cmd_canonical,
     "license-gate": _cmd_license_gate,
     "okf-validate": _cmd_okf_validate,
     "version-identity": _cmd_version_identity,
@@ -2367,6 +2415,7 @@ def _bootstrap_and_index_target_locked(
     transient_readiness = DefaultKnowledgeReadiness()
     hydrate_report = hydrate_and_reconcile_target(
         target, cache_root, transient_readiness, lock_held=True, persist_state=False,
+        defer_portable_to_indexer=True,
     )
     if hydrate_report is None or not transient_readiness.is_ready():
         raise RuntimeError(transient_readiness.snapshot().reason or "Hydration failed")
@@ -2407,13 +2456,9 @@ def _bootstrap_and_index_target_locked(
     source_hashes = {e.path: e.content_hash for e in merged_inv.entries}
     source_ids = tuple(e.path for e in merged_inv.entries)
     chunk_ids = tuple(runtime.extra.get("chunk_ids", ()))
-    canonical_hashes = []
     graph_node_ids = tuple(runtime.extra.get("graph_node_ids", ()))
-    knowledge_root = target / "project-knowledge"
-    if knowledge_root.is_dir():
-        import hashlib
-        for path in sorted(path for path in knowledge_root.rglob("*") if path.is_file() and path.suffix in {".json", ".jsonl"}):
-            canonical_hashes.append(f"{path.relative_to(target).as_posix()}:{hashlib.sha256(path.read_bytes()).hexdigest()}")
+    from ..core.sync.version_monitor import canonical_fingerprints
+    canonical_hashes = [f"{path}:{digest}" for path, digest in sorted(canonical_fingerprints(target).items())]
     manifest_snap = ManifestSnapshot(
         snapshot_hash=compute_snapshot_hash(list(chunk_ids) + canonical_hashes),
         chunk_ids=chunk_ids,
@@ -2466,7 +2511,55 @@ def _bootstrap_and_index_target_locked(
         **({"document_processing_enabled": effective["docling_enabled"]} if "docling_enabled" in effective else {}),
     )
     save_retrieval_settings(settings, target)
+    portable_export = {"state": "off"}
+    if os.environ.get("PI_PORTABLE_EXPORT", "off") in {"review", "approved-auto"}:
+        try:
+            portable_export = {"state": "pending-review", **MaterialiseService().stage_active_index(
+                target, cache_root=cache_root,
+                include_vectors=os.environ.get("PI_PORTABLE_VECTORS", "0") == "1")}
+            if os.environ.get("PI_PORTABLE_EXPORT") == "approved-auto":
+                from ..core.sync.trusted_approval import HmacTrustedApprovalBoundary
+                publisher = MaterialiseService(boundary=HmacTrustedApprovalBoundary(),
+                    license_gate=LicenseGate(LicensePolicy()))
+                published = publisher.publish_active_index(target, cache_root=cache_root,
+                    staging_id=portable_export["stagingId"],
+                    approval_token=os.environ.get("PI_PORTABLE_APPROVAL_TOKEN"))
+                portable_export = {"state": "published", **published}
+                # Acknowledge only our verified canonical-root update under the
+                # same project lock; monitor must not reindex its own export.
+                from ..adapters.runtime.sqlite_ingestion_cache import exclusive_indexer
+                from ..adapters.sync.portable_snapshot_exporter import _active
+                from contextlib import closing
+                import sqlite3
+                with exclusive_indexer(cache_root), closing(sqlite3.connect(
+                        f'{(cache_root / "indexing-state.sqlite").as_uri()}?mode=ro', uri=True)) as db:
+                    if _active(db) != runtime.extra["index_job_id"]:
+                        raise RuntimeError("Generation moved after portable publication")
+                    current_version = read_project_version(target)
+                    if current_version.head != before.head or current_version.branch != before.branch:
+                        raise RuntimeError("Checkout moved after portable publication")
+                    actual_sources = {e.path: e.content_hash for e in discovery.discover(target).entries}
+                    if actual_sources != source_hashes:
+                        raise RuntimeError("Source bytes moved after portable publication")
+                    canonical_hashes = [f"{path}:{digest}" for path, digest in sorted(canonical_fingerprints(target).items())]
+                    manifest_snap = _dc_replace(manifest_snap,
+                        snapshot_hash=compute_snapshot_hash(list(chunk_ids) + canonical_hashes))
+                    active_ver = _dc_replace(active_ver,
+                        working_tree_fingerprint=current_version.working_tree_fingerprint,
+                        manifest_snapshot_hash=manifest_snap.snapshot_hash)
+                    RuntimeSnapshotService(cache_root=cache_root).commit(
+                        active=active_ver, manifest=manifest_snap, source=source_snap)
+                    if service is not None:
+                        service._published_version = active_ver
+        except Exception as exc:
+            # Query publication already succeeded; export status is independent.
+            portable_export = {"state": "failed", "error": str(exc)}
+    runtime.extra["portable_export"] = portable_export
     return {
+        "source_parse_hits": runtime.extra.get("source_parse_hits", 0),
+        "source_parse_misses": runtime.extra.get("source_parse_misses", 0),
+        "portable_export": portable_export,
+        "portable_import": runtime.extra.get("portable_import", {}),
         "target": str(target),
         "active_model": effective.get("embedding_model", settings.embedding_model_alias),
         "model_id": runtime.embedding_model.profile().model_id,

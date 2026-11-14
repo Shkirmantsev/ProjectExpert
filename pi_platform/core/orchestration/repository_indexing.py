@@ -66,7 +66,7 @@ def _candidate_graph(target, cache_root, cache, *, progress=None):
         for raw in cache.iter_records():
             yield json.loads(raw)
         canonical = target / 'project-knowledge' / 'graph'
-        if not canonical.is_dir():
+        if not canonical.is_dir() or (target / 'project-knowledge/manifests/portable-v2.json').exists():
             return
         for path in sorted(canonical.rglob('*')):
             if not path.is_file() or path.is_symlink() or path.suffix not in {'.json', '.jsonl'}:
@@ -162,6 +162,8 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
     if os.environ.get('PI_REQUIRE_OFFLINE_ASSETS') == '1':
         from pi_platform.deployment.offline_assets import configure
         configure()
+    if os.environ.get('PI_PORTABLE_EXPORT', 'off') not in {'off', 'review', 'approved-auto'}:
+        raise ValueError('PI_PORTABLE_EXPORT must be off, review or approved-auto')
     engine = os.environ.get('PI_INDEX_ENGINE', 'resumable').strip().lower()
     if engine not in {'legacy', 'resumable'}:
         raise ValueError('PI_INDEX_ENGINE must be legacy or resumable')
@@ -173,6 +175,12 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         if (Path(cache_root) / 'restore-in-progress.json').exists():
             raise RuntimeError('Interrupted state restore; complete scripts/indexing_state.py restore --resume before indexing')
         if engine == 'legacy':
+            from pi_platform.adapters.sync.portable_format import ROOT
+            from pi_platform.adapters.sync.portable_snapshot_reader import verified_snapshot
+            root = Path(target) / 'project-knowledge'
+            if (root / ROOT).exists():
+                with verified_snapshot(root, cache_root):
+                    return _index_repository(**arguments)
             return _index_repository(**arguments)
         fingerprint = hashlib.sha256(json.dumps(
             [(e.path, e.content_hash, e.policy) for e in inventory.entries], sort_keys=True).encode()).hexdigest()
@@ -198,7 +206,14 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
         cache = SqliteIngestionCache(Path(cache_root) / 'indexing-state.sqlite', compatibility_hash=fingerprint)
         try:
             cache.import_legacy(Path(cache_root) / 'ingestion.json')
-            runtime = _index_repository(**arguments, durable_cache=cache)
+            from contextlib import ExitStack
+            from pi_platform.adapters.sync.portable_format import ROOT
+            from pi_platform.adapters.sync.portable_snapshot_reader import verified_snapshot
+            with ExitStack() as snapshots:
+                portable_root = Path(target) / 'project-knowledge'
+                plan = (snapshots.enter_context(verified_snapshot(portable_root, cache_root))
+                        if (portable_root / ROOT).exists() else None)
+                runtime = _index_repository(**arguments, durable_cache=cache, portable_plan=plan)
             cache.assert_fence()
             cache.finish('ready')
             return runtime
@@ -209,7 +224,7 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
             cache.close()
 
 
-def _index_repository(*, target, cache_root, inventory, previous_inventory, settings, cli_overrides=None, durable_cache=None):
+def _index_repository(*, target, cache_root, inventory, previous_inventory, settings, cli_overrides=None, durable_cache=None, portable_plan=None):
     """Parse current files, reuse vectors and return an unpublished runtime."""
     from pi_platform.adapters.config.runtime_configuration_resolver import RuntimeConfigurationResolver
     target, cache_root = Path(target).resolve(), Path(cache_root).resolve()
@@ -229,6 +244,9 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
     def progress(stage, total, completed=0, failed=0, degraded=0, state='running'):
         if durable_cache is not None:
             durable_cache.stage(stage, total, completed, failed, degraded, state=state)
+    from pi_platform.adapters.sync.portable_format import ROOT as PORTABLE_ROOT
+    portable = ((target / 'project-knowledge' / PORTABLE_ROOT).exists()
+                or os.environ.get('PI_PORTABLE_EXPORT', 'off') in {'review', 'approved-auto'})
     active_source_ids = {'repo:' + e.path for e in inventory.entries}
     for sid in cache.source_ids():
         if sid.startswith('repo:') and sid not in active_source_ids:
@@ -266,14 +284,19 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
             id='repo:' + entry.path, uri=str(target / entry.path),
             family=_family(entry.path).value, contentHash=entry.content_hash,
             metadata=Metadata(documentId='repo:' + entry.path, version='0.1.0', language='und',
-                              sourcePath=entry.path, policy=entry.policy or None),
+                              sourcePath=entry.path, policy=entry.policy or None,
+                              extensions={"portable_identity": "v2"} if portable else {}),
         ))
+    portable_import = {}
     if durable_cache is not None:
         from pi_platform.core.canonical.content_address import content_address
         from pi_platform.core.canonical.value_types import to_canonical_json
         cache.select_sources((source.id, source.contentHash,
             content_address(to_canonical_json(source.metadata).decode()), driver.pipeline_key(source))
             for source in sources)
+        if portable:
+            from pi_platform.adapters.sync.portable_snapshot_importer import import_sources
+            portable_import = import_sources(target, cache_root, cache, sources, driver, plan=portable_plan)
     progress('sources', len(sources), len(cache.source_ids()))
     pdf_admission = {}
     try:
@@ -449,6 +472,10 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         runtime.semantic_index_service.set_progress_callback(
             lambda completed, total: progress('embedding', total, completed,
                 state='complete' if completed == total else 'running'))
+    imported_vectors = 0
+    if durable_cache is not None and portable:
+        from pi_platform.adapters.sync.portable_snapshot_importer import import_vectors
+        imported_vectors = import_vectors(target, cache_root, runtime, active, plan=portable_plan)
     report, dense_generation_loaded = _index_dense_generation(runtime, active)
     progress('embedding', len(active), len(active), state='complete')
     if durable_cache is not None and hasattr(runtime.dense_index, 'index_path'):
@@ -465,6 +492,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         from pi_platform.adapters.runtime.candidate_artifacts import atomic_bytes
         atomic_bytes(cache_path, json.dumps(saved, sort_keys=True).encode())
     return replace(runtime, extra={
+        'portable_import': {**portable_import, 'importedVectors': imported_vectors},
         'source_inventory': projected_inventory,
         'graph_node_ids': graph_node_ids,
         'chunk_ids': tuple(catalog), 'chunk_catalog': catalog,
@@ -475,6 +503,8 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         'index_engine': 'resumable' if durable_cache is not None else 'legacy',
         'index_job_id': durable_cache.generation if durable_cache is not None else '',
         'index_fence': durable_cache.fence if durable_cache is not None else 0,
+        'source_parse_hits': sum(any(stage.stage == 'parse' and stage.cache_hit for stage in report.stages) for report in reports),
+        'source_parse_misses': sum(any(stage.stage == 'parse' and not stage.cache_hit for stage in report.stages) for report in reports),
         'source_admission': driver.last_admission,
         'pdf_admission': pdf_admission,
     })

@@ -37,9 +37,12 @@ class HydrateService(HydratePort):
 
     def __init__(self, *,
                  filesystem: Optional[LocalFilesystemAdapter] = None,
-                 cache: Optional[RuntimeCache] = None):
+                 cache: Optional[RuntimeCache] = None, strict: bool = True,
+                 verify_portable: bool = True):
         self.filesystem = filesystem
         self.cache = cache
+        self.strict = strict
+        self.verify_portable = verify_portable
 
     # ------------------------------------------------------------------
     # public API
@@ -60,6 +63,13 @@ class HydrateService(HydratePort):
         hit_rates: dict[str, float] = {}
         stale: list[str] = []
 
+        from pi_platform.adapters.sync.portable_format import ROOT
+        if self.verify_portable and (fs.knowledge_root / ROOT).exists():
+            from pi_platform.adapters.sync.portable_snapshot_reader import verified_snapshot
+            # v2 is verified here; only the exclusive production indexer seeds
+            # indexing-state.sqlite and publishes generation membership.
+            with verified_snapshot(fs.knowledge_root, cache_root):
+                pass
         manifest_files = fs.list_manifests()
         for manifest_path in manifest_files:
             family = _family_from_manifest_path(manifest_path)
@@ -68,6 +78,8 @@ class HydrateService(HydratePort):
             try:
                 manifest = _safe_load_manifest(manifest_path, fs.knowledge_root)
             except Exception as exc:  # noqa: BLE001
+                if self.strict:
+                    raise ValueError(f"Invalid canonical manifest: {manifest_path.name}") from exc
                 log.warning("manifest %s could not be loaded: %s", manifest_path, exc)
                 continue
             shards_hit, shards_total = self._hydrate_family(
@@ -99,21 +111,32 @@ class HydrateService(HydratePort):
                         ) -> tuple[int, int]:
         total = len(manifest.shards)
         hit = 0
+        from pi_platform.adapters.sync.portable_format import confined, read_bounded, sha
         for shard in manifest.shards:
-            shard_path = knowledge_root / shard.path
-            if not shard_path.is_file():
-                continue
-            body = canonical_load_json(shard_path.read_bytes())
-            content_hash = content_address(body)
-            if content_hash != shard.contentHash:
-                log.warning("shard %s hash mismatch: declared %s actual %s",
-                            shard.id, shard.contentHash, content_hash)
-                continue
-            if cache.has(shard.contentHash):
-                hit += 1
-                continue
-            cache.put(_family_for_shard(shard), body)
-            hit += 1
+            try:
+                # v1 writers persisted native Windows separators. Normalize only
+                # at this legacy read boundary, before the same confinement and
+                # traversal checks; v2 source/shard paths remain strictly POSIX.
+                shard_path = confined(knowledge_root, shard.path.replace("\\", "/"))
+                raw = read_bounded(shard_path, 32 * 1024 * 1024)
+                if shard_path.suffix == '.jsonl':
+                    bodies = [canonical_load_json(line) for line in raw.splitlines() if line.strip()]
+                    valid = sha(raw) == shard.contentHash and len(bodies) == shard.count
+                else:
+                    bodies = [canonical_load_json(raw)]
+                    valid = content_address(bodies[0]) == shard.contentHash
+                if not valid:
+                    raise ValueError(f'Canonical shard checksum/count mismatch: {shard.id}')
+                was_hit = all(cache.has(content_address(body)) for body in bodies)
+                for body in bodies:
+                    if not cache.has(content_address(body)):
+                        cache.put(_family_for_shard(shard), body)
+                if was_hit:
+                    hit += 1
+            except (OSError, ValueError) as exc:
+                if self.strict:
+                    raise ValueError(f'Cannot hydrate canonical shard {shard.id}: {exc}') from exc
+                log.warning('legacy permissive hydration skipped %s: %s', shard.id, exc)
         return hit, total
 
 
@@ -125,11 +148,13 @@ def _family_from_manifest_path(path: Path) -> str:
 
 
 def _family_for_shard(shard: Shard) -> str:
-    if "/" in shard.path:
-        return shard.path.split("/", 1)[0]
+    path = shard.path.replace("\\", "/")
+    if "/" in path:
+        return path.split("/", 1)[0]
     return "objects"
 
 
 def _safe_load_manifest(path: Path, knowledge_root: Path) -> Manifest:
     from ...core.canonical import load_manifest
-    return load_manifest(path)
+    from pi_platform.adapters.sync.portable_format import confined
+    return load_manifest(confined(knowledge_root, path.relative_to(knowledge_root).as_posix()))

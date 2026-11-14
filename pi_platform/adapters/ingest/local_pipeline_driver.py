@@ -371,10 +371,26 @@ class LocalPipelineDriver(PipelineDriverPort):
         """Return the source/configuration compatibility key without cache access."""
         from pi_platform.core.canonical.content_address import content_address
         from pi_platform.core.canonical.value_types import dataclass_to_dict
+        portable = source.metadata.extensions.get("portable_identity") == "v2"
+        from pi_platform.core.ingest.retrieval_text_builder import DeterministicRetrievalTextBuilder
+        components = None
+        if portable:
+            family = SourceContentFamily(source.family)
+            parser, chunker, enricher = (self._parsers.resolve(family),
+                self._chunkers.resolve(family), self._enrichers.resolve(family))
+            components = {
+                "schema": "portable/v2", "pipeline": "phase2-portable-1",
+                "parser": type(parser).__module__ + "." + type(parser).__name__,
+                "parserStrategy": getattr(parser, "_strategy_version", None),
+                "chunker": type(chunker).__module__ + "." + type(chunker).__name__,
+                "enricher": type(enricher).__module__ + "." + type(enricher).__name__,
+                "retrievalText": DeterministicRetrievalTextBuilder.strategy_version,
+            }
         return content_address(
             {
+                **({"portableComponents": components} if portable else {}),
                 "source": source.contentHash,
-                "uri": source.uri,
+                "uri": (source.id if source.metadata.extensions.get("portable_identity") == "v2" else source.uri),
                 "metadata": dataclass_to_dict(source.metadata),
                 "pipelineVersion": "phase2-2",
                 "chunking": (
@@ -470,6 +486,17 @@ class LocalPipelineDriver(PipelineDriverPort):
                     "pipeline cancelled; partial chunks flushed",
                 )
 
+        def verify_portable_source_bytes():
+            if source.metadata.extensions.get("portable_identity") != "v2":
+                return
+            from pi_platform.adapters.runtime.sqlite_ingestion_cache import _file_checksum, IndexingStateError
+            try:
+                unchanged = _file_checksum(Path(source.uri)) == source.contentHash
+            except IndexingStateError as exc:
+                raise StageError(StageErrorCategory.CANCELLED, "Source unavailable during parsing; result not cached") from exc
+            if not unchanged:
+                raise StageError(StageErrorCategory.CANCELLED, "Source bytes changed during parsing; result not cached")
+
         def operation(name, function):
             nonlocal stage
             stage = name
@@ -564,6 +591,7 @@ class LocalPipelineDriver(PipelineDriverPort):
                     evidence_count=data["evidenceCount"],
                     degraded=bool(data.get("degraded", False)),
                 )
+            verify_portable_source_bytes()
             adapter = self._parsers.resolve(family)
             parsed = operation(
                 STAGE_PARSE,
@@ -605,7 +633,8 @@ class LocalPipelineDriver(PipelineDriverPort):
                     dataclasses.replace(
                         c,
                         provenance=dataclasses.replace(
-                            c.provenance, knowledgeState=state, rationale=source.uri
+                            c.provenance, knowledgeState=state, rationale=(source.metadata.sourcePath
+                                if source.metadata.extensions.get("portable_identity") == "v2" else source.uri)
                         ),
                     )
                     for c in chunks
@@ -640,6 +669,25 @@ class LocalPipelineDriver(PipelineDriverPort):
                     k = content_address_bytes(raw) if getattr(active, "immutable_payloads", False) else chunk_content_address(c)
                     active.put(k, raw)
                     addresses.append(k)
+                if source.metadata.extensions.get("portable_identity") == "v2":
+                    # Portable parent/section identities must not point only to
+                    # parser-private documents that disappear on a cold clone.
+                    from pi_platform.core.canonical.value_types import dataclass_to_dict
+                    from pi_platform.core.canonical.serializer import canonical_dump_json
+                    structures = [{"kind": "document", "id": parsed.document.id,
+                        "title": parsed.document.title,
+                        "metadata": dataclass_to_dict(parsed.document.metadata),
+                        "sectionIds": [section.id for section in parsed.sections]}]
+                    structures.extend({"kind": "section", "id": section.id,
+                        "heading": section.heading, "level": section.level,
+                        "parentId": section.parentId, "documentId": parsed.document.id,
+                        "chunkIds": [c.id for c in chunks if c.parentId == section.id]}
+                        for section in parsed.sections)
+                    for structure in structures:
+                        raw = canonical_dump_json(structure)
+                        address = content_address_bytes(raw)
+                        active.put(address, raw)
+                        addresses.append(address)
                 for record in (*enriched, *records):
                     raw = to_canonical_json(record)
                     k = content_address_bytes(raw)
@@ -662,6 +710,7 @@ class LocalPipelineDriver(PipelineDriverPort):
                 "addresses": addresses,
             }
             checkpoint_cancel()
+            verify_portable_source_bytes()
             active.put(key, json.dumps(data, sort_keys=True).encode())
             if hasattr(active, "complete_source"):
                 active.complete_source(

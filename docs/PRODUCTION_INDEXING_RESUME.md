@@ -185,3 +185,9 @@ No manual checksum entry or second release-metadata PR is needed. See the
 The source release JSON is an unbound template; generated CI/kit records carry
 the actual immutable identity. Successful remote publication remains observed
 evidence, not something inferred from source changes.
+
+## Git-portable canonical snapshots
+
+The opt-in [portable snapshot workflow](GIT_PORTABLE_CANONICAL_SYNC.md) exports
+approved published source results as bounded text and imports compatible results
+before parsing on another checkout. SQLite backups remain local recovery state.
