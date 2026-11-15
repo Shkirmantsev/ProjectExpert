@@ -259,3 +259,16 @@ For Python sources newer than the container interpreter, an installed Python
 syntax grammar may validate and retain complete text with explicit analysis
 limits when AST extraction fails. Invalid source remains an ingestion failure;
 text fallback does not claim function/class symbol extraction or execute code.
+
+
+Trusted local owners can review and authorize export without PI_UI_TOKEN; the
+server validates loopback Host, local peer and browser origin. A configured token
+remains required. Managed container local mode additionally requires a loopback
+host-port binding and trusts only its exact host gateway, not other containers.
+The UI hides token entry when none is configured. Export uses one policy for all
+files, with no path fields or individual review controls. Complete safe sources
+remain reusable; independent checked text fragments from mixed sources are stored
+as standalone `context` records, never as complete source-cache entries. Local
+search and MCP continue to use full private source outputs. Exact checked-text
+vectors can be reused; uninspectable media embeddings remain local without prior
+exact-byte review evidence. See [ADR0036](../adr/0036-project-wide-checked-context-export.md).

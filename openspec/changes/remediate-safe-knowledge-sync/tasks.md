@@ -24,3 +24,11 @@
 - [x] Back up external deployment and install controller/parallel configuration.
 - [x] Reproduce and repair newer Python grammar incompatibility without changing target code.
 - [x] Verify live source readiness and final full regression gate.
+
+
+## Local owner and discovered-file UX follow-up
+- [x] Preserve optional token with trusted local owner authorization and network/origin regressions.
+- [x] Remove per-file controls; apply one checked export policy to all discovered sources.
+- [x] Add independently checked text projections without changing complete local source outputs.
+- [x] Prove full confidential context remains accessible through MCP after export.
+- [x] Run final verification, update approved live UI and commit locally.

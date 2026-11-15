@@ -36,3 +36,32 @@ operator configuration. API and static responses prohibit stale browser caching.
 External Gemma device selection requires a managed runtime controller; otherwise
 the UI explains the host upgrade rather than offering an ineffective selector.
 These changes do not change source admission, parallel workers or shard limits.
+
+
+## Local ownership and source selection follow-up
+
+Replace the earlier assumption that every signing-capable owner must configure an
+API token. Local ownership and authenticated remote administration are distinct
+capabilities; the optional server token stays optional for a trusted local owner.
+Keep HMAC issuance server-side and enforce Host/Origin/Fetch-Site plus peer checks
+before any tokenless knowledge route. Managed Compose echoes its actual host bind
+address into the server; only a loopback binding enables the exact Docker gateway
+as a local peer. Public binds do not enable tokenless signing.
+
+Remove the manual source-path form entirely. All discovered files use the same
+outward policy. Keep complete safe canonical sources and add independent checked
+text fragments from mixed-content sources. New `context` records carry exact text,
+its hash, original source hash/path and a versioned projection identity, without
+source summaries, graph edges or opaque media payloads. They never seed the complete
+source cache. Read-only search composition can use shared context when full local
+source output is unavailable; available full local sources always take precedence.
+Current source hash/policy changes reject stale projections.
+
+A new checked-context scope advertises the additional record type. Older readers
+reject it; current readers retain support for earlier complete-source snapshots.
+Exact text-only vectors can be rekeyed to the new context identity only after
+matching the original embedding input hash/profile. Opaque pixel/figure vectors
+stay private without prior exact-byte review evidence. Export schedules no OCR,
+source parsing or inference. Policy/unknown-provenance/transitive denials remain
+source-wide; independent fragment filtering never overrides those restrictions.
+See ADR0036 for the compatibility and local/MCP boundaries.
