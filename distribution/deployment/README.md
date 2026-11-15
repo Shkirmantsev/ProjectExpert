@@ -617,3 +617,15 @@ remains authoritative. Docker Desktop, Rancher Desktop/WSL and Linux engines hav
 separate trust configuration. Follow approved administrator procedures and the
 [Docker registry certificate guide](https://docs.docker.com/engine/security/certificates/).
 Preflight never changes roots, drivers, daemon settings or TLS verification.
+
+## Safe knowledge sharing
+
+The application UI provides Restore, Reindex and Export as separate actions.
+Sharing preferences and exact-byte media reviews persist in the private runtime
+cache; kit upgrade preserves them. Auto-export defaults off and needs an
+authenticated administrator's expiring server-side grant. Use the existing API
+bearer authentication for publication; browsers never receive signing keys.
+Bind mode writes project-knowledge directly. Managed workspace mode already mounts
+the host canonical directory at `/repo/project-knowledge`; no second synchronizer
+or volume copy is needed. Physical Windows/Rancher durability still needs acceptance.
+Original source files and Git history are outside generated-export filtering.

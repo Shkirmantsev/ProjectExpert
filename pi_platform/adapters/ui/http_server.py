@@ -114,7 +114,9 @@ class UiHttpServer:
             FirstStartWizard,
         )
 
-        self.admin_routes = RetrievalAdminRoutes(target_repo=self.target_repo)
+        self._admin_capability = threading.local()
+        self.admin_routes = RetrievalAdminRoutes(target_repo=self.target_repo,
+            caller_capability_provider=lambda: getattr(self._admin_capability, 'value', 'administrator'))
         self.admin_routes.settings_changed = self.apply_runtime_settings
         self.refresh_requested = None
         self.wizard = FirstStartWizard()
@@ -491,7 +493,7 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 )
 
                 cap = self._resolve_caller_capability()
-                server.admin_routes._caller_capability_provider = lambda: cap
+                server._admin_capability.value = cap
                 dispatch = create_dispatcher(server.admin_routes)
                 resp = dispatch(method, path, body)
                 if resp is not None:

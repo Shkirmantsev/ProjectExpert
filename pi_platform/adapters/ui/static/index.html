@@ -44,10 +44,26 @@
           Enable Docling PDF processing
         </label>
         <button id="wizard-submit-button" type="submit">Apply model &amp; device and build index</button>
-        <button id="admin-reindex-button" type="button">Trigger reindex</button>
+        <button id="admin-reindex-button" type="button">Reindex / Update local knowledge</button>
+        <button id="knowledge-restore-button" type="button">Restore knowledge from Git</button>
+        <button id="knowledge-export-button" type="button">Export safe knowledge to Git files</button>
       </form>
       <pre id="bootstrap-status" class="output" aria-live="polite">Loading bootstrap status…</pre>
       <pre id="wizard-result" class="output">Ready to configure or switch semantic model.</pre>
+      <fieldset id="knowledge-settings">
+        <legend>Git knowledge sharing</legend>
+        <label><input id="knowledge-share" type="checkbox"> Enable safe Git export</label>
+        <label><input id="knowledge-auto" type="checkbox"> Automatically export safe knowledge after Reindex (authorization expires after one hour)</label>
+        <label><input id="knowledge-vectors" type="checkbox"> Include eligible portable embeddings (increases Git size)</label>
+        <button id="knowledge-save" type="button">Save sharing preferences</button>
+      </fieldset>
+      <p class="hint">Images and PDFs stay local until an administrator reviews their complete contents. Review applies to exact current bytes; changed media requires a new review. Mark confidential content local even when its filename looks harmless.</p>
+      <label>Source path to review <input id="knowledge-source-path" type="text" autocomplete="off"></label>
+      <label>Classification <select id="knowledge-source-class"><option value="confidential">Confidential — keep local</option><option value="public">Public — reviewed complete source</option></select></label>
+      <button id="knowledge-review-source" type="button">Save reviewed source classification</button>
+      <p class="hint">Local indexing stays available independently of export. Protected or unknown sources stay local. Review file paths and sizes before publishing. Publication requires an authenticated administrator session. Git commit and push remain your actions; Git history retains earlier data.</p>
+      <pre id="knowledge-result" class="output" aria-live="polite"></pre>
+      <button id="knowledge-publish-button" type="button" hidden>Authorize and publish reviewed safe files</button>
     </section>
 
     <section class="panel">

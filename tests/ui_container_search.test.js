@@ -31,6 +31,9 @@ function browser(options = {}) {
       else if (path.endsWith('/admin/chat')) body = init.method === 'PUT' ? {...JSON.parse(init.body), api_key:undefined,api_key_set:true} : {enabled:false,provider:'openai',base_url:'',model:'',share_context:false,api_key_set:false};
       else if (path.endsWith('/admin/chat/test')) body = {ok:true,message:'Connection successful'};
       else if (path.endsWith('/admin/reindex')) { body = {job_id:'job-123',status:'queued'}; status = 202; }
+      else if (path.endsWith('/knowledge/settings')) body = init.method === 'PUT' ? JSON.parse(init.body) : {share_enabled:false,post_reindex_export:false,include_vectors:false};
+      else if (/\/knowledge\/(restore|export|publish)$/.test(path)) { body = {job_id:'knowledge-' + path.split('/').at(-1)}; status=202; }
+      else if (path.includes('/admin/jobs/knowledge-')) body = {status:'completed',result:path.endsWith('export') ? {stagingId:'proposal-123',snapshotId:'snapshot-123',sources:2,excludedSourceCount:1,changedPaths:['objects/hash.jsonl']} : {state:path.endsWith('restore') ? 'requires-reindex':'published'}};
       else if (path.includes('/admin/jobs/')) body = options.fail ? {status:'failed',message:'Embedding server unreachable'} : {status:++jobChecks > 1 ? 'completed':'running',message:'Indexing'};
       return Promise.resolve({ok:status < 400,status,text:() => Promise.resolve(JSON.stringify(body))});
     },
@@ -100,6 +103,19 @@ async function main() {
   assert.equal(b.requests.at(-1).headers.Authorization,'Bearer api-token');
   assert.match(b.context.formatResult('wiki-result',{documents:[{path:'page.md',text:'# Useful wiki'}]}),/# Useful wiki/);
   assert.match(b.context.formatResult('query-result',{results:[{metadata:{sourcePath:'brief.md'},snippet:'Evidence',score:0.5}]}),/brief.md.*score 0.5\nEvidence/);
+  b.node('knowledge-restore-button').listeners.click();await flush();await flush();
+  assert.match(b.node('knowledge-result').textContent,/requires-reindex/);
+  b.node('knowledge-share').checked=true;
+  b.node('knowledge-save').listeners.click();await flush();
+  const preferences = b.requests.find(r=>r.path.endsWith('/knowledge/settings') && r.method==='PUT');
+  assert.deepEqual(JSON.parse(preferences.body),{share_enabled:true,post_reindex_export:false,include_vectors:false});
+  b.node('knowledge-export-button').listeners.click();await flush();await flush();
+  assert.equal(b.node('knowledge-publish-button').hidden,false);
+  assert.match(b.node('knowledge-result').textContent,/objects\/hash.jsonl/);
+  b.node('knowledge-publish-button').listeners.click();await flush();await flush();
+  const publish = b.requests.find(r=>r.path.endsWith('/knowledge/publish'));
+  assert.deepEqual(JSON.parse(publish.body),{stagingId:'proposal-123',snapshotId:'snapshot-123'});
+  assert.equal(b.node('knowledge-publish-button').hidden,true);
   console.log('PASS: browser indexing progress, completion, failure, auth separation and readable evidence');
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

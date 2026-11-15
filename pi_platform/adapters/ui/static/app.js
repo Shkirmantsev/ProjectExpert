@@ -255,6 +255,59 @@ document.addEventListener("DOMContentLoaded", function () {
       refreshBootstrapStatus();
     });
   }
+  var knowledgeProposal = null;
+  function knowledgeJob(operation, payload) {
+    var button = document.getElementById('knowledge-publish-button');
+    button.hidden = true;
+    return call('POST', API + '/admin/knowledge/' + operation, payload || {}).then(function (job) {
+      return waitForJob(job.job_id, Date.now() + 30 * 60 * 1000);
+    }).then(function (job) {
+      show('knowledge-result', job.result || job);
+      knowledgeProposal = job.result && job.result.stagingId ? job.result : null;
+      button.hidden = !knowledgeProposal || operation === 'publish';
+      refreshBootstrapStatus();
+      return job;
+    });
+  }
+  function loadKnowledgeSettings() {
+    return call('GET', API + '/admin/knowledge/settings').then(function (settings) {
+      document.getElementById('knowledge-share').checked = settings.share_enabled;
+      document.getElementById('knowledge-auto').checked = settings.post_reindex_export;
+      document.getElementById('knowledge-vectors').checked = settings.include_vectors;
+    }).catch(function (error) { show('knowledge-result', error.message); });
+  }
+  if (document.getElementById('knowledge-restore-button')) {
+    loadKnowledgeSettings();
+    reloadProtected.push(loadKnowledgeSettings);
+    document.getElementById('knowledge-review-source').addEventListener('click', function () {
+      run('knowledge-result', function () {
+        return call('POST', API + '/admin/knowledge/source-review', {
+          path: document.getElementById('knowledge-source-path').value,
+          classification: document.getElementById('knowledge-source-class').value
+        });
+      });
+    });
+    ['restore', 'export'].forEach(function (operation) {
+      document.getElementById('knowledge-' + operation + '-button').addEventListener('click', function () {
+        run('knowledge-result', function () { return knowledgeJob(operation); });
+      });
+    });
+    document.getElementById('knowledge-save').addEventListener('click', function () {
+      run('knowledge-result', function () {
+        return call('PUT', API + '/admin/knowledge/settings', {
+          share_enabled: document.getElementById('knowledge-share').checked,
+          post_reindex_export: document.getElementById('knowledge-auto').checked,
+          include_vectors: document.getElementById('knowledge-vectors').checked
+        });
+      });
+    });
+    document.getElementById('knowledge-publish-button').addEventListener('click', function () {
+      if (!knowledgeProposal) { return; }
+      run('knowledge-result', function () { return knowledgeJob('publish', {
+        stagingId: knowledgeProposal.stagingId, snapshotId: knowledgeProposal.snapshotId
+      }); });
+    });
+  }
   var wizardForm = document.getElementById("wizard-form");
   if (wizardForm) {
     var runtimeCaps = null;
