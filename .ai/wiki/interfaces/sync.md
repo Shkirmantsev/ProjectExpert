@@ -241,3 +241,15 @@ self-hash are not rewritten. V2 paths continue to reject backslashes strictly.
 The regression suite also exercises an aliased temporary repository root so
 approval scopes and injected write failures use the same resolved identity as
 production; no trusted approval checks are relaxed.
+
+
+## Knowledge UI delivery
+
+The observed UI groups Restore, Reindex and Export into themed responsive cards
+and renders readable results separately from legacy diagnostics. Direct HTML file
+previews resolve local assets but disable operations. Live delivery identifies its
+asset fingerprint at public `/api/v1/ui-version`; API/static responses use
+`Cache-Control: no-store`. Remote Gemma hardware selection is disabled when the
+runtime reports no managed controller. Changing a checkout does not update an
+already running container image; application and deployment-kit upgrades are
+separate operator actions. See [PR26 evidence](../../../docs/SAFE_KNOWLEDGE_REMEDIATION.md).

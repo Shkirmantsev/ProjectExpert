@@ -24,3 +24,15 @@ UI administrator requests share existing job execution and HMAC publisher. Setti
 live in ignored runtime storage. The server holds signing material; the browser
 receives no key. Export approval cannot override admission. Default auto-export is
 off. Serialize restore/reindex/publication with existing locks and source fences.
+
+
+## PR26 delivery corrections
+
+Keep the existing adaptive dark/green theme and group Restore, Reindex and Export
+in responsive action cards with a dedicated, unique result target. Relative static
+assets support file previews; preview mode disables controls and makes no API
+calls. A public build fingerprint identifies delivered assets without exposing
+operator configuration. API and static responses prohibit stale browser caching.
+External Gemma device selection requires a managed runtime controller; otherwise
+the UI explains the host upgrade rather than offering an ineffective selector.
+These changes do not change source admission, parallel workers or shard limits.

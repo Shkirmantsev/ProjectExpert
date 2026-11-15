@@ -241,7 +241,7 @@ f645683d86c8988ad15498d253d4130cbff42cd4c54330ec29bb663ac5db21b0  ./.ai/wiki/int
 c0c03c29cbfd5ad23375fde283c54c84786bf4c4db7b01a69b0214fcfee1d58e  ./.ai/wiki/interfaces/skill-distribution.md
 2c1b4c56fa47886f7ea0929ebbed2a6b4ac43556f5e0786c318917d5aa16613f  ./.ai/wiki/interfaces/source-adapters.md
 7d0998662e329e995f483dd0324c13218ea8accdaa7b181577ee2925840c86d9  ./.ai/wiki/interfaces/sparse-index.md
-a94617416dd5a3c8413afc61ccfc8b0bbbcdd7fb47619da3e93bb034b48c6b0a  ./.ai/wiki/interfaces/sync.md
+735e17fb1a438ac9bd01b89f374bca39bf8b95e1e3594f260be77fb9da4b9d7e  ./.ai/wiki/interfaces/sync.md
 5ba9020effe570e6c51f40ddfc738907b1deb329d67dc032281c0394559d8588  ./.ai/wiki/interfaces/tokenizer.md
 543771bc94fbec5f39864ee5e930800ae6c60726c4caa22746bc92289e7e8745  ./.ai/wiki/interfaces/trusted-approval-boundary.md
 b06a8623c0c7ccee1cce813491f51602bcbdcd403c4a19c160f477033e9a9951  ./.ai/wiki/interfaces/ui-extension.md
@@ -424,7 +424,7 @@ e5d3b84145be7110d7e5106b16b18ac7cda33f6fd788706cf9ad431c52e8737d  ./docs/PROJECT
 d0720e3cd6579aacf4dba012bb98cfb721f551be6f7e7078ef8a5c21dff7cb8c  ./docs/QUICKSTART.md
 6898889c6e632d49f0cfa86aeb8a1f59ca6cc8be2dac467fa796ce9bdb7e88b7  ./docs/README.md
 f11c23c839ea6dbe4d856afa76c6863d5fb65f9e601c230dd4a61f0389f92477  ./docs/RUNTIME_PYTHON_REVIEW.md
-3204d1fced8e903dd20e59f480dd1c64f4bc7e42f2a2b69d5b479e0e0b08ecbb  ./docs/SAFE_KNOWLEDGE_REMEDIATION.md
+811fed3406a9883569421714ecdf7183ff338897a58cd218ccbc18dc158b58ea  ./docs/SAFE_KNOWLEDGE_REMEDIATION.md
 705ba2c3c671626eeda6ad4d3cb672668efb3bf63543fba4a1a5060b7fb7f0a6  ./docs/SECURITY.md
 0b6014cf29eca1ebe2f4c80caeecf811f5e992c3ef926abb0e08a6677c5b5386  ./docs/SKILLS.md
 d581f187424b23b09a0e1d6822b262df9da122de145d8f64d8be77210c1db6fd  ./docs/THIRD_PARTY_SKILLS.md
@@ -865,10 +865,10 @@ f2349d717a112952f227357a916d06f208cdf1a7e648926db93bb6c316b5590d  ./openspec/cha
 70c358142d62a2502f3c1d2a8e4e49a757c31fac4732c0b476a2aa904e77d4e2  ./openspec/changes/production-semantic-search-and-branch-reconciliation/specs/2026-10-18-unified-production-retrieval-composition/spec.md
 0c5b772545cd0bfd8a0617d31edbe5b89d5c614e2119096b6b3e99488628e1c7  ./openspec/changes/production-semantic-search-and-branch-reconciliation/tasks.md
 687323becb5fdae8c5d5d9fc9c90c2a9fedfa7ec37775a272dd9947631e17a80  ./openspec/changes/remediate-safe-knowledge-sync/context-impact.md
-506407e50486cbf700ae4b035b51149d24bd09dda6ce472b57a8b8f1b7fdd29c  ./openspec/changes/remediate-safe-knowledge-sync/design.md
+19721e594044103d0a42c400a3c964e0bc75a78cabd3c381c68a54b35099c077  ./openspec/changes/remediate-safe-knowledge-sync/design.md
 b62820f6b1f1b42f1676aa6045e2d9d3347fa69735d5f12d3042a37fb7624280  ./openspec/changes/remediate-safe-knowledge-sync/proposal.md
-1fe12994bc1f093dd3bf3b51faa9ccb3688b75720c5fd6a943e58a693becb1c7  ./openspec/changes/remediate-safe-knowledge-sync/specs/safe-knowledge-workflow/spec.md
-d01e58a232e2407d806dfc9bc82eac31ac695f552a8edc7cc327f88c890bb231  ./openspec/changes/remediate-safe-knowledge-sync/tasks.md
+46c12f9e34c8906ab935dd1abc902eae42d23a6e8070c1f90246586536d7c139  ./openspec/changes/remediate-safe-knowledge-sync/specs/safe-knowledge-workflow/spec.md
+ee4a5a7325953727c9f71813112b0daabd981d435ad2f7bf179a3e0ee90afbc0  ./openspec/changes/remediate-safe-knowledge-sync/tasks.md
 94588d143f51166f1c5ded9273340413c3c3258addf6fa6e70937b55809c4669  ./openspec/changes/ship-portable-oci-deployment/context-impact.md
 6e8d0e1a3f055d88660ee09d7a9927d6a0ec4ffaf551e88b26494e2d0952a227  ./openspec/changes/ship-portable-oci-deployment/design.md
 e2d8685859717c6e3de7f9505910dd23866c8486b2ca15ae9e3443756dd8b62c  ./openspec/changes/ship-portable-oci-deployment/proposal.md
@@ -1113,13 +1113,13 @@ e1719ba8d0cb285e0c90956a144905aba0ac4fa36eeb0253b70b38b99846e9cf  ./pi_platform/
 2ab266d3ef6f835a2fad585ee66df156371f035343cbb05d577a7172d0788358  ./pi_platform/adapters/ui/__init__.py
 6c6533c3cd50d397782115c46250efa2706c7b481227dbbfd3c059467f3adba9  ./pi_platform/adapters/ui/composition.py
 9f0cd95fb25c7bbbd24b82937356169215ce9cee9e9e25202cee7e3830afe231  ./pi_platform/adapters/ui/execution_status.py
-4649dfd392a878db9a57965f1f09b9ef60e749f681fcecdda57e059a2f2aadc3  ./pi_platform/adapters/ui/http_server.py
+e9d1822e332dbe2a218e2c809e3b4133d13a74a9df74aa95aa5c3ac9db2d5067  ./pi_platform/adapters/ui/http_server.py
 8f52905731de38af3d8b0c42a9a6c2627413a21c6947d70f1b228513ea333d94  ./pi_platform/adapters/ui/openai_compat.py
 3656441a6f3fe22963bbe067f7d1099119c33254075cfe42d1497de63c700de9  ./pi_platform/adapters/ui/projections.py
-c3ae2702146d5c298ee45b6ffa78202d1734e481e7614e03714d8fecf4cb02d5  ./pi_platform/adapters/ui/retrieval_admin_routes.py
-ea209f4fff63228e9689d8ff156c52cd03f02e9504d30ef6cdb6b8629fd4ade5  ./pi_platform/adapters/ui/static/app.js
-1d0f162561efd42d75bb679db0c90d68d68d30205f3f7be32af7a4a7e0fecd85  ./pi_platform/adapters/ui/static/index.html
-945d2407be7e398d71f055d1995470a6f744f5056f589387b20750ada63c0163  ./pi_platform/adapters/ui/static/styles.css
+dcc9c9f63e58782462ff7a20212e2e3629e0f4ce147aeae898a1ba25f77608fd  ./pi_platform/adapters/ui/retrieval_admin_routes.py
+ec5d4b5cff385e7cc02203f2a99c023468327d30f6dee50f2cdba929c40e0ac9  ./pi_platform/adapters/ui/static/app.js
+b29da798e40d2d43b70ebf8f86cddfccf12d718693ccb39b873d7df8d7f68356  ./pi_platform/adapters/ui/static/index.html
+2f4660f5490b98c5c6abf8f422a41152bf302c7962702006475c097bb5cfceee  ./pi_platform/adapters/ui/static/styles.css
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./pi_platform/cli/__init__.py
 74c1a24e87ff3ae2379c09ae4e34877627becdc6991b5f16d16606aa3efc22c7  ./pi_platform/cli/__main__.py
 1e8030c456dae64874e357610ba4b2edf73174be5d4b89a6c61454fa83435f3e  ./pi_platform/cli/chat.py
@@ -1543,7 +1543,7 @@ c2955340fcbda0420b45e86ca333dc5bfbcc5839e1733a7f877a718a96faa2d5  ./tests/test_r
 eaabd9e83f179ff9e2c87a7c21b2751225326d3d8830baa5c57c62f2a2258d76  ./tests/test_runtime_checkpoint.py
 325451cf218819a3cf64fccc346fd33ad7e1d3ac00ff07aabe3998a3812ee78f  ./tests/test_runtime_configuration_resolver.py
 2dba6fe65396018a97d3ab0c7c99b2064dcab79fc521d63ef3761a29dd0ec681  ./tests/test_runtime_version_lifecycle.py
-94808108a3def303da552a9c8c2c2d83c5c1a599ef8b1a78693a23c3eef20769  ./tests/test_safe_git_export.py
+16cc5e4548af4be7acda71debc2ffcd1606630d7a7f36dadd8e627fc067e6a01  ./tests/test_safe_git_export.py
 b62dccf9beefee6432e194568367e468ebd91e9761227493e97409ce94bc6a94  ./tests/test_selection.py
 c136155bf8bce6ee4d43a7d242f9bbf3549a4a17712c90e136cde54c49c41ab1  ./tests/test_semantic_index_service.py
 d91fc87badc3207ee4d655fa2867f4b63063b5778ca1cf338e8d596c8a810152  ./tests/test_skill_plane.py
@@ -1557,6 +1557,7 @@ cf40fcbf87bb26cdbe7c27c95cb16adcd1867de70b29b24a690da20944347549  ./tests/test_s
 732901600b52f61e8d38398e8adaa45b14c99d4eed9434d1727e3ec4c6443518  ./tests/test_tokenizer_port.py
 ff0bb6f006170cd51b96d896e584c0c237d5da59cd925774ad4e041716aea5d5  ./tests/test_trusted_approval_boundary.py
 1c59126de71c2f635812f7514ec37cc369ffd57309e338123162f03570b41ff2  ./tests/test_ui_chat_connection.py
+cc4ab32c166f13e020074a6a81ab09fe63daf26a7105c58933c9cea446526ae4  ./tests/test_ui_delivery.py
 8667f1d42dbd2649e045e17024ef7f83a482e831d08d32a1132af7885219635f  ./tests/test_usearch_dense_index.py
 89439b89b16935b081c6ca181aa1573e7eccc909b06bb24a2400c99aa070126c  ./tests/test_v2_production_wiring.py
 13f55059afb3e2916af9f5b69d20cc6d44a0a75f27016148796cbf08f3db3b79  ./tests/test_vector_record_store.py
@@ -1568,7 +1569,7 @@ fcc344db330ba7ea20d6d5c85e84364cefc76c360eca70691ed22da5d3ce3884  ./tests/test_w
 28c7292061ab934207112ff8dd1ee4602fb07568f9188e9b3ce7e75f61633bd1  ./tests/test_workspace_deployment.py
 50a525cf6bcee310ab0507384b6c36b3700fdc229aa0049afa38e3c6bdf42733  ./tests/test_workspace_importer.py
 7f80b8645828179e1ab4942c997aafc0fffe2b617af2e842783dcb2419b0796c  ./tests/test_workspace_sync_contract.py
-f8b96c907c0a7253b808a7d8517e8ebcc70e7967b0264244657fd51668eeb926  ./tests/ui_container_search.test.js
+5501016346cf215912d1b8f9a78920ca1deea98f0a77230a04aa545a920fc90c  ./tests/ui_container_search.test.js
 f3d46ff04e3c8e31fb3b3fc8713c10334030a6f3d8aa62f9a711f93e895dea19  ./tests/windows_container_cuda.ps1
 c0f08311d962c931c3ccb760dbc0110af47a92f2ee32747ed98bc94a6298a199  ./tests/windows_deployment_runtime.ps1
 362dc5ea6ed3123f89eb53b41e99cde74f97102243ce2a3898613bec05c1a1bc  ./tests/windows_offline_assets.ps1

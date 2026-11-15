@@ -133,3 +133,58 @@ OpenSpec strict validation 96 items PASS; Wiki 136 documents, zero issues;
 artifact manifest 1,604 files PASS. Source policy, diagnostics, generated Wiki,
 legacy publication and image-projection regressions were demonstrated failing
 before their corresponding fixes. No physical host/model success is inferred.
+
+
+## PR26 Windows, security findings and UI delivery repair
+
+All eight reported Windows jobs in runs `43710889902` and `43710889944` traced
+to SQLite fixture connections retained during temporary repository cleanup
+(WinError 32). A SQLite transaction context does not close the connection. The
+fixture now explicitly closes it after commit; a real-handle regression retains
+strong references and proves the handles reject subsequent queries.
+
+Code scanning check `132802207581` reported two `py/clear-text-storage-sensitive-data`
+findings at the test writes formerly on lines 116 and 258 of
+`tests/test_safe_git_export.py`. These writes contain deliberately invalid,
+deterministic detector markers. Fixture variables now state that provenance
+instead of the sensitive-variable name that CodeQL treats as a data source.
+Detector strings, rejection assertions, production secret filtering and the CodeQL
+workflow remain intact. A fresh hosted CodeQL analysis is required after push;
+no local CodeQL executable is installed.
+
+The UI retains the old dark/green visual language, adds three responsive action
+cards and readable results, and fixes duplicate result IDs and file-preview asset
+URLs. File previews are explicitly disconnected and cannot issue API requests.
+Live HTML/assets/API use no-store caching and a public asset-build identity.
+Unmanaged external Gemma runtimes cannot offer ineffective GPU changes.
+
+Read-only inspection found port 8765 serving container
+`project-intelligence-production-1`, image
+`sha256:7735bb830a7a6635acccfc45ef3a587030446f01cee4322467c62262c178eeb3`,
+mounted to the separate trade-analyzer project. That image has no Restore control
+or current UI-version endpoint. Its embedding container lacks the managed runtime
+controller mounts. Updating source or refreshing the browser cannot replace this
+image; the application and managed deployment kit both need upgrading. This task
+does not modify that separate project's files, configuration or running services.
+The failing acceptance checks skipped production publication, so no successful
+publication of this repair is claimed.
+
+Actual browser verification used an isolated fixture server on port 18884:
+desktop/mobile styling, restore requiring a local update without parsing/new
+embeddings, and reindex completion with one reused source all passed. The dummy
+embedding endpoint in that preview does not certify physical GPU behavior.
+The existing 8 MiB default shard cap (configurable 1–16 MiB), bounded admission
+and parallel source processing remain unchanged. Fresh hosted Windows, CodeQL
+and physical GPU acceptance remain pending owner push/deployment.
+
+Final local PR26 verification: `python3 harness.py check` PASS, 2,049 tests across
+160 suites, 20 skips; strict OpenSpec validation 96/96 and artifact manifest
+1,605 files PASS. The 50k graph fixture built in 3.7s and finished cleanup in
+5.0s. The retained-handle, UI delivery, parallel ingestion/embedding and linear
+checkpoint regressions passed in that run. Shipped browser script PASS.
+Local commits: `dd82a8c` (Windows/security fixtures) and `48f3fbd` (UI delivery).
+An offline local repair image (`0ee8ddb4849c`) also passed its actual HTTP build
+identity and Restore markup smoke test with no host mounts/external network.
+The candidate and source-only kit review live under `/tmp/projectexpert-pr26-upgrade`;
+that kit is not a published release and must not overwrite reviewed asset pins or
+operator settings. The live external upgrade awaits explicit owner scope.

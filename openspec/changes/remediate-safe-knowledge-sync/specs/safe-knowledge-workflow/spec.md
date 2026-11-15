@@ -25,3 +25,18 @@ SHALL remain independent of export success. No action SHALL stage, commit or pus
 #### Scenario: Export is denied
 - **WHEN** publication authorization is unavailable
 - **THEN** the proposal remains pending and local query generation remains usable
+
+
+### Requirement: Honest styled delivery and hardware controls
+The UI SHALL retain responsive themed controls, distinguish a static preview from
+a live application, expose its asset build identity, and prevent stale caching.
+Every knowledge action SHALL display readable progress in its own unique target.
+Remote device selection SHALL require an available managed runtime controller.
+
+#### Scenario: Opening the source HTML directly
+- **WHEN** the page is loaded from a file URL
+- **THEN** styles resolve, controls are disabled and no API requests are sent
+
+#### Scenario: External runtime without a controller
+- **WHEN** the selected Gemma runtime has no managed controller
+- **THEN** the device selector is disabled with an actionable deployment explanation
