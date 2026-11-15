@@ -131,14 +131,16 @@ shard corruption. Background bit-rot auditing is not implemented.
 
 ## Deployment limits
 
-No Docker/GPU/model packaging behavior changes. Portable text obeys existing bind
-mount/managed workspace fences. Host write-back from isolated volumes still uses
-the existing approved synchronizer; no new automatic host writer is supplied.
+GPU/model packaging remains unchanged. Portable text obeys existing bind mount/
+managed workspace fences. The managed Compose overlay already binds the host
+canonical directory at `/repo/project-knowledge`; no additional writer is needed
+for that topology. Physical host durability still needs acceptance.
 
 Text/code results and document structure are supported where source provenance
-is complete. Image-only sources lack resumable source results and cannot form a
-complete portable proposal. PDF figures needing parser-private binary assets
-cannot promise cold-clone reuse from text alone. Real Docling/Java/offline-model,
+is complete. The remediation adds durable image results and PDF figure descriptors,
+compatible vector reuse without crops, and exact-hash targeted page regeneration.
+Media requires exact-byte public review; unsupported profiles remain local.
+Real Docling/Java/offline-model,
 physical Windows/Rancher/CUDA/Vulkan and million-source production acceptance
 must be reported separately; local hashing-model tests do not certify them.
 
@@ -184,3 +186,10 @@ behavior; it does not certify a million-source production index. Host load and
 real model/document costs matter; counters and integrity are the acceptance gates.
 The legacy mutable graph's single-upsert API still rewrites its prefix shard;
 production graph candidates and portable export use bulk/streaming builders.
+
+## Remediation follow-up
+
+See [safe knowledge workflow](SAFE_KNOWLEDGE_REMEDIATION.md) for Restore/Reindex/
+Export UI actions, private preferences, whole-source safe scope, durable images and
+PDF figure/vector reuse. It supersedes earlier descriptions of media durability
+and environment-only operation. Physical host/model gates still apply.

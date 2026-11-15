@@ -12,6 +12,9 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 
 ## Start here
 
+- [Safe knowledge workflow and evidence](../../docs/SAFE_KNOWLEDGE_REMEDIATION.md)
+- [ADR: Safe source projection and restore](adr/0035-safe-source-projection-and-restore-only.md)
+
 - [Resumable production indexing](architecture/resumable-indexing.md)
 - [ADR: Durable source checkpoints](adr/0033-resumable-indexing-state.md)
 

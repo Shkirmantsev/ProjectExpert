@@ -10,7 +10,9 @@
 - [x] Performance pass: share verification, avoid warm writes, group portable
   SQLite imports with source savepoints, retain resource-aware parallel scheduling,
   and add reproducible count/memory/storage benchmarks.
-- [ ] Complete image-only/PDF figure portability and managed-volume host write-back.
+- [x] Implement image/PDF descriptor/vector portability and identify the existing
+  managed host canonical bind; see remediate-safe-knowledge-sync for software
+  evidence and the still-open physical host/model acceptance.
 - [ ] Run 200k-edge / 50k-source / million-source production and real-model parity gates.
 
 See docs/GIT_PORTABLE_CANONICAL_EVIDENCE.md for executed checks, partial acceptance,
@@ -23,4 +25,5 @@ silently adopted or archives marked complete.
 - [x] Repair legacy compatibility without relaxing v2 paths or approval scope.
 - [x] Keep the 50k scale dataset and assertions while reusing the production bulk builder.
 - [x] Run the complete local harness without graph skips (2,018 tests, 20 skips).
-- [ ] Verify fresh hosted Windows 3.11/3.13 checks for the repair commit.
+- [x] Verify Windows 3.11/3.13 unit and full jobs on merged baseline f00268b,
+  run 43643312759. These baseline results do not certify unpushed remediation.

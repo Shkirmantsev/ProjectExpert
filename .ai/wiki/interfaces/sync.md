@@ -25,6 +25,14 @@ maintenance:
 
 # Sync interface reference
 
+The [safe knowledge workflow](../../../docs/SAFE_KNOWLEDGE_REMEDIATION.md)
+adds restore-only orchestration, whole-source export admission, optional subset
+scope, exact-byte media review, PDF descriptors, private operator preferences and
+administrator jobs. Existing hydrate/reindex and signed materialisation remain.
+Restore never schedules source parsing or embeddings; missing inputs report
+requires-reindex. Git export failure remains separate from local index readiness.
+Publication audits retained generated files and can require owner-reviewed cleanup.
+
 Implements the
 [`bidirectional-canonical-runtime-sync`](../../../openspec/specs/2026-10-04-bidirectional-canonical-runtime-sync/spec.md)
 spec.

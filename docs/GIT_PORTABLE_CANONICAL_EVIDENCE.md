@@ -127,11 +127,11 @@ it does not certify million-source production parsing, graph activation or queri
   replays; heavy parse durability is unchanged.
 - REFERENCE text is excluded conservatively. Denied co-ownership or unresolved
   graph/document dependencies cannot become a partial, apparently complete source.
-- Image-only source results and PDF figures that require parser-private binary
-  assets are unsupported for complete portable proposals. Ordinary local indexing
-  remains available; no hidden binary/base64 export is introduced.
-- Managed volume-to-host publication still belongs to the existing synchronizer;
-  no new approved automatic host write-back adapter is delivered here.
+- The original media durability gap is addressed in the remediation below:
+  exact-byte reviewed image/PDF descriptors and compatible vectors are portable.
+  Real-model/host acceptance is still open. No binary/base64 export is introduced.
+- The managed Compose topology already binds the host canonical directory;
+  physical Windows/Rancher write durability remains an acceptance gate.
 - `canonical repair` republishes a valid authorized current stage and restores
   corrupt hash-addressed files. Root/configuration conflicts may require explicit
   Git restoration; no automatic choice of a previous branch/root is made.
@@ -178,3 +178,18 @@ tree upload was then rejected by automatic approval review, which required expli
 permission for publishing the source/documentation/task-state payload to PR25.
 Permission has been requested; no alternative upload or fresh Windows success is
 claimed while that approval is pending.
+
+## 2026-11-15 remediation and updated baseline evidence
+
+The preceding publication paragraph is historical. The owner instructed the agent
+to commit locally only and retained push/merge ownership. GitHub API checks now
+confirm successful baseline runs at `f00268bbf83bd13732a7587895c3d34ee86ebed0`:
+[verify](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43643312759),
+[production runtime](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43643312745),
+[publication](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43643312753).
+These do not validate unpushed remediation changes.
+
+The [remediation evidence](SAFE_KNOWLEDGE_REMEDIATION.md) records implemented
+restore-only, safe-source partition, UI preferences/jobs, media persistence, PDF
+asset/vector handling and measured performance. New physical-host, real-model
+and large production-corpus gates remain open, distinct from local regression proof.

@@ -5,8 +5,8 @@
 - [x] Explicit UI restore/export jobs, private preferences and trusted publication.
 - [x] PDF asset descriptors/recovery and honest missing-asset readiness.
 - [x] Deployment settings, security regressions and bounded performance checks.
-- [ ] Update Wiki/operator evidence, review diff and run full harness.
-- [ ] Commit logical changes locally; user owns push and merge.
+- [x] Update Wiki/operator evidence, review diff and run full harness.
+- [x] Commit logical changes locally; user owns push and merge.
 
 ## External acceptance
 - [ ] Physical Windows/Rancher and Linux installed-kit bind/managed-volume flow.
