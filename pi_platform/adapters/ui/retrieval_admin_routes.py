@@ -299,6 +299,8 @@ class RetrievalAdminRoutes:
                 return RouteResponse.ok(self.knowledge_sync.proposal(operation.removeprefix('proposals/')))
             if operation in {'restore', 'export', 'publish', 'reindex'} and method == 'POST':
                 details = {}
+                if operation == 'export' and not self.knowledge_sync.settings()['share_enabled']:
+                    return RouteResponse.error(409, error='Enable safe Git export in Sharing preferences first. Reindex once if older results need portable identities.', code='sharing-disabled')
                 if operation == 'publish':
                     proposal = self.knowledge_sync.proposal(payload.get('stagingId'))
                     if payload.get('snapshotId') != proposal['snapshotId']:

@@ -15,16 +15,17 @@ function browser(options = {}) {
     return nodes.get(id);
   }
   const requests = [];
-  let readyChecks = 0, jobChecks = 0;
+  let readyChecks = 0, jobChecks = 0, knowledgeChecks = 0;
   const context = {console, Promise, Date, Option: function () {},
     document: {getElementById: node, addEventListener(_, fn) { this.start = fn; }},
-    window: {setInterval() {}, setTimeout(fn) { fn(); }},
+    window: {location:{protocol:options.preview ? 'file:':'http:'},setInterval() {}, setTimeout(fn) { fn(); }},
     fetch(path, init) {
       requests.push({path, ...init});
       let body = {};
       let status = 200;
       if (path.endsWith('/admin/retrieval')) body = {embedding_model_alias:'gemma',device:'cpu',document_processing_enabled:true};
-      else if (path.endsWith('/admin/runtime')) body = {models:[{value:'gemma',label:'Managed Gemma'},{value:'gemma-torch',label:'Native Gemma'}],devices:{gemma:['auto','cpu','vulkan'], 'gemma-torch':['auto','cpu']},message:'Applies runtime changes'};
+      else if (path.endsWith('/admin/runtime')) body = {managed_control:options.managed !== false,models:[{value:'gemma',label:'Managed Gemma'},{value:'gemma-torch',label:'Native Gemma'}],devices:{gemma:['auto','cpu','vulkan'], 'gemma-torch':['auto','cpu']},message:'Applies runtime changes'};
+      else if (path.endsWith('/ui-version')) body = {ui_contract:'knowledge-sync/2',ui_build:'fixture-build'};
       else if (path.endsWith('/auth-status')) body = {token_required:options.auth || false};
       else if (path.endsWith('/wizard')) {body = {job_id:'apply-123'}; status=202;}
       else if (path.endsWith('/indexing-status')) body = {ready: ++readyChecks > 2, hydration:{in_progress:true}, indexes:{active_sources:3,retrieval:{execution:{mode:options.mode || 'CPU',backend:'cpu',reason:'Verified deployment CPU profile',source:'selected deployment profile'}}}};
@@ -32,8 +33,12 @@ function browser(options = {}) {
       else if (path.endsWith('/admin/chat/test')) body = {ok:true,message:'Connection successful'};
       else if (path.endsWith('/admin/reindex')) { body = {job_id:'job-123',status:'queued'}; status = 202; }
       else if (path.endsWith('/knowledge/settings')) body = init.method === 'PUT' ? JSON.parse(init.body) : {share_enabled:false,post_reindex_export:false,include_vectors:false};
-      else if (/\/knowledge\/(restore|export|publish)$/.test(path)) { body = {job_id:'knowledge-' + path.split('/').at(-1)}; status=202; }
-      else if (path.includes('/admin/jobs/knowledge-')) body = {status:'completed',result:path.endsWith('export') ? {stagingId:'proposal-123',snapshotId:'snapshot-123',sources:2,excludedSourceCount:1,changedPaths:['objects/hash.jsonl']} : {state:path.endsWith('restore') ? 'requires-reindex':'published'}};
+      else if (/\/knowledge\/(restore|reindex|export|publish)$/.test(path)) { body = {job_id:'knowledge-' + path.split('/').at(-1)}; status=202; }
+      else if (path.includes('/admin/jobs/knowledge-')) {
+        if (options.fail) body={status:'failed',message:'Embedding server unreachable'};
+        else if (path.endsWith('reindex')) body=++knowledgeChecks === 1 ? {status:'running'} : {status:'completed',result:{new_vectors:0,source_parse_misses:0}};
+        else body = {status:'completed',result:path.endsWith('restore') ? {state:'requires-reindex'} : {stagingId:'proposal-123',snapshotId:'snapshot-123',sources:2,excludedSourceCount:1,changedPaths:['objects/hash.jsonl'],...(path.endsWith('publish') ? {state:'published'}:{})}};
+      }
       else if (path.includes('/admin/jobs/')) body = options.fail ? {status:'failed',message:'Embedding server unreachable'} : {status:++jobChecks > 1 ? 'completed':'running',message:'Indexing'};
       return Promise.resolve({ok:status < 400,status,text:() => Promise.resolve(JSON.stringify(body))});
     },
@@ -45,6 +50,12 @@ function browser(options = {}) {
 }
 async function flush() { for (let i=0;i<12;i++) await Promise.resolve(); }
 async function main() {
+  const preview=browser({preview:true});await flush();
+  assert.equal(preview.requests.length,0,'File preview must not call unavailable APIs');
+  assert.match(preview.node('deployment-status').textContent,/preview/i);
+  const external=browser({managed:false});await flush();
+  assert.equal(external.node('embedding-device-select').disabled,true,'Uncontrolled remote hardware must not look switchable');
+  assert.match(external.node('runtime-help').textContent,/external|controller/i);
   const b = browser(); await flush();
   assert.equal(b.node('embedding-model-select').value, 'gemma');
   assert.equal(b.node('access-token').disabled,true);
@@ -81,10 +92,10 @@ async function main() {
   }), /No generated answer/);
   b.node('admin-reindex-button').listeners.click();
   assert.equal(b.node('admin-reindex-button').disabled,true);
-  assert.equal(b.node('wizard-result').attrs['aria-busy'],'true');
+  assert.equal(b.node('knowledge-sync-result').attrs['aria-busy'],'true');
   await flush(); await flush();
   assert.equal(b.node('admin-reindex-button').disabled,false);
-  assert.match(b.node('wizard-result').textContent,/completed/);
+  assert.match(b.node('knowledge-sync-result').textContent,/completed/);
   assert.equal(b.requests.filter(r=>r.path.includes('/admin/jobs/')).length,2);
   b.node('wizard-form').listeners.submit({preventDefault(){}});
   assert.equal(b.node('wizard-submit-button').disabled,true);
@@ -94,7 +105,7 @@ async function main() {
   assert.ok(b.requests.some(r=>r.path.endsWith('/admin/jobs/apply-123')));
   const failed = browser({fail:true}); await flush();
   failed.node('admin-reindex-button').listeners.click(); await flush(); await flush();
-  assert.match(failed.node('wizard-result').textContent,/Embedding server unreachable/);
+  assert.match(failed.node('knowledge-sync-result').textContent,/Embedding server unreachable/);
   assert.equal(failed.node('admin-reindex-button').disabled,false);
   b.node('approval-token').value='approval';
   assert.equal(b.node('approval-token').listeners.change,undefined);
@@ -104,14 +115,14 @@ async function main() {
   assert.match(b.context.formatResult('wiki-result',{documents:[{path:'page.md',text:'# Useful wiki'}]}),/# Useful wiki/);
   assert.match(b.context.formatResult('query-result',{results:[{metadata:{sourcePath:'brief.md'},snippet:'Evidence',score:0.5}]}),/brief.md.*score 0.5\nEvidence/);
   b.node('knowledge-restore-button').listeners.click();await flush();await flush();
-  assert.match(b.node('knowledge-result').textContent,/requires-reindex/);
+  assert.match(b.node('knowledge-sync-result').textContent,/Restore needs a local update/);
   b.node('knowledge-share').checked=true;
   b.node('knowledge-save').listeners.click();await flush();
   const preferences = b.requests.find(r=>r.path.endsWith('/knowledge/settings') && r.method==='PUT');
   assert.deepEqual(JSON.parse(preferences.body),{share_enabled:true,post_reindex_export:false,include_vectors:false});
   b.node('knowledge-export-button').listeners.click();await flush();await flush();
   assert.equal(b.node('knowledge-publish-button').hidden,false);
-  assert.match(b.node('knowledge-result').textContent,/objects\/hash.jsonl/);
+  assert.match(b.node('knowledge-sync-result').textContent,/objects\/hash.jsonl/);
   b.node('knowledge-publish-button').listeners.click();await flush();await flush();
   const publish = b.requests.find(r=>r.path.endsWith('/knowledge/publish'));
   assert.deepEqual(JSON.parse(publish.body),{stagingId:'proposal-123',snapshotId:'snapshot-123'});

@@ -4,12 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Project Intelligence</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <header>
     <h1>Project Intelligence</h1>
     <p class="subtitle">Local project knowledge, version-aware and agent-neutral.</p>
+    <p id="deployment-status" class="deployment-notice" role="status">Connecting to the running application…</p>
+    <a id="preview-live-link" class="text-link" href="http://127.0.0.1:8765/" hidden>Open the running application</a>
   </header>
 
   <main>
@@ -18,13 +20,61 @@
       <input id="access-token" type="password" autocomplete="off" placeholder="PI_UI_TOKEN; kept in memory" />
       <p id="access-token-help" class="hint" role="status">Checking API access requirements…</p>
     </section>
+    <section class="panel knowledge-panel" aria-labelledby="knowledge-heading">
+      <div class="panel-heading">
+        <div><h2 id="knowledge-heading">Project knowledge</h2>
+        <p class="hint">Restore shared knowledge, update your local index, then share the safe results.</p></div>
+        <span class="scope-badge">Private data stays local</span>
+      </div>
+      <p id="active-mode" class="mode-badge" role="status" aria-live="polite">Active mode: checking…</p>
+      <div class="knowledge-actions">
+        <article class="action-card">
+          <span class="step-number">1</span><h3>Restore from Git</h3>
+          <p>Reuse the snapshot in your checkout. No source parsing or new embeddings.</p>
+          <button id="knowledge-restore-button" type="button">Restore knowledge from Git</button>
+        </article>
+        <article class="action-card">
+          <span class="step-number">2</span><h3>Update local knowledge</h3>
+          <p>Process only missing or changed work. Search stays independent of export.</p>
+          <button id="admin-reindex-button" type="button">Reindex / Update local knowledge</button>
+        </article>
+        <article class="action-card">
+          <span class="step-number">3</span><h3>Share safe knowledge</h3>
+          <p>Review a safe export before writing Git files. Commit and push remain yours.</p>
+          <button id="knowledge-export-button" type="button">Export safe knowledge to Git files</button>
+        </article>
+      </div>
+      <div id="knowledge-sync-result" class="operation-result" role="status" aria-live="polite">Ready when you are. Choose an action above.</div>
+      <button id="knowledge-publish-button" type="button" hidden>Authorize and publish reviewed safe files</button>
+      <details class="knowledge-options">
+        <summary>Sharing preferences</summary>
+        <fieldset id="knowledge-settings">
+          <legend>Choose what this project shares</legend>
+          <label><input id="knowledge-share" type="checkbox"> Enable safe Git export</label>
+          <label><input id="knowledge-auto" type="checkbox"> Automatically export after Reindex (approval lasts one hour)</label>
+          <label><input id="knowledge-vectors" type="checkbox"> Include eligible embeddings for faster restore (larger Git storage)</label>
+          <button id="knowledge-save" type="button">Save sharing preferences</button>
+        </fieldset>
+        <p class="hint">Reindex once after first enabling sharing. Publication needs an authenticated administrator; signing keys stay on the server. Generated files stay below 8 MiB by default.</p>
+      </details>
+      <details class="knowledge-options">
+        <summary>Review image, PDF or confidential sources</summary>
+        <p class="hint">Images and PDFs stay local until you review their complete contents. Review applies to exact bytes; changed media needs a new review. Public classification never overrides credential or policy filters.</p>
+        <div class="source-review-fields">
+          <label>Source path<input id="knowledge-source-path" type="text" autocomplete="off" placeholder="docs/manual.pdf"></label>
+          <label>Classification<select id="knowledge-source-class"><option value="confidential">Confidential — keep local</option><option value="public">Public — complete source reviewed</option></select></label>
+          <button id="knowledge-review-source" type="button">Save source classification</button>
+        </div>
+      </details>
+      <p class="hint">Git history retains previously committed data. Export never runs Git add, commit or push.</p>
+    </section>
+
     <section class="panel" id="wizard-panel">
       <h2>0. First-start wizard &amp; semantic search model</h2>
       <p class="hint">
         Search and ranking use EmbeddingGemma 2; no chat LLM or API key is required.
         Select the execution device and PDF processing. Private document inputs: tmp/ and its subfolders. Keep generated caches under tmp/local/; tmp/local/source/ remains an explicit source inbox.
       </p>
-      <p id="active-mode" class="mode-badge" role="status" aria-live="polite">Active mode: checking…</p>
       <p id="active-mode-detail" class="hint">This shows embedding inference, independently of an optional chat model.</p>
       <p id="runtime-help" class="hint">Loading runtime controls…</p>
       <form id="wizard-form">
@@ -44,27 +94,11 @@
           Enable Docling PDF processing
         </label>
         <button id="wizard-submit-button" type="submit">Apply model &amp; device and build index</button>
-        <button id="admin-reindex-button" type="button">Reindex / Update local knowledge</button>
-        <button id="knowledge-restore-button" type="button">Restore knowledge from Git</button>
-        <button id="knowledge-export-button" type="button">Export safe knowledge to Git files</button>
       </form>
       <pre id="bootstrap-status" class="output" aria-live="polite">Loading bootstrap status…</pre>
       <pre id="wizard-result" class="output">Ready to configure or switch semantic model.</pre>
-      <fieldset id="knowledge-settings">
-        <legend>Git knowledge sharing</legend>
-        <label><input id="knowledge-share" type="checkbox"> Enable safe Git export</label>
-        <label><input id="knowledge-auto" type="checkbox"> Automatically export safe knowledge after Reindex (authorization expires after one hour)</label>
-        <label><input id="knowledge-vectors" type="checkbox"> Include eligible portable embeddings (increases Git size)</label>
-        <button id="knowledge-save" type="button">Save sharing preferences</button>
-      </fieldset>
-      <p class="hint">Images and PDFs stay local until an administrator reviews their complete contents. Review applies to exact current bytes; changed media requires a new review. Mark confidential content local even when its filename looks harmless.</p>
-      <label>Source path to review <input id="knowledge-source-path" type="text" autocomplete="off"></label>
-      <label>Classification <select id="knowledge-source-class"><option value="confidential">Confidential — keep local</option><option value="public">Public — reviewed complete source</option></select></label>
-      <button id="knowledge-review-source" type="button">Save reviewed source classification</button>
-      <p class="hint">Local indexing stays available independently of export. Protected or unknown sources stay local. Review file paths and sizes before publishing. Publication requires an authenticated administrator session. Git commit and push remain your actions; Git history retains earlier data.</p>
-      <pre id="knowledge-result" class="output" aria-live="polite"></pre>
-      <button id="knowledge-publish-button" type="button" hidden>Authorize and publish reviewed safe files</button>
     </section>
+
 
     <section class="panel">
       <h2>1. Ask about your project</h2>
@@ -179,6 +213,6 @@
     <p>REST contract: <code>/api/v1/</code> · OpenAI-compatible: <code>/v1/</code> · health: <code>/health</code> · readiness: <code>/health/ready</code></p>
   </footer>
 
-  <script src="/app.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
