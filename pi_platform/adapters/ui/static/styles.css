@@ -57,6 +57,29 @@ input[type="text"], input[type="password"] {
   font: inherit;
 }
 
+select { padding: 0.55rem 0.65rem; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--ink); font: inherit; max-width: 100%; }
+select:disabled { opacity: 0.65; cursor: not-allowed; }
+.deployment-notice { color: var(--muted); font-size: 0.85rem; margin: 0.8rem 0 0; }
+.text-link { color: var(--ink); text-decoration-color: var(--accent); text-underline-offset: 0.2em; }
+.panel-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.scope-badge { color: var(--ink); background: var(--bg); border: 1px solid var(--accent); border-radius: 20px; padding: 0.3rem 0.65rem; font-size: 0.75rem; white-space: nowrap; }
+.knowledge-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8rem; margin-top: 1.1rem; }
+.action-card { display: flex; flex-direction: column; align-items: flex-start; padding: 1rem; border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 9px; background: var(--bg); }
+.step-number { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; background: var(--accent); color: white; border-radius: 50%; font-weight: 650; }
+.action-card h3 { font-size: 1rem; margin: 0.75rem 0 0; }
+.action-card p { color: var(--muted); font-size: 0.85rem; margin: 0.5rem 0 1rem; }
+.action-card button { margin-top: auto; width: 100%; text-align: left; font-size: 0.85rem; }
+.operation-result { margin: 1rem 0; padding: 0.9rem 1rem; border-left: 3px solid var(--accent); border-radius: 5px; background: var(--bg); white-space: pre-line; overflow-wrap: anywhere; }
+.knowledge-options { border-top: 1px solid var(--border); padding: 0.85rem 0; }
+.knowledge-options summary { cursor: pointer; font-weight: 600; }
+#knowledge-settings { display: grid; gap: 0.75rem; margin: 0.9rem 0 0; border: 1px solid var(--border); border-radius: 7px; }
+#knowledge-settings legend { color: var(--muted); font-size: 0.85rem; }
+#knowledge-settings button { justify-self: start; }
+.source-review-fields { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: end; margin-top: 1rem; }
+.source-review-fields label { display: grid; gap: 0.4rem; flex: 1 1 14rem; }
+.source-review-fields input { flex: initial; width: 100%; }
+@media (max-width: 700px) { .knowledge-actions { grid-template-columns: 1fr; } .panel-heading { flex-direction: column; } }
+
 input:focus-visible, button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -77,7 +100,7 @@ button:disabled { opacity: 0.55; cursor: wait; }
 [hidden] { display: none; }
 [aria-busy="true"] { border-color: var(--accent); }
 [aria-busy="true"]::before {
-  content: "⏳ Indexing in progress…\A";
+  content: "Processing project knowledge…\A";
   color: var(--accent);
 }
 

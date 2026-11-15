@@ -335,6 +335,7 @@ class SemanticIndexService:
     def embed_active_chunks(
         self,
         chunks: Sequence[ActiveChunk],
+        *, allow_embedding: bool = True,
     ) -> IndexingReport:
         """Embed (or reuse) the given chunks and return the report.
 
@@ -416,6 +417,10 @@ class SemanticIndexService:
                     ready.append((chunk, vector))
                     reused.append(chunk.chunk_id)
 
+            if misses and not allow_embedding:
+                from pi_platform.core.sync.restore_contract import RestoreRequiresReindex
+                raise RestoreRequiresReindex('Compatible vectors are missing; reindex required',
+                                            report={'missingVectorChunksAtLeast': len(misses)})
             # Keep segment ownership explicit while flattening requests; every
             # segment is validated before its chunk's mean-pool projection.
             requests = []

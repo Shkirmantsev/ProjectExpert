@@ -16,6 +16,7 @@ from pi_platform.adapters.ingest.local_pipeline_driver import (
 from pi_platform.core.canonical.value_types import Metadata, Source, KnowledgeState
 from pi_platform.core.ingest.runtime_cache import InMemoryRuntimeCache
 from pi_platform.core.retrieval.semantic_index_service import ActiveChunk
+from pi_platform.core.sync.restore_contract import RestoreRequiresReindex
 from pi_platform.ports.ingest.source_adapter import SourceContentFamily
 from pi_platform.ports.retrieval.hybrid_retrieval import RetrievalHit
 from .retrieval_composition import build_production_retrieval_runtime
@@ -99,7 +100,7 @@ def _candidate_graph(target, cache_root, cache, *, progress=None):
     return ProductionGraphExpansion(graph), tuple(sorted(entities))
 
 
-def _index_dense_generation(runtime, active):
+def _index_dense_generation(runtime, active, *, restore_only=False):
     """Reuse valid ANN files, otherwise rebuild only from valid SQLite vectors."""
     import math
     from pi_platform.adapters.runtime.usearch_dense_index import USearchDenseIndex, compute_source_generation
@@ -149,13 +150,13 @@ def _index_dense_generation(runtime, active):
         if not loaded:
             dense.select_generation(generation)
             dense.reset_candidate(output_dimension=profile.output_dimension)
-    report = runtime.semantic_index_service.embed_active_chunks(active)
+    report = runtime.semantic_index_service.embed_active_chunks(active, allow_embedding=not restore_only)
     if isinstance(dense, USearchDenseIndex) and not loaded:
         dense.save_generation(report.source_generation)
     return report, loaded
 
 
-def index_repository(*, target, cache_root, inventory, previous_inventory, settings, cli_overrides=None):
+def index_repository(*, target, cache_root, inventory, previous_inventory, settings, cli_overrides=None, restore_only=False):
     """Return an unpublished candidate; explicit resumable mode never falls back."""
     import os
     from pi_platform.adapters.runtime.sqlite_ingestion_cache import SqliteIngestionCache, exclusive_indexer
@@ -168,12 +169,18 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
     if engine not in {'legacy', 'resumable'}:
         raise ValueError('PI_INDEX_ENGINE must be legacy or resumable')
     arguments = dict(target=target, cache_root=cache_root, inventory=inventory,
-                     previous_inventory=previous_inventory, settings=settings, cli_overrides=cli_overrides)
+                     previous_inventory=previous_inventory, settings=settings, cli_overrides=cli_overrides, restore_only=restore_only)
+    if restore_only and not (Path(target) / 'project-knowledge/manifests/portable-v2.json').is_file():
+        raise RestoreRequiresReindex('No portable snapshot is available')
+    from pi_platform.adapters.fs.private_cache import ensure_private_cache
+    ensure_private_cache(target, cache_root)
     with exclusive_indexer(cache_root):
         if (Path(cache_root) / 'gc-in-progress.json').exists():
             raise RuntimeError('Interrupted canonical GC; resume scripts/indexing_state.py gc --apply --resume before indexing')
         if (Path(cache_root) / 'restore-in-progress.json').exists():
             raise RuntimeError('Interrupted state restore; complete scripts/indexing_state.py restore --resume before indexing')
+        if restore_only and engine == 'legacy':
+            raise RestoreRequiresReindex('Restore requires the resumable engine')
         if engine == 'legacy':
             from pi_platform.adapters.sync.portable_format import ROOT
             from pi_platform.adapters.sync.portable_snapshot_reader import verified_snapshot
@@ -211,9 +218,16 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
             from pi_platform.adapters.sync.portable_snapshot_reader import verified_snapshot
             with ExitStack() as snapshots:
                 portable_root = Path(target) / 'project-knowledge'
-                plan = (snapshots.enter_context(verified_snapshot(portable_root, cache_root))
-                        if (portable_root / ROOT).exists() else None)
-                runtime = _index_repository(**arguments, durable_cache=cache, portable_plan=plan)
+                from pi_platform.adapters.sync.portable_format import PortableSnapshotError
+                plan, rejected = None, False
+                try:
+                    if (portable_root / ROOT).exists():
+                        plan = snapshots.enter_context(verified_snapshot(portable_root, cache_root))
+                except (PortableSnapshotError, OSError):
+                    if restore_only:
+                        raise RestoreRequiresReindex('Portable snapshot rejected; reindex required') from None
+                    rejected = True
+                runtime = _index_repository(**arguments, durable_cache=cache, portable_plan=plan, skip_portable=rejected)
             cache.assert_fence()
             cache.finish('ready')
             return runtime
@@ -224,7 +238,7 @@ def index_repository(*, target, cache_root, inventory, previous_inventory, setti
             cache.close()
 
 
-def _index_repository(*, target, cache_root, inventory, previous_inventory, settings, cli_overrides=None, durable_cache=None, portable_plan=None):
+def _index_repository(*, target, cache_root, inventory, previous_inventory, settings, cli_overrides=None, durable_cache=None, portable_plan=None, restore_only=False, skip_portable=False):
     """Parse current files, reuse vectors and return an unpublished runtime."""
     from pi_platform.adapters.config.runtime_configuration_resolver import RuntimeConfigurationResolver
     target, cache_root = Path(target).resolve(), Path(cache_root).resolve()
@@ -234,7 +248,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         local_settings_path=target / '.project-intelligence-cache/settings.json',
     ).resolve()
     import os
-    if (config.startup_profile == 'production' and config.docling_enabled
+    if (not restore_only and config.startup_profile == 'production' and config.docling_enabled
             and os.environ.get('PI_PREPARE_DOCLING', '0') == '1'
             and any(_family(e.path) == SourceContentFamily.PDF for e in inventory.entries)):
         from pi_platform.adapters.pdf.real_docling import _pinned_pdf_assets
@@ -245,7 +259,9 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         if durable_cache is not None:
             durable_cache.stage(stage, total, completed, failed, degraded, state=state)
     from pi_platform.adapters.sync.portable_format import ROOT as PORTABLE_ROOT
-    portable = ((target / 'project-knowledge' / PORTABLE_ROOT).exists()
+    from pi_platform.adapters.orchestration.knowledge_sync import KnowledgeSyncCoordinator
+    portable = (KnowledgeSyncCoordinator(target, cache_root).settings()['share_enabled']
+                or (target / 'project-knowledge' / PORTABLE_ROOT).exists()
                 or os.environ.get('PI_PORTABLE_EXPORT', 'off') in {'review', 'approved-auto'})
     active_source_ids = {'repo:' + e.path for e in inventory.entries}
     for sid in cache.source_ids():
@@ -253,6 +269,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
             cache.invalidate_source(sid, stale=False)
     parsers, chunkers = _default_parser_registry(), _default_chunker_registry()
     image_entries = [e for e in inventory.entries if Path(e.path).suffix.lower() in {'.png', '.jpg', '.jpeg', '.webp'}]
+    image_paths = {e.path for e in image_entries}
     pdf_entries = [e for e in inventory.entries if _family(e.path) == SourceContentFamily.PDF]
     pdf_db = None
     if pdf_entries and config.docling_enabled:
@@ -275,7 +292,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
                                  parse_workers=None if parallel else 1, parallel_safe_registry=True)
     failures, sources = [], []
     for entry in inventory.entries:
-        if entry in image_entries:
+        if entry.path in image_paths:
             continue
         if _family(entry.path) == SourceContentFamily.PDF and not config.docling_enabled:
             cache.invalidate_source('repo:' + entry.path, stale=False)
@@ -287,20 +304,33 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
                               sourcePath=entry.path, policy=entry.policy or None,
                               extensions={"portable_identity": "v2"} if portable else {}),
         ))
-    portable_import = {}
+    from pi_platform.adapters.sync.portable_media import pipeline_key as source_pipeline_key, persist_image, IMAGE_PROJECTION
+    media_sources = [Source(id='repo:' + e.path, uri=str(target / e.path), family='image', contentHash=e.content_hash,
+        metadata=Metadata(documentId='repo:' + e.path, version='0.1.0', language='und', sourcePath=e.path,
+                          policy=e.policy or None, extensions={'portable_identity': 'v2', 'media': 'image'}))
+        for e in image_entries]
+    portable_import = {'state': 'rejected-snapshot'} if skip_portable else {}
     if durable_cache is not None:
         from pi_platform.core.canonical.content_address import content_address
         from pi_platform.core.canonical.value_types import to_canonical_json
         cache.select_sources((source.id, source.contentHash,
-            content_address(to_canonical_json(source.metadata).decode()), driver.pipeline_key(source))
-            for source in sources)
-        if portable:
+            content_address(to_canonical_json(source.metadata).decode()), source_pipeline_key(source, driver))
+            for source in [*sources, *media_sources])
+        if portable and not skip_portable:
             from pi_platform.adapters.sync.portable_snapshot_importer import import_sources
-            portable_import = import_sources(target, cache_root, cache, sources, driver, plan=portable_plan)
-    progress('sources', len(sources), len(cache.source_ids()))
+            portable_import = import_sources(target, cache_root, cache, [*sources, *media_sources], driver, plan=portable_plan)
+    progress('sources', len(sources) + len(media_sources), len(cache.source_ids()))
     pdf_admission = {}
     try:
-        if durable_cache is not None and int(os.environ.get('PI_PDF_WORKERS', '1')) > 1 and pdf_entries and config.docling_enabled:
+        if restore_only:
+            missing = sum(cache.source_record(source.id) is None for source in sources)
+            missing += sum(cache.source_record(source.id) is None for source in media_sources)
+            missing += len(inventory.entries) - len(sources) - len(media_sources)
+            if missing:
+                raise RestoreRequiresReindex('Current source results are missing or incompatible; reindex required',
+                    report={**portable_import, 'missingSources': missing})
+            reports = ()
+        elif durable_cache is not None and int(os.environ.get('PI_PDF_WORKERS', '1')) > 1 and pdf_entries and config.docling_enabled:
             from pi_platform.adapters.pdf.process_sources import run_pdf_sources
             if pdf_db is not None:
                 pdf_db.commit()
@@ -326,17 +356,25 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
                 failures.append({'path': source.metadata.sourcePath, 'error': report.error_message,
                                  'category': report.error_category})
                 if report.error_category in {"configuration_error", "internal_error"}:
-                    raise RuntimeError(f"Ingestion failed for {source.metadata.sourcePath}: {report.error_message}")
+                    from pi_platform.core.sync.export_policy import diagnostic_source
+                    label = ('protected source' if diagnostic_source(source) == 'protected-source'
+                             else source.metadata.sourcePath)
+                    raise RuntimeError(f"Ingestion failed for {label}: {report.error_message}")
         degraded = sum(report.ok and report.degraded for report in reports)
-        progress('sources', len(sources), sum(report.ok for report in reports), len(failures), degraded,
+        progress('sources', len(sources) + len(media_sources), len(cache.source_ids()), len(failures), degraded,
                  state='failed' if failures else 'complete')
         require_complete = os.environ.get('PI_INDEX_REQUIRE_COMPLETE', '1') == '1'
-        if durable_cache is not None and require_complete and (failures or len(reports) != len(sources)):
+        if durable_cache is not None and not restore_only and require_complete and (failures or len(reports) != len(sources)):
             raise RuntimeError(f'Incomplete ingestion blocks publication: {len(failures)} failed sources')
     finally:
         if pdf_db is not None:
             pdf_db.commit()
             pdf_db.close()
+    if durable_cache is not None:
+        for source in media_sources:
+            persist_image(cache, source, driver)
+        progress('sources', len(sources) + len(media_sources), len(cache.source_ids()), len(failures), degraded,
+                 state='failed' if failures else 'complete')
     chunks_by_id = {}
     for raw in cache.iter_records():
         data = json.loads(raw)
@@ -395,7 +433,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
                 # text-only reranker does not demote it for having no
                 # textual representation.
                 'extensions': {'media': 'image'}}
-        image_hash = hashlib.sha256((text + entry.content_hash + 'gemma-image-v1').encode()).hexdigest()
+        image_hash = hashlib.sha256((text + entry.content_hash + IMAGE_PROJECTION).encode()).hexdigest()
         active.append(ActiveChunk(cid, entry.content_hash, text, image_hash, meta, image_path=str(path)))
         catalog[cid] = RetrievalHit(chunkId=cid, score=0.5, source='dense', snippet=text,
             contentHash=entry.content_hash, metadata=Metadata(**meta),
@@ -433,37 +471,44 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         graph_expansion=graph_expansion,
         rerank_policy=rerank_policy,
     )
+    pdf_projections = {}
     # A production model must actually load, even for an empty repository.
     if config.startup_profile == 'production':
         from pi_platform.ports.retrieval.embedding_model import EmbeddingRequest, EmbeddingRole
-        runtime.embedding_model.embed_request(EmbeddingRequest(text='startup health check', role=EmbeddingRole.QUERY))
-        pdf_chunks = [chunk for chunk in active
-                      if str(chunk.metadata.get('sourcePath', '')).lower().endswith('.pdf')]
-        if pdf_chunks:
+        if not restore_only:
+            runtime.embedding_model.embed_request(EmbeddingRequest(text='startup health check', role=EmbeddingRole.QUERY))
+        pdf_chunk_ids = {chunk.chunk_id for chunk in active
+                         if str(chunk.metadata.get('sourcePath', '')).lower().endswith('.pdf')}
+        if pdf_chunk_ids:
             from pi_platform.adapters.pdf.runtime_projection import PdfRuntimeProjection, PDF_RUNTIME_PROJECTION_VERSION
             tokenizer_model = runtime.embedding_model.profile().model_id
             projection = PdfRuntimeProjection(tokenizer_model)
             projected = []
             for chunk in active:
-                if chunk not in pdf_chunks:
+                if chunk.chunk_id not in pdf_chunk_ids:
                     projected.append(chunk)
                     continue
                 image_path = None
                 body = chunks_by_id[chunk.chunk_id]
-                if config.embedding_model in {'gemma', 'gemma-torch'}:
+                descriptor = body.get('metadata', {}).get('extensions', {}).get('pdf_asset')
+                if config.embedding_model in {'gemma', 'gemma-torch'} and descriptor is None:
                     image_path = _figure_image_path(body, cache_root)
                 segments = projection(body)
                 if not segments:
                     raise RuntimeError(f"PDF projection produced no text for {chunk.chunk_id}")
                 # The projection policy participates in vector reuse, while
                 # canonical text, anchors and chunk identities stay unchanged.
-                projection_hash = hashlib.sha256(json.dumps({
+                projection_identity = {
                     'version': PDF_RUNTIME_PROJECTION_VERSION,
                     'aggregation': 'normalized-mean/v1', 'max_tokens': 512,
                     'canonical_text_hash': chunk.retrieval_text_hash,
                     'segments': segments,
-                    'image_hash': hashlib.sha256(Path(image_path).read_bytes()).hexdigest() if image_path else None,
-                }, sort_keys=True).encode()).hexdigest()
+                    'image_hash': (descriptor['byteHash'] if descriptor and config.embedding_model in {'gemma', 'gemma-torch'}
+                                   else hashlib.sha256(Path(image_path).read_bytes()).hexdigest() if image_path else None),
+                }
+                from pi_platform.adapters.sync.portable_pdf_vectors import projection_hash as pdf_projection_hash
+                projection_hash = pdf_projection_hash(projection_identity)
+                pdf_projections[chunk.chunk_id] = projection_identity
                 projected.append(replace(chunk, embedding_segments=segments, image_path=image_path,
                                          retrieval_text_hash=projection_hash))
             active = projected
@@ -473,10 +518,42 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
             lambda completed, total: progress('embedding', total, completed,
                 state='complete' if completed == total else 'running'))
     imported_vectors = 0
-    if durable_cache is not None and portable:
+    if durable_cache is not None and portable and not skip_portable:
         from pi_platform.adapters.sync.portable_snapshot_importer import import_vectors
         imported_vectors = import_vectors(target, cache_root, runtime, active, plan=portable_plan)
-    report, dense_generation_loaded = _index_dense_generation(runtime, active)
+    assets_regenerated = 0
+    if pdf_projections and not restore_only:
+        from pi_platform.adapters.pdf.portable_assets import ensure_local_asset
+        from pi_platform.adapters.runtime.sqlite_vector_record_store import decode_vector_payload
+        pages = {}
+        resolved = []
+        for chunk in active:
+            descriptor = chunk.metadata.get('extensions', {}).get('pdf_asset')
+            record = runtime.vector_record_store.get(chunk.chunk_id, runtime.embedding_profile_hash) if descriptor else None
+            exact = (record is not None and record.created_from_retrieval_text_hash == chunk.retrieval_text_hash
+                     and record.model_revision == runtime.embedding_model.profile().model_revision
+                     and record.dimension == runtime.embedding_model.profile().output_dimension
+                     and record.normalization == runtime.embedding_model.profile().normalization)
+            if exact:
+                try:
+                    runtime.semantic_index_service._validate_vector(decode_vector_payload(record.vector_payload), chunk.chunk_id)
+                except (ValueError, RuntimeError):
+                    exact = False
+            if descriptor and config.embedding_model in {'gemma', 'gemma-torch'} and not exact:
+                old = len(pages)
+                path = ensure_local_asset(target, cache_root, descriptor, pages=pages)
+                assets_regenerated += int(len(pages) != old)
+                chunk = replace(chunk, image_path=path)
+            resolved.append(chunk)
+        active = resolved
+    try:
+        report, dense_generation_loaded = _index_dense_generation(runtime, active, restore_only=restore_only)
+    except RestoreRequiresReindex as exc:
+        exc.report.update({**portable_import, 'importedVectors': imported_vectors})
+        raise
+    if durable_cache is not None:
+        from pi_platform.adapters.sync.portable_pdf_vectors import persist_projections
+        persist_projections(cache_root, runtime.embedding_profile_hash, pdf_projections)
     progress('embedding', len(active), len(active), state='complete')
     if durable_cache is not None and hasattr(runtime.dense_index, 'index_path'):
         index_path = Path(runtime.dense_index.index_path)
@@ -493,6 +570,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         atomic_bytes(cache_path, json.dumps(saved, sort_keys=True).encode())
     return replace(runtime, extra={
         'portable_import': {**portable_import, 'importedVectors': imported_vectors},
+        'figure_assets_regenerated': assets_regenerated,
         'source_inventory': projected_inventory,
         'graph_node_ids': graph_node_ids,
         'chunk_ids': tuple(catalog), 'chunk_catalog': catalog,

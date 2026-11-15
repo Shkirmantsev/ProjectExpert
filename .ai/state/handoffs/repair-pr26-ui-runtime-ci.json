@@ -1,0 +1,53 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "https://github.com/Shkirmantsev/ProjectExpert/pull/26"
+  ],
+  "decisions": [
+    "Live8765 is a separate immutable deployment targeting trade-analyzer. Project safety limits this checkout; prepare an exact upgrade before asking to modify that external installation."
+  ],
+  "progress": {
+    "blocked": [
+      "Live8765 targets a separate project; explicit scope request pending under project-safety boundary"
+    ],
+    "done": [
+      "Committed Windows/CodeQL fixture repair dd82a8c and styled UI delivery 48f3fbd; final local harness and isolated image smoke passed"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "After owner approval upgrade external app/controller with rollback, preserving operator settings and reviewed assets",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-15T12:03:37+00:00",
+    "id": "repair-pr26-ui-runtime-ci",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-15T12:39:27+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Reproduce CI/security failures, add regression proof, styled UI runtime verification, clear deployment identity and GPU control behavior, full harness, local logical commits only"
+    ],
+    "goal": "Repair PR26 Windows and CodeQL failures, preserve styled knowledge UI and diagnose stale active-port runtime on current branch",
+    "openspec_change": "remediate-safe-knowledge-sync",
+    "status": "blocked"
+  },
+  "verification": {
+    "passed": [
+      "Full harness PASS: 2049 tests /160 suites /20 skips; OpenSpec96; manifest1605; browser PASS; 50k graph3.7s build/5.0s total; isolated candidate image smoke PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

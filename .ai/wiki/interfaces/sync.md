@@ -25,6 +25,14 @@ maintenance:
 
 # Sync interface reference
 
+The [safe knowledge workflow](../../../docs/SAFE_KNOWLEDGE_REMEDIATION.md)
+adds restore-only orchestration, whole-source export admission, optional subset
+scope, exact-byte media review, PDF descriptors, private operator preferences and
+administrator jobs. Existing hydrate/reindex and signed materialisation remain.
+Restore never schedules source parsing or embeddings; missing inputs report
+requires-reindex. Git export failure remains separate from local index readiness.
+Publication audits retained generated files and can require owner-reviewed cleanup.
+
 Implements the
 [`bidirectional-canonical-runtime-sync`](../../../openspec/specs/2026-10-04-bidirectional-canonical-runtime-sync/spec.md)
 spec.
@@ -233,3 +241,15 @@ self-hash are not rewritten. V2 paths continue to reject backslashes strictly.
 The regression suite also exercises an aliased temporary repository root so
 approval scopes and injected write failures use the same resolved identity as
 production; no trusted approval checks are relaxed.
+
+
+## Knowledge UI delivery
+
+The observed UI groups Restore, Reindex and Export into themed responsive cards
+and renders readable results separately from legacy diagnostics. Direct HTML file
+previews resolve local assets but disable operations. Live delivery identifies its
+asset fingerprint at public `/api/v1/ui-version`; API/static responses use
+`Cache-Control: no-store`. Remote Gemma hardware selection is disabled when the
+runtime reports no managed controller. Changing a checkout does not update an
+already running container image; application and deployment-kit upgrades are
+separate operator actions. See [PR26 evidence](../../../docs/SAFE_KNOWLEDGE_REMEDIATION.md).

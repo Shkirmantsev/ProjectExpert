@@ -520,6 +520,9 @@ class DoclingPdfAdapter(SourceAdapterPort):
                              version=revision.strategy_version, language=revision.language or "und",
                              sourcePath=source_path or source.uri, contentHash=source.contentHash),
         )
+        from dataclasses import asdict
+        from .portable_assets import render_profile
+        pages = {page.page_no: page for page in self._graph_store.list_pages(revision.revision_id)}
         sections = []
         for element in self._graph_store.list_elements(revision.revision_id):
             section = Section(id=f"sec-{element.element_id}", heading=f"Page {element.page}", level=1)
@@ -527,6 +530,17 @@ class DoclingPdfAdapter(SourceAdapterPort):
             table = self._graph_store.get_table(revision.revision_id, element.element_id)
             if table is not None:
                 attrs["table"] = {"headers": table.headers, "rows": table.rows}
+            if element.page in pages:
+                attrs['pdf_page'] = asdict(pages[element.page])
+            attrs['pdf_document'] = {'sourceHash': revision.byte_hash, 'strategyVersion': revision.strategy_version,
+                                     'pageCount': revision.page_count, 'language': revision.language}
+            asset = (self._graph_store.get_asset(element.element_id)
+                     if element.kind == ElementKind.FIGURE else None)
+            if asset is not None:
+                attrs['pdf_asset'] = {'schema': 'pdf-figure/1', 'sourcePath': source_path or source.uri,
+                    'sourceHash': revision.byte_hash, 'assetId': asset.asset_id, 'byteHash': asset.byte_hash,
+                    'page': asset.page, 'bbox': list(asset.bbox), 'renderProfile': render_profile(),
+                    'strategyVersion': revision.strategy_version}
             chunk = make_chunk(document, section, element.text,
                                parser_version=self._strategy_version, extensions=attrs)
             asset = (self._graph_store.get_asset(element.element_id)

@@ -29,7 +29,9 @@ function call(method, path, body) {
       var parsed = text;
       try { parsed = JSON.parse(text); } catch (err) { /* keep raw text */ }
       if (!response.ok) {
-        throw new Error("HTTP " + response.status + ": " + JSON.stringify(parsed));
+        var message = parsed && parsed.error;
+        if (message && typeof message === 'object') { message = message.message; }
+        throw new Error((typeof message === 'string' ? message : 'The request could not be completed') + ' (HTTP ' + response.status + ')');
       }
       return parsed;
     });
@@ -37,6 +39,38 @@ function call(method, path, body) {
 }
 
 function formatResult(targetId, result) {
+  if (targetId === 'knowledge-sync-result' && result && typeof result === 'object') {
+    var report = result.result || result;
+    if (report.state === 'requires-reindex') {
+      return 'Restore needs a local update.\n' + (report.importedSources || 0) +
+        ' sources imported. No source parsing or new embeddings were run. Choose Reindex to complete missing work.';
+    }
+    if (report.state === 'portable-restored') {
+      var restored = report.portable_import || report;
+      return 'Knowledge restored. Local search is ready.\n' + (restored.importedSources || 0) +
+        ' sources imported · ' + (restored.importedVectors || 0) + ' embeddings restored.';
+    }
+    if (report.state === 'no-exportable-sources') {
+      return 'No shareable sources are available.\nEnable sharing and reindex once, or review source classifications.' +
+        (report.cleanupRequired ? '\nPreviously generated files need owner-reviewed cleanup before sharing.' : '');
+    }
+    if (report.stagingId) {
+      return (report.state === 'published' ? 'Safe Git files published. Commit and push when you are ready.' : 'Safe export ready for your review.') +
+        '\n' + report.sources + ' shareable sources · ' + (report.excludedSourceCount || 0) + ' kept local · ' +
+        (report.fileCount || 0) + ' text files · ' + ((report.totalBytes || 0) / 1048576).toFixed(2) + ' MiB' +
+        (report.changedPaths && report.changedPaths.length ? '\nChanged files:\n' + report.changedPaths.join('\n') : '\nNo file changes.');
+    }
+    if (typeof report.share_enabled === 'boolean') {
+      return 'Sharing preferences saved. Safe Git export is ' + (report.share_enabled ? 'enabled.' : 'disabled.') +
+        '\nAutomatic export is ' + (report.post_reindex_export ? 'enabled for the approved session.' : 'off.');
+    }
+    if (report.state === 'source-review-saved') { return 'Source classification saved: ' + report.classification + '.'; }
+    if ('new_vectors' in report || 'source_parse_misses' in report) {
+      return 'Local knowledge update completed.\n' + (report.source_parse_misses || 0) + ' sources processed · ' +
+        (report.source_parse_hits || 0) + ' reused · ' + (report.new_vectors || 0) + ' new embeddings.';
+    }
+    return report.message || 'Processing project knowledge…';
+  }
   if (targetId === "wiki-result" && result.documents) {
     return result.documents.length ? result.documents.map(function (doc) {
       return doc.path + "\n\n" + doc.text;
@@ -85,6 +119,24 @@ function bindButton(buttonId, targetId, action) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+  if (window.location && window.location.protocol === 'file:') {
+    show('deployment-status', 'Design preview — styles are available, but this file is not a running application. Open the live server to use search and knowledge actions.');
+    show('active-mode', 'Preview only — no runtime connected');
+    show('runtime-help', 'GPU selection belongs to the running server, not this design preview.');
+    document.getElementById('preview-live-link').hidden = false;
+    if (document.querySelectorAll) {
+      document.querySelectorAll('button, input, select').forEach(function (control) { control.disabled = true; });
+    }
+    return;
+  }
+  call('GET', API + '/ui-version').then(function (identity) {
+    show('deployment-status', identity.knowledge_operations === false ?
+      'Current UI loaded; knowledge operations are not configured. Start the application through the platform launcher.' : identity.ui_contract === 'knowledge-sync/2' ?
+      'Connected · knowledge workflow · build ' + identity.ui_build.slice(0, 10) :
+      'Older application detected. Update the application image and deployment kit to use the current knowledge workflow.');
+  }).catch(function () {
+    show('deployment-status', 'This server does not identify the current UI build. Update its application image and deployment kit; a browser refresh cannot install new application code.');
+  });
   var reloadProtected = [];
   var tokenField = document.getElementById("access-token");
   if (tokenField) {
@@ -155,7 +207,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function refreshBootstrapStatus() {
     call("GET", API + "/indexing-status").then(function (status) {
-      show("bootstrap-status", status);
+      show("bootstrap-status", status.ready ? 'Local search is ready.' :
+        (status.hydration && status.hydration.reason || 'Preparing local knowledge. Progress appears here.'));
       var retrieval = status.indexes && status.indexes.retrieval;
       var execution = retrieval && retrieval.execution;
       show("active-mode", "Active mode: " + (execution ? execution.mode : "not ready"));
@@ -235,13 +288,13 @@ document.addEventListener("DOMContentLoaded", function () {
       return pause().then(function () { return waitForIndex(deadline); });
     });
   }
-  function waitForJob(jobId, deadline) {
+  function waitForJob(jobId, deadline, targetId) {
     return call("GET", API + "/admin/jobs/" + encodeURIComponent(jobId)).then(function (job) {
-      show("wizard-result", job);
+      show(targetId || 'wizard-result', formatResult(targetId || 'wizard-result', job));
       if (job.status === "failed") { throw new Error(job.message); }
       if (job.status === "completed") { return job; }
       if (Date.now() > deadline) { throw new Error("Job still running. Check indexing status and container logs."); }
-      return pause().then(function () { return waitForJob(jobId, deadline); });
+      return pause().then(function () { return waitForJob(jobId, deadline, targetId); });
     });
   }
   function indexAction(action) {
@@ -253,6 +306,69 @@ document.addEventListener("DOMContentLoaded", function () {
       output.setAttribute("aria-busy", "false");
       buttons.forEach(function (button) { button.disabled = false; });
       refreshBootstrapStatus();
+    });
+  }
+  var knowledgeProposal = null;
+  function knowledgeJob(operation, payload) {
+    var button = document.getElementById('knowledge-publish-button');
+    button.hidden = true;
+    return call('POST', API + '/admin/knowledge/' + operation, payload || {}).then(function (job) {
+      return waitForJob(job.job_id, Date.now() + 30 * 60 * 1000, 'knowledge-sync-result');
+    }).then(function (job) {
+      show('knowledge-sync-result', formatResult('knowledge-sync-result', job));
+      knowledgeProposal = job.result && job.result.stagingId ? job.result : null;
+      button.hidden = !knowledgeProposal || operation === 'publish';
+      refreshBootstrapStatus();
+      return job;
+    });
+  }
+  function knowledgeAction(operation, payload) {
+    var buttons = ['knowledge-restore-button', 'admin-reindex-button', 'knowledge-export-button', 'knowledge-publish-button'];
+    buttons.forEach(function (id) { document.getElementById(id).disabled = true; });
+    var output = document.getElementById('knowledge-sync-result');
+    output.setAttribute('aria-busy', 'true');
+    return run('knowledge-sync-result', function () { return knowledgeJob(operation, payload); }).then(function () {
+      output.setAttribute('aria-busy', 'false');
+      buttons.forEach(function (id) { document.getElementById(id).disabled = false; });
+    });
+  }
+  function loadKnowledgeSettings() {
+    return call('GET', API + '/admin/knowledge/settings').then(function (settings) {
+      document.getElementById('knowledge-share').checked = settings.share_enabled;
+      document.getElementById('knowledge-auto').checked = settings.post_reindex_export;
+      document.getElementById('knowledge-vectors').checked = settings.include_vectors;
+    }).catch(function (error) { show('knowledge-sync-result', error.message); });
+  }
+  if (document.getElementById('knowledge-restore-button')) {
+    loadKnowledgeSettings();
+    reloadProtected.push(loadKnowledgeSettings);
+    document.getElementById('knowledge-review-source').addEventListener('click', function () {
+      run('knowledge-sync-result', function () {
+        return call('POST', API + '/admin/knowledge/source-review', {
+          path: document.getElementById('knowledge-source-path').value,
+          classification: document.getElementById('knowledge-source-class').value
+        });
+      });
+    });
+    ['restore', 'export'].forEach(function (operation) {
+      document.getElementById('knowledge-' + operation + '-button').addEventListener('click', function () {
+        knowledgeAction(operation);
+      });
+    });
+    document.getElementById('knowledge-save').addEventListener('click', function () {
+      run('knowledge-sync-result', function () {
+        return call('PUT', API + '/admin/knowledge/settings', {
+          share_enabled: document.getElementById('knowledge-share').checked,
+          post_reindex_export: document.getElementById('knowledge-auto').checked,
+          include_vectors: document.getElementById('knowledge-vectors').checked
+        });
+      });
+    });
+    document.getElementById('knowledge-publish-button').addEventListener('click', function () {
+      if (!knowledgeProposal) { return; }
+      knowledgeAction('publish', {
+        stagingId: knowledgeProposal.stagingId, snapshotId: knowledgeProposal.snapshotId
+      });
     });
   }
   var wizardForm = document.getElementById("wizard-form");
@@ -267,6 +383,12 @@ document.addEventListener("DOMContentLoaded", function () {
       var labels = {auto:"Auto (measure CPU/GPU; select faster)",cpu:"CPU",vulkan:"GPU / Vulkan",cuda:"GPU / CUDA",mps:"GPU / Apple Metal"};
       devices.forEach(function (device) { select.add(new Option(labels[device], device)); });
       select.value = devices.indexOf(selected) >= 0 ? selected : "auto";
+      select.disabled = model === 'gemma' && !runtimeCaps.managed_control;
+      if (select.disabled) {
+        show('runtime-help', 'This external embedding runtime has no live controller. Its host deployment selects CPU/GPU. Upgrade the managed deployment kit to enable hardware changes here.');
+      } else {
+        show('runtime-help', runtimeCaps.message || 'Apply saves settings and updates the local index.');
+      }
     }
     document.getElementById("embedding-model-select").addEventListener("change", function () { fillDevices("auto"); });
     function loadRuntimeSettings() {
@@ -285,7 +407,7 @@ document.addEventListener("DOMContentLoaded", function () {
       fillDevices(settings.device);
       document.getElementById("embedding-device-select").value = settings.device;
       document.getElementById("docling-enabled-checkbox").checked = settings.document_processing_enabled;
-      show("wizard-result", settings);
+      show("wizard-result", 'Model preferences loaded. Apply to update the local index.');
       }).catch(function (error) { show("wizard-result", error.message); });
     }
     loadRuntimeSettings();
@@ -306,11 +428,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     });
     document.getElementById("admin-reindex-button").addEventListener("click", function () {
-      indexAction(function () {
-        return call("POST", API + "/admin/reindex", {}).then(function (job) {
-          return waitForJob(job.job_id, Date.now() + 30 * 60 * 1000);
-        });
-      });
+      knowledgeAction('reindex');
     });
   }
 });

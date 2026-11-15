@@ -412,6 +412,10 @@ class LlmWiki:
             frontmatter["pi_dependency_notes"] = json.dumps(
                 notes, sort_keys=True)
         rendered = self.profile.render_concept_markdown(frontmatter, body)
+        from pi_platform.core.sync.export_policy import restricted_derivation, sensitive_text, protected_path
+        if (sensitive_text(rendered) or restricted_derivation(notes) or
+                source and (source.startswith(('tmp/', 'local/', 'LOCAL_ONLY:', 'CONFIDENTIAL:', 'SECRET:')) or protected_path(source))):
+            raise LlmWikiError('Protected generated Wiki content cannot be published or previewed')
         try:
             self.profile.validate_file(path, rendered)
         except OkfValidationError as exc:

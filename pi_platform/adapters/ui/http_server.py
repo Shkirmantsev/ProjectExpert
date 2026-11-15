@@ -114,7 +114,9 @@ class UiHttpServer:
             FirstStartWizard,
         )
 
-        self.admin_routes = RetrievalAdminRoutes(target_repo=self.target_repo)
+        self._admin_capability = threading.local()
+        self.admin_routes = RetrievalAdminRoutes(target_repo=self.target_repo,
+            caller_capability_provider=lambda: getattr(self._admin_capability, 'value', 'administrator'))
         self.admin_routes.settings_changed = self.apply_runtime_settings
         self.refresh_requested = None
         self.wizard = FirstStartWizard()
@@ -206,6 +208,7 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header('Cache-Control', 'no-store')
             self.end_headers()
             self.wfile.write(body)
 
@@ -245,6 +248,16 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
         # -- routes -----------------------------------------------------
         def do_GET(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
+            if path == '/api/v1/ui-version':
+                import hashlib
+                digest = hashlib.sha256()
+                for name in ('index.html', 'styles.css', 'app.js'):
+                    asset = server.static_root / name
+                    if asset.is_file():
+                        digest.update(name.encode() + b'\0' + asset.read_bytes())
+                self._send(HTTPStatus.OK, {'ui_contract': 'knowledge-sync/2', 'ui_build': digest.hexdigest(),
+                    'knowledge_operations': server.admin_routes.knowledge_sync is not None})
+                return
             if path == "/api/v1/auth-status":
                 self._send(HTTPStatus.OK, {"token_required": bool(server.token)})
                 return
@@ -491,7 +504,7 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 )
 
                 cap = self._resolve_caller_capability()
-                server.admin_routes._caller_capability_provider = lambda: cap
+                server._admin_capability.value = cap
                 dispatch = create_dispatcher(server.admin_routes)
                 resp = dispatch(method, path, body)
                 if resp is not None:

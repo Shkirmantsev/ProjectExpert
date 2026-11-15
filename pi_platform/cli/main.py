@@ -96,7 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     materialise.add_argument("--staging-id")
 
     canonical = sub.add_parser("canonical", help="verify, stage and publish portable production snapshots")
-    canonical.add_argument("operation", choices=("verify", "status", "export", "publish", "hydrate", "repair"))
+    canonical.add_argument("operation", choices=("verify", "status", "export", "publish", "hydrate", "restore-only", "repair"))
     canonical.add_argument("--target", type=Path, default=Path("."))
     canonical.add_argument("--cache-root", type=Path, default=DEFAULT_RUNTIME_CACHE)
     canonical.add_argument("--include-vectors", action="store_true")
@@ -640,6 +640,12 @@ def _cmd_canonical(args: argparse.Namespace) -> int:
     from ..adapters.sync.portable_snapshot_reader import verified_snapshot
     from ..core.sync.trusted_approval import HmacTrustedApprovalBoundary
     target, cache_root = args.target.resolve(), _resolve_cache_root(args)
+    if args.operation == "restore-only":
+        from ..adapters.orchestration.knowledge_sync import KnowledgeSyncCoordinator
+        result = KnowledgeSyncCoordinator(target, cache_root,
+            index=lambda **kw: _bootstrap_and_index_target(target, cache_root=cache_root, **kw)).restore()
+        print(json.dumps(result, indent=2))
+        return 0 if result['searchReady'] else 2
     if args.operation == "hydrate":
         summary = _bootstrap_and_index_target(target, cache_root=cache_root)
         print(json.dumps(summary, indent=2))
@@ -1181,12 +1187,31 @@ def _cmd_serve(args: argparse.Namespace) -> int:
                 # refresh immediately after the UI job reported completion.
                 monitor.request_refresh()
                 monitor.poll_once()
+                runtime = getattr(getattr(service, '_retrieval', None), 'runtime', None)
+                if runtime is not None:
+                    report = runtime.extra.get('indexing_report')
+                    return {'localIndexReady': readiness.is_ready(),
+                        'source_parse_hits': runtime.extra.get('source_parse_hits', 0),
+                        'source_parse_misses': runtime.extra.get('source_parse_misses', 0),
+                        'new_vectors': getattr(report, 'embedded_count', 0),
+                        'reused_vectors': getattr(report, 'reused_count', 0),
+                        'figure_assets_regenerated': runtime.extra.get('figure_assets_regenerated', 0)}
             except Exception:
                 # A manual retry can fail with no source edit. Ask the serving
                 # monitor to retry rather than leaving a stable tree unready.
                 if server.refresh_requested is not None:
                     server.refresh_requested()
                 raise
+        elif kind == 'knowledge.restore':
+            return knowledge_sync.restore()
+        elif kind == 'knowledge.export':
+            return knowledge_sync.export()
+        elif kind == 'knowledge.publish':
+            result = knowledge_sync.publish(details['stagingId'])
+            # Export changes the monitor fingerprint. Reconcile through its normal
+            # serialized path; cached sources/vectors make this a cheap refresh.
+            monitor.request_refresh()
+            return result
         elif kind == "models.pull":
             result = _cmd_models_pull(argparse.Namespace(target=target, alias=details["alias"]))
             if result:
@@ -1194,6 +1219,11 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         else:
             raise ValueError(f"Unsupported administrative job: {kind}")
 
+    from ..adapters.orchestration.knowledge_sync import KnowledgeSyncCoordinator
+    knowledge_sync = KnowledgeSyncCoordinator(target, cache_root,
+        index=lambda **kw: _bootstrap_and_index_target(target, cache_root=cache_root,
+            service=service, readiness=readiness, **kw), authenticated_operator=bool(server.token))
+    server.admin_routes.knowledge_sync = knowledge_sync
     server.admin_routes.job_executor = execute_admin_job
     monitor = PollingProjectVersionMonitor(target, on_change=refresh, on_error=failed)
     server.refresh_requested = monitor.request_refresh
@@ -2275,6 +2305,7 @@ def _bootstrap_and_index_target(
     service=None,
     readiness=None,
     cache_root: Optional[Path] = None,
+    restore_only: bool = False,
 ) -> dict:
     """Serialize a complete candidate build and fail closed until publication."""
     import hashlib
@@ -2302,7 +2333,7 @@ def _bootstrap_and_index_target(
                 with WorkspaceSyncFence(target).lease() as workspace:
                     result = _bootstrap_and_index_target_locked(
                         target, model_alias=model_alias, device=device,
-                        service=service, readiness=readiness, cache_root=cache_root,
+                        service=service, readiness=readiness, cache_root=cache_root, restore_only=restore_only,
                     )
                     if workspace is not None:
                         from ..core.runtime.runtime_checkpoint import atomic_json
@@ -2338,6 +2369,7 @@ def _bootstrap_and_index_target_locked(
     service=None,
     readiness=None,
     cache_root: Optional[Path] = None,
+    restore_only: bool = False,
 ) -> dict:
     """Execute the full target bootstrap: settings → hydrate/reconcile →
     incremental source discovery → retrieval runtime composition →
@@ -2433,7 +2465,7 @@ def _bootstrap_and_index_target_locked(
     )
     runtime = index_repository(
         target=target, cache_root=cache_root, inventory=merged_inv,
-        previous_inventory=prev_inv, settings=settings,
+        previous_inventory=prev_inv, settings=settings, restore_only=restore_only,
         cli_overrides={
             **operator_overrides,
             **({"embedding_model": model_alias} if model_alias else {}),
@@ -2512,18 +2544,35 @@ def _bootstrap_and_index_target_locked(
     )
     save_retrieval_settings(settings, target)
     portable_export = {"state": "off"}
-    if os.environ.get("PI_PORTABLE_EXPORT", "off") in {"review", "approved-auto"}:
+    from ..adapters.orchestration.knowledge_sync import KnowledgeSyncCoordinator
+    knowledge_sync = KnowledgeSyncCoordinator(target, cache_root)
+    knowledge_settings = knowledge_sync.settings()
+    if not restore_only and (knowledge_settings['post_reindex_export'] or
+            not knowledge_sync.settings_path.exists() and
+            os.environ.get("PI_PORTABLE_EXPORT", "off") in {"review", "approved-auto"}):
         try:
             portable_export = {"state": "pending-review", **MaterialiseService().stage_active_index(
                 target, cache_root=cache_root,
-                include_vectors=os.environ.get("PI_PORTABLE_VECTORS", "0") == "1")}
-            if os.environ.get("PI_PORTABLE_EXPORT") == "approved-auto":
+                include_vectors=knowledge_settings["include_vectors"] if knowledge_settings["share_enabled"] else
+                    os.environ.get("PI_PORTABLE_VECTORS", "0") == "1")}
+            if 'stagingId' not in portable_export:
+                portable_export['state'] = 'no-exportable-sources'
+            elif (os.environ.get("PI_PORTABLE_EXPORT") == "approved-auto" or
+                  knowledge_settings['post_reindex_export']):
                 from ..core.sync.trusted_approval import HmacTrustedApprovalBoundary
-                publisher = MaterialiseService(boundary=HmacTrustedApprovalBoundary(),
+                boundary = HmacTrustedApprovalBoundary()
+                token = os.environ.get("PI_PORTABLE_APPROVAL_TOKEN")
+                if knowledge_settings['post_reindex_export']:
+                    from ..adapters.sync.portable_format import read_bounded, confined
+                    private = cache_root / 'security-state'
+                    if not boundary.has_key():
+                        boundary = HmacTrustedApprovalBoundary(key=read_bounded(confined(private, 'operator-approval.key'), 4096))
+                    token = read_bounded(confined(private, 'auto-export-grant'), 8192).decode()
+                publisher = MaterialiseService(boundary=boundary,
                     license_gate=LicenseGate(LicensePolicy()))
                 published = publisher.publish_active_index(target, cache_root=cache_root,
                     staging_id=portable_export["stagingId"],
-                    approval_token=os.environ.get("PI_PORTABLE_APPROVAL_TOKEN"))
+                    approval_token=token)
                 portable_export = {"state": "published", **published}
                 # Acknowledge only our verified canonical-root update under the
                 # same project lock; monitor must not reindex its own export.
@@ -2553,7 +2602,7 @@ def _bootstrap_and_index_target_locked(
                         service._published_version = active_ver
         except Exception as exc:
             # Query publication already succeeded; export status is independent.
-            portable_export = {"state": "failed", "error": str(exc)}
+            portable_export = {"state": "failed", "error": "Safe export requires operator review or authorization"}
     runtime.extra["portable_export"] = portable_export
     return {
         "source_parse_hits": runtime.extra.get("source_parse_hits", 0),

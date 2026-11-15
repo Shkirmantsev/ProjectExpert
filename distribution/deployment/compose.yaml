@@ -56,6 +56,12 @@ services:
       PI_TARGET_ROOT: /repo
       PI_WORKSPACE_MODE: ${PI_WORKSPACE_MODE:-bind}
       PI_UI_TOKEN: ${PI_UI_TOKEN:-}
+      # UI preferences are persisted in the existing private runtime mount.
+      # These flags preserve headless compatibility; ordinary UI actions do not
+      # need them. An optional key file must be privately mounted by the operator.
+      PI_PORTABLE_EXPORT: ${PI_PORTABLE_EXPORT:-off}
+      PI_PORTABLE_VECTORS: ${PI_PORTABLE_VECTORS:-0}
+      PI_OPERATOR_APPROVAL_KEY_FILE: ${PI_OPERATOR_APPROVAL_KEY_FILE:-}
       PI_STARTUP_PROFILE: production
       PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-gemma}
       PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-cpu}

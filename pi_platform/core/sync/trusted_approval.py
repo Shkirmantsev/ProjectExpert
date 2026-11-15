@@ -82,8 +82,23 @@ class HmacTrustedApprovalBoundary(TrustedApprovalBoundary):
                  clock=None):
         resolved = key
         if resolved is None:
+            secret_file = os.environ.get('PI_OPERATOR_APPROVAL_KEY_FILE')
+            if secret_file:
+                from pathlib import Path
+                path = Path(secret_file)
+                try:
+                    if path.is_symlink() or not path.is_file():
+                        raise ValueError('not a regular file')
+                    if os.name == 'posix' and path.stat().st_mode & 0o077:
+                        raise ValueError('key permissions must be private')
+                    with path.open('rb') as stream:
+                        resolved = stream.read(4097).rstrip(b'\r\n')
+                    if not 16 <= len(resolved) <= 4096:
+                        raise ValueError('invalid key length')
+                except (OSError, ValueError) as exc:
+                    raise ApprovalRejected('no_issuer_key', 'Operator key file is unavailable or not private') from None
             env = os.environ.get("PI_OPERATOR_APPROVAL_KEY")
-            if env:
+            if env and resolved is None:
                 resolved = env.encode("utf-8")
         self._key = resolved
         # ``clock`` is a unit test seam for deterministic timestamps.

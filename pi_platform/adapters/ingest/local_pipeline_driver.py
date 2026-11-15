@@ -11,6 +11,8 @@ instrumentation returned to the caller.
 
 from __future__ import annotations
 
+from pi_platform.core.sync.export_policy import diagnostic_source, sensitive_text
+
 from pi_platform.adapters.python.intelligence import PythonManifestAdapter, PythonSourceAdapter, PythonWheelAdapter
 from pi_platform.adapters.research.lock_ingest import (
     NodeLockAdapter,
@@ -385,6 +387,7 @@ class LocalPipelineDriver(PipelineDriverPort):
                 "chunker": type(chunker).__module__ + "." + type(chunker).__name__,
                 "enricher": type(enricher).__module__ + "." + type(enricher).__name__,
                 "retrievalText": DeterministicRetrievalTextBuilder.strategy_version,
+                **({'pdfAssets': 'pdf-figure/1'} if family == SourceContentFamily.PDF else {}),
             }
         return content_address(
             {
@@ -436,6 +439,7 @@ class LocalPipelineDriver(PipelineDriverPort):
         )
 
         log = logging.getLogger(__name__)
+        log_source_id = diagnostic_source(source)
         active = cache if cache is not None else self._cache
         if hasattr(active, "source_buffer"):
             active = active.source_buffer(source.id)
@@ -518,7 +522,7 @@ class LocalPipelineDriver(PipelineDriverPort):
                     log.info(
                         "stage=%s source=%s attempt=%s outcome=ok",
                         name,
-                        source.id,
+                        log_source_id,
                         attempt,
                     )
                     return result
@@ -531,7 +535,7 @@ class LocalPipelineDriver(PipelineDriverPort):
                     log.warning(
                         "stage=%s source=%s attempt=%s category=%s",
                         name,
-                        source.id,
+                        log_source_id,
                         attempt,
                         category.value,
                     )
@@ -748,12 +752,15 @@ class LocalPipelineDriver(PipelineDriverPort):
             # ``INTERNAL`` category marker.
             category = StageErrorCategory.INTERNAL
             message = f"unexpected internal error: {exc!r}"
-            log.exception(
-                "stage=%s source=%s category=internal_error exc_type=%s",
-                stage,
-                source.id,
-                type(exc).__name__,
-            )
+            if log_source_id == 'protected-source' or sensitive_text(message):
+                log.error('stage=%s source=protected-source category=internal_error exc_type=%s', stage, type(exc).__name__)
+            else:
+                log.exception(
+                    "stage=%s source=%s category=internal_error exc_type=%s",
+                    stage, log_source_id, type(exc).__name__)
+        if log_source_id == 'protected-source' or sensitive_text(message):
+            message = 'Protected source diagnostic withheld'
+            log_source_id = 'protected-source'
         stages.append(
             StageOutcome(
                 stage,
@@ -769,7 +776,7 @@ class LocalPipelineDriver(PipelineDriverPort):
         log.warning(
             "stage=%s source=%s category=%s error=%s",
             stage,
-            source.id,
+            log_source_id,
             category.value,
             message,
         )
@@ -836,7 +843,7 @@ class LocalPipelineDriver(PipelineDriverPort):
                         elif estimate > budget:
                             diagnostics["memory_limited_sources"] += 1
                         log.info("source admission=serial source=%s estimate_bytes=%s memory_budget_bytes=%s",
-                                 source.id, estimate, budget)
+                                 diagnostic_source(source), estimate, budget)
                         while pending:
                             if not collect_first():
                                 return tuple(reports)

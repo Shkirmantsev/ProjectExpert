@@ -145,8 +145,10 @@ class RetrievalAdminRoutes:
             lambda: ADMIN_CAPABILITY
         )
         self._jobs: dict[str, dict[str, Any]] = {}
+        self._jobs_lock = threading.RLock()
         self.job_executor: Callable[[str, Mapping[str, Any]], None] | None = None
         self.settings_changed: Callable[[RetrievalSettings, Mapping[str, Any]], None] | None = None
+        self.knowledge_sync = None
 
     # -- introspection -----------------------------------------------
 
@@ -211,14 +213,23 @@ class RetrievalAdminRoutes:
             "message": f"{kind} queued",
             "details": dict(details),
         }
+        self._persist_job(job_id)
         if self.job_executor is not None:
             def execute():
                 self.set_job_progress(job_id, status="running", message=f"{kind} running")
                 try:
-                    self.job_executor(kind, details)
+                    result = self.job_executor(kind, details)
                 except Exception as exc:
-                    self.set_job_progress(job_id, status="failed", message=str(exc))
+                    message = str(exc)
+                    if kind.startswith('knowledge.'):
+                        from pi_platform.adapters.sync.portable_format import PortableSnapshotError
+                        message = ('Retained generated files require owner-reviewed cleanup; review Git history before retrying'
+                            if isinstance(exc, PortableSnapshotError) and 'cleanup' in str(exc) else
+                            'Knowledge operation failed; review project settings, authorization and snapshot compatibility')
+                    self.set_job_progress(job_id, status="failed", message=message)
                 else:
+                    if result is not None:
+                        self._jobs[job_id]['result'] = result
                     self.set_job_progress(job_id, status="completed", progress_pct=100, message=f"{kind} completed")
             threading.Thread(target=execute, name=f"pi-admin-{job_id}", daemon=True).start()
         return job_id
@@ -233,29 +244,78 @@ class RetrievalAdminRoutes:
     ) -> bool:
         """Update a queued job; ``False`` when the job is unknown."""
 
-        job = self._jobs.get(job_id)
-        if job is None:
-            return False
-        if status is not None:
-            job["status"] = status
-        if progress_pct is not None:
-            job["progress_pct"] = int(progress_pct)
-        if message is not None:
-            job["message"] = message
-        return True
+        with self._jobs_lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return False
+            if status is not None:
+                job["status"] = status
+            if progress_pct is not None:
+                job["progress_pct"] = int(progress_pct)
+            if message is not None:
+                job["message"] = message
+            self._persist_job(job_id)
+            return True
+
+    def _persist_job(self, job_id):
+        if self.knowledge_sync is not None and (self._jobs[job_id]['kind'].startswith('knowledge.') or self._jobs[job_id]['kind'] == 'reindex'):
+            self.knowledge_sync.save_job(self.job_view(job_id))
 
     def job_view(self, job_id: str) -> Optional[dict[str, Any]]:
         """The ``{job_id, status, progress_pct, message}`` projection."""
 
-        job = self._jobs.get(job_id)
-        if job is None:
-            return None
-        return {
-            "job_id": job["job_id"],
-            "status": job["status"],
-            "progress_pct": job["progress_pct"],
-            "message": job["message"],
-        }
+        with self._jobs_lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return self.knowledge_sync.read_job(job_id) if self.knowledge_sync is not None else None
+            return {
+                "job_id": job["job_id"],
+                "status": job["status"],
+                "progress_pct": job["progress_pct"],
+                "message": job["message"],
+                **({'result': job['result']} if 'result' in job else {}),
+            }
+
+    def handle_knowledge(self, method, path, body=None):
+        from pi_platform.adapters.runtime.sqlite_ingestion_cache import IndexingStateError
+        denied = self._authorize_admin(method=method, path=path, operation='project knowledge')
+        if denied is not None:
+            return denied
+        if self.knowledge_sync is None:
+            return RouteResponse.error(503, error='Knowledge workflow is unavailable', code='knowledge-unavailable')
+        prefix = '/api/v1/admin/knowledge/'
+        operation = path.removeprefix(prefix)
+        try:
+            payload = _as_mapping(body)
+            if operation == 'settings' and method == 'GET':
+                return RouteResponse.ok(self.knowledge_sync.settings())
+            if operation == 'status' and method == 'GET':
+                return RouteResponse.ok(self.knowledge_sync.status())
+            if operation == 'settings' and method == 'PUT':
+                return RouteResponse.ok(self.knowledge_sync.save_settings(dict(payload)))
+            if operation == 'source-review' and method == 'POST':
+                return RouteResponse.ok(self.knowledge_sync.review_source(payload.get('path'), payload.get('classification')))
+            if operation.startswith('proposals/') and method == 'GET':
+                return RouteResponse.ok(self.knowledge_sync.proposal(operation.removeprefix('proposals/')))
+            if operation in {'restore', 'export', 'publish', 'reindex'} and method == 'POST':
+                details = {}
+                if operation == 'export' and not self.knowledge_sync.settings()['share_enabled']:
+                    return RouteResponse.error(409, error='Enable safe Git export in Sharing preferences first. Reindex once if older results need portable identities.', code='sharing-disabled')
+                if operation == 'publish':
+                    proposal = self.knowledge_sync.proposal(payload.get('stagingId'))
+                    if payload.get('snapshotId') != proposal['snapshotId']:
+                        raise ValueError('Review the current proposal before publishing')
+                    details = {'stagingId': proposal['stagingId']}
+                elif payload:
+                    raise ValueError('Operation takes no parameters; use project settings')
+                job = self.enqueue_job('reindex' if operation == 'reindex' else 'knowledge.' + operation, **details)
+                return RouteResponse.ok({'job_id': job, 'status': 'queued'}, status=202)
+        except IndexingStateError:
+            return RouteResponse.error(409, error='Knowledge operation is busy; retry after current work finishes', code='knowledge-busy')
+        except (ValueError, OSError, TypeError):
+            return RouteResponse.error(400, error='Invalid knowledge request or unavailable proposal; review settings and authorization',
+                                       code='invalid-knowledge-request')
+        return RouteResponse.error(405, error='Unsupported knowledge operation or method', code='method-not-allowed')
 
     # -- handlers -------------------------------------------------------
 
@@ -433,6 +493,8 @@ def create_dispatcher(
             if fallback is None:
                 return None
             return fallback(method, path, body)
+        if path.startswith('/api/v1/admin/knowledge/'):
+            return routes.handle_knowledge(verb, path, body)
         if (verb, path) in route_table:
             return route_table[(verb, path)](body)
         if path in _FIXED_ADMIN_PATHS:

@@ -1,0 +1,76 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "/home/dmytro/Downloads/ProjectExpert_Remediation_Design_v1.1.md"
+  ],
+  "decisions": [
+    "Local commits only; no push, merge or deploy. Retain active proposed change and pending external acceptance rather than claiming production certification."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Local software implementation and review complete; code committed as968f7b9 (linear checkpoint progress),08baaa2 (safe restore/media/core),af6aa28 (UI/deployment); documentation/evidence finalized for final local commit"
+    ],
+    "todo": [
+      "Owner handles push and merge. New hosted CI, physical host/mount tests, real offline models and representative large production corpus acceptance remain open in OpenSpec."
+    ]
+  },
+  "resume": {
+    "next_action": "Owner publishes local commits and runs hosted/physical/model release acceptance; implementation needs no further local code changes",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-15T10:35:49+00:00",
+    "id": "remediate-safe-knowledge-sync",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-15T11:41:57+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "No parser or embedding on restore; unrelated protected sources do not block safe export; signed publication; durable media; compatibility; focused and full verification; local commits only"
+    ],
+    "goal": "Implement reviewed remediation plan: restore-only workflow, safe-source export, UI settings and publication, durable media, honest readiness and performance",
+    "openspec_change": "remediate-safe-knowledge-sync",
+    "status": "verifying"
+  },
+  "verification": {
+    "passed": [
+      "Full harness PASS:2045 tests/159 suites/20 skips, full50k graph3.7s build4.9s total; subsequent UI/admin32 PASS; browser PASS; OpenSpec96 PASS; Wiki136 docs0issues; artifact1604 PASS; diff reviewed"
+    ],
+    "pending": [
+      "Physical Windows/Rancher and actual offline model/hardware/corpus acceptance remain external gates"
+    ]
+  },
+  "working_set": [
+    {
+      "path": "docs/SAFE_KNOWLEDGE_REMEDIATION.md",
+      "sha256": "3204d1fced8e903dd20e59f480dd1c64f4bc7e42f2a2b69d5b479e0e0b08ecbb"
+    },
+    {
+      "path": "pi_platform/adapters/orchestration/knowledge_sync.py",
+      "sha256": "4bab9984c12625dcd42c79fbad332cd00242f1ff03e39cf1f62db7f7b6374a18"
+    },
+    {
+      "path": "pi_platform/adapters/pdf/portable_assets.py",
+      "sha256": "1e34e84a3d1472ad247cb757aab6913efdac2506a4d316e61892b407fdb1ad60"
+    },
+    {
+      "path": "pi_platform/adapters/sync/safe_export_projector.py",
+      "sha256": "1d8faf6ffe1dd99cfd2f63324931f5ef321fc5d5451ae9c714aeb5aac9d74905"
+    },
+    {
+      "path": "pi_platform/core/orchestration/repository_indexing.py",
+      "sha256": "5bcf16b6100f1776b018622ae42371ced9781c133d7ce4a7feaf0a26ea81f4a9"
+    }
+  ]
+}

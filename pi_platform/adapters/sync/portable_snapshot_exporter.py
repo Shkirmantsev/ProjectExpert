@@ -34,6 +34,8 @@ def stage_export(target, cache_root, *, include_vectors=False, cap=None):
     """No Git-owned writes; caller serializes against index publication."""
     from pi_platform.adapters.runtime.sqlite_ingestion_cache import exclusive_indexer
     target, cache_root = Path(target).resolve(), Path(cache_root).resolve()
+    from pi_platform.adapters.fs.private_cache import ensure_private_cache
+    ensure_private_cache(target, cache_root)
     if cap is None:
         cap = int(os.environ.get('PI_PORTABLE_SHARD_MIB', '8')) * 1024 * 1024
     if not 1024 * 1024 <= cap <= 16 * 1024 * 1024:
@@ -44,57 +46,35 @@ def stage_export(target, cache_root, *, include_vectors=False, cap=None):
         raise PortableSnapshotError('Portable storage budget outside supported bounds')
     version = _version(target)
     input_version = _version(target, include_portable=False)
+    from .safe_export_projector import source_reviews
+    from .portable_format import encode
+    policy_hash = sha(encode(source_reviews(cache_root)))
     staging = cache_root / 'portable-staging' / uuid.uuid4().hex
     staging.mkdir(parents=True, mode=0o700)
     knowledge = staging / 'knowledge'
     knowledge.mkdir(mode=0o700)
     from pi_platform.core.ingest.repository_source_discovery import RepositorySourceDiscovery
     inventory = {e.path: e for e in RepositorySourceDiscovery().discover(target).entries}
-    excluded, source_count = [], 0
+    source_count = 0
     with exclusive_indexer(cache_root), closing(sqlite3.connect(
             f'{(cache_root / "indexing-state.sqlite").as_uri()}?mode=ro', uri=True)) as production:
         production.execute('BEGIN')
         generation = _active(production)
         with spool(cache_root / 'portable-work') as db:
-            # Track admission in disk-backed tables; a denied co-owner denies the
-            # complete source output, never just an individual chunk/edge.
-            db.execute('CREATE TEMP TABLE admitted(sid TEXT PRIMARY KEY,allowed INTEGER)')
+            from .safe_export_projector import project_sources
+            reasons, unsupported = project_sources(db, production, generation, inventory, target, cache_root)
+            if unsupported:
+                reasons['unsupported-source'] = unsupported
+            excluded_count = sum(reasons.values())
             for sid, digest, key, metadata, summary, checksum in _sources(production, generation):
-                path = sid.removeprefix('repo:')
-                entry = inventory.get(path)
-                if not sid.startswith('repo:') or entry is None or entry.content_hash != digest:
-                    raise PortableSnapshotError('Published generation does not match current source inventory')
-                allowed = eligible_path(path, entry.policy)
-                db.execute('INSERT INTO admitted VALUES(?,?)', (sid, int(allowed)))
-                if not allowed:
-                    excluded.append(sid)
-            if set(inventory) - {row[0].removeprefix('repo:') for row in db.execute('SELECT sid FROM admitted')}:
-                raise PortableSnapshotError('Published generation lacks complete source coverage (media may be unsupported)')
-            denied_addresses = '''SELECT m.address FROM source_payload_membership m
-                JOIN generation_sources g USING(source_id,source_hash,pipeline_key,metadata_key)
-                WHERE g.generation=? AND g.source_id=?'''
-            db.execute('CREATE TEMP TABLE denied(address TEXT PRIMARY KEY)')
-            for (sid,) in db.execute('SELECT sid FROM admitted WHERE allowed=0'):
-                db.executemany('INSERT OR IGNORE INTO denied VALUES(?)', production.execute(denied_addresses, (generation, sid)))
-            for sid, digest, key, metadata, summary, checksum in _sources(production, generation):
-                allowed = db.execute('SELECT allowed FROM admitted WHERE sid=?', (sid,)).fetchone()[0]
+                allowed = not db.execute('SELECT reason FROM admission WHERE sid=?', (sid,)).fetchone()[0]
                 if not allowed:
                     continue
                 if sha(summary) != checksum:
                     raise PortableSnapshotError('Production source summary checksum mismatch')
                 body = json.loads(summary)
                 addresses = body['addresses']
-                if any(db.execute('SELECT 1 FROM denied WHERE address=?', (a,)).fetchone() for a in addresses):
-                    excluded.append(sid)
-                    continue
                 path = sid.removeprefix('repo:')
-                if not any('portable_identity' in json.loads(row[0]).get('metadata', {}).get('extensions', {})
-                           or 'portable_identity' in json.loads(row[0]).get('chunk', {}).get('metadata', {}).get('extensions', {})
-                           for row in production.execute('''SELECT p.payload FROM canonical_payloads p
-                               JOIN source_payload_membership m USING(address)
-                               WHERE m.source_id=? AND m.source_hash=? AND m.pipeline_key=? AND m.metadata_key=?''',
-                               (sid, digest, key, metadata))):
-                    raise PortableSnapshotError('Source lacks portable identity; enable PI_PORTABLE_EXPORT=review and reindex once')
                 add_record(db, 'source', sid, {'path': path, 'policy': inventory[path].policy or '',
                            'sourceHash': digest, 'pipelineKey': key, 'metadataKey': metadata,
                            'summary': bytes(summary).decode('utf-8')})
@@ -110,18 +90,31 @@ def stage_export(target, cache_root, *, include_vectors=False, cap=None):
                     validate_payload(row[0], local_root=target)
                     add_record(db, 'payload', address, {'raw': bytes(row[0]).decode('utf-8')})
                 source_count += 1
+            if not source_count:
+                import shutil
+                shutil.rmtree(staging)
+                return {'state': 'no-exportable-sources', 'sources': 0,
+                        'excludedSourceCount': excluded_count, 'excludedReasonCounts': reasons,
+                        'completeForLocalIndex': False,
+                        'cleanupRequired': (target / 'project-knowledge' / ROOT).exists(),
+                        'message': 'No shareable sources; review any retained generated files and Git history'}
             if include_vectors:
                 _export_vectors(db, cache_root)
-            descriptor = write_snapshot(db, knowledge, cap=cap, max_total=maximum_total, max_files=maximum_files)
+            descriptor = write_snapshot(db, knowledge, cap=cap, max_total=maximum_total, max_files=maximum_files,
+                scope={'kind': 'eligible-sources-only', 'policyVersion': 'safe-source-export/1',
+                       'exportedSourceCount': source_count, 'completeForExportableScope': True})
         with verified_snapshot(knowledge, cache_root) as (_, verified):
             pass
         if (version != _version(target) or input_version != _version(target, include_portable=False)
-                or generation != _active(production)):
+                or generation != _active(production) or policy_hash != sha(encode(source_reviews(cache_root)))):
             raise PortableSnapshotError('Source version moved during portable export')
     proposal = {'stagingId': staging.name, 'snapshotId': descriptor['snapshotId'],
+                'securityPolicyHash': policy_hash,
                 'generation': generation, 'version': version,
                 'inputVersion': input_version, 'sources': source_count,
-                'excludedSources': excluded, 'vectors': include_vectors,
+                'excludedSources': [], 'excludedSourceCount': excluded_count,
+                'excludedReasonCounts': reasons, 'completeForLocalIndex': excluded_count == 0,
+                'completeForExportableScope': True, 'vectors': include_vectors,
                 'totalBytes': verified['totalBytes'], 'fileCount': verified['fileCount']}
     from pi_platform.core.canonical.durable_write import atomic_write_bytes
     from .portable_format import encode
@@ -135,31 +128,57 @@ def _export_vectors(db, cache_root):
     path = cache_root / 'indexes' / 'embeddings.sqlite'
     if not path.exists():
         raise PortableSnapshotError('No production vector store')
-    store = SqliteVectorRecordStore(db_path=str(path))
     # Choose the same effective contextual projection as production, independent
     # of payload address order. Never export a stale vector merely because its
     # raw content hash matches (context can change without changing raw text).
     db.execute('CREATE TEMP TABLE vector_chunks(id TEXT PRIMARY KEY,content_hash TEXT,text_hash TEXT,preferred INTEGER)')
+    db.execute('CREATE TEMP TABLE pdf_vector_chunks(id TEXT PRIMARY KEY,image_hash TEXT)')
     for (raw,) in db.execute("SELECT body FROM records WHERE kind='payload'"):
         body = json.loads(json.loads(raw)['body']['raw'])
         body = body.get('chunk', body)
+        if body.get('kind') == 'media_source':
+            db.execute('INSERT INTO vector_chunks VALUES(?,?,?,?)',
+                (body['id'], body['contentHash'], body['retrievalTextHash'], 0))
+            continue
         if not body.get('rawText') or not body.get('id'):
             continue
         contextual = body.get('metadata', {}).get('extensions', {}).get('retrieval_text')
         text = contextual or body.get('contextualText') or body['rawText']
+        if str(body.get('metadata', {}).get('sourcePath', '')).lower().endswith('.pdf'):
+            descriptor = body.get('metadata', {}).get('extensions', {}).get('pdf_asset')
+            db.execute('INSERT OR REPLACE INTO pdf_vector_chunks VALUES(?,?)',
+                       (body['id'], descriptor['byteHash'] if descriptor else None))
         db.execute('''INSERT INTO vector_chunks VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET
             content_hash=excluded.content_hash,text_hash=excluded.text_hash,preferred=excluded.preferred
             WHERE excluded.preferred>vector_chunks.preferred''',
             (body['id'], body['contentHash'], sha(text.encode()), int(bool(contextual))))
     with closing(sqlite3.connect(f'{path.as_uri()}?mode=ro', uri=True)) as vectors:
+        vectors.execute('BEGIN')
+        projection_table = vectors.execute("SELECT 1 FROM sqlite_master WHERE name='portable_pdf_projections'").fetchone()
         for cid, content_hash, text_hash in db.execute('SELECT id,content_hash,text_hash FROM vector_chunks ORDER BY id'):
-            profiles = vectors.execute('SELECT embedding_profile_hash FROM embeddings WHERE chunk_id=? ORDER BY embedding_profile_hash', (cid,)).fetchall()
+            rows = vectors.execute('''SELECT chunk_id,embedding_profile_hash,content_hash,
+                model_revision,dimension,normalization,vector_payload,
+                created_from_retrieval_text_hash,created_at FROM embeddings
+                WHERE chunk_id=? ORDER BY embedding_profile_hash''', (cid,))
             matches = 0
-            for (profile,) in profiles:
-                record = store.get(cid, profile)
-                if record.content_hash != content_hash or record.created_from_retrieval_text_hash != text_hash:
+            for row in rows:
+                record = SqliteVectorRecordStore._record_from_row(row)
+                profile = record.embedding_profile_hash
+                if record.content_hash != content_hash:
                     continue
-                add_record(db, 'vector', profile + ':' + cid, encode_record(record))
+                body = encode_record(record)
+                if record.created_from_retrieval_text_hash != text_hash:
+                    pdf = db.execute('SELECT image_hash FROM pdf_vector_chunks WHERE id=?', (cid,)).fetchone()
+                    projection = vectors.execute('SELECT body FROM portable_pdf_projections WHERE chunk_id=? AND profile=? AND projection_hash=?',
+                        (cid, profile, record.created_from_retrieval_text_hash)).fetchone() if projection_table and pdf else None
+                    if projection is None:
+                        continue
+                    value = json.loads(projection[0])
+                    from .portable_pdf_vectors import validate_projection
+                    validate_projection(value, canonical_hash=text_hash, image_hash=pdf[0], expected=record.created_from_retrieval_text_hash)
+                    body['projection'] = value
+                validate_payload(json.dumps(body).encode())
+                add_record(db, 'vector', profile + ':' + cid, body)
                 matches += 1
             if not matches:
                 raise PortableSnapshotError('No exact retrieval-text vector for an eligible chunk; use standard mode')
@@ -193,6 +212,75 @@ def _verify_installed_files(root, report):
             _immutable_bytes(root, relative, report['fileCap'])
 
 
+def _audit_retained_files(current, proposed_paths, inventory, cache_root, proposed_records):
+    """A safe new root does not sanitize old unreferenced worktree objects."""
+    from pi_platform.core.sync.export_policy import sensitive_text, sensitive_file
+    from .safe_export_projector import source_reviews
+    reviews = source_reviews(cache_root)
+    restricted = {}
+    def is_restricted(name):
+        if name not in restricted:
+            entry = inventory.get(name)
+            restricted[name] = (reviews.get(name, {}).get('classification') == 'confidential' or
+                bool(entry and (not eligible_path(name, entry.policy) or sensitive_file(confined(current.parent, name)))))
+        return restricted[name]
+    total = count = 0
+    for family in ('objects', 'chunks', 'graph', 'sources', 'vectors', 'manifests'):
+        directory = current / family
+        if directory.is_symlink():
+            raise PortableSnapshotError('Linked generated tree requires operator remediation')
+        if not directory.exists():
+            continue
+        for path in directory.rglob('*'):
+            if path.is_symlink():
+                raise PortableSnapshotError('Linked generated tree requires operator remediation')
+            if not path.is_file():
+                continue
+            relative = path.relative_to(current).as_posix()
+            if relative in proposed_paths or path.name == '.gitattributes':
+                continue
+            count += 1
+            raw = read_bounded(confined(current, relative))
+            total += len(raw)
+            if count > 100000 or total > 2048 * 1024 * 1024:
+                raise PortableSnapshotError('Retained generated tree exceeds audit budget')
+            if path.suffix not in {'.json', '.jsonl', '.yaml', '.yml'} or sensitive_text(raw.decode('utf-8', errors='replace')):
+                raise PortableSnapshotError('Retained generated files require reviewed cleanup; inspect Git history and rotate exposed credentials')
+            if path.suffix not in {'.json', '.jsonl'}:
+                continue
+            try:
+                for line in (raw.splitlines() if path.suffix == '.jsonl' else [raw]):
+                    value = json.loads(line)
+                    envelope = value.get('body', value)
+                    if value.get('kind') == 'source':
+                        name = envelope.get('path')
+                        if is_restricted(name):
+                            raise PortableSnapshotError('Retained generated files contain newly restricted sources; reviewed cleanup and Git-history remediation required')
+                    elif value.get('kind') == 'payload':
+                        payload = validate_payload(envelope['raw'].encode())
+                        payload = payload.get('chunk', payload)
+                        name = payload.get('metadata', {}).get('sourcePath')
+                        if name and is_restricted(name):
+                            raise PortableSnapshotError('Retained derived records require reviewed cleanup')
+                    elif value.get('kind') == 'vector':
+                        from .portable_vectors import decode_record
+                        vector = decode_record(envelope)
+                        row = proposed_records.execute('SELECT content_hash,text_hash FROM chunks WHERE id=?', (vector.chunk_id,)).fetchone()
+                        if row is None or row[0] != vector.content_hash:
+                            raise PortableSnapshotError('Retained vector ownership is no longer verified; reviewed cleanup required')
+                        if row[1] != vector.created_from_retrieval_text_hash:
+                            pdf = proposed_records.execute('SELECT image_hash FROM pdf_chunks WHERE id=?', (vector.chunk_id,)).fetchone()
+                            if pdf is None:
+                                raise PortableSnapshotError('Retained vector projection requires reviewed cleanup')
+                            from .portable_pdf_vectors import validate_projection
+                            validate_projection(envelope.get('projection'), canonical_hash=row[1], image_hash=pdf[0],
+                                                expected=vector.created_from_retrieval_text_hash)
+                    elif value.get('kind') != 'vector' and 'children' not in value:
+                        validate_payload(line)
+            except (ValueError, KeyError, TypeError) as exc:
+                raise PortableSnapshotError('Retained generated files require reviewed cleanup; previous Git history is unchanged') from exc
+
+
 def publish_export(target, cache_root, staging_id, *, authorize):
     """Authorize exact verified content, recheck version, install root LAST.
 
@@ -210,6 +298,10 @@ def publish_export(target, cache_root, staging_id, *, authorize):
     with exclusive_indexer(cache_root), closing(sqlite3.connect(
             f'{(cache_root / "indexing-state.sqlite").as_uri()}?mode=ro', uri=True)) as production:
         with verified_snapshot(knowledge, cache_root) as (records, report):
+            from .safe_export_projector import source_reviews
+            from .portable_format import encode
+            if proposal.get('securityPolicyHash') != sha(encode(source_reviews(cache_root))):
+                raise PortableSnapshotError('Source security policy moved; restage current generation')
             from pi_platform.core.ingest.repository_source_discovery import RepositorySourceDiscovery
             inventory = {e.path: e for e in RepositorySourceDiscovery().discover(target).entries}
             for (raw,) in records.execute("SELECT body FROM records WHERE kind='source'"):
@@ -220,6 +312,7 @@ def publish_export(target, cache_root, staging_id, *, authorize):
             root_raw = read_bounded(confined(knowledge, ROOT))
             if proposal['snapshotId'] != report['snapshotId']:
                 raise PortableSnapshotError('Portable proposal identity mismatch')
+            _audit_retained_files(current, set(report['paths']), inventory, cache_root, records)
         authorize(report['snapshotId'])
         publication_version = _version(target)
         if proposal['version'] != publication_version or proposal['generation'] != _active(production):
@@ -246,7 +339,8 @@ def publish_export(target, cache_root, staging_id, *, authorize):
         # replacing the pointer. This also catches staging edits during copying.
         _verify_installed_files(current, report)
         authorize(report['snapshotId'])
-        if publication_version != _version(target):
+        if (publication_version != _version(target) or
+                proposal.get('securityPolicyHash') != sha(encode(source_reviews(cache_root)))):
             raise PortableSnapshotError('Checkout moved during portable publication')
         if ROOT in paths:
             path = confined(current, ROOT)
