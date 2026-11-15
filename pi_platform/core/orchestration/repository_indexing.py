@@ -415,6 +415,21 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
             knowledgeState=KnowledgeState(body.get('provenance', {}).get('knowledgeState', 'verified')), tokenEstimate=max(1, len(text.split())),
         )
         active.append(ActiveChunk(cid, body.get('contentHash', text_hash), text, text_hash, meta))
+    # Checked export fragments are search-only evidence. Full local source outputs
+    # take precedence; no fragment can satisfy source-cache or restore completeness.
+    if portable_plan is not None:
+        from pi_platform.adapters.sync.checked_context import context_chunks
+        from pi_platform.adapters.sync.safe_export_projector import source_reviews
+        context_db, _ = portable_plan
+        for cid, body in context_chunks(context_db, existing_sources=cache.source_ids(),
+                inventory={entry.path: entry for entry in inventory.entries}, reviews=source_reviews(cache_root)):
+            text = body['text']; text_hash = body['textHash']
+            meta = {'documentId': 'checked-context:' + cid, 'sourcePath': body['path'], 'version':'0.1.0', 'language':'und',
+                    'extensions': {'exportProjection': body['projection'], 'originalSourceHash': body['sourceHash']}}
+            catalog[cid] = RetrievalHit(chunkId=cid, score=0.5, source='sparse', snippet=text,
+                contentHash=text_hash, metadata=Metadata(**meta), knowledgeState=KnowledgeState.VERIFIED,
+                tokenEstimate=max(1, len(text.split())))
+            active.append(ActiveChunk(cid, text_hash, text, text_hash, meta))
     for entry in image_entries:
         if config.embedding_model not in {'gemma', 'gemma-torch'}:
             failures.append({'path': entry.path, 'category': 'unsupported_modality',

@@ -129,6 +129,20 @@ class SafeExportTests(PortableProductionTests):
             db.execute('UPDATE source_outputs SET summary_json=?,checksum=? WHERE source_id=? AND source_hash=? AND pipeline_key=? AND metadata_key=?',
                 (raw, sha(raw), sid, digest, key, metadata))
 
+    def test_rejected_payload_cannot_hide_protected_dependencies_from_context_projection(self):
+        detector_fixture = 'ghp_' + 'R' * 40
+        (self.root / 'protected.md').write_text(detector_fixture)
+        (self.root / 'billing.md').write_text('# Billing\n' + ('Public delivery routing facts.\n' * 100))
+        git(self.root, 'add', 'protected.md', 'billing.md'); git(self.root, 'commit', '-m', 'taint fixture')
+        self.publish_runtime(self.build())
+        self.replace_source_payload('repo:billing.md', lambda body: body['metadata'].setdefault('extensions', {}).update(
+            fixtureValue=detector_fixture, derivedFrom=['repo:protected.md']))
+        proposal = self.stage()
+        stage = self.cache() / 'portable-staging' / proposal['stagingId'] / 'knowledge'
+        with verified_snapshot(stage, self.cache()) as (db, _):
+            for (raw,) in db.execute("SELECT body FROM records WHERE kind='context'"):
+                self.assertNotEqual(json.loads(raw)['body']['path'], 'billing.md')
+
     def test_transitive_derivative_and_vector_stay_local(self):
         detector_fixture = 'ghp_' + 'X' * 40
         (self.root / 'protected.md').write_text('# Protected\n' + detector_fixture)
@@ -171,8 +185,10 @@ class SafeExportTests(PortableProductionTests):
         self.assertEqual(proposal['sources'], 1)
         self.assertNotIn('private detector failure', json.dumps(proposal))
 
-    def test_unreviewed_media_stays_local_without_blocking_text(self):
+    def test_checked_media_metadata_exports_without_opaque_pixel_vectors(self):
         (self.root / 'screenshot.png').write_bytes(b'opaque compressed image')
+        git(self.root, 'add', 'screenshot.png')
+        git(self.root, 'commit', '-m', 'image descriptor fixture')
         from pi_platform.core.orchestration.repository_indexing import build_production_retrieval_runtime
         def runtime(**kwargs):
             kwargs['embedding_alias'] = 'hashing'
@@ -182,12 +198,17 @@ class SafeExportTests(PortableProductionTests):
             built = self.build()
         self.publish_runtime(built)
         proposal = self.stage(vectors=True)
-        self.assertEqual(proposal['sources'], 2)
-        self.assertEqual(proposal['excludedReasonCounts'], {'media-review-required': 1})
-        stage = self.cache() / 'portable-staging' / proposal['stagingId']
+        self.assertEqual(proposal['sources'], 3, proposal['excludedReasonCounts'])
+        self.assertEqual(proposal['excludedReasonCounts'], {})
+        stage = self.cache() / 'portable-staging' / proposal['stagingId'] / 'knowledge'
+        from pi_platform.adapters.sync.portable_format import sha
+        image_id = sha(b'image:screenshot.png')
+        with verified_snapshot(stage, self.cache()) as (db, _):
+            for (raw,) in db.execute("SELECT body FROM records WHERE kind='vector'"):
+                self.assertNotEqual(json.loads(raw)['body']['chunk_id'], image_id)
         for path in stage.rglob('*'):
             if path.is_file():
-                self.assertNotIn(b'screenshot.png', path.read_bytes())
+                self.assertNotIn(b'opaque compressed image', path.read_bytes())
 
     def test_changed_security_review_invalidates_an_already_staged_proposal(self):
         from pi_platform.adapters.orchestration.knowledge_sync import KnowledgeSyncCoordinator

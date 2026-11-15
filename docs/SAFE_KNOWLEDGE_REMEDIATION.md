@@ -188,3 +188,136 @@ identity and Restore markup smoke test with no host mounts/external network.
 The candidate and source-only kit review live under `/tmp/projectexpert-pr26-upgrade`;
 that kit is not a published release and must not overwrite reviewed asset pins or
 operator settings. The live external upgrade awaits explicit owner scope.
+
+
+## Owner-approved live upgrade follow-up
+
+The owner subsequently approved the separate trade-analyzer deployment upgrade.
+Private backups were created before editing deployment files. Operator settings,
+model data and reviewed pins were preserved; only the app/embedding services were
+restarted. The current UI build and managed controller became available on 8765.
+Explicit resumable indexing, parallel ingestion and embedding batching were enabled.
+Pre-restart validation caught an insertion into a nested dependency mapping; it was
+corrected from the backup before services restarted.
+
+Live startup exposed a Python-version compatibility failure: a valid Python 3.12
+f-string cannot be parsed by the container's Python 3.11 AST. The source adapter
+now uses the already installed/reviewed production tree-sitter Python grammar only
+when AST parsing fails. It rejects grammar errors, preserves the full source as
+text and explicitly reports unavailable AST symbol analysis. It does not execute
+source, fabricate API entities, edit target code or relax completeness policy.
+Core stdlib AST behavior is unchanged; without the optional grammar the error is
+still explicit. The existing production dependency inventory already includes
+`tree-sitter-python` 0.25.0. The new retained-text regression failed before the fix;
+all nine Python adapter tests passed afterward, including invalid syntax and
+missing-grammar failure. This fallback is bounded by the existing 5 MiB source cap.
+
+
+Approved upgrade result: the live application now uses local image
+`sha256:5c6968dcaa93fcb3e0772073986cd9c4e90c7d42cbcb98a5751d08a5fdde7d90`.
+The previous deployment files and environment are privately backed up under
+`.project-intelligence-deploy/.kit-backups/live-pr26-20261115T134516Z/` in the
+trade-analyzer installation. The original application image remains cached for
+rollback. Restore backed-up managed files and remove only the new controller files
+listed in `rollback.json`, then recreate app/embeddings with the original Compose
+file set if rollback is needed. Keep backup contents private; never commit them.
+
+Verification: live `/health` is ready, `/api/v1/ui-version` reports the current
+knowledge workflow, and the browser displays the themed page and live CPU mode.
+The authenticated internal controller is healthy. A GPU request with no exposed
+GPU returns HTTP 400 and preserves the exact healthy CPU process generation.
+Normal reindex completed with 345 source hits, zero parse misses and zero new
+vectors. A real deterministic retrieval returned indexed evidence in 0.064s.
+These are observed local measurements, not a physical GPU benchmark. All operator
+`deployment.env` bytes except the approved image replacement were verified equal
+to backup. Existing model volumes and settings were retained; no new public ports,
+Git push, merge, or registry publication were performed.
+
+After the syntax fix, `python3 harness.py check` PASS: 2,051 tests across 160 suites,
+20 skips; artifact manifest 1,605 files PASS; OpenSpec 96/96. The 50k graph build
+finished in 3.8s (5.1s with cleanup). Source compatibility commit: `dee6f78`.
+Fresh hosted Windows/CodeQL acceptance remains for the owner-pushed branch.
+
+
+## Project-wide controls and private local/MCP context
+
+The owner requested optional PI_UI_TOKEN for local use and rejected both manual
+source paths and a proposed multi-file picker. The final UI has no per-file review
+controls. One checked export rule applies across discovered sources. Existing
+source policies, tracked-source eligibility and provenance restrictions still
+apply uniformly; a local-only or unknown-provenance source is not made public by
+removing the form.
+
+Local owner authorization is distinct from token authentication. Direct loopback
+serving permits local ownership; managed Compose passes its actual host bind
+address and enables the exact Docker host gateway only for loopback bindings.
+Host, Origin, Fetch-Site and peer checks reject foreign-browser and unrelated
+network requests before signing. Configured tokens remain required. The token
+panel is hidden when no token is configured; no repeated entry is needed locally.
+
+Full confidential source outputs/vectors stay in the private cache and remain
+available to local retrieval and ProjectExpert MCP. The export projector never
+rewrites them. Complete safe source snapshots remain reusable. Independent safe
+text fragments from content-contaminated sources can now be exported as separate
+`context` records with exact text hashes and original source provenance. They do
+not carry aggregate source summaries, graph edges or opaque media vectors and
+cannot satisfy a complete original-source cache hit. Source-wide policy, unknown
+provenance and protected-dependency denials remain conservative.
+
+All media descriptors/text are checked without individual approvals. Uninspectable
+pixel/figure embeddings remain local unless existing exact-byte review evidence
+already authorizes them; raw images/PDF binaries are never added by this exporter.
+Export uses cached text only and schedules no parsing, OCR or model inference.
+Automated detection covers recognized credentials and declared restrictions; it
+cannot establish arbitrary business confidentiality from meaning alone.
+
+The additive checked-context record/scope fails closed in old readers. New readers
+retain complete-source snapshot compatibility. Exact text vectors can be rekeyed
+only when their original input hash/profile matches the checked projection. Safe
+shared contexts are distinct evidence in the committed snapshot; full current local
+sources take precedence and incompatible current source hashes/policies exclude
+stale projections. See ADR0036.
+
+A real MCP regression exposed a separate assembler-call mismatch hidden by mocked
+ports. `project.retrieve_context` now reuses the real pipeline context bundle or
+calls the declared assembler port correctly, avoiding redundant assembly. The
+mixed-source regression verifies safe export, excluded credential bytes, retained
+complete local cache, real MCP retrieval of confidential text after export, exact
+vector reuse on clone and tamper rejection. UI tests verify hidden optional token
+entry; HTTP tests verify local owner access and foreign/public/token denials.
+
+
+Final project-wide verification: `python3 harness.py check` PASS, 2,100 tests across
+162 suites, 20 skips; strict OpenSpec 96/96; Wiki 137 documents; artifact manifest 1,609
+files. The 50k graph built in 3.7s and completed cleanup in 5.0s. A supplemental
+12-test MCP suite passed after adding two real-assembler/reuse regressions. The
+protected-provenance regression failed before the new guard and passed afterward.
+The isolated candidate container also authorized local signing without a token
+using disposable data and no external network.
+
+The approved loopback installation now uses image
+`sha256:fff31b3c35ef019c6cd606d0607c3c12e39a60a23c1aa44a9bdd929cafc2ae46`,
+UI build `1772e6a4ca23167048cd8e7526520c3f761a46f84bc719e8e6fbbf109f2929a3`.
+Private rollback files are in the installation's
+`.kit-backups/global-context-20261115T165205Z/`. The earlier 5c6968dc image remains
+cached. Restore that backup's compose.yaml/deployment.env and recreate only the
+application if rollback is needed. Deployment preflight found that the older base
+file did not pass PI_UI_TOKEN at all; the optional reference and loopback-owner
+settings were added without changing any existing environment value except the
+approved image replacement. Embedding service, models and private data were retained.
+
+Live health/search readiness PASS; auth-status reports token_required:false and
+local_owner_access:true. Local knowledge administration works without token;
+foreign Origin/Host requests return 403. Reindex reused 345 sources, parsed 0 and
+created 0 embeddings. An actual HTTP MCP project.retrieve_context request returned
+32 hits and its assembled context bundle in 0.066s, with no chat-provider call.
+Chrome's existing localhost:8765 tab was refreshed and verified: themed UI,
+optional-token panel hidden, no source path/picker, unchanged sharing preferences
+and complete local search ready. Screenshot is stored in the session visualization
+output as global-checked-export-live.jpg. Export, automatic export and vector
+sharing remain disabled as before; no real project export, Git push or merge was
+performed during verification. Hosted Windows/CodeQL and physical GPU acceptance
+remain external gates after owner push/on suitable hardware.
+
+Local source commits: e84a59f (real MCP assembly/reuse), c78c6cc (optional local
+owner and global controls), fb56a4b (checked fragments with private cache intact).

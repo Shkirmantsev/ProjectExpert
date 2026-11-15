@@ -174,6 +174,12 @@ def validate_records(db):
                 (body['id'], body['contentHash'], sha(text.encode()), int(bool(contextual))))
     if db.execute('SELECT 1 FROM refs WHERE id NOT IN (SELECT id FROM facts) LIMIT 1').fetchone():
         raise PortableSnapshotError('Dangling portable graph/document reference')
+    from .checked_context import validate_context
+    for identity, raw in db.execute("SELECT id,body FROM records WHERE kind='context'"):
+        body = validate_context(identity, json.loads(raw)['body'])
+        if db.execute('SELECT 1 FROM chunks WHERE id=?', (identity,)).fetchone():
+            raise PortableSnapshotError('Context collides with complete-source chunk')
+        db.execute('INSERT INTO chunks VALUES(?,?,?,0)', (identity, body['textHash'], body['textHash']))
     from .portable_vectors import decode_record
     for identity, raw in db.execute("SELECT id,body FROM records WHERE kind='vector'"):
         vector_body = json.loads(raw)['body']
@@ -197,11 +203,17 @@ def verified_snapshot(knowledge_root, cache_root, *, root_raw=None):
         try:
             report = read_snapshot(knowledge_root, db, root_raw=root_raw)
             validate_records(db)
+            if 'scope' not in report and db.execute("SELECT 1 FROM records WHERE kind='context' LIMIT 1").fetchone():
+                raise PortableSnapshotError('Checked context requires an explicit projection scope')
             if 'scope' in report:
                 scope = report['scope']
                 count = db.execute("SELECT count(*) FROM records WHERE kind='source'").fetchone()[0]
-                if scope != {'kind': 'eligible-sources-only', 'policyVersion': 'safe-source-export/1',
-                             'exportedSourceCount': count, 'completeForExportableScope': True}:
+                context_count = db.execute("SELECT count(*) FROM records WHERE kind='context'").fetchone()[0]
+                expected = ({'kind': 'checked-context-and-complete-sources', 'policyVersion': 'safe-source-export/2',
+                    'exportedSourceCount': count, 'safeContextCount': context_count, 'completeForExportableScope': True}
+                    if context_count else {'kind': 'eligible-sources-only', 'policyVersion': 'safe-source-export/1',
+                    'exportedSourceCount': count, 'completeForExportableScope': True})
+                if scope != expected:
                     raise PortableSnapshotError('Invalid portable exportable scope')
         except (KeyError, TypeError, ValueError) as exc:
             if isinstance(exc, PortableSnapshotError):

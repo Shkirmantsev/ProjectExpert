@@ -1,4 +1,4 @@
-"""Bounded, offline Python manifest and library evidence using only the stdlib."""
+"""Bounded offline Python evidence; stdlib AST with optional newer syntax validation."""
 from __future__ import annotations
 
 import ast
@@ -192,7 +192,22 @@ class PythonSourceAdapter(SourceAdapterPort):
                 text = stream.read()
             relative = path.resolve().relative_to(Path(context.project_root).resolve()) if context else Path(path.name)
             module = '.'.join(relative.with_suffix('').parts)
-            rows, apis = source_api(text, module)
+            try:
+                rows, apis = source_api(text, module)
+            except SyntaxError as syntax_error:
+                # The production grammar is newer than some container interpreters
+                # (e.g. PEP 701 f-strings on Python 3.11). Validate the complete
+                # source before retaining text; never execute it or invent symbols.
+                try:
+                    from tree_sitter import Language, Parser as SyntaxParser
+                    import tree_sitter_python
+                except ImportError:
+                    raise syntax_error
+                tree = SyntaxParser(Language(tree_sitter_python.language())).parse(text.encode('utf-8'))
+                if tree.root_node.has_error:
+                    raise syntax_error
+                return _result(source, [(module, 1, text, {})], advisories=(
+                    'Source syntax validated by tree-sitter-python; interpreter AST symbol extraction unavailable',))
             return _result(source, rows, apis=apis)
         except (OSError, UnicodeError, SyntaxError, ValueError) as exc:
             raise SourceAdapterError(f'cannot analyze Python source {source.uri}: {exc}') from exc

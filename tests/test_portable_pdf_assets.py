@@ -37,6 +37,8 @@ class PortablePdfTests(PortableProductionTests):
                 'pi_platform.core.orchestration.repository_indexing.build_production_retrieval_runtime', runtime):
             first = self.build()
             self.publish_runtime(first)
+            automatic = self.stage(vectors=True)
+            self.assertEqual(automatic['sources'], 3, 'Safe PDF text must export under the project-wide policy without a path approval')
             KnowledgeSyncCoordinator(self.root, self.cache(), authenticated_operator=True).review_source('guide.pdf', 'public')
             self.publish(self.stage(vectors=True))
             clone = self.clone()

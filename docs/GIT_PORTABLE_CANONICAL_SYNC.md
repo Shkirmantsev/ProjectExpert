@@ -193,3 +193,22 @@ See [safe knowledge workflow](SAFE_KNOWLEDGE_REMEDIATION.md) for Restore/Reindex
 Export UI actions, private preferences, whole-source safe scope, durable images and
 PDF figure/vector reuse. It supersedes earlier descriptions of media durability
 and environment-only operation. Physical host/model gates still apply.
+
+
+### Project-wide checked export
+
+All discovered sources use the same export checks. No manual Source path or
+per-file UI approval is required. Enable safe export in Sharing preferences,
+Reindex once to establish portable identities, then review the export proposal.
+Local owner access needs no PI_UI_TOKEN; protected remote access still requires
+the configured token. Managed local ownership requires loopback host publication.
+
+Local search and ProjectExpert MCP always retain the complete private cache.
+Export can include independent safe text fragments from a mixed-content source as
+explicit checked-context records, without pretending they are a complete source
+snapshot. Source policies/provenance still gate admission. Uninspectable media
+vectors remain local without existing exact-byte review evidence; no raw binaries
+are exported. Unknown semantic confidentiality cannot be guaranteed by a recognizer.
+The default 8 MiB file cap and all storage budgets still apply. No product operation
+runs Git add, commit or push. Upgrade older readers before using checked-context
+snapshots; unsupported readers fail closed rather than import partial source caches.

@@ -267,17 +267,21 @@ async def _tool_retrieve_context(ctx: ToolContext,
     # override it for a single query.
     enable_reranking = _optional(arguments, "enable_reranking", None)
     from pi_platform.ports.retrieval.multi_stage_retrieval import RetrievalQuery
-    result = ctx.multi_stage_retrieval.retrieve(RetrievalQuery(
+    query = RetrievalQuery(
         text=text, top_k=top_k, contextBudget=context_budget,
         filters=filters, projectVersion=project_version,
         include_trace=include_trace,
         enableReranking=(
             None if enable_reranking is None else bool(enable_reranking)
         ),
-    ))
-    bundle = ctx.context_assembler.assemble(
-        retrieval=result, budget_tokens=context_budget,
-    ) if result is not None else None
+    )
+    result = ctx.multi_stage_retrieval.retrieve(query)
+    from pi_platform.ports.retrieval.context_assembler import ContextBudget, ContextBundle
+    bundle = getattr(result, 'contextBundle', None)
+    if result is not None and not isinstance(bundle, ContextBundle):
+        bundle = ctx.context_assembler.assemble(result.hits,
+            contextBudget=ContextBudget(tokenLimit=context_budget), query=query,
+            selection_result=getattr(result, 'selection_result', None))
     trace_id = _maybe_store_trace(
         ctx, query_text=text, retrieval_result=result,
     )

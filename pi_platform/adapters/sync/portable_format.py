@@ -106,7 +106,7 @@ def spool(directory):
 
 
 def add_record(db, kind, identity, body):
-    if kind not in {'source', 'payload', 'vector'} or not isinstance(identity, str) or not identity:
+    if kind not in {'source', 'payload', 'vector', 'context'} or not isinstance(identity, str) or not identity:
         raise PortableSnapshotError('Invalid record identity')
     raw = encode({'kind': kind, 'id': identity, 'body': body})
     try:
@@ -269,7 +269,7 @@ def read_snapshot(root, db, *, cap=READ_MAX_BYTES, max_total=MAX_TOTAL, max_file
             rows = []
             for line in raw.splitlines(keepends=True):
                 record = decode(line)
-                if (set(record) != {'kind', 'id', 'body'} or record['kind'] not in {'source', 'payload', 'vector'}
+                if (set(record) != {'kind', 'id', 'body'} or record['kind'] not in {'source', 'payload', 'vector', 'context'}
                         or not isinstance(record['id'], str) or not record['id']):
                     raise PortableSnapshotError('Invalid portable record identity')
                 # decode already proved exact canonical bytes. Do not encode

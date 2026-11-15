@@ -51,12 +51,12 @@ function formatResult(targetId, result) {
         ' sources imported · ' + (restored.importedVectors || 0) + ' embeddings restored.';
     }
     if (report.state === 'no-exportable-sources') {
-      return 'No shareable sources are available.\nEnable sharing and reindex once, or review source classifications.' +
+      return 'No independently safe export context is available.\nLocal search and MCP keep the complete context. Reindex once after first enabling sharing.' +
         (report.cleanupRequired ? '\nPreviously generated files need owner-reviewed cleanup before sharing.' : '');
     }
     if (report.stagingId) {
       return (report.state === 'published' ? 'Safe Git files published. Commit and push when you are ready.' : 'Safe export ready for your review.') +
-        '\n' + report.sources + ' shareable sources · ' + (report.excludedSourceCount || 0) + ' kept local · ' +
+        '\n' + report.sources + ' complete sources · ' + (report.safeContextCount || 0) + ' safe text fragments · ' + (report.excludedSourceCount || 0) + ' sources kept fully or partly local · ' +
         (report.fileCount || 0) + ' text files · ' + ((report.totalBytes || 0) / 1048576).toFixed(2) + ' MiB' +
         (report.changedPaths && report.changedPaths.length ? '\nChanged files:\n' + report.changedPaths.join('\n') : '\nNo file changes.');
     }
@@ -64,7 +64,7 @@ function formatResult(targetId, result) {
       return 'Sharing preferences saved. Safe Git export is ' + (report.share_enabled ? 'enabled.' : 'disabled.') +
         '\nAutomatic export is ' + (report.post_reindex_export ? 'enabled for the approved session.' : 'off.');
     }
-    if (report.state === 'source-review-saved') { return 'Source classification saved: ' + report.classification + '.'; }
+    if (report.state === 'source-review-saved') { return 'Classification saved for ' + (report.reviewedCount || 1) + ' file(s): ' + report.classification + '.'; }
     if ('new_vectors' in report || 'source_parse_misses' in report) {
       return 'Local knowledge update completed.\n' + (report.source_parse_misses || 0) + ' sources processed · ' +
         (report.source_parse_hits || 0) + ' reused · ' + (report.new_vectors || 0) + ' new embeddings.';
@@ -146,6 +146,8 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     call("GET", API + "/auth-status").then(function (auth) {
       tokenField.disabled = !auth.token_required;
+      document.getElementById('api-access-panel').hidden = !auth.token_required;
+      document.getElementById('local-access-notice').hidden = !auth.local_owner_access;
       show("access-token-help", auth.token_required ?
         "API authentication is enabled. Enter PI_UI_TOKEN provided by the operator, from the private deployment environment. It protects ProjectExpert API access; it is not an LLM key or an approval token. Kept only in this tab's memory." :
         "No API token required: PI_UI_TOKEN is not configured. Leave this field empty. This optional password protects ProjectExpert API access; it is not needed for local embedding search. The operator can enable it in the private deployment environment.");
@@ -342,14 +344,6 @@ document.addEventListener("DOMContentLoaded", function () {
   if (document.getElementById('knowledge-restore-button')) {
     loadKnowledgeSettings();
     reloadProtected.push(loadKnowledgeSettings);
-    document.getElementById('knowledge-review-source').addEventListener('click', function () {
-      run('knowledge-sync-result', function () {
-        return call('POST', API + '/admin/knowledge/source-review', {
-          path: document.getElementById('knowledge-source-path').value,
-          classification: document.getElementById('knowledge-source-class').value
-        });
-      });
-    });
     ['restore', 'export'].forEach(function (operation) {
       document.getElementById('knowledge-' + operation + '-button').addEventListener('click', function () {
         knowledgeAction(operation);

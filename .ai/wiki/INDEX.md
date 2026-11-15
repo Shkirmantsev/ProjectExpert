@@ -223,3 +223,5 @@ When `project-context-mcp` is configured:
 - [Dependency research service](modules/dependency-research.md)
 
 - [ADR 0034: Portable production snapshots](adr/0034-portable-production-canonical-snapshots.md)
+
+- [ADR0036: Project-wide checked context export](adr/0036-project-wide-checked-context-export.md)

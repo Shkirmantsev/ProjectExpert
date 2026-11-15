@@ -180,6 +180,34 @@ def _build_context(
 
 class McpRetrieveContextOutputTests(unittest.TestCase):
 
+    def test_real_assembler_port_retains_confidential_local_hits(self):
+        from dataclasses import replace
+        from pi_platform.core.retrieval.context_assembler import ContextAssemblerCore
+        from pi_platform.ports.retrieval.multi_stage_retrieval import RetrievalResult
+        from pi_platform.ports.retrieval.hybrid_retrieval import RetrievalHit
+        from pi_platform.core.canonical.value_types import Metadata, KnowledgeState
+        hit = RetrievalHit(chunkId='private-hit', score=1.0, source='dense',
+            snippet='Confidential local project context.', contentHash='h', tokenEstimate=8,
+            metadata=Metadata(documentId='private-document', sourcePath='local/private.txt', version='1', language='uk'),
+            knowledgeState=KnowledgeState.VERIFIED)
+        ctx = _build_context()
+        ctx.multi_stage_retrieval.retrieve.return_value = RetrievalResult(hits=(hit,))
+        assembler = ContextAssemblerCore()
+        ctx = replace(ctx, context_assembler=assembler)
+        result = _run(McpServer(context=ctx).call_tool('project.retrieve_context', {'text':'local context'}))
+        self.assertTrue(result['ok'], result.get('error'))
+        self.assertIn('Confidential local project context.', str(result['contextBundle']))
+
+    def test_composed_context_bundle_is_not_assembled_twice(self):
+        from pi_platform.ports.retrieval.multi_stage_retrieval import RetrievalResult
+        ctx = _build_context()
+        bundle = ContextBundle(hits=(), citations=())
+        ctx.multi_stage_retrieval.retrieve.return_value = RetrievalResult(contextBundle=bundle)
+        ctx.context_assembler.assemble.side_effect = AssertionError('Duplicate context assembly')
+        result = _run(McpServer(context=ctx).call_tool('project.retrieve_context', {'text':'local context'}))
+        self.assertTrue(result['ok'], result.get('error'))
+        ctx.context_assembler.assemble.assert_not_called()
+
     def test_section_36_tools_still_registered(self) -> None:
         # Regression: the v0.8 extension MUST NOT shadow any §36
         # name even when the new tool is registered.

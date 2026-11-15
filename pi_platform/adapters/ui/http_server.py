@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import ipaddress
+import socket
 import os
 import threading
 from http import HTTPStatus
@@ -87,6 +89,21 @@ class UiHttpServer:
         self.host = host
         self._requested_port = port
         self.token = token if token is not None else os.environ.get("PI_UI_TOKEN") or None
+        local_hosts = {'127.0.0.1', '::1', 'localhost'}
+        deployed_local = (os.environ.get('PI_UI_LOCAL_ADMIN') == '1'
+                          and os.environ.get('PI_UI_BIND_HOST', '') in local_hosts)
+        self.local_admin_enabled = host in local_hosts or deployed_local
+        self._local_proxy_peers = set()
+        if deployed_local:
+            # Docker forwards host loopback connections through its exact gateway.
+            # Other container addresses do not become trusted local administrators.
+            try:
+                for line in Path('/proc/net/route').read_text().splitlines()[1:]:
+                    fields = line.split()
+                    if len(fields) >= 4 and fields[1] == '00000000' and int(fields[3], 16) & 2:
+                        self._local_proxy_peers.add(socket.inet_ntoa(bytes.fromhex(fields[2])[::-1]))
+            except (OSError, ValueError):
+                pass
         self.static_root = Path(static_root) if static_root else STATIC_ROOT
         self._readiness = readiness or (lambda: False)
         self.openai_compat = openai_compat
@@ -219,6 +236,26 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
             expected = f"Bearer {server.token}"
             return header == expected
 
+        def _local_owner_request(self) -> bool:
+            if not server.local_admin_enabled:
+                return False
+            try:
+                peer = self.client_address[0]
+                if not (ipaddress.ip_address(peer).is_loopback or peer in server._local_proxy_peers):
+                    return False
+                host = urlparse('http://' + self.headers.get('Host', ''))
+                if host.hostname not in {'localhost', '127.0.0.1', '::1'} or host.username or host.password:
+                    return False
+                origin = self.headers.get('Origin')
+                if origin:
+                    parsed = urlparse(origin)
+                    if (parsed.scheme not in {'http', 'https'} or parsed.netloc.lower() != host.netloc.lower()
+                            or parsed.username or parsed.password or parsed.path not in {'', '/'}):
+                        return False
+                return self.headers.get('Sec-Fetch-Site', 'none') in {'same-origin', 'none'}
+            except ValueError:
+                return False
+
         def _body(self) -> dict:
             length = int(self.headers.get("Content-Length") or 0)
             if length <= 0:
@@ -259,7 +296,7 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                     'knowledge_operations': server.admin_routes.knowledge_sync is not None})
                 return
             if path == "/api/v1/auth-status":
-                self._send(HTTPStatus.OK, {"token_required": bool(server.token)})
+                self._send(HTTPStatus.OK, {"token_required": bool(server.token), "local_owner_access": server.local_admin_enabled and not bool(server.token)})
                 return
             if path.startswith("/v1/") and server.openai_compat is not None:
                 # The OpenAI-compatible shim is auth-gated by the same
@@ -413,6 +450,9 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
             return "administrator"
 
         def _try_admin_or_wizard(self, method: str, path: str, body: Any) -> bool:
+            if path.startswith('/api/v1/admin/knowledge/') and not server.token and not self._local_owner_request():
+                self._send(HTTPStatus.FORBIDDEN, {'error': 'Knowledge administration requires local owner access or a configured API token.'})
+                return True
             if path == "/api/v1/admin/runtime":
                 if self._resolve_caller_capability() != "administrator":
                     self._send(HTTPStatus.FORBIDDEN, {"error": "Administrator access required"})

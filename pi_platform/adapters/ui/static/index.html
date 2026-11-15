@@ -11,11 +11,12 @@
     <h1>Project Intelligence</h1>
     <p class="subtitle">Local project knowledge, version-aware and agent-neutral.</p>
     <p id="deployment-status" class="deployment-notice" role="status">Connecting to the running application…</p>
+    <p id="local-access-notice" class="deployment-notice" hidden>Local owner access · no API token or sign-in needed.</p>
     <a id="preview-live-link" class="text-link" href="http://127.0.0.1:8765/" hidden>Open the running application</a>
   </header>
 
   <main>
-    <section class="panel">
+    <section class="panel" id="api-access-panel">
       <label for="access-token">API access token (only if configured by your operator)</label>
       <input id="access-token" type="password" autocomplete="off" placeholder="PI_UI_TOKEN; kept in memory" />
       <p id="access-token-help" class="hint" role="status">Checking API access requirements…</p>
@@ -55,17 +56,9 @@
           <label><input id="knowledge-vectors" type="checkbox"> Include eligible embeddings for faster restore (larger Git storage)</label>
           <button id="knowledge-save" type="button">Save sharing preferences</button>
         </fieldset>
-        <p class="hint">Reindex once after first enabling sharing. Publication needs an authenticated administrator; signing keys stay on the server. Generated files stay below 8 MiB by default.</p>
+        <p class="hint">Reindex once after first enabling sharing. Local owner access needs no token. Protected servers use the operator’s API token; signing keys stay on the server. Generated files stay below 8 MiB by default.</p>
       </details>
-      <details class="knowledge-options">
-        <summary>Review image, PDF or confidential sources</summary>
-        <p class="hint">Images and PDFs stay local until you review their complete contents. Review applies to exact bytes; changed media needs a new review. Public classification never overrides credential or policy filters.</p>
-        <div class="source-review-fields">
-          <label>Source path<input id="knowledge-source-path" type="text" autocomplete="off" placeholder="docs/manual.pdf"></label>
-          <label>Classification<select id="knowledge-source-class"><option value="confidential">Confidential — keep local</option><option value="public">Public — complete source reviewed</option></select></label>
-          <button id="knowledge-review-source" type="button">Save source classification</button>
-        </div>
-      </details>
+      <p class="hint" id="knowledge-export-policy">One export policy applies to all discovered files. No file paths or individual approvals are needed. Confidential context stays in the local cache and ProjectExpert MCP. Git export checks content and keeps only safe, independently usable context.</p>
       <p class="hint">Git history retains previously committed data. Export never runs Git add, commit or push.</p>
     </section>
 
