@@ -19,3 +19,8 @@
 - [ ] Physical Windows/Rancher and Linux installed-kit bind/managed-volume flow.
 - [ ] Real offline multimodal models and supported CPU/CUDA/Vulkan recall tests.
 - [ ] Representative large ERP/PDF corpus acceptance and recovery timings.
+
+## Approved live upgrade follow-up
+- [x] Back up external deployment and install controller/parallel configuration.
+- [x] Reproduce and repair newer Python grammar incompatibility without changing target code.
+- [x] Verify live source readiness and final full regression gate.

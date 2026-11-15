@@ -5,8 +5,8 @@
 Structured source: [handoffs/repair-pr26-ui-runtime-ci.json](handoffs/repair-pr26-ui-runtime-ci.json)
 
 Task: `repair-pr26-ui-runtime-ci`
-Status: `blocked`
-Updated: `2026-11-15T12:39:27+00:00`
+Status: `complete`
+Updated: `2026-11-15T13:58:06+00:00`
 Active OpenSpec change: `remediate-safe-knowledge-sync`
 
 ## Objective
@@ -19,7 +19,7 @@ Repair PR26 Windows and CodeQL failures, preserve styled knowledge UI and diagno
 
 ## Completed
 
-- Committed Windows/CodeQL fixture repair dd82a8c and styled UI delivery 48f3fbd; final local harness and isolated image smoke passed
+- Live8765 upgraded to5c6968dc; managed controller and parallel/batching enabled; Python3.12 compatibility fixed and committed dee6f78; health/search/browser verified
 
 ## Remaining
 
@@ -27,15 +27,15 @@ Repair PR26 Windows and CodeQL failures, preserve styled knowledge UI and diagno
 
 ## Blocked
 
-- Live8765 targets a separate project; explicit scope request pending under project-safety boundary
+- none
 
 ## Decisions
 
-- Live8765 is a separate immutable deployment targeting trade-analyzer. Project safety limits this checkout; prepare an exact upgrade before asking to modify that external installation.
+- Owner approved external live upgrade; completed with private rollback backups and preserved operator environment except approved image replacement; no push or merge
 
 ## Relevant context
 
-- `https://github.com/Shkirmantsev/ProjectExpert/pull/26`
+- `Hosted Windows/CodeQL require owner push; current container exposes no physical GPU. These are external acceptance limits, not claimed successes.`
 
 ## Working set
 
@@ -43,7 +43,7 @@ Repair PR26 Windows and CodeQL failures, preserve styled knowledge UI and diagno
 
 ## Verification passed
 
-- Full harness PASS: 2049 tests /160 suites /20 skips; OpenSpec96; manifest1605; browser PASS; 50k graph3.7s build/5.0s total; isolated candidate image smoke PASS
+- Final full harness PASS2051 tests/160 suites/20 skips; OpenSpec96/96; manifest1605 PASS; live reindex345 hits/0 misses/0 new vectors; retrieval0.064s; unavailableGPU safely rejected without changingCPU generation
 
 ## Verification pending
 
@@ -51,7 +51,7 @@ Repair PR26 Windows and CodeQL failures, preserve styled knowledge UI and diagno
 
 ## Next action
 
-After owner approval upgrade external app/controller with rollback, preserving operator settings and reviewed assets
+Owner pushes local commits and reviews fresh hosted checks; live upgrade complete
 
 ## Prerequisites
 

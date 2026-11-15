@@ -40,3 +40,14 @@ Remote device selection SHALL require an available managed runtime controller.
 #### Scenario: External runtime without a controller
 - **WHEN** the selected Gemma runtime has no managed controller
 - **THEN** the device selector is disabled with an actionable deployment explanation
+
+
+### Requirement: Preserve valid newer Python source evidence
+When the container AST cannot parse source syntax, the installed production Python
+grammar MAY validate the complete bounded source without executing it. Successful
+validation SHALL preserve full source text and disclose missing AST symbol analysis.
+Invalid syntax or an unavailable grammar SHALL still fail explicitly.
+
+#### Scenario: Python 3.12 f-string in a Python 3.11 container
+- **WHEN** the newer grammar validates the complete file rejected by the interpreter AST
+- **THEN** source text is indexed with analysis limits and no fabricated function symbols

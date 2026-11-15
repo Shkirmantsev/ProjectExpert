@@ -253,3 +253,9 @@ asset fingerprint at public `/api/v1/ui-version`; API/static responses use
 runtime reports no managed controller. Changing a checkout does not update an
 already running container image; application and deployment-kit upgrades are
 separate operator actions. See [PR26 evidence](../../../docs/SAFE_KNOWLEDGE_REMEDIATION.md).
+
+
+For Python sources newer than the container interpreter, an installed Python
+syntax grammar may validate and retain complete text with explicit analysis
+limits when AST extraction fails. Invalid source remains an ingestion failure;
+text fallback does not claim function/class symbol extraction or execute code.

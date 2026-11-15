@@ -188,3 +188,52 @@ identity and Restore markup smoke test with no host mounts/external network.
 The candidate and source-only kit review live under `/tmp/projectexpert-pr26-upgrade`;
 that kit is not a published release and must not overwrite reviewed asset pins or
 operator settings. The live external upgrade awaits explicit owner scope.
+
+
+## Owner-approved live upgrade follow-up
+
+The owner subsequently approved the separate trade-analyzer deployment upgrade.
+Private backups were created before editing deployment files. Operator settings,
+model data and reviewed pins were preserved; only the app/embedding services were
+restarted. The current UI build and managed controller became available on 8765.
+Explicit resumable indexing, parallel ingestion and embedding batching were enabled.
+Pre-restart validation caught an insertion into a nested dependency mapping; it was
+corrected from the backup before services restarted.
+
+Live startup exposed a Python-version compatibility failure: a valid Python 3.12
+f-string cannot be parsed by the container's Python 3.11 AST. The source adapter
+now uses the already installed/reviewed production tree-sitter Python grammar only
+when AST parsing fails. It rejects grammar errors, preserves the full source as
+text and explicitly reports unavailable AST symbol analysis. It does not execute
+source, fabricate API entities, edit target code or relax completeness policy.
+Core stdlib AST behavior is unchanged; without the optional grammar the error is
+still explicit. The existing production dependency inventory already includes
+`tree-sitter-python` 0.25.0. The new retained-text regression failed before the fix;
+all nine Python adapter tests passed afterward, including invalid syntax and
+missing-grammar failure. This fallback is bounded by the existing 5 MiB source cap.
+
+
+Approved upgrade result: the live application now uses local image
+`sha256:5c6968dcaa93fcb3e0772073986cd9c4e90c7d42cbcb98a5751d08a5fdde7d90`.
+The previous deployment files and environment are privately backed up under
+`.project-intelligence-deploy/.kit-backups/live-pr26-20261115T134516Z/` in the
+trade-analyzer installation. The original application image remains cached for
+rollback. Restore backed-up managed files and remove only the new controller files
+listed in `rollback.json`, then recreate app/embeddings with the original Compose
+file set if rollback is needed. Keep backup contents private; never commit them.
+
+Verification: live `/health` is ready, `/api/v1/ui-version` reports the current
+knowledge workflow, and the browser displays the themed page and live CPU mode.
+The authenticated internal controller is healthy. A GPU request with no exposed
+GPU returns HTTP 400 and preserves the exact healthy CPU process generation.
+Normal reindex completed with 345 source hits, zero parse misses and zero new
+vectors. A real deterministic retrieval returned indexed evidence in 0.064s.
+These are observed local measurements, not a physical GPU benchmark. All operator
+`deployment.env` bytes except the approved image replacement were verified equal
+to backup. Existing model volumes and settings were retained; no new public ports,
+Git push, merge, or registry publication were performed.
+
+After the syntax fix, `python3 harness.py check` PASS: 2,051 tests across 160 suites,
+20 skips; artifact manifest 1,605 files PASS; OpenSpec 96/96. The 50k graph build
+finished in 3.8s (5.1s with cleanup). Source compatibility commit: `dee6f78`.
+Fresh hosted Windows/CodeQL acceptance remains for the owner-pushed branch.
