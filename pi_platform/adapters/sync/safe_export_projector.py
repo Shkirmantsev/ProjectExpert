@@ -46,9 +46,6 @@ def project_sources(db, production, generation, inventory, target, cache_root):
             review = reviews.get(entry.path, {})
             if review.get('classification') == 'confidential':
                 reason = 'restricted-source'
-            elif Path(entry.path).suffix.lower() in {'.png', '.jpg', '.jpeg', '.webp', '.pdf'} and review != {
-                    'sourceHash': digest, 'classification': 'public'}:
-                reason = 'media-review-required'
             try:
                 if sensitive_file(confined(target, entry.path)):
                     reason = 'sensitive-source'

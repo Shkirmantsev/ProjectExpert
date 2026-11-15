@@ -90,7 +90,9 @@ def stage_export(target, cache_root, *, include_vectors=False, cap=None):
                     validate_payload(row[0], local_root=target)
                     add_record(db, 'payload', address, {'raw': bytes(row[0]).decode('utf-8')})
                 source_count += 1
-            if not source_count:
+            from .checked_context import project_contexts
+            context_count = project_contexts(db, production, generation)
+            if not source_count and not context_count:
                 import shutil
                 shutil.rmtree(staging)
                 return {'state': 'no-exportable-sources', 'sources': 0,
@@ -101,8 +103,10 @@ def stage_export(target, cache_root, *, include_vectors=False, cap=None):
             if include_vectors:
                 _export_vectors(db, cache_root)
             descriptor = write_snapshot(db, knowledge, cap=cap, max_total=maximum_total, max_files=maximum_files,
-                scope={'kind': 'eligible-sources-only', 'policyVersion': 'safe-source-export/1',
-                       'exportedSourceCount': source_count, 'completeForExportableScope': True})
+                scope=({'kind': 'checked-context-and-complete-sources', 'policyVersion': 'safe-source-export/2',
+                       'exportedSourceCount': source_count, 'safeContextCount': context_count, 'completeForExportableScope': True}
+                       if context_count else {'kind': 'eligible-sources-only', 'policyVersion': 'safe-source-export/1',
+                       'exportedSourceCount': source_count, 'completeForExportableScope': True}))
         with verified_snapshot(knowledge, cache_root) as (_, verified):
             pass
         if (version != _version(target) or input_version != _version(target, include_portable=False)
@@ -111,7 +115,7 @@ def stage_export(target, cache_root, *, include_vectors=False, cap=None):
     proposal = {'stagingId': staging.name, 'snapshotId': descriptor['snapshotId'],
                 'securityPolicyHash': policy_hash,
                 'generation': generation, 'version': version,
-                'inputVersion': input_version, 'sources': source_count,
+                'inputVersion': input_version, 'sources': source_count, 'safeContextCount': context_count,
                 'excludedSources': [], 'excludedSourceCount': excluded_count,
                 'excludedReasonCounts': reasons, 'completeForLocalIndex': excluded_count == 0,
                 'completeForExportableScope': True, 'vectors': include_vectors,
@@ -133,10 +137,15 @@ def _export_vectors(db, cache_root):
     # raw content hash matches (context can change without changing raw text).
     db.execute('CREATE TEMP TABLE vector_chunks(id TEXT PRIMARY KEY,content_hash TEXT,text_hash TEXT,preferred INTEGER)')
     db.execute('CREATE TEMP TABLE pdf_vector_chunks(id TEXT PRIMARY KEY,image_hash TEXT)')
+    from .safe_export_projector import source_reviews
+    reviews = source_reviews(cache_root)
     for (raw,) in db.execute("SELECT body FROM records WHERE kind='payload'"):
         body = json.loads(json.loads(raw)['body']['raw'])
         body = body.get('chunk', body)
         if body.get('kind') == 'media_source':
+            source_path = body.get('metadata', {}).get('sourcePath')
+            if reviews.get(source_path) != {'sourceHash': body['contentHash'], 'classification': 'public'}:
+                continue  # Opaque pixel embeddings cannot be checked as text.
             db.execute('INSERT INTO vector_chunks VALUES(?,?,?,?)',
                 (body['id'], body['contentHash'], body['retrievalTextHash'], 0))
             continue
@@ -146,26 +155,42 @@ def _export_vectors(db, cache_root):
         text = contextual or body.get('contextualText') or body['rawText']
         if str(body.get('metadata', {}).get('sourcePath', '')).lower().endswith('.pdf'):
             descriptor = body.get('metadata', {}).get('extensions', {}).get('pdf_asset')
+            if descriptor and reviews.get(descriptor['sourcePath']) != {'sourceHash': descriptor['sourceHash'], 'classification': 'public'}:
+                continue  # Keep uninspectable figure embeddings in the local cache.
             db.execute('INSERT OR REPLACE INTO pdf_vector_chunks VALUES(?,?)',
                        (body['id'], descriptor['byteHash'] if descriptor else None))
         db.execute('''INSERT INTO vector_chunks VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET
             content_hash=excluded.content_hash,text_hash=excluded.text_hash,preferred=excluded.preferred
             WHERE excluded.preferred>vector_chunks.preferred''',
             (body['id'], body['contentHash'], sha(text.encode()), int(bool(contextual))))
+    has_contexts = bool(db.execute("SELECT 1 FROM sqlite_temp_master WHERE name='context_vectors'").fetchone())
+    if has_contexts:
+        db.execute('INSERT INTO vector_chunks SELECT id,text_hash,text_hash,0 FROM context_vectors')
+    query = ('SELECT v.id,v.content_hash,v.text_hash,c.original_id,c.original_content FROM vector_chunks v '
+             'LEFT JOIN context_vectors c ON c.id=v.id ORDER BY v.id' if has_contexts else
+             'SELECT id,content_hash,text_hash,NULL,NULL FROM vector_chunks ORDER BY id')
     with closing(sqlite3.connect(f'{path.as_uri()}?mode=ro', uri=True)) as vectors:
         vectors.execute('BEGIN')
         projection_table = vectors.execute("SELECT 1 FROM sqlite_master WHERE name='portable_pdf_projections'").fetchone()
-        for cid, content_hash, text_hash in db.execute('SELECT id,content_hash,text_hash FROM vector_chunks ORDER BY id'):
+        for cid, content_hash, text_hash, original_id, original_content in db.execute(query):
+            context_projection = original_id is not None
+            original_id = original_id or cid
+            original_content = original_content or content_hash
             rows = vectors.execute('''SELECT chunk_id,embedding_profile_hash,content_hash,
                 model_revision,dimension,normalization,vector_payload,
                 created_from_retrieval_text_hash,created_at FROM embeddings
-                WHERE chunk_id=? ORDER BY embedding_profile_hash''', (cid,))
+                WHERE chunk_id=? ORDER BY embedding_profile_hash''', (original_id,))
             matches = 0
             for row in rows:
                 record = SqliteVectorRecordStore._record_from_row(row)
                 profile = record.embedding_profile_hash
-                if record.content_hash != content_hash:
+                if record.content_hash != original_content:
                     continue
+                if context_projection:
+                    if record.created_from_retrieval_text_hash != text_hash:
+                        continue  # Opaque pixels or different contextual input stay local.
+                    from dataclasses import replace
+                    record = replace(record, chunk_id=cid, content_hash=content_hash)
                 body = encode_record(record)
                 if record.created_from_retrieval_text_hash != text_hash:
                     pdf = db.execute('SELECT image_hash FROM pdf_vector_chunks WHERE id=?', (cid,)).fetchone()
@@ -180,7 +205,7 @@ def _export_vectors(db, cache_root):
                 validate_payload(json.dumps(body).encode())
                 add_record(db, 'vector', profile + ':' + cid, body)
                 matches += 1
-            if not matches:
+            if not matches and not context_projection:
                 raise PortableSnapshotError('No exact retrieval-text vector for an eligible chunk; use standard mode')
 
 
@@ -256,6 +281,13 @@ def _audit_retained_files(current, proposed_paths, inventory, cache_root, propos
                         name = envelope.get('path')
                         if is_restricted(name):
                             raise PortableSnapshotError('Retained generated files contain newly restricted sources; reviewed cleanup and Git-history remediation required')
+                    elif value.get('kind') == 'context':
+                        from .checked_context import validate_context
+                        validate_context(value['id'], envelope)
+                        name = envelope['path']; entry = inventory.get(name)
+                        if (reviews.get(name, {}).get('classification') == 'confidential'
+                                or entry and not eligible_path(name, entry.policy)):
+                            raise PortableSnapshotError('Retained context now has a restricted source policy; owner cleanup required')
                     elif value.get('kind') == 'payload':
                         payload = validate_payload(envelope['raw'].encode())
                         payload = payload.get('chunk', payload)
