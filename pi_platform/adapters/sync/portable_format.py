@@ -115,7 +115,7 @@ def add_record(db, kind, identity, body):
         raise PortableSnapshotError('Duplicate portable record identity') from exc
 
 
-def write_snapshot(db, root, *, cap=MAX_BYTES, max_total=MAX_TOTAL, max_files=MAX_FILES):
+def write_snapshot(db, root, *, cap=MAX_BYTES, max_total=MAX_TOTAL, max_files=MAX_FILES, scope=None):
     """Disk-backed ordering; immutable hashed shards/pages; root installed last.
 
     Prefix buckets are segmented deterministically at record boundaries. Replacing
@@ -202,6 +202,8 @@ def write_snapshot(db, root, *, cap=MAX_BYTES, max_total=MAX_TOTAL, max_files=MA
         total += len(raw)
         files += 1
     body = {'schema': SCHEMA, 'fileCap': cap, 'records': count, 'children': refs}
+    if scope is not None:
+        body['scope'] = scope
     body['snapshotId'] = sha(encode(body))
     raw = encode(body)
     if len(raw) > cap or total + len(raw) > max_total or files + 1 > max_files:

@@ -157,7 +157,8 @@ class PortableProductionTests(unittest.TestCase):
         # Make actual discovery reproduce scanner classification.
         with patch.object(RepositorySourceDiscovery, 'discover', return_value=inventory):
             proposal = self.stage(vectors=True)
-        self.assertEqual(proposal['excludedSources'], ['repo:billing.md'])
+        self.assertEqual(proposal['excludedSources'], [])
+        self.assertEqual(proposal['excludedSourceCount'], 1)
         knowledge = self.cache() / 'portable-staging' / proposal['stagingId'] / 'knowledge'
         for path in knowledge.rglob('*'):
             if path.is_file():
@@ -184,12 +185,20 @@ class PortableProductionTests(unittest.TestCase):
         with self.assertRaisesRegex(PortableSnapshotError, 'Stale'):
             self.publish(candidate)
         self.assertEqual((self.root / 'project-knowledge' / ROOT).read_bytes(), original)
-        # Corruption must not become a parser miss.
+        # Corruption is rejected independently of current source processing.
         shard = next((self.root / 'project-knowledge/objects/portable-v2').glob('*.jsonl'))
         shard.write_bytes(b'{}\n')
-        with patch('pi_platform.adapters.markdown.markdown_adapter.MarkdownAdapter.parse', side_effect=AssertionError('parsed corrupt snapshot')):
-            with self.assertRaises(PortableSnapshotError):
-                self.build()
+        from pi_platform.adapters.markdown.markdown_adapter import MarkdownAdapter
+        original_parse, calls = MarkdownAdapter.parse, []
+        def counted(parser, source, context):
+            calls.append(source.id)
+            return original_parse(parser, source, context)
+        with patch.object(MarkdownAdapter, 'parse', counted):
+            rebuilt = self.build()
+            self.assertEqual(rebuilt.extra['portable_import']['state'], 'rejected-snapshot')
+        # Billing's exact local result is reused; the deliberately edited
+        # shipping source still needs its own legitimate local calculation.
+        self.assertEqual(calls, ['repo:shipping.md'])
 
     def test_repeat_export_zero_diff_and_discovery_keeps_wiki(self):
         runtime = self.build()

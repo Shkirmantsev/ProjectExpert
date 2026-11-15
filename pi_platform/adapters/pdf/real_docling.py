@@ -431,7 +431,7 @@ class RealDoclingConverter:
             layout = LayoutObjectDetectionOptions()
             layout.model_spec.revision = DOCLING_LAYOUT_REVISION
             options = PdfPipelineOptions(
-                do_ocr=do_ocr, generate_picture_images=True,
+                do_ocr=do_ocr, generate_picture_images=True, images_scale=1.0,
                 accelerator_options=AcceleratorOptions(
                     num_threads=parse_worker_budget(),
                     device=os.environ.get("PI_DOCLING_DEVICE", "cpu")),

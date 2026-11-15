@@ -275,8 +275,14 @@ class MaterialiseService(MaterialisePort):
 
 def _is_local_only(change: RuntimeChange) -> bool:
     meta = change.source.metadata
-    return ((meta.policy or "").upper() == "LOCAL_ONLY"
-            or (meta.businessDomain or "").upper() == "LOCAL_ONLY")
+    from .export_policy import protected_path, restricted_derivation
+    from ...core.canonical.value_types import dataclass_to_dict
+    path = meta.sourcePath or change.source.uri
+    return ((meta.policy or '').upper() not in {'', 'SNAPSHOT'}
+            or (meta.businessDomain or '').upper() in {'LOCAL_ONLY', 'REFERENCE', 'CONFIDENTIAL', 'SECRET'}
+            or protected_path(path.replace('\\', '/'))
+            or restricted_derivation(dataclass_to_dict(meta))
+            or restricted_derivation(change.payload))
 
 
 def _payload_to_shard_path(payload: dict, payload_bytes: bytes) -> str:

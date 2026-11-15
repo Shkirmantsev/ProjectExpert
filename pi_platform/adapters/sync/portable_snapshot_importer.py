@@ -12,6 +12,9 @@ def import_sources(target, cache_root, cache, sources, driver, *, plan=None):
         return {'importedSources': 0, 'incompatibleSources': 0}
     imported = misses = reused = 0
     from pi_platform.core.canonical import content_address, to_canonical_json
+    from .portable_media import pipeline_key as source_pipeline_key
+    from .safe_export_projector import source_reviews
+    reviews = source_reviews(Path(cache_root))
     by_id = {source.id: source for source in sources}
     with (nullcontext(plan) if plan is not None else verified_snapshot(root, cache_root)) as (db, report):
         def complete_sources():
@@ -19,9 +22,14 @@ def import_sources(target, cache_root, cache, sources, driver, *, plan=None):
             for sid, raw in db.execute("SELECT id,body FROM records WHERE kind='source' ORDER BY id"):
                 body = json.loads(raw)['body']
                 source = by_id.get(sid)
+                from .portable_snapshot_reader import eligible_path
+                from pi_platform.core.sync.export_policy import sensitive_file
                 metadata_key = content_address(to_canonical_json(source.metadata).decode()) if source else None
-                if (source is None or source.contentHash != body['sourceHash']
-                        or driver.pipeline_key(source) != body['pipelineKey'] or metadata_key != body['metadataKey']
+                if (source is None or reviews.get(body['path'], {}).get('classification') == 'confidential'
+                        or not eligible_path(body['path'], source.metadata.policy)
+                        or sensitive_file(confined(Path(target), body['path']))
+                        or source.contentHash != body['sourceHash']
+                        or source_pipeline_key(source, driver) != body['pipelineKey'] or metadata_key != body['metadataKey']
                         or (source.metadata.policy or '') != (body['policy'] or '')):
                     misses += 1
                     continue
