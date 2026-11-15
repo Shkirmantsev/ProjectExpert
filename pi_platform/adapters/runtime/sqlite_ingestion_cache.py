@@ -23,6 +23,8 @@ def exclusive_indexer(cache_root):
     """Kernel-owned exclusion survives crashes without timestamp takeovers."""
     root = Path(cache_root)
     root.mkdir(parents=True, exist_ok=True)
+    if os.name == 'posix':
+        root.chmod(0o700)
     handle = (root / 'indexing.lock').open('a+b')
     locked = False
     try:
@@ -263,8 +265,22 @@ class SqliteIngestionCache:
         # and older generation readers remain usable.
         with self._write():
             self._assert_fence()
+            old = self._selected_source_state(sid)
             self._db.execute('DELETE FROM generation_sources WHERE generation=? AND source_id=?',
                              (self.generation, sid))
+            if old is not None:
+                self._source_progress_delta(-1, -int(old == 'degraded'))
+
+    def _selected_source_state(self, sid):
+        row = self._db.execute('''SELECT o.state FROM generation_sources g JOIN source_outputs o
+            USING(source_id,source_hash,pipeline_key,metadata_key) WHERE g.generation=? AND g.source_id=?''',
+            (self.generation, sid)).fetchone()
+        return row[0] if row else None
+
+    def _source_progress_delta(self, completed, degraded):
+        self._db.execute('''UPDATE index_stages SET completed_items=max(0,completed_items+?),
+            degraded_items=max(0,degraded_items+?),updated_at=? WHERE job_id=? AND stage='sources' ''',
+            (completed, degraded, time.time(), self.generation))
 
     def complete_source_atomic(self, sid, digest, key, addresses, metadata_key, records):
         metadata_key = metadata_key or ''
@@ -276,6 +292,7 @@ class SqliteIngestionCache:
             raise IndexingStateError('Source summary membership mismatch')
         with self._write():
             self._assert_fence()
+            old_state = self._selected_source_state(sid)
             for address in set(addresses):
                 payload = records[address]
                 checksum = hashlib.sha256(payload).hexdigest()
@@ -296,12 +313,8 @@ class SqliteIngestionCache:
                                  ((*identity, address) for address in set(addresses)))
             self._db.execute('INSERT OR REPLACE INTO generation_sources VALUES(?,?,?,?,?)',
                              (self.generation, *identity))
-            counts = self._db.execute("""SELECT count(*),coalesce(sum(o.state='degraded'),0)
-                FROM generation_sources g JOIN source_outputs o
-                USING(source_id,source_hash,pipeline_key,metadata_key) WHERE g.generation=?""",
-                (self.generation,)).fetchone()
-            self._db.execute("""UPDATE index_stages SET completed_items=?,degraded_items=?,updated_at=?
-                WHERE job_id=? AND stage='sources'""", (*counts, time.time(), self.generation))
+            self._source_progress_delta(int(old_state is None),
+                int(encoded.get('degraded', False)) - int(old_state == 'degraded'))
 
     def import_portable_sources(self, sources):
         """Stream verified text in bounded commit groups, never parsed work.
