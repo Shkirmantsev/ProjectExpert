@@ -1,5 +1,7 @@
 """Static Python analysis and real content-addressed ingestion coverage."""
 import json
+import importlib.util
+from unittest.mock import patch
 from pathlib import Path
 import tempfile
 import unittest
@@ -78,6 +80,23 @@ class Client:
         self.assertEqual(api.metadata.extensions['returns'], 'bytes')
         self.assertTrue(api.metadata.extensions['async'])
         self.assertEqual(api.metadata.extensions['docstring'], 'Fetch payload.')
+
+    @unittest.skipUnless(importlib.util.find_spec('tree_sitter_python'), 'optional newer Python grammar unavailable')
+    def test_newer_valid_syntax_retains_full_text_without_claiming_ast_symbols(self):
+        text = 'def display(data):\n    raise RuntimeError("MUST NOT EXECUTE")\n    return f"{data["name"]}"\n'
+        source = self.source('modern.py', text)
+        with patch('pi_platform.adapters.python.intelligence.ast.parse', side_effect=SyntaxError('older grammar')):
+            result = PythonSourceAdapter().parse(source, SourceAdapterContext(self.root))
+        self.assertIn(text.strip(), '\n'.join(c.rawText for section in result.sections for c in section.chunks))
+        self.assertIn('symbol extraction unavailable', result.rationale)
+        self.assertFalse(any(e.family == 'PythonFunction' for e in result.entities))
+        self.assertTrue(result.entities[0].metadata.extensions['partial'])
+
+    def test_newer_syntax_without_optional_grammar_still_fails_explicitly(self):
+        source = self.source('modern.py', 'value = f"{data["name"]}"\n')
+        with patch('pi_platform.adapters.python.intelligence.ast.parse', side_effect=SyntaxError('older grammar')), patch.dict(
+                'sys.modules', {'tree_sitter_python': None}), self.assertRaises(SourceAdapterError):
+            PythonSourceAdapter().parse(source)
 
     def test_wheel_metadata_and_public_api(self):
         path = self.root / 'demo.whl'
