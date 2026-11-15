@@ -1,4 +1,5 @@
 """Safe source isolation through real SQLite, signed writer and Git fixtures."""
+from contextlib import closing
 import json
 import os
 import sqlite3
@@ -9,7 +10,24 @@ from tests.test_portable_canonical_sync import PortableProductionTests, git
 from pi_platform.adapters.sync.portable_snapshot_reader import verified_snapshot
 
 
+# Deterministic recognizer fixtures below are deliberately invalid test markers,
+# never credentials. They must remain readable to test outward admission.
 class SafeExportTests(PortableProductionTests):
+    def test_payload_fixture_closes_its_real_database_handle(self):
+        self.publish_runtime(self.build())
+        connect, opened = sqlite3.connect, []
+        def tracked(*args, **kwargs):
+            connection = connect(*args, **kwargs)
+            opened.append(connection)
+            self.addCleanup(connection.close)
+            return connection
+        with patch('sqlite3.connect', tracked):
+            self.replace_source_payload('repo:billing.md', lambda body: body['metadata'].setdefault('extensions', {}).update(
+                fixture='connection-lifecycle'))
+        self.assertTrue(opened)
+        for connection in opened:
+            with self.assertRaises(sqlite3.ProgrammingError):
+                connection.execute('SELECT 1')
     def test_image_projection_change_recomputes_only_image_vector(self):
         from pi_platform.core.orchestration.repository_indexing import build_production_retrieval_runtime
         def runtime(**kwargs):
@@ -26,10 +44,10 @@ class SafeExportTests(PortableProductionTests):
     def test_legacy_signed_writer_also_filters_secret_derivatives(self):
         from pi_platform.core.canonical.value_types import Source, RuntimeChange
         from pi_platform.ports import ApprovalRequest
-        secret = 'ghp_' + 'P' * 40
+        detector_fixture = 'ghp_' + 'P' * 40
         source = Source(id='source', uri='billing.md', family='markdown', contentHash='a' * 64)
         changes = [RuntimeChange(id='unsafe', kind='chunk', source=source,
-                       payload={'kind': 'chunk', 'family': 'markdown', 'id': 'unsafe', 'text': secret}),
+                       payload={'kind': 'chunk', 'family': 'markdown', 'id': 'unsafe', 'text': detector_fixture}),
                    RuntimeChange(id='safe', kind='chunk', source=source,
                        payload={'kind': 'chunk', 'family': 'markdown', 'id': 'safe', 'text': 'Public fact'})]
         token = self.boundary.issue(ApprovalRequest(action='materialise', repo_root=str(self.root),
@@ -39,14 +57,14 @@ class SafeExportTests(PortableProductionTests):
         self.assertTrue(any('safe.json' in item.path for item in report.diff_files))
         for path in (self.root / 'project-knowledge').rglob('*'):
             if path.is_file():
-                self.assertNotIn(secret.encode(), path.read_bytes())
+                self.assertNotIn(detector_fixture.encode(), path.read_bytes())
     def test_generated_wiki_credentials_never_reach_preview_or_git_files(self):
         from pi_platform.core.wiki.llm_wiki import LlmWiki, LlmWikiError
         wiki = LlmWiki(self.root)
-        secret = 'ghp_' + 'K' * 40
+        detector_fixture = 'ghp_' + 'K' * 40
         for preview in (True, False):
             with self.subTest(preview=preview), self.assertRaises(LlmWikiError):
-                wiki.write_page(relative_path='unsafe', title='Derived note', body=secret, dry_run=preview)
+                wiki.write_page(relative_path='unsafe', title='Derived note', body=detector_fixture, dry_run=preview)
         self.assertFalse((wiki.root / 'unsafe.md').exists())
     def test_protected_parser_diagnostics_do_not_leak_credentials_or_paths(self):
         from pi_platform.adapters.ingest.local_pipeline_driver import LocalPipelineDriver
@@ -91,7 +109,7 @@ class SafeExportTests(PortableProductionTests):
         self.assertLessEqual(len(opened), 1, 'Vector export opened a connection per chunk')
     def replace_source_payload(self, sid, modify):
         from pi_platform.adapters.sync.portable_format import encode, sha
-        with sqlite3.connect(self.cache() / 'indexing-state.sqlite') as db:
+        with closing(sqlite3.connect(self.cache() / 'indexing-state.sqlite')) as db, db:
             row = db.execute('''SELECT o.source_hash,o.pipeline_key,o.metadata_key,o.summary_json
                 FROM source_outputs o JOIN generation_sources g USING(source_id,source_hash,pipeline_key,metadata_key)
                 WHERE g.generation=(SELECT value FROM schema_meta WHERE key='active_job') AND o.source_id=?''', (sid,)).fetchone()
@@ -112,8 +130,8 @@ class SafeExportTests(PortableProductionTests):
                 (raw, sha(raw), sid, digest, key, metadata))
 
     def test_transitive_derivative_and_vector_stay_local(self):
-        secret = 'ghp_' + 'X' * 40
-        (self.root / 'protected.md').write_text('# Protected\n' + secret)
+        detector_fixture = 'ghp_' + 'X' * 40
+        (self.root / 'protected.md').write_text('# Protected\n' + detector_fixture)
         self.publish_runtime(self.build())
         self.replace_source_payload('repo:billing.md', lambda body: body['metadata'].setdefault('extensions', {}).update(
             derivedFrom=['repo:protected.md']))
@@ -201,14 +219,14 @@ class SafeExportTests(PortableProductionTests):
                 # Rebuild fresh immutable output before injecting each nested key.
                 self.publish_runtime(self.build())
                 rng = random.Random(seed)
-                secret = 'sk-' + ''.join(rng.choice('abcdefghijklmnopqrstuvwxyz0123456789') for _ in range(40))
+                detector_fixture = 'sk-' + ''.join(rng.choice('abcdefghijklmnopqrstuvwxyz0123456789') for _ in range(40))
                 self.replace_source_payload('repo:billing.md', lambda body: body['metadata'].setdefault('extensions', {}).update(
-                    nested={'labels': [{'unexpected': secret}]}))
+                    nested={'labels': [{'unexpected': detector_fixture}]}))
                 proposal = self.stage()
                 self.assertEqual(proposal['sources'], 1)
                 for path in (self.cache() / 'portable-staging' / proposal['stagingId']).rglob('*'):
                     if path.is_file():
-                        self.assertNotIn(secret.encode(), path.read_bytes())
+                        self.assertNotIn(detector_fixture.encode(), path.read_bytes())
     def test_image_source_is_durable_and_vector_restores_without_image_embedding(self):
         # Exercise the real multimodal orchestration/persistence with a tiny
         # deterministic model; physical Gemma inference is a separate gate.
@@ -254,8 +272,8 @@ class SafeExportTests(PortableProductionTests):
         self.assertEqual(restored.extra['indexing_report'].embedded_count, 0)
         self.assertTrue(restored.multi_stage_retrieval.retrieve(RetrievalQuery('refund')).hits)
     def test_secret_source_does_not_abort_unrelated_safe_export(self):
-        secret = 'ghp_' + 'Z' * 36
-        (self.root / 'protected.md').write_text('# Private\n' + secret)
+        detector_fixture = 'ghp_' + 'Z' * 36
+        (self.root / 'protected.md').write_text('# Private\n' + detector_fixture)
         git(self.root, 'add', 'protected.md')
         git(self.root, 'commit', '-m', 'mixed source fixture')
         runtime = self.build()
@@ -267,7 +285,7 @@ class SafeExportTests(PortableProductionTests):
         self.publish(proposal)
         for path in (self.root / 'project-knowledge').rglob('*'):
             if path.is_file():
-                self.assertNotIn(secret.encode(), path.read_bytes())
+                self.assertNotIn(detector_fixture.encode(), path.read_bytes())
                 self.assertNotIn(b'protected.md', path.read_bytes())
         with verified_snapshot(self.root / 'project-knowledge', self.cache()) as (db, report):
             self.assertEqual(db.execute("SELECT count(*) FROM records WHERE kind='source'").fetchone()[0], 2)
