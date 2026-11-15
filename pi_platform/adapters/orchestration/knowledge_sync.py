@@ -14,11 +14,13 @@ DEFAULTS = {'share_enabled': False, 'post_reindex_export': False, 'include_vecto
 
 
 class KnowledgeSyncCoordinator:
-    def __init__(self, target, cache_root, *, index=None, authenticated_operator=False):
+    def __init__(self, target, cache_root, *, index=None, authenticated_operator=False, local_operator=False):
         self.target = Path(target).resolve()
         self.cache = Path(cache_root).resolve()
         self.index = index
         self.authenticated_operator = authenticated_operator
+        self.local_operator = local_operator
+        self.operator_authorized = authenticated_operator or local_operator
         self.settings_path = self.cache / 'knowledge-settings.json'
 
     def settings(self):
@@ -58,8 +60,8 @@ class KnowledgeSyncCoordinator:
             path.chmod(0o600)
 
     def _operator_boundary(self):
-        if not self.authenticated_operator:
-            raise ValueError('Authenticated administrator session required for publication authorization')
+        if not self.operator_authorized:
+            raise ValueError('Authenticated administrator or trusted local owner required for publication authorization')
         from pi_platform.adapters.fs.private_cache import ensure_private_cache
         ensure_private_cache(self.target, self.cache)
         boundary = HmacTrustedApprovalBoundary()
@@ -86,7 +88,7 @@ class KnowledgeSyncCoordinator:
         return {k: v for k, v in result.items() if k in {
             'stagingId', 'snapshotId', 'sources', 'excludedSourceCount', 'excludedReasonCounts',
             'completeForExportableScope', 'completeForLocalIndex', 'totalBytes', 'fileCount',
-            'vectors', 'changedPaths', 'state', 'cleanupRequired', 'message'}}
+            'vectors', 'changedPaths', 'state', 'cleanupRequired', 'message', 'safeContextCount'}}
 
     def review_source(self, path, classification):
         from pi_platform.adapters.runtime.sqlite_ingestion_cache import exclusive_indexer
@@ -99,8 +101,8 @@ class KnowledgeSyncCoordinator:
         A public review never overrides content/policy detectors. The approval
         binds exact bytes and is invalidated when the source changes.
         """
-        if not self.authenticated_operator:
-            raise ValueError('Authenticated administrator review required')
+        if not self.operator_authorized:
+            raise ValueError('Local owner access or authenticated administrator required for review')
         if classification not in {'public', 'confidential'}:
             raise ValueError('Unknown source classification')
         from pi_platform.adapters.runtime.sqlite_ingestion_cache import _file_checksum
@@ -121,7 +123,7 @@ class KnowledgeSyncCoordinator:
         value = decode(read_bounded(confined(path, 'proposal.json')))
         # Deliberately whitelist operator-safe counts; no source inventory/version.
         result = {k: value[k] for k in ('stagingId', 'snapshotId', 'sources', 'excludedSourceCount',
-            'excludedReasonCounts', 'completeForExportableScope', 'totalBytes', 'fileCount', 'vectors') if k in value}
+            'excludedReasonCounts', 'completeForExportableScope', 'totalBytes', 'fileCount', 'vectors', 'safeContextCount') if k in value}
         from pi_platform.adapters.sync.portable_snapshot_reader import verified_snapshot
         from pi_platform.adapters.sync.portable_snapshot_exporter import changed_paths
         with verified_snapshot(path / 'knowledge', self.cache) as (_, report):
@@ -166,7 +168,7 @@ class KnowledgeSyncCoordinator:
             pass
         return {'branch': version.branch, 'localIndexReady': ready,
                 'gitSnapshot': 'present-unverified' if (self.target / 'project-knowledge' / ROOT).exists() else 'absent',
-                'settings': self.settings(), 'publicationRequiresAuthenticatedOperator': True}
+                'settings': self.settings(), 'publicationRequiresAuthenticatedOperator': not self.local_operator}
 
     def save_job(self, job):
         self._private_write(self.cache / 'knowledge-jobs' / (job['job_id'] + '.json'), encode(job))

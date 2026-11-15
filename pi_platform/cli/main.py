@@ -1222,7 +1222,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     from ..adapters.orchestration.knowledge_sync import KnowledgeSyncCoordinator
     knowledge_sync = KnowledgeSyncCoordinator(target, cache_root,
         index=lambda **kw: _bootstrap_and_index_target(target, cache_root=cache_root,
-            service=service, readiness=readiness, **kw), authenticated_operator=bool(server.token))
+            service=service, readiness=readiness, **kw), authenticated_operator=bool(server.token), local_operator=server.local_admin_enabled)
     server.admin_routes.knowledge_sync = knowledge_sync
     server.admin_routes.job_executor = execute_admin_job
     monitor = PollingProjectVersionMonitor(target, on_change=refresh, on_error=failed)

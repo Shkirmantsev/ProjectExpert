@@ -26,7 +26,7 @@ function browser(options = {}) {
       if (path.endsWith('/admin/retrieval')) body = {embedding_model_alias:'gemma',device:'cpu',document_processing_enabled:true};
       else if (path.endsWith('/admin/runtime')) body = {managed_control:options.managed !== false,models:[{value:'gemma',label:'Managed Gemma'},{value:'gemma-torch',label:'Native Gemma'}],devices:{gemma:['auto','cpu','vulkan'], 'gemma-torch':['auto','cpu']},message:'Applies runtime changes'};
       else if (path.endsWith('/ui-version')) body = {ui_contract:'knowledge-sync/2',ui_build:'fixture-build'};
-      else if (path.endsWith('/auth-status')) body = {token_required:options.auth || false};
+      else if (path.endsWith('/auth-status')) body = {token_required:options.auth || false,local_owner_access:!options.auth};
       else if (path.endsWith('/wizard')) {body = {job_id:'apply-123'}; status=202;}
       else if (path.endsWith('/indexing-status')) body = {ready: ++readyChecks > 2, hydration:{in_progress:true}, indexes:{active_sources:3,retrieval:{execution:{mode:options.mode || 'CPU',backend:'cpu',reason:'Verified deployment CPU profile',source:'selected deployment profile'}}}};
       else if (path.endsWith('/admin/chat')) body = init.method === 'PUT' ? {...JSON.parse(init.body), api_key:undefined,api_key_set:true} : {enabled:false,provider:'openai',base_url:'',model:'',share_context:false,api_key_set:false};
@@ -127,6 +127,8 @@ async function main() {
   const publish = b.requests.find(r=>r.path.endsWith('/knowledge/publish'));
   assert.deepEqual(JSON.parse(publish.body),{stagingId:'proposal-123',snapshotId:'snapshot-123'});
   assert.equal(b.node('knowledge-publish-button').hidden,true);
+  assert.equal(b.node('api-access-panel').hidden, true);
+  assert.equal(b.node('local-access-notice').hidden, false);
   console.log('PASS: browser indexing progress, completion, failure, auth separation and readable evidence');
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});
