@@ -37,9 +37,13 @@ class DeploymentRuntimeRepairTests(unittest.TestCase):
             module = exporter()
             module.export(source, dest)
             self.assertIn('PI_IMAGE=' + image, (dest / 'deployment.env').read_text())
-            (dest / 'deployment.env').write_text('PI_IMAGE=operator:override\r\n')
+            # Exact operator bytes: text mode would translate CRLF to CRCRLF
+            # on Windows before the exporter ever sees the fixture.
+            original = b'PI_IMAGE=operator:override\r\n'
+            (dest / 'deployment.env').write_bytes(original)
+            self.assertEqual((dest / 'deployment.env').read_bytes(), original)
             module.export(source, dest, upgrade=True)
-            self.assertEqual((dest / 'deployment.env').read_bytes(), b'PI_IMAGE=operator:override\r\n')
+            self.assertEqual((dest / 'deployment.env').read_bytes(), original)
 
     def test_operator_frontend_name_survives_template_upgrade(self):
         # Export/upgrade is a portable filesystem contract, independent of the

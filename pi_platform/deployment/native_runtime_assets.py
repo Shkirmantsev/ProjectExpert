@@ -64,7 +64,11 @@ def archive_inventory(archive):
         if len(stream.infolist()) > MAX_FILES:
             raise AssetPackError('Native archive file limit exceeded')
         for item in stream.infolist():
-            name = item.filename.rstrip('/') if item.is_dir() else item.filename
+            # ZipInfo.filename normalizes Windows separators and truncates at
+            # NUL. Check the original stored name before those transformations.
+            name = item.orig_filename
+            if name.endswith('/'):
+                name = name[:-1]
             key = windows_path(name)
             _register_path(name, paths, directory=item.is_dir())
             mode = item.external_attr >> 16

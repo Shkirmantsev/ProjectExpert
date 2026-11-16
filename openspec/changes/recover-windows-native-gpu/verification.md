@@ -72,3 +72,39 @@ Local source commits: `88c75e2` foundation image identity; `e14d970` verified
 native GPU/runtime/CI recovery. Documentation and final task evidence are committed
 separately. The recovery OpenSpec change remains active; accepted current specs
 are not silently rewritten or falsely marked hardware-certified.
+
+## PR28 Windows follow-up — 2026-11-17
+
+The pushed candidate `c4fd4e7` was tested as PR merge `479515d8`. All six full-Windows and six Windows-unit logs from
+runs43974331842,43974331890 and43974331728 showed the same causes across Windows
+Python3.11/3.13: full harness stopped at the fresh-kit CRLF fixture, while unit
+discovery additionally reached the ZIP-backslash case. Linux checks passed.
+
+The CRLF fixture used text mode with an already explicit CRLF, so Windows created
+CRCRLF before the exporter ran. It now writes/asserts exact bytes. Exporter
+preservation semantics are unchanged. The ZIP fixture also accidentally invoked
+host normalization in `ZipInfo`; it now stores the intended hostile member name.
+The verifier validates `orig_filename` before Python normalizes backslashes or
+truncates NUL, retaining strict rejection on every supported host.
+
+Negative raw-name tests were red against the prior validator, including simulated
+Windows separators on Linux. The patched native pack suite has15 passing tests,
+including ordinary forward-slash names accepted under both host separators.
+The exporter test also passes with Windows text translation forced on Linux.
+There are no skips or relaxed security expectations added by this follow-up.
+
+The **original** [hosted Windows launcher job133674291292](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43974331890/job/133674291292) passed both PS5.1 and7
+before these Python fixes. This is software/process/fixture evidence, not physical
+MX550/Intel inference. Fresh hosted Python results still require the owner's push;
+no re-run of unchanged failing commits or remote branch mutation is performed.
+
+Supplemental Python3.11 container run with the patched module and test files
+mounted read-only, `--network none`:15 native runtime tests PASS. No application
+image publication, live service restart or dependency modification was needed.
+
+Final local follow-up gate: `python3 harness.py check` **PASS:2,118 tests in163
+suites,20 skips**; OpenSpec97/97, Wiki138 documents, artifact manifest1,627 files.
+The full gate includes the two new raw-name/canonical-name regression tests.
+`git diff --check` and final manifest verification PASS. Fresh Windows hosted
+Python3.11/3.13 execution after this repair is NOT RUN until owner push; the old
+jobs are not relabeled as successful. Changes are committed locally only.

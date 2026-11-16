@@ -204,3 +204,10 @@ Physical Windows5.1, MX550/Intel inference and measured throughput remain extern
 acceptance, not demonstrated by Linux PowerShell7 fixtures. No live Linux install
 was changed. See [recovery guide](../../../distribution/deployment/WINDOWS_NATIVE_GPU_RECOVERY.md) and
 [ADR0037](../adr/0037-isolated-offline-windows-cuda-runtime.md).
+
+
+The PR28 follow-up checks original ZIP member metadata before host-specific
+normalization, so separators and NUL bytes cannot disappear before strict native
+asset path validation. Host-independent fixtures retain actual malformed ZIP names
+and exact operator dotenv bytes. This preserves the earlier archive/upgrade
+contracts; see the recovery change's verification evidence.

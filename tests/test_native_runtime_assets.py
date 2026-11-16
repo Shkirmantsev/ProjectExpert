@@ -1,4 +1,5 @@
 """Offline native CUDA closure verification; fixtures are never executed."""
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -95,9 +96,36 @@ class NativeRuntimeTests(unittest.TestCase):
             with self.subTest(name=name):
                 archive = self.archives / 'bad.zip'
                 with zipfile.ZipFile(archive, 'w') as stream:
-                    stream.writestr(name, b'x')
+                    info = zipfile.ZipInfo('placeholder')
+                    info.filename = info.orig_filename = name
+                    stream.writestr(info, b'x')
                     if name == 'A.dll': stream.writestr('a.dll', b'y')
                 with self.assertRaises(AssetPackError): native.archive_inventory(archive)
+
+    def test_raw_member_names_rejected_before_host_normalization(self):
+        for name in ('folder\\runtime.dll', 'runtime.dll\x00hidden'):
+            with self.subTest(name=name):
+                archive = self.archives / 'raw-name.zip'
+                # Supplying a string to writestr invokes ZipInfo's host path
+                # normalization. Preserve the hostile bytes in the ZIP itself.
+                info = zipfile.ZipInfo('placeholder')
+                info.filename = info.orig_filename = name
+                with zipfile.ZipFile(archive, 'w') as stream:
+                    stream.writestr(info, b'x')
+                with zipfile.ZipFile(archive) as stream:
+                    self.assertEqual(stream.infolist()[0].orig_filename, name)
+                for separator in ('/', '\\'):
+                    with self.subTest(host_separator=separator), patch.object(zipfile.os, 'sep', separator):
+                        with self.assertRaises(AssetPackError):
+                            native.archive_inventory(archive)
+
+    def test_portable_member_names_accepted_under_both_host_separators(self):
+        archive = self.archives / 'portable-name.zip'
+        with zipfile.ZipFile(archive, 'w') as stream:
+            stream.writestr('folder/runtime.dll', b'x')
+        for separator in ('/', '\\'):
+            with self.subTest(host_separator=separator), patch.object(zipfile.os, 'sep', separator):
+                self.assertEqual(native.archive_inventory(archive), {'folder/runtime.dll': hashlib.sha256(b'x').hexdigest()})
 
     def test_parent_case_collision_rejected_before_extraction(self):
         archive = self.archives / 'case.zip'
