@@ -204,3 +204,12 @@ Implementation references: GitHub documents [reusable workflow outputs and inher
 and [repository/package linking for workflow access](https://docs.github.com/en/packages/learn-github-packages/connecting-a-repository-to-a-package).
 The asset image carries the repository source label; the workflow retains explicit
 package-write permission and does not bypass repository/package access policy.
+
+## Optional Windows CUDA
+
+The standard reviewed manifest continues to advertise Vulkan only. Native CUDA
+uses a separate independently verified pack; no NVIDIA DLLs are added to this
+inventory or relabeled MIT. See [optional pack scope](../assets-cuda/README.md) and
+[Windows operator recovery](../deployment/WINDOWS_NATIVE_GPU_RECOVERY.md). CPU/Vulkan
+users do not download optional CUDA archives. Public companion publication remains
+blocked pending actual per-file redistribution review.

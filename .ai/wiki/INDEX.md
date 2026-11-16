@@ -12,6 +12,9 @@ Do not bulk-read this Wiki. Search first and retrieve only relevant documents/se
 
 ## Start here
 
+- [Windows native GPU recovery](../../distribution/deployment/WINDOWS_NATIVE_GPU_RECOVERY.md)
+- [ADR: Isolated offline Windows CUDA](adr/0037-isolated-offline-windows-cuda-runtime.md)
+
 - [Safe knowledge workflow and evidence](../../docs/SAFE_KNOWLEDGE_REMEDIATION.md)
 - [ADR: Safe source projection and restore](adr/0035-safe-source-projection-and-restore-only.md)
 

@@ -629,3 +629,21 @@ Bind mode writes project-knowledge directly. Managed workspace mode already moun
 the host canonical directory at `/repo/project-knowledge`; no second synchronizer
 or volume copy is needed. Physical Windows/Rancher durability still needs acceptance.
 Original source files and Git history are outside generated-export filtering.
+
+## Windows NVIDIA with Rancher Desktop / Intel iGPU
+
+Native Windows CUDA can run with the existing NVIDIA driver even when the Docker
+engine has no NVIDIA passthrough. The default offline pack remains Vulkan-only;
+use the separately reviewed offline CUDA import path. Intel iGPU uses the existing
+native Vulkan path and its actual reported device pin. No toolkit or engine switch
+is required. See [Windows native GPU recovery](WINDOWS_NATIVE_GPU_RECOVERY.md)
+for exact archive pins, `native-cuda.ps1`, one-time operator review, strict mode,
+work-PC acceptance, diagnostics and non-destructive rollback. No public NVIDIA
+companion is approved by this source release.
+
+Fresh verified kits resolve PI_IMAGE from their immutable application release.
+Explicit overrides win and upgrades preserve deployment.env. Explicit CPU avoids
+native host asset extraction/probes. New native plans include requested/selected
+backend and authenticated container-to-host embedding smoke; they do not claim
+hardware success merely from a device list. Source-only kits need an explicit
+compatible PI_IMAGE. Windows hardware performance remains an operator test.

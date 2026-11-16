@@ -154,8 +154,9 @@ See [installation](../../../docs/PRODUCTION_INSTALL.md),
 
 ## Managed fast workspace — observed implementation, 2026-11-10
 
-The active `add-managed-fast-workspace` change adds opt-in volume storage; `auto`
-continues to select bind. A host-native checksummed Go helper pins a local Docker
+The current `workspace.ps1` and `workspace.sh` select managed storage for both
+`auto` and `volume`; `bind` is explicit. The earlier description of `auto` as bind
+was stale relative to the implementation. A host-native checksummed Go helper pins a local Docker
 context, prepares compatible image/volume/canonical-host access, and reconciles
 verified source manifests before mutating startup commands. The last Compose
 overlay changes production mounts only: read-only source at `/repo`, direct writable
@@ -185,3 +186,21 @@ proposed OpenSpec requirements remain distinct from current accepted specs.
 See [operator guide](../../../docs/FAST_WORKSPACE.md),
 [ADR 0032](../adr/0032-managed-fast-workspace.md), and
 [active design](../../../openspec/changes/add-managed-fast-workspace/design.md).
+
+## Windows native GPU recovery — observed software, 2026-11-16
+
+The Windows launcher resolves optional native CUDA independently of the standard
+Vulkan inventory, including offline operator-local candidates and a future approved
+immutable OCI companion. Both use exact archive, per-file, provenance, approval and
+primary-manifest checks. The primary assets/default downloads remain unchanged.
+Intel Vulkan/iGPU probing does not depend on loader/PATH hints. Explicit CPU skips
+native host copy/probes. Native activation validates an authenticated finite
+768-dimensional embedding from the application container through the host endpoint.
+
+PS5.1/7 share a .NET process probe helper and the publication workflow requires the
+same launcher acceptance used by asset verification. Fresh kit image resolution
+uses the matching immutable release identity while preserving overrides/upgrades.
+Physical Windows5.1, MX550/Intel inference and measured throughput remain external
+acceptance, not demonstrated by Linux PowerShell7 fixtures. No live Linux install
+was changed. See [recovery guide](../../../distribution/deployment/WINDOWS_NATIVE_GPU_RECOVERY.md) and
+[ADR0037](../adr/0037-isolated-offline-windows-cuda-runtime.md).

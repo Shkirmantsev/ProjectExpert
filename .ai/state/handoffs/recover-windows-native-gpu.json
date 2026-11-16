@@ -1,0 +1,68 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Physical Windows PowerShell5.1, MX550/Intel inference and throughput NOT RUN; current Linux host is not the work PC. Hosted checks require owner push. Public CUDA redistribution remains blocked; operator-local approval required."
+  ],
+  "decisions": [
+    "Implement optional verified companion/operator-local import, no default NVIDIA redistribution and no Linux/live deployment changes"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Final review and manifest1627 PASS; source implementation complete on current branch. Foundation88c75e2 and runtimee14d970 are local; final documentation/state commit follows."
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Owner pushes the local commits; run hosted Windows5.1/7 checks and shipped physical work-PC CUDA/Intel acceptance with approved native pack. No push, merge or live Linux upgrade performed.",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-16T22:13:38+00:00",
+    "id": "recover-windows-native-gpu",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-16T22:45:18+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Pinned operator-local CUDA runtime works through packaged launcher without container GPU; PS5.1 process contract and first image bootstrap repaired; default assets unchanged; focused/full checks and local commits; physical Windows GPU evidence explicitly separate"
+    ],
+    "goal": "Restore verified offline native Windows CUDA alongside Vulkan/iGPU and CPU fallback on the current branch",
+    "openspec_change": "recover-windows-native-gpu",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full harness2116 tests/163 suites/20 skips PASS; OpenSpec97/Wiki138 PASS; native verifier13 on host and network-disabled application container PASS; PS7 real-process/fixture suites PASS; Go tests and Windows cross-build PASS; final manifest1627 PASS."
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "distribution/deployment/WINDOWS_NATIVE_GPU_RECOVERY.md",
+      "sha256": "774f99f4fceed31a47aa2a2d75e5592b847de9daae87d5fb7e45e4f01e499ee7"
+    },
+    {
+      "path": "distribution/deployment/setup-windows-accelerator.ps1",
+      "sha256": "377a011a6376fcc8e1b90a7321c734ee2ab7ed2508590d2b45712ac1635278e2"
+    },
+    {
+      "path": "openspec/changes/recover-windows-native-gpu/verification.md",
+      "sha256": "b116611d096aee3adfedbf518c463eba74ff8aa5685bdeb0425b73030abfea6b"
+    },
+    {
+      "path": "pi_platform/deployment/native_runtime_assets.py",
+      "sha256": "73b8736e4ded27290bb75d401a28911981ec4193f024557d0eba1be315183a7b"
+    }
+  ]
+}
