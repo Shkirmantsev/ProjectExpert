@@ -26,6 +26,21 @@ def exporter():
 
 
 class DeploymentRuntimeRepairTests(unittest.TestCase):
+    def test_fresh_kit_binds_release_image_and_upgrade_preserves_override(self):
+        with tempfile.TemporaryDirectory() as raw:
+            source, dest = Path(raw) / 'source', Path(raw) / 'kit'
+            shutil.copytree(BUNDLE, source)
+            image = 'ghcr.io/shkirmantsev/project-intelligence@sha256:' + 'a' * 64
+            (source / 'asset-release.json').write_text(json.dumps({
+                'schema_version': 1, 'release_status': 'verified', 'application_image': image}))
+            (source / 'assets-lock.json').write_text('{}')
+            module = exporter()
+            module.export(source, dest)
+            self.assertIn('PI_IMAGE=' + image, (dest / 'deployment.env').read_text())
+            (dest / 'deployment.env').write_text('PI_IMAGE=operator:override\r\n')
+            module.export(source, dest, upgrade=True)
+            self.assertEqual((dest / 'deployment.env').read_bytes(), b'PI_IMAGE=operator:override\r\n')
+
     def test_operator_frontend_name_survives_template_upgrade(self):
         # Export/upgrade is a portable filesystem contract, independent of the
         # host Docker installation or Windows Docker CLI plugin startup.

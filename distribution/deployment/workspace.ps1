@@ -6,6 +6,16 @@ function Get-WorkspaceValue([string]$Name) {
         if ($line.StartsWith($Name + '=')) { $value = $line.Substring($Name.Length + 1).TrimEnd("`r") }
     }
     if ($value -and $value.Length -ge 2 -and (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'")))) { $value = $value.Substring(1, $value.Length - 2) }
+    if (-not $value -and $Name -eq 'PI_IMAGE') {
+        $releasePath = Join-Path $PSScriptRoot 'asset-release.json'
+        if (Test-Path -LiteralPath $releasePath) {
+            $release = Get-Content -LiteralPath $releasePath -Raw | ConvertFrom-Json
+            if ($release.schema_version -eq 1 -and $release.release_status -eq 'verified' -and
+                $release.application_image -cmatch '^ghcr\.io/shkirmantsev/project-intelligence@sha256:[0-9a-f]{64}$') {
+                $value = $release.application_image
+            }
+        }
+    }
     return $value
 }
 $workspaceMode = Get-WorkspaceValue 'PI_WORKSPACE_MODE'
@@ -74,10 +84,16 @@ function Invoke-WorkspaceCompose {
     }
     # PS 5.1 treats native stderr as an error under Stop; use exit status.
     $previousPreference = $ErrorActionPreference
+    $previousImage = $env:PI_IMAGE
+    $resolvedImage = Get-WorkspaceValue 'PI_IMAGE'
     try {
+        if ($resolvedImage) { $env:PI_IMAGE = $resolvedImage }
         $ErrorActionPreference = 'Continue'
         & docker @dockerArguments compose @compose
         $nativeExitCode = $LASTEXITCODE
-    } finally { $ErrorActionPreference = $previousPreference }
+    } finally {
+        $ErrorActionPreference = $previousPreference
+        $env:PI_IMAGE = $previousImage
+    }
     $global:LASTEXITCODE = $nativeExitCode
 }

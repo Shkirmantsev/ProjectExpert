@@ -243,7 +243,7 @@ func prepare(repo, kit string) error {
 	id := hex.EncodeToString(hash[:12])
 	image := configuredImage(kit)
 	if image == "" {
-		return errors.New("PI_IMAGE required in environment or kit deployment.env")
+		return errors.New("PI_IMAGE missing: use a published digest-bound deployment kit or set an explicit compatible image")
 	}
 	if strings.ContainsAny(repo+image, "\r\n"+string(rune(39))+string(rune(34))) {
 		return errors.New("invalid configuration")
@@ -575,5 +575,33 @@ func configuredImage(kit string) string {
 			image = strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "PI_IMAGE=")), "\"'")
 		}
 	}
-	return image
+	if image != "" {
+		return image
+	}
+	// The digest-bound release is shipped by the trusted kit exporter. Never
+	// invent a registry digest or take a mutable source-template tag here.
+	data, err := os.ReadFile(filepath.Join(kit, "asset-release.json"))
+	if err != nil {
+		return ""
+	}
+	var release struct {
+		Schema int    `json:"schema_version"`
+		Status string `json:"release_status"`
+		Image  string `json:"application_image"`
+	}
+	if json.Unmarshal(data, &release) != nil || release.Schema != 1 || release.Status != "verified" {
+		return ""
+	}
+	const prefix = "ghcr.io/shkirmantsev/project-intelligence@sha256:"
+	if !strings.HasPrefix(release.Image, prefix) {
+		return ""
+	}
+	digest := strings.TrimPrefix(release.Image, prefix)
+	if len(digest) != 64 || strings.ToLower(digest) != digest {
+		return ""
+	}
+	if _, err := hex.DecodeString(digest); err != nil {
+		return ""
+	}
+	return release.Image
 }

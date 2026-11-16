@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -99,5 +100,32 @@ func TestBackupIncludesResumableIndexingState(t *testing.T) {
 	}
 	if _, ok := manifest.Files["indexing-state.sqlite"]; !ok {
 		t.Fatal("resumable state missing from verified backup")
+	}
+}
+
+func TestFirstStartImageFromVerifiedRelease(t *testing.T) {
+	t.Setenv("PI_IMAGE", "")
+	kit := t.TempDir()
+	digest := strings.Repeat("a", 64)
+	image := "ghcr.io/shkirmantsev/project-intelligence@sha256:" + digest
+	raw := `{"schema_version":1,"release_status":"verified","application_image":"` + image + `"}`
+	os.WriteFile(filepath.Join(kit, "asset-release.json"), []byte(raw), 0600)
+	if got := configuredImage(kit); got != image {
+		t.Fatalf("fresh kit image = %q", got)
+	}
+	for _, raw := range []string{
+		`{"schema_version":1,"release_status":"blocked","application_image":"` + image + `"}`,
+		`{"schema_version":1,"release_status":"verified","application_image":"ghcr.io/shkirmantsev/project-intelligence:latest"}`,
+		`{"schema_version":1,"release_status":"verified","application_image":"evil.example/app@sha256:` + digest + `"}`,
+		`{`,
+	} {
+		os.WriteFile(filepath.Join(kit, "asset-release.json"), []byte(raw), 0600)
+		if got := configuredImage(kit); got != "" {
+			t.Fatalf("accepted invalid release: %q", got)
+		}
+	}
+	os.WriteFile(filepath.Join(kit, "deployment.env"), []byte("PI_IMAGE=custom:operator\r\n"), 0600)
+	if got := configuredImage(kit); got != "custom:operator" {
+		t.Fatal("lost explicit kit override")
 	}
 }
