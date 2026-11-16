@@ -50,6 +50,7 @@ COPY README.md ./README.md
 COPY pi_platform ./pi_platform
 COPY distribution/okf-profile ./distribution/okf-profile
 COPY distribution/skills ./distribution/skills
+COPY distribution/deployment/accelerator-lock.json ./distribution/deployment/accelerator-lock.json
 COPY distribution/licenses ./distribution/licenses
 COPY distribution/sbom ./distribution/sbom
 COPY evals ./evals

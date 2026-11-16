@@ -2,7 +2,7 @@
 $ErrorActionPreference = 'Stop'
 $temp = Join-Path ([IO.Path]::GetTempPath()) ('pi-container-cuda-' + [Guid]::NewGuid())
 $saved = @{}
-foreach ($name in @('PI_ACCELERATOR','PI_EMBEDDING_MODEL','PI_WORKSPACE_MODE','PI_HOST_CA_MODE','PI_GPU_DEVICE')) {
+foreach ($name in @('PI_ACCELERATOR','PI_EMBEDDING_MODEL','PI_WORKSPACE_MODE','PI_HOST_CA_MODE','PI_GPU_DEVICE','PI_ACCELERATOR_STRICT')) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
 $global:cudaCalls = New-Object System.Collections.Generic.List[string]
@@ -73,11 +73,19 @@ New-Item -ItemType Directory -Force -Path $cache | Out-Null
     $global:probeFails = $true
     & (Join-Path $temp 'compose.ps1') up -d
     if ($global:nativeCalls -ne 1) { throw 'Unavailable Docker GPU did not use the existing fallback' }
+    $env:PI_ACCELERATOR_STRICT='1'
+    $global:cudaCalls.Clear()
+    $failed=$false
+    try { & (Join-Path $temp 'compose.ps1') up -d } catch { $failed = $_ -match 'accelerator_strict_unavailable' }
+    if (-not $failed -or (($global:cudaCalls -join "`n") -match ' up ')) { throw 'Strict unavailable CUDA started production/CPU fallback' }
+    if ($env:PI_ACCELERATOR -ne 'cuda' -or $env:PI_GPU_DEVICE -ne 'CUDA1') { throw 'Strict failure changed host preference' }
+    $env:PI_ACCELERATOR_STRICT=''
+
     if ($env:PI_GPU_DEVICE -ne 'CUDA1' -or $env:PI_ACCELERATOR -ne 'cuda') { throw 'Host environment was changed' }
     $global:probeFails = $false
     $env:PI_GPU_DEVICE = 'CUDA7'
     & (Join-Path $temp 'compose.ps1') up -d
-    if ($global:nativeCalls -ne 2) { throw 'Container selected a different GPU than the explicit device pin' }
+    if ($global:nativeCalls -ne 3) { throw 'Container selected a different GPU than the explicit device pin' }
     Write-Output 'PASS: Windows container CUDA preference, saved transport, benchmark policy and fallback without host CUDA installation'
 } finally {
     foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }

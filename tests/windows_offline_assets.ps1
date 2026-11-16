@@ -2,7 +2,7 @@
 $ErrorActionPreference = 'Stop'
 $temp = Join-Path ([IO.Path]::GetTempPath()) ('pi-offline-native-' + [Guid]::NewGuid())
 $saved = @{}
-foreach ($name in @('PI_ASSET_IMAGE','PI_ASSET_MANIFEST_SHA256','PI_WORKSPACE_MODE','PI_HOST_CA_MODE')) {
+foreach ($name in @('PI_ASSET_IMAGE','PI_ASSET_MANIFEST_SHA256','PI_WORKSPACE_MODE','PI_HOST_CA_MODE','PI_IMAGE')) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
 $global:offlineCalls = New-Object System.Collections.Generic.List[string]
@@ -29,6 +29,7 @@ try {
     Copy-Item -Path (Join-Path $PSScriptRoot '../distribution/deployment/*') -Destination $temp -Recurse
     $env:PI_ASSET_IMAGE = 'ghcr.io/shkirmantsev/project-intelligence-assets@sha256:' + ('1' * 64)
     $env:PI_ASSET_MANIFEST_SHA256 = '2' * 64
+    $env:PI_IMAGE = 'fixture:app'
     $env:PI_WORKSPACE_MODE = 'bind'
     $env:PI_HOST_CA_MODE = 'off'
     & (Join-Path $temp 'setup-windows-accelerator.ps1') -Backend cpu

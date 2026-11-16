@@ -12,6 +12,10 @@ on:
       - 'tests/windows_deployment_runtime.ps1'
       - 'tests/windows_offline_assets.ps1'
       - 'tests/windows_container_cuda.ps1'
+      - 'tests/windows_native_cuda.ps1'
+      - 'tests/windows_native_routing.ps1'
+      - 'tests/powershell_native_probe.ps1'
+      - 'scripts/test_windows_acceptance.ps1'
       - '.github/workflows/verify-asset-pack.yml'
   pull_request:
     paths:
@@ -25,6 +29,10 @@ on:
       - 'tests/windows_deployment_runtime.ps1'
       - 'tests/windows_offline_assets.ps1'
       - 'tests/windows_container_cuda.ps1'
+      - 'tests/windows_native_cuda.ps1'
+      - 'tests/windows_native_routing.ps1'
+      - 'tests/powershell_native_probe.ps1'
+      - 'scripts/test_windows_acceptance.ps1'
       - '.github/workflows/verify-asset-pack.yml'
   workflow_dispatch:
 permissions:
@@ -56,21 +64,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Windows PowerShell 5.1 native stderr and exit contract
+      - name: Complete Windows PowerShell 5.1 software acceptance (fixtures)
         shell: powershell
-        run: ./tests/windows_deployment_runtime.ps1
-      - name: PowerShell 7 native stderr and exit contract
+        run: ./scripts/test_windows_acceptance.ps1
+      - name: Complete PowerShell 7 software acceptance (fixtures)
         shell: pwsh
-        run: ./tests/windows_deployment_runtime.ps1
-      - name: Windows PowerShell 5.1 offline native extraction contract
-        shell: powershell
-        run: ./tests/windows_offline_assets.ps1
-      - name: PowerShell 7 offline native extraction contract
-        shell: pwsh
-        run: ./tests/windows_offline_assets.ps1
-      - name: Windows PowerShell 5.1 container CUDA preference and fallback
-        shell: powershell
-        run: ./tests/windows_container_cuda.ps1
-      - name: PowerShell 7 container CUDA preference and fallback
-        shell: pwsh
-        run: ./tests/windows_container_cuda.ps1
+        run: ./scripts/test_windows_acceptance.ps1

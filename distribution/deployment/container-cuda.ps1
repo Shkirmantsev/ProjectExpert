@@ -1,5 +1,11 @@
 # Managed CUDA uses the container's runtime libraries and the host GPU driver.
 # It never installs or replaces host drivers, toolkits, or system DLLs.
+function Save-ContainerCudaRejection([string]$Code) {
+    $cache = Join-Path $PSScriptRoot 'accelerator'
+    New-Item -ItemType Directory -Force -Path $cache | Out-Null
+    @{backend='cuda';transport='container';reason_code=$Code} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $cache 'container-probe.json') -Encoding UTF8
+    Write-Warning "Container CUDA unavailable: $Code; checking native Windows runtimes."
+}
 function Get-ContainerCudaPlan([string]$RequestedBackend) {
     if ($RequestedBackend -notin @('auto','cuda')) { return $null }
     if ($RequestedBackend -eq 'auto' -and -not (Get-Command nvidia-smi -ErrorAction SilentlyContinue)) { return $null }
@@ -7,11 +13,18 @@ function Get-ContainerCudaPlan([string]$RequestedBackend) {
     try {
         $probe = Invoke-WorkspaceCompose --env-file deployment.env @cudaFiles `
             run --rm --no-deps -T embeddings --list-devices 2>&1
-        if ($LASTEXITCODE -ne 0) { return $null }
+        if ($LASTEXITCODE -ne 0) {
+            $message = $probe -join "`n"
+            $code = 'container_gpu_unavailable'
+            if ($message -match 'unexpected EOF|short read') { $code = 'asset_pull_interrupted' }
+            elseif ($message -match 'Cannot connect|error during connect|Hyper-V|docker daemon is not running') { $code = 'docker_engine_unreachable' }
+            Save-ContainerCudaRejection $code
+            return $null
+        }
         $pinned = Get-WorkspaceValue 'PI_GPU_DEVICE'
         if ($pinned) {
             $match = [regex]::Match(($probe -join "`n"), '(?m)^\s*' + [regex]::Escape($pinned) + ':.*$')
-            if (-not $match.Success) { return $null }
+            if (-not $match.Success) { Save-ContainerCudaRejection 'container_device_not_found'; return $null }
             $probe = @($match.Value)
         }
         $evidence = @{ platform = 'linux'; candidates = @(
@@ -21,16 +34,16 @@ function Get-ContainerCudaPlan([string]$RequestedBackend) {
         $raw = Invoke-WorkspaceCompose --env-file deployment.env -f compose.yaml `
             -f compose.accelerator.yaml -f compose.cpu.yaml `
             run --rm --no-deps -T production inference plan --evidence-b64 $encoded 2>$null
-        if ($LASTEXITCODE -ne 0 -or -not $raw) { return $null }
+        if ($LASTEXITCODE -ne 0 -or -not $raw) { Save-ContainerCudaRejection 'container_plan_failed'; return $null }
         $plan = ($raw -join "`n") | ConvertFrom-Json
-        if (-not $plan.ok -or $plan.backend -ne 'cuda' -or -not $plan.device) { return $null }
+        if (-not $plan.ok -or $plan.backend -ne 'cuda' -or -not $plan.device) { Save-ContainerCudaRejection 'container_device_not_found'; return $null }
         $plan | Add-Member -NotePropertyName transport -NotePropertyValue container -Force
         $cache = Join-Path $PSScriptRoot 'accelerator'
         New-Item -ItemType Directory -Force -Path $cache | Out-Null
         [IO.File]::WriteAllText((Join-Path $cache 'devices-cuda.txt'), ($probe -join "`n"))
         return $plan
     } catch {
-        Write-Warning "Container CUDA probe unavailable; checking the existing native fallback. $_"
+        Save-ContainerCudaRejection 'container_probe_failed'
         return $null
     }
 }
