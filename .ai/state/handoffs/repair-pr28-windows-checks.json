@@ -1,0 +1,64 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Fresh repaired hosted Windows checks require owner push; original PS5.1/7 launcher job passed. No push/merge or live installation changes."
+  ],
+  "decisions": [
+    "Write exact dotenv bytes; validate original ZIP member metadata before normalization; do not skip tests or weaken security checks"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "PR28 repair verified and ready for local commit: exact CRLF bytes, original ZIP name validation, faithful hostile ZIP fixtures and cross-host regressions"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Owner pushes the local repair commit and checks fresh Windows3.11/3.13 CI. No push, merge, release or live update performed.",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-16T23:03:49+00:00",
+    "id": "repair-pr28-windows-checks",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-16T23:13:21+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Read failed job evidence, reproduce causes, preserve CUDA/Vulkan and security gates, pass focused and required full checks, commit locally without push/merge"
+    ],
+    "goal": "Diagnose and repair PR28 Windows acceptance failures on the current branch",
+    "openspec_change": "recover-windows-native-gpu",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Python3.11 isolated offline container15 tests PASS; Linux native15 tests and forced Windows text-translation exporter test PASS; full required harness and final diff checks PASS"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "pi_platform/deployment/native_runtime_assets.py",
+      "sha256": "fc4034ca7ca796624c1e435648b1baa142a36d2d402f973043c6c2f2e594ecbe"
+    },
+    {
+      "path": "tests/test_deployment_runtime_repair.py",
+      "sha256": "c521f03fffb9ef52ea53e42ea8858c3587a91ee710d7792722ae16e0a549e842"
+    },
+    {
+      "path": "tests/test_native_runtime_assets.py",
+      "sha256": "b2129a99d58be6e8f21fbc4c070f6cf48536a99130fe230cd2f75c8d2dd54471"
+    }
+  ]
+}

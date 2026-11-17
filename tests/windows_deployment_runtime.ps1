@@ -16,15 +16,7 @@ try {
     if ($LASTEXITCODE -ne 37) { throw "Native exit code lost: $LASTEXITCODE" }
     if (($output -join '') -notmatch 'native-output') { throw 'Native stdout lost' }
     if ($ErrorActionPreference -ne 'Stop') { throw 'ErrorActionPreference was not restored' }
-    $stdout = Join-Path $temporary 'stdout.txt'
-    $stderr = Join-Path $temporary 'stderr.txt'
-    $process = Start-Process -FilePath $env:ComSpec -ArgumentList '/c echo probe-warning 1>&2 & exit /b 23' -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-    $handle = $process.Handle
-    if (-not $process.WaitForExit(10000)) { Stop-Process -Id $process.Id; throw 'Probe timed out' }
-    $process.WaitForExit()
-    $process.Refresh()
-    if ($null -eq $process.ExitCode -or $process.ExitCode -ne 23) { throw 'Probe exit status must be an integer 23' }
-    if ((Get-Content -Raw -LiteralPath $stderr) -notmatch 'probe-warning') { throw 'Probe stderr lost' }
+    & (Join-Path $PSScriptRoot 'powershell_native_probe.ps1')
     # Successful assertions must not return the intentional native failure (37)
     # to the Actions shell wrapper. Exceptions above still fail this script.
     $global:LASTEXITCODE = 0

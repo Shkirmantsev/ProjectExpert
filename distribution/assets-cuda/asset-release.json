@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "release_status": "blocked",
+  "kind": "windows-native-cuda",
+  "image": null,
+  "manifest_sha256": null,
+  "reason": "No NVIDIA-containing companion is approved or published. Independent per-file redistribution review and physical Windows acceptance are required. Operator-local inspection/import is available without public redistribution."
+}

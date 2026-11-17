@@ -61,3 +61,5 @@ needs, then run `make runtime` to regenerate client configs.
 
 - [Python dependency and library analysis](PYTHON_DEPENDENCY_ANALYSIS.md)
 - [Runtime and Python review evidence](RUNTIME_PYTHON_REVIEW.md)
+
+- [Windows native CUDA / Intel Vulkan recovery](../distribution/deployment/WINDOWS_NATIVE_GPU_RECOVERY.md) — offline imports, operator review, diagnostics and physical acceptance.

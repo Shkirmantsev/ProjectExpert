@@ -58,7 +58,9 @@ New-Item -ItemType Directory -Force -Path $cache | Out-Null
     }
     $env:PI_ACCELERATOR = 'cpu'
     $env:PI_EMBEDDING_MODEL = 'gemma'
+    $global:SelectedAccelerator = 'not-called'
     & (Join-Path $temp 'start.ps1')
+    if ($global:SelectedAccelerator -ne 'not-called') { throw 'Explicit CPU needlessly invoked native asset extraction/probing' }
     if ($global:ComposeDevice -ne 'cpu') { throw 'Explicit Gemma CPU selection was lost' }
     $global:SelectedAccelerator = 'not-called'
     & (Join-Path $temp 'compose.ps1') config

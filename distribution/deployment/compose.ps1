@@ -17,6 +17,7 @@ foreach ($item in Get-ChildItem Env:) { $savedEnvironment[$item.Name] = $item.Va
 $composeArgs = $args
 . (Join-Path $PSScriptRoot 'workspace.ps1')
 . (Join-Path $PSScriptRoot 'container-cuda.ps1')
+. (Join-Path $PSScriptRoot 'native-process.ps1')
 
 
 function Measure-Endpoint([string]$Endpoint, [string[]]$Files) {
@@ -100,6 +101,8 @@ try {
     if ($model -notin @('gemma','gemma-gguf','gemma-torch')) {
         throw "Unknown embedding model '$model'. Use 'gemma' (EmbeddingGemma 2 Q8_0 GGUF, the default) or 'gemma-torch'."
     }
+    $requestedBackend = $backend
+    $strictAccelerator = (Get-WorkspaceValue 'PI_ACCELERATOR_STRICT') -eq '1'
     if ($backend -notin @('auto','cpu','vulkan','cuda')) { throw 'PI_ACCELERATOR must be auto, cpu, vulkan or cuda' }
     if ($composeArgs -contains 'down') {
         & (Join-Path $PSScriptRoot 'stop.ps1') -WorkspacePrepared
@@ -135,8 +138,15 @@ try {
         exit 0
     }
     if (Test-Path -LiteralPath $planPath) { Remove-Item -LiteralPath $planPath -Force }
+    $containerEvidence = Join-Path $PSScriptRoot 'accelerator/container-probe.json'
+    if (Test-Path -LiteralPath $containerEvidence) { Remove-Item -LiteralPath $containerEvidence }
     $containerPlan = Get-ContainerCudaPlan $backend
-    if ($containerPlan) {
+    if ($requestedBackend -eq 'cpu') {
+        # Explicit CPU never copies the multi-GB primary pack onto the host or
+        # probes native GPUs. The existing mandatory asset-seed serves models.
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $planPath) | Out-Null
+        @{ok=$true;backend='cpu';device='none';fit_target_mib=192;transport='container'} | ConvertTo-Json | Set-Content -LiteralPath $planPath -Encoding UTF8
+    } elseif ($containerPlan) {
         if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'accelerator/runtime.pid')) {
             & (Join-Path $PSScriptRoot 'stop.ps1') -KeepWorkspaceSupervisor
         }
@@ -149,13 +159,24 @@ try {
             & (Join-Path $PSScriptRoot 'setup-windows-accelerator.ps1') -Backend $backend -Model 'gemma'
         } catch {
             Write-Warning "Native GPU setup failed; using the CPU sidecar. $_"
-            & (Join-Path $PSScriptRoot 'stop.ps1') -KeepWorkspaceSupervisor
-            if (Test-Path -LiteralPath $planPath) { Remove-Item -LiteralPath $planPath -Force }
+            $nativeFailure = [string]$_
+            $failureCode = 'native_setup_failed'
+            if ($nativeFailure -match '([a-z_]+):') { $failureCode = $Matches[1] }
+            # Asset/probe rejection never tears down a healthy application or
+            # an unrelated pre-existing native endpoint.
+            $fallback = @{ok=$true;backend='cpu';device='none';fit_target_mib=192;transport='container';
+                requestedBackend=$requestedBackend;selectedBackend='cpu';schemaVersion=2;
+                rejections=@(@{backend=$requestedBackend;reason_code=$failureCode})}
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $planPath) | Out-Null
+            $fallback | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $planPath -Encoding UTF8
         }
     }
     $plan = $null
     if (Test-Path -LiteralPath $planPath) {
         $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
+    }
+    if ($strictAccelerator -and $requestedBackend -in @('cuda','vulkan') -and (-not $plan -or $plan.backend -ne $requestedBackend)) {
+        throw "accelerator_strict_unavailable: requested $requestedBackend unavailable; production/indexing was not started; inspect accelerator/probes.json and plan.json"
     }
     if ($backend -eq 'auto' -and $plan -and $plan.backend -ne 'cpu') {
         # The GPU works. Measure it against the CPU baseline: a GPU that is
@@ -187,6 +208,17 @@ try {
             $plan = [pscustomobject]@{ ok = $true; backend = 'cpu'; device = $null; fit_target_mib = 192 }
             $plan | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $planPath -Encoding UTF8
         }
+    }
+    if ($plan) {
+        $plan | Add-Member -NotePropertyName schemaVersion -NotePropertyValue 2 -Force
+        $plan | Add-Member -NotePropertyName requestedBackend -NotePropertyValue $requestedBackend -Force
+        $plan | Add-Member -NotePropertyName selectedBackend -NotePropertyValue $plan.backend -Force
+        if (-not $plan.transport) { $plan | Add-Member -NotePropertyName transport -NotePropertyValue $(if ($plan.backend -eq 'cpu') { 'container' } else { 'native-windows' }) -Force }
+        $containerProbe = Join-Path $PSScriptRoot 'accelerator/container-probe.json'
+        if (Test-Path -LiteralPath $containerProbe) {
+            $plan | Add-Member -NotePropertyName containerRejection -NotePropertyValue (Get-Content -LiteralPath $containerProbe -Raw | ConvertFrom-Json) -Force
+        }
+        $plan | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $planPath -Encoding UTF8
     }
     if ($plan -and $plan.backend -eq 'cpu') {
         # No native GPU service: the managed CPU sidecar container serves the
@@ -223,6 +255,7 @@ try {
         $startupFailed = $true
     }
     if ($startupFailed -and $plan -and $plan.transport -eq 'container') {
+        if ($strictAccelerator) { throw 'accelerator_strict_unavailable: container CUDA startup failed; CPU fallback disabled' }
         Write-Warning 'Container CUDA startup failed; retrying the CPU profile with the same verified model cache.'
         $env:PI_ACCELERATOR = 'cpu'
         $env:PI_EMBEDDING_DEVICE = 'cpu'

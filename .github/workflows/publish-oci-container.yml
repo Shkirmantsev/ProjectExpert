@@ -42,7 +42,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Exercise Windows PowerShell 5 launcher behavior
         shell: powershell
-        run: ./scripts/test_deployment_launchers.ps1
+        run: ./scripts/test_windows_acceptance.ps1
+      - name: Exercise PowerShell 7 complete Windows software acceptance (fixtures)
+        shell: pwsh
+        run: ./scripts/test_windows_acceptance.ps1
 
   verify-platform:
     name: Verify Platform Product Gates

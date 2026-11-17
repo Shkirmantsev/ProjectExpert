@@ -9,7 +9,7 @@ import json
 import re
 
 HELPERS = ('workspace-agent-go-LICENSE.txt', 'workspace-agent-build.txt', 'workspace-agent-linux-amd64', 'workspace-agent-windows-amd64.exe', 'workspace-agent-SHA256SUMS')
-FILES = ('registry-preflight.sh', 'registry-preflight.ps1', 'container-cuda.ps1', 'assets-lock.json', 'asset-release.json', 'compose.assets.yaml', 'host-trust.sh', 'host-trust.ps1', 'compose.host-trust.yaml', 'wait-ready.sh', 'wait-ready.ps1', 'compose.workspace-volume.yaml', 'workspace.sh', 'workspace.ps1', 'workspace-autostart.sh', 'workspace-autostart.ps1', 'runtime-entrypoint.sh', 'runtime_supervisor.py', 'compose.ui-vulkan.yaml', 'compose.yaml', 'deployment.env', 'Makefile', 'start.sh', 'start.ps1', 'stop.ps1', 'README.md', 'compose.sh', 'compose.ps1', 'compose.accelerator.yaml', 'compose.vulkan.yaml', 'compose.cuda.yaml', 'compose.cpu.yaml', 'compose.windows-gpu.yaml', 'accelerator-lock.json', 'setup-windows-accelerator.ps1', 'url.sh', 'url.ps1', '.gitignore')
+FILES = ('WINDOWS_NATIVE_GPU_RECOVERY.md', 'native-process.ps1', 'native-runtime-assets.ps1', 'native-cuda.ps1', 'registry-preflight.sh', 'registry-preflight.ps1', 'container-cuda.ps1', 'assets-lock.json', 'asset-release.json', 'compose.assets.yaml', 'host-trust.sh', 'host-trust.ps1', 'compose.host-trust.yaml', 'wait-ready.sh', 'wait-ready.ps1', 'compose.workspace-volume.yaml', 'workspace.sh', 'workspace.ps1', 'workspace-autostart.sh', 'workspace-autostart.ps1', 'runtime-entrypoint.sh', 'runtime_supervisor.py', 'compose.ui-vulkan.yaml', 'compose.yaml', 'deployment.env', 'Makefile', 'start.sh', 'start.ps1', 'stop.ps1', 'README.md', 'compose.sh', 'compose.ps1', 'compose.accelerator.yaml', 'compose.vulkan.yaml', 'compose.cuda.yaml', 'compose.cpu.yaml', 'compose.windows-gpu.yaml', 'accelerator-lock.json', 'setup-windows-accelerator.ps1', 'url.sh', 'url.ps1', '.gitignore')
 
 
 def migrate_environment(destination: Path, *, indexing=False, assets=False, dry_run=False):
@@ -123,6 +123,15 @@ def export(source: Path, destination: Path, *, upgrade: bool = False) -> None:
         if name in ('asset-release.json', 'assets-lock.json') and not origin.exists():
             origin = source.parent / 'assets' / name
         content = origin.read_bytes()
+        if name == 'deployment.env' and not path.exists():
+            release_path = source / 'asset-release.json'
+            if release_path.is_file():
+                release = json.loads(release_path.read_text(encoding='utf-8'))
+                image = release.get('application_image') or ''
+                if (release.get('schema_version') == 1 and release.get('release_status') == 'verified'
+                        and re.fullmatch(r'ghcr\.io/shkirmantsev/project-intelligence@sha256:[0-9a-f]{64}', image)
+                        and not re.search(rb'^PI_IMAGE=.+', content, re.M)):
+                    content += ('\nPI_IMAGE=' + image + '\n').encode('utf-8')
         if upgrade and name != 'deployment.env' and path.exists():
             if path.read_bytes() == content:
                 print(f'Unchanged {name}')
@@ -164,7 +173,6 @@ def export(source: Path, destination: Path, *, upgrade: bool = False) -> None:
         except FileExistsError:
             print(f'Preserved {name}')
 
-    import json
     release_path = destination / 'asset-release.json'
     if release_path.is_file():
         release = json.loads(release_path.read_text(encoding='utf-8'))
