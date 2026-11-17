@@ -71,7 +71,13 @@ approved source identity, an exact name and version, a redirect
 that stays on the approved hosts, a digest that must match, a
 bounded size and time, and an atomic publication that never
 leaves a partial artifact behind. The cache is content addressed
-and idempotent.
+and idempotent. Concurrent requests for the same artifact use the existing
+bounded kernel-owned `ProjectLock` on a stable `.acquire.lock` file. The file is
+retained after release, avoiding Windows delete-pending/create races; the OS
+releases ownership on process death. File age never evicts an active writer.
+Different artifact directories retain independent locks and can proceed in
+parallel. Old timestamp-only files do not block the new lock once prior writers
+are stopped; cache manifests and artifact identities remain unchanged.
 
 The representations are distinct on purpose: `source`, `stub`,
 `generated`, `mapped-source`, `disassembly` and `decompiled`. A

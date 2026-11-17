@@ -18,7 +18,6 @@ The boundaries are:
 
 from __future__ import annotations
 
-import errno
 import hashlib
 import json
 import os
@@ -28,6 +27,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional, Protocol, Sequence
 
 from pi_platform.core.canonical.content_address import content_address
+from pi_platform.core.sync.project_lock import ProjectLock, ProjectLockError
 from pi_platform.core.research.policy import AcquisitionPolicy
 from pi_platform.core.research.records import (
     EvidenceReference,
@@ -431,47 +431,29 @@ class ArtifactAcquirer:
             raise AcquisitionError(f"cannot publish the artifact manifest: {exc}") from exc
 
     class _ArtifactLock:
-        """A bounded, per-artifact lock.
+        """Bounded kernel-owned exclusion on a stable per-artifact file.
 
-        The lock is a file that is created exclusively. A crashed
-        process leaves a stale lock behind, so the lock carries its own
-        deadline and is reclaimed when it is older than the timeout.
+        Retaining the file avoids Windows delete-pending/create races. The OS
+        releases ownership after a crash; timestamps never evict a live writer.
         """
 
         def __init__(self, path: Path, timeout: float) -> None:
-            self._path = path
-            self._timeout = timeout
-            self._handle: Optional[int] = None
+            self._lease = ProjectLock(path.stem, root=path.parent).acquire(
+                timeout_seconds=timeout)
 
         def __enter__(self) -> "ArtifactAcquirer._ArtifactLock":
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            deadline = time.monotonic() + self._timeout
-            while True:
-                try:
-                    self._handle = os.open(
-                        self._path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-                    os.write(self._handle, str(int(time.time())).encode("ascii"))
-                    return self
-                except OSError as exc:
-                    if exc.errno != errno.EEXIST:
-                        raise AcquisitionError(
-                            f"cannot take the artifact lock: {exc}") from exc
-                try:
-                    age = time.time() - self._path.stat().st_mtime
-                    if age > self._timeout:
-                        self._path.unlink(missing_ok=True)
-                        continue
-                except OSError:
-                    pass
-                if time.monotonic() > deadline:
-                    raise AcquisitionTimeout(
-                        "another acquisition holds the artifact lock")
-                time.sleep(0.05)
+            try:
+                self._lease.__enter__()
+            except ProjectLockError as exc:
+                raise AcquisitionTimeout(
+                    "another acquisition holds the artifact lock") from exc
+            except OSError as exc:
+                raise AcquisitionError(
+                    f"cannot take the artifact lock: {exc}") from exc
+            return self
 
         def __exit__(self, *exc_info) -> None:
-            if self._handle is not None:
-                os.close(self._handle)
-            self._path.unlink(missing_ok=True)
+            self._lease.__exit__(*exc_info)
 
     def _artifact_lock(self, directory: Path):
         return self._ArtifactLock(directory / ".acquire.lock",

@@ -298,6 +298,50 @@ class AcquisitionTests(unittest.TestCase):
         downloads = [call for call in fetcher.calls if "files.pythonhosted" in call[0]]
         self.assertEqual(len(downloads), 1, "the cached artifact must be reused")
 
+    def test_artifact_lock_keeps_its_identity_between_owners(self):
+        path = self.cache / '.acquire.lock'
+        lock = ArtifactAcquirer._ArtifactLock(path, timeout=0.1)
+        with lock:
+            identity = path.stat()
+        self.assertTrue(path.is_file(), 'releasing the lease must not delete the shared lock file')
+        with ArtifactAcquirer._ArtifactLock(path, timeout=0.1):
+            self.assertTrue(os.path.samestat(identity, path.stat()))
+
+    def test_artifact_lock_age_cannot_evict_a_live_owner(self):
+        path = self.cache / '.acquire.lock'
+        with ArtifactAcquirer._ArtifactLock(path, timeout=0.1):
+            os.utime(path, (1, 1))
+            with self.assertRaises(AcquisitionTimeout):
+                with ArtifactAcquirer._ArtifactLock(path, timeout=0.1):
+                    self.fail('an old timestamp must not let a second writer in')
+
+    def test_artifact_lock_is_released_by_process_death(self):
+        path = self.cache / '.acquire.lock'
+        child = subprocess.run([sys.executable, '-c',
+            'import os,sys; from pathlib import Path; '
+            'from pi_platform.adapters.research.acquisition import ArtifactAcquirer; '
+            'lock=ArtifactAcquirer._ArtifactLock(Path(sys.argv[1]), timeout=1); '
+            'lock.__enter__(); os._exit(0)', str(path)],
+            cwd=ROOT, capture_output=True, text=True, timeout=10)
+        self.assertEqual(child.returncode, 0, child.stderr)
+        self.assertTrue(path.is_file())
+        with ArtifactAcquirer._ArtifactLock(path, timeout=0.1):
+            pass
+
+    def test_different_artifact_locks_can_be_held_concurrently(self):
+        with ArtifactAcquirer._ArtifactLock(self.cache / 'one/.acquire.lock', timeout=0.1):
+            with ArtifactAcquirer._ArtifactLock(self.cache / 'two/.acquire.lock', timeout=0.1):
+                pass
+
+    def test_artifact_lock_permission_error_is_not_ignored(self):
+        from pi_platform.core.sync.project_lock import ProjectLock
+        with patch.object(ProjectLock, '_open_stream', side_effect=PermissionError('denied')):
+            with self.assertRaises(AcquisitionError) as caught:
+                with ArtifactAcquirer._ArtifactLock(self.cache / '.acquire.lock', timeout=0.1):
+                    self.fail('permission failure must not enter the critical section')
+        self.assertNotIsInstance(caught.exception, AcquisitionTimeout)
+        self.assertIsInstance(caught.exception.__cause__, PermissionError)
+
     def test_concurrent_requests_publish_one_artifact(self):
         fetcher = FakeFetcher({
             "https://pypi.org/pypi/demo/1.0/json": self.index_response(
@@ -309,9 +353,11 @@ class AcquisitionTests(unittest.TestCase):
         acquirer = self.acquirer(fetcher)
         results = []
         errors = []
+        start = threading.Barrier(4)
 
         def worker():
             try:
+                start.wait(timeout=5)
                 results.append(acquirer.acquire(DependencyAcquireRequest(
                     ecosystem="python", name="demo", version="1.0",
                     source_id="pypi")))
@@ -322,12 +368,15 @@ class AcquisitionTests(unittest.TestCase):
         for thread in threads:
             thread.start()
         for thread in threads:
-            thread.join()
+            thread.join(timeout=10)
+            self.assertFalse(thread.is_alive(), "artifact acquisition must finish within its bounded wait")
         self.assertEqual(errors, [])
         self.assertEqual(len(results), 4)
         published = list(self.cache.rglob("*.whl"))
         self.assertEqual(len(published), 1)
         self.assertEqual(published[0].read_bytes(), self.payload)
+        downloads = [call for call in fetcher.calls if "files.pythonhosted" in call[0]]
+        self.assertEqual(len(downloads), 1)
 
     def test_the_acquired_artifact_becomes_readable_through_the_service(self):
         fetcher = FakeFetcher({

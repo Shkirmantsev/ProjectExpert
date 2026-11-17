@@ -108,3 +108,43 @@ The full gate includes the two new raw-name/canonical-name regression tests.
 `git diff --check` and final manifest verification PASS. Fresh Windows hosted
 Python3.11/3.13 execution after this repair is NOT RUN until owner push; the old
 jobs are not relabeled as successful. Changes are committed locally only.
+
+## Remaining PR28 Windows unit acquisition race — 2026-11-17
+
+After30059aa, run43978086547 passed full-Windows3.11/3.13, Windows-unit3.13,
+Linux checks and shared PS5.1/7 launcher acceptance. Only
+[Windows-unit3.11 job133687146389](https://github.com/Shkirmantsev/ProjectExpert/actions/runs/43978086547/job/133687146389)
+failed: one of four simultaneous cold dependency acquisitions received errno13
+on `.acquire.lock`. This is a separate artifact-acquisition component, not a
+repeat of the CRLF or ZIP-name failures.
+
+The old lease created/unlinked a marker and retried only EEXIST. Windows may
+report access denied while a deleted file still has outstanding handles
+([Microsoft CreateFile contract](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)).
+The observed failure matches that create/delete race; the CI error does not expose
+an underlying Win32 code proving which handle delayed removal. The repair removes
+the risky file-lifetime protocol entirely by reusing the existing bounded
+kernel-owned `ProjectLock` on the same per-artifact path. No blanket permission
+retry or enlarged acquisition timeout is added.
+
+The lock file stays present; crash release belongs to the OS, and old timestamps
+cannot evict an active owner. Different artifacts still acquire independent locks.
+There is no new artifact/API/cache manifest format or change to source-policy,
+HTTP approval, integrity checks, CPU/GPU selection or indexing parallelism.
+
+Regression proof: stable-file and live-owner tests fail against the old marker
+implementation. New coverage verifies process-death release, bounded contention,
+independent artifact concurrency and real permission-error propagation. The cold
+concurrency test now starts four workers through a barrier and asserts exactly one
+download/publication. The artifact suite plus existing ProjectLock tests pass45
+checks.100 repeated cold-concurrency tests completed400 worker requests in14.578s
+on Linux, with no failures. This is concurrency software evidence, not Windows
+hardware certification or a claimed GPU speedup.
+
+Final follow-up proof: required `python3 harness.py check` **PASS:2,123 tests in163
+suites,20 skips**, OpenSpec97, Wiki138 and manifest1,627. The same artifact and
+ProjectLock suite also passed45 tests under Python3.11 in a cached container with
+networking denied and current source mounted read-only, including the child-process
+crash test. Final diff and manifest checks PASS. Fresh Windows execution after
+this lock repair remains owner-push dependent; previous successful Windows peers
+are evidence for the earlier candidate, not a fabricated post-repair result.

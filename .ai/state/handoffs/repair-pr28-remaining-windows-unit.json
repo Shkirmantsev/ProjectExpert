@@ -1,0 +1,60 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Observed Windows error matches documented delete-pending CreateFile behavior; raw Win32 subcode unavailable. Stable lock removes create/delete window. Fresh repaired Windows CI requires owner push; no live or driver changes."
+  ],
+  "decisions": [
+    "This repairs the accepted controlled artifact acquisition contract; public result/cache formats unchanged and no new behavioral OpenSpec capability is introduced"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Remaining PR28 failure repaired and verified; stable per-artifact OS ownership preserves concurrency, crashes release locks and permissions still fail explicitly. Ready for local commit."
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Owner pushes the local commit and runs fresh Windows CI; no push, merge, publication or live installation change performed.",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-17T06:36:54+00:00",
+    "id": "repair-pr28-remaining-windows-unit",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-17T06:50:30+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Read exact failure and compare successful peers; reproduce cause, preserve runtime/security behavior, pass focused/full checks and commit locally without push"
+    ],
+    "goal": "Diagnose and repair the remaining Windows3.11 PR28 unit failure",
+    "openspec_change": "recover-windows-native-gpu",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Required full harness PASS2123 tests/163 suites/20 skips; OpenSpec97/Wiki138/manifest1627 PASS; focused45 tests pass on host and network-disabled Python3.11 container; stress100 tests/400 concurrent requests PASS"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "pi_platform/adapters/research/acquisition.py",
+      "sha256": "ef3bed12782aa0a6111fc1330b4c866ad517ca46355b68570ce352c66a6a3af6"
+    },
+    {
+      "path": "tests/test_dependency_artifacts.py",
+      "sha256": "6bdc3ea3dacb69e0fe0046f7af03e89fab771216408e3798dcb70453cfe79462"
+    }
+  ]
+}

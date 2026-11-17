@@ -257,7 +257,7 @@ df4e4ddd773d6740bb583b271c6ab602d8cba1402999e1e50ee3faf0943c6fb7  ./.ai/wiki/mod
 3583b08da7c2ae4b1d4d7eff01431fc20deff1041205956d3abef3c5e542bf3b  ./.ai/wiki/modules/agent-integration.md
 15d3eea73ba14505d98ee931f1cf7a231463c6fad2ccdb7c3fe3969be9f3e26e  ./.ai/wiki/modules/audit-log.md
 c05aa0534cb933ba33792b46fb5419485b30b90ddf54be93d4b795b16b2a64cc  ./.ai/wiki/modules/context-assembler.md
-257bcf45d0142bba4a6c063ce6d94ae391d97102b3de817370ed8771dbe25807  ./.ai/wiki/modules/dependency-research.md
+760bf3bbe41626e1bf2a354c68f1b1aae7bc0a9ae4a8289e1385b34b7071f70e  ./.ai/wiki/modules/dependency-research.md
 f777eba155c1b52d569c18ceb5935110b679e039410418678f97545bcbf0225d  ./.ai/wiki/modules/docling-binding.md
 7ddcee601d6327caa8bc7cab7389a17835617905d1ed82027f63d543fd5dc2b4  ./.ai/wiki/modules/embeddings.md
 0ad3ac5cb9415275f31f5046cc7cc84bb93d2ed35732276e612a4fb9a2ddd731  ./.ai/wiki/modules/eval.md
@@ -876,7 +876,7 @@ f2349d717a112952f227357a916d06f208cdf1a7e648926db93bb6c316b5590d  ./openspec/cha
 bdf0134a974cb2bd93c5e4b32ba8849dd6062af198b2d47cee4cf6c300f58896  ./openspec/changes/recover-windows-native-gpu/proposal.md
 9a3928f593ef4269b7338a26850ce13f088d48fee0a68047429616ba14128528  ./openspec/changes/recover-windows-native-gpu/specs/2026-10-25-portable-inference-runtime/spec.md
 f45ea7209ed2c7da416d9d84a23f1337f04091a4bf0ac4092eb8c6f87713dcc3  ./openspec/changes/recover-windows-native-gpu/tasks.md
-5c3f6749b705a2525b66c853d84573345e23eb7039eaf853f9f31263d73a262a  ./openspec/changes/recover-windows-native-gpu/verification.md
+a11eb0df0a8f6c1889584f68acccf0017c8b338505eface1aacea0b8d31973e7  ./openspec/changes/recover-windows-native-gpu/verification.md
 687323becb5fdae8c5d5d9fc9c90c2a9fedfa7ec37775a272dd9947631e17a80  ./openspec/changes/remediate-safe-knowledge-sync/context-impact.md
 f090811cb6cf9fe757834c5e4242b39078af39e11a0cd95ec0586285e8730f03  ./openspec/changes/remediate-safe-knowledge-sync/design.md
 b62820f6b1f1b42f1676aa6045e2d9d3347fa69735d5f12d3042a37fb7624280  ./openspec/changes/remediate-safe-knowledge-sync/proposal.md
@@ -1056,7 +1056,7 @@ f072a2721399a06c7258c7fef2bdfa8bbd14d056ba76f3e4950b3ea649587f84  ./pi_platform/
 a4d2902b23578799f3191d019ac2c49cdc5e602295a2d2379d6e22ab2bed4bc2  ./pi_platform/adapters/python/__init__.py
 90963907319d6a83cd665e8e658e37b16bde3490232ac3374d62667d19d0e7c7  ./pi_platform/adapters/python/intelligence.py
 6c193ab4a37a556eb1b48a7a7779cdd4da7d20c31478ff35bee425f2bc6aa751  ./pi_platform/adapters/research/__init__.py
-c7d694cba1892aca21c294141600216c1f6b57f1d17be77cce9b3a111f8021f0  ./pi_platform/adapters/research/acquisition.py
+ef3bed12782aa0a6111fc1330b4c866ad517ca46355b68570ce352c66a6a3af6  ./pi_platform/adapters/research/acquisition.py
 4964c9fb4b41bf2b681165a24b5d499e7cd2c10bd0b99db77620f29fc133c1a5  ./pi_platform/adapters/research/artifacts.py
 6b5946dadee60c031f714fdf88e07e9cd3dcc31592adc135ea76d982c3284c78  ./pi_platform/adapters/research/composition.py
 4519186d2f21ea4481c9d0fe40502b64c8cc6029000ce08f423d4588e27b550a  ./pi_platform/adapters/research/java_ecosystem.py
@@ -1446,7 +1446,7 @@ c87cc69259cc2ad3a60dc171cebb56b35d24fbb32222c91a235d675cf576510a  ./tests/test_c
 ad2cdba0f5882aa72255f54821b971179d2b4c5926f487f135fd1a11ec41aec4  ./tests/test_context_assembler_selection.py
 62efb6c48a61da4034ab1db5751e460e59e3e4c973ed781212da9bc311ac6876  ./tests/test_context_runtime.py
 da76602c716686239a965c14478a138f988afa16737303da550b273057fe672f  ./tests/test_control_plane_v08_panels.py
-35ba9bf0d13f819874e28cfa46f63d0535cd3dc87daa823c6ec19400fcb4f19e  ./tests/test_dependency_artifacts.py
+6bdc3ea3dacb69e0fe0046f7af03e89fab771216408e3798dcb70453cfe79462  ./tests/test_dependency_artifacts.py
 513ed523d7506abe4cb58e490d1a673e3c486fdc3c139591d095b47fa692a740  ./tests/test_dependency_research_service.py
 ba12d252a94ecc8c562457b36423d0230873b9de7af81951ae61e0cb791df555  ./tests/test_deployment_image_compatibility.py
 9558a154523a354cdd0bce4647df9d0e79eed88a1f0dc206d612cd1fe31385f7  ./tests/test_deployment_ownership.py
