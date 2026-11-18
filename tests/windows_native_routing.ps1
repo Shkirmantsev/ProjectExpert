@@ -36,6 +36,7 @@ function global:docker {
         return
     }
     $call = $args -join ' '
+    if ($call -match 'offline_assets') { '{"ok":true,"code":"verified"}'; return }
     if ($call -match 'inference plan') {
         $request = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($args[-1])) | ConvertFrom-Json
         $candidate = @($request.candidates | Where-Object { $_.ok -and $_.backend -ne 'cpu' }) | Select-Object -First 1

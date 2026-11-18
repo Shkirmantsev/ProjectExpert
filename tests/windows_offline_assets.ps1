@@ -17,7 +17,7 @@ function global:docker {
         return
     }
     if ($args[0] -eq 'run') {
-        if ($global:rejectPack) { $global:LASTEXITCODE = 31 }
+        if ($global:rejectPack) { $global:LASTEXITCODE = 31; '{"ok":false,"code":"asset_digest_mismatch"}' } else { '{"ok":true,"code":"verified"}' }
         return
     }
     if ($call -match 'inference plan') {
@@ -47,9 +47,14 @@ try {
     try { & (Join-Path $temp 'setup-windows-accelerator.ps1') -Backend cpu }
     catch { $failed = $_.Exception.Message -match 'Offline asset verification failed' }
     if (-not $failed) { throw 'Corrupt offline assets were not rejected' }
+    $diagnostic = Get-Content (Join-Path $temp 'accelerator/asset-verification.json') -Raw | ConvertFrom-Json
+    if ($diagnostic.code -ne 'asset_digest_mismatch' -or $diagnostic.exit_code -ne 31) { throw 'Verifier category or exit code was lost' }
     if (($global:offlineCalls -join "`n") -match 'inference plan') {
         throw 'Invalid assets reached runtime planning'
     }
+    $global:rejectPack = $false
+    & (Join-Path $temp 'setup-windows-accelerator.ps1') -Backend cpu -RepairAssets
+    if (-not @(Get-ChildItem (Join-Path $temp 'accelerator') -Directory | Where-Object { $_.Name -like '*.previous-*' }).Count) { throw 'Explicit repair did not preserve previous pack' }
     Write-Output 'PASS: native Windows OCI extraction, verification ordering and fail-closed setup'
 } finally {
     foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }

@@ -6,7 +6,8 @@
 # validates, the caller falls back to the managed CPU sidecar container.
 param(
     [ValidateSet('auto','cpu','vulkan','cuda')][string]$Backend = 'auto',
-    [ValidateSet('gemma','gemma-torch')][string]$Model = 'gemma'
+    [ValidateSet('gemma','gemma-torch')][string]$Model = 'gemma',
+    [switch]$RepairAssets
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'native-process.ps1')
@@ -26,11 +27,17 @@ if ($assetImage -notmatch '^ghcr\.io/shkirmantsev/project-intelligence-assets@sh
     throw 'Missing reviewed offline asset release. Upgrade the kit with --upgrade and review preserved deployment.env; native setup will not download from HF or GitHub.'
 }
 $offlineRoot = Join-Path $cache ("asset-pack-" + $manifestDigest)
+$publishedRoot = $offlineRoot
+$stagedAssets = $false
+if ($RepairAssets -or -not (Test-Path -LiteralPath $publishedRoot)) {
+    $offlineRoot = $publishedRoot + '.staging-' + [Guid]::NewGuid().ToString('N')
+    $stagedAssets = $true
+}
 if (-not (Test-Path -LiteralPath $offlineRoot)) {
     New-Item -ItemType Directory -Path $offlineRoot | Out-Null
     $assetContainer = $null
     try {
-        $assetContainer = docker create $assetImage
+        $assetContainer = docker create --pull never $assetImage
         if ($LASTEXITCODE -ne 0) { throw 'Cannot create the pinned offline asset container' }
         docker cp "${assetContainer}:/opt/projectexpert-assets/." $offlineRoot
         if ($LASTEXITCODE -ne 0) { throw 'Cannot extract the pinned offline assets' }
@@ -44,9 +51,40 @@ if (-not (Test-Path -LiteralPath $offlineRoot)) {
 Assert-NativeAssetDirectory $offlineRoot
 $appImage = Get-WorkspaceValue 'PI_IMAGE'
 if (-not $appImage) { throw 'Missing published kit application image: set PI_IMAGE or upgrade the matching kit' }
-docker run --rm --network none --entrypoint python -v "${offlineRoot}:/pack:ro" $appImage `
-    -m pi_platform.deployment.offline_assets --root /pack --manifest-sha256 $manifestDigest
-if ($LASTEXITCODE -ne 0) { throw 'Offline asset verification failed; native setup stopped without executing unverified binaries' }
+$diagnosticPath = Join-Path $cache 'asset-verification.json'
+$previousErrorAction = $ErrorActionPreference
+try {
+    $ErrorActionPreference = 'Continue'
+    $verificationOutput = @(docker run --rm --network none --entrypoint python -v "${offlineRoot}:/pack:ro" $appImage `
+        -m pi_platform.deployment.offline_assets --root /pack --manifest-sha256 $manifestDigest --diagnostic-json 2>&1)
+    $verificationExit = $LASTEXITCODE
+} finally { $ErrorActionPreference = $previousErrorAction }
+$verification = $null
+try { $verification = ($verificationOutput -join "`n") | ConvertFrom-Json } catch { }
+$verificationCode = 'verifier-container-failed'
+if ($verification -and $verification.code) { $verificationCode = [string]$verification.code }
+$diagnostic = @{schema_version=1; stage='offline-pack-verification'; code=$verificationCode;
+    requested_backend=$Backend; application_image=$appImage; asset_image=$assetImage;
+    expected_manifest_sha256=$manifestDigest; exit_code=$verificationExit; staged=$stagedAssets}
+if ($verification -and $verification.asset) { $diagnostic.asset = $verification.asset }
+foreach ($field in @('actual_manifest_sha256','expected_asset_sha256','actual_asset_sha256')) {
+    if ($verification -and $verification.$field) { $diagnostic[$field] = $verification.$field }
+}
+$diagnostic | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath ($diagnosticPath + '.tmp') -Encoding UTF8
+Move-Item -LiteralPath ($diagnosticPath + '.tmp') -Destination $diagnosticPath -Force
+if ($verificationExit -ne 0 -or -not $verification -or -not $verification.ok) {
+    # Discard only this invocation's new temporary extraction. Existing packs stay intact.
+    if ($stagedAssets) { Remove-Item -LiteralPath $offlineRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    throw "Offline asset verification failed [$verificationCode]; inspect accelerator/asset-verification.json. Existing packs are preserved. Retry with -RepairAssets after reviewing the paired image/asset pins."
+}
+if ($stagedAssets) {
+    if (Test-Path -LiteralPath $publishedRoot) {
+        # Explicit repair preserves the old pack until the replacement verifies.
+        Move-Item -LiteralPath $publishedRoot -Destination ($publishedRoot + '.previous-' + [Guid]::NewGuid().ToString('N'))
+    }
+    Move-Item -LiteralPath $offlineRoot -Destination $publishedRoot
+    $offlineRoot = $publishedRoot
+}
 
 function Get-VerifiedFile([string]$Name, [string]$Path, [string]$Hash) {
     $source = Join-Path (Join-Path $offlineRoot 'embedding') $Name
