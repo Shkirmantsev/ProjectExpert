@@ -10,7 +10,7 @@ from pi_platform.core.canonical.value_types import (
     Evidence,
     KnowledgeState,
 )
-from pi_platform.core.ingest.records import document_result, read_text, make_chunk
+from pi_platform.core.ingest.records import document_result, read_text_with_provenance, make_chunk
 from pi_platform.ports.ingest.source_adapter import (
     SourceAdapterPort,
     SourceContentFamily,
@@ -29,7 +29,10 @@ class JavaStructuredAdapter(SourceAdapterPort):
         self.parser = parser or TreeSitterJavaSubprocess(required=required)
 
     def parse(self, source, context=None):
-        text = read_text(source.uri)
+        from pi_platform.core.ingest.source_decoding_policy import decoding_options
+        text, decoding = read_text_with_provenance(source.uri, **decoding_options(source, context))
+        source = replace(source, metadata=replace(source.metadata,
+            extensions={**source.metadata.extensions, "textDecoding": decoding}))
         if Path(source.uri).suffix in (".properties", ".yml", ".yaml"):
             rows = re.findall(r"^\s*([\w.\-]+)\s*[:=]\s*(.+)$", text, re.M)
             result = document_result(

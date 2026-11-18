@@ -72,6 +72,7 @@ from pi_platform.ports.ingest.pipeline_driver import (
 from pi_platform.ports.ingest.source_adapter import (
     AdapterMissing,
     SourceAdapterError,
+    SourceReadError,
     SourceAdapterRegistry,
     SourceContentFamily,
 )
@@ -213,6 +214,8 @@ class LocalPipelineDriver(PipelineDriverPort):
         memory_probe=None,
         worker_peak_estimator=None,
         memory_target_percent=50,
+        decoding_policy=None,
+        decoding_root=None,
     ):
         self._parsers = (
             parser_registry
@@ -234,6 +237,8 @@ class LocalPipelineDriver(PipelineDriverPort):
         self.chunker_context = chunker_context
         self.enricher_context = enricher_context
         self.retry_delay = retry_delay
+        self.decoding_policy = decoding_policy
+        self.decoding_root = Path(decoding_root).resolve() if decoding_root is not None else None
         from pi_platform.adapters.runtime.host_resources import parse_worker_budget
         from pi_platform.core.orchestration.resource_budget import ResourceTokenPool
         self.parse_workers = parse_worker_budget(parse_workers)
@@ -376,6 +381,9 @@ class LocalPipelineDriver(PipelineDriverPort):
         portable = source.metadata.extensions.get("portable_identity") == "v2"
         from pi_platform.core.ingest.retrieval_text_builder import DeterministicRetrievalTextBuilder
         components = None
+        relative = (Path(source.uri).resolve().relative_to(self.decoding_root).as_posix()
+                    if self.decoding_root is not None else source.metadata.sourcePath or source.id.removeprefix('repo:'))
+        profile = self.decoding_policy.profile(relative) if self.decoding_policy is not None else None
         if portable:
             family = SourceContentFamily(source.family)
             parser, chunker, enricher = (self._parsers.resolve(family),
@@ -396,6 +404,8 @@ class LocalPipelineDriver(PipelineDriverPort):
                 "uri": (source.id if source.metadata.extensions.get("portable_identity") == "v2" else source.uri),
                 "metadata": dataclass_to_dict(source.metadata),
                 "pipelineVersion": "phase2-2",
+                **({"sourceDecoding": "source-decoding/v1:" + profile}
+                   if profile else {}),
                 "chunking": (
                     dataclass_to_dict(self.chunker_context)
                     if self.chunker_context
@@ -605,6 +615,7 @@ class LocalPipelineDriver(PipelineDriverPort):
                         Path(project_root),
                         project_version=self.project_version,
                         cancellation=cancellation,
+                        metadata_overrides={"decoding_policy": self.decoding_policy},
                     ),
                 ),
             )
@@ -736,6 +747,9 @@ class LocalPipelineDriver(PipelineDriverPort):
             message = str(exc)
         except StageError as exc:
             category = exc.category
+            message = str(exc)
+        except SourceReadError as exc:
+            category = StageErrorCategory.TRANSIENT
             message = str(exc)
         except (SourceAdapterError, JavaParserCorruptOutput) as exc:
             category = StageErrorCategory.PERMANENT

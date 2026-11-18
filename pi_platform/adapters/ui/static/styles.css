@@ -47,7 +47,7 @@ h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.01em; }
 
 form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
-input[type="text"], input[type="password"] {
+input[type="text"], input[type="password"], textarea {
   flex: 1 1 18rem;
   padding: 0.5rem 0.65rem;
   border: 1px solid var(--border);
@@ -123,3 +123,6 @@ footer { margin-top: 2rem; color: var(--muted); font-size: 0.86rem; }
 
 .mode-badge { display: inline-block; padding: 0.4rem 0.8rem; border: 1px solid var(--accent); border-radius: 7px; font-weight: 600; }
 #chat-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.65rem; }
+
+#source-encoding-policy { display: block; width: 100%; box-sizing: border-box; resize: vertical; margin-top: 0.6rem; font-family: ui-monospace, monospace; }
+#source-encoding-result { white-space: pre-wrap; overflow-wrap: anywhere; }

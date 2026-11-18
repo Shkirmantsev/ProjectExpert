@@ -22,6 +22,7 @@ import os
 import subprocess
 from datetime import datetime, timezone
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -158,7 +159,7 @@ class ProjectVersionMonitorStub(ProjectVersionMonitor):
         return None
 
 
-def read_project_version(repo_root: Path, *, include_portable: bool = True) -> ProjectVersionState:
+def read_project_version(repo_root: Path, *, include_portable: bool = True, cache_root: Path | None = None) -> ProjectVersionState:
     """Read content identity, including edits that leave Git status unchanged.
 
     The discovery inventory excludes generated files and the runtime cache, so
@@ -196,6 +197,17 @@ def read_project_version(repo_root: Path, *, include_portable: bool = True) -> P
     if not include_portable:
         canonical_hashes.pop("project-knowledge/manifests/portable-v2.json", None)
     hashes.update(canonical_hashes)
+    policy_path = (Path(cache_root) if cache_root else root / '.project-intelligence-cache') / 'config/source-encodings.json'
+    if policy_path.is_file():
+        # Invalid oversized settings still change identity without an unbounded read.
+        with policy_path.open('rb') as stream:
+            prefix = stream.read(131073)
+        hashes['@source-encodings'] = hashlib.sha256(prefix).hexdigest()
+    hashes['@ingestion-runtime'] = {key: os.environ.get(key) for key in (
+        'PI_INDEX_ENGINE', 'PI_INDEX_REQUIRE_COMPLETE', 'PI_STARTUP_PROFILE',
+        'PI_EMBEDDING_MODEL', 'PI_EMBEDDING_DEVICE', 'PI_DOCLING_ENABLED',
+        'PI_ASSET_MANIFEST_SHA256', 'PI_IMAGE')}
+
     settings_path = root / ".project-intelligence-cache" / "retrieval-settings.json"
     if settings_path.is_file():
         settings = json.loads(settings_path.read_text(encoding="utf-8"))
@@ -227,21 +239,33 @@ def canonical_fingerprints(root):
 class PollingProjectVersionMonitor(ProjectVersionMonitor):
     """Portable polling with serial refreshes, retry, and deterministic ticks.
 
-    A state becomes the baseline only after its callback succeeds. A failed
-    refresh is retried even when HEAD and file contents have not changed again.
+    A state becomes the baseline only after its callback succeeds. Typed permanent
+    candidate failures suspend until input changes or the owner requests retry.
+    Typed transient failures back off; legacy untyped callbacks retain retry.
     """
 
     def __init__(self, repo_root: Path, *, on_change: Callable[[HeadChange], ProjectVersionState | None],
                  poll_interval_seconds: int = DEFAULT_POLL_INTERVAL_SECONDS,
                  on_error: Callable[[Exception], None] | None = None,
-                 state_reader: Callable[[], ProjectVersionState] | None = None) -> None:
+                 state_reader: Callable[[], ProjectVersionState] | None = None,
+                 cache_root: Path | None = None) -> None:
         if not MIN_POLL_INTERVAL_SECONDS <= poll_interval_seconds <= MAX_POLL_INTERVAL_SECONDS:
             raise ValueError("poll_interval_seconds must be between 2 and 5")
         self.poll_interval_seconds = poll_interval_seconds
         self.on_change = on_change
         self._on_error = on_error
-        self._read = state_reader or (lambda: read_project_version(repo_root))
+        self._read = state_reader or (lambda: read_project_version(repo_root, cache_root=cache_root))
         self._previous: ProjectVersionState | None = None
+        self._failure_path = (Path(cache_root) if cache_root else Path(repo_root) / '.project-intelligence-cache') / 'index-retry.json'
+        self._failure = None
+        try:
+            saved = json.loads(self._failure_path.read_text(encoding='utf-8'))
+            if (isinstance(saved, dict) and saved.get('schema_version') == 1
+                    and isinstance(saved.get('candidate'), str) and isinstance(saved.get('attempts'), int)
+                    and (saved.get('retry_at') is None or isinstance(saved.get('retry_at'), (int, float)))):
+                self._failure = saved
+        except (OSError, ValueError):
+            pass
         self._stop = threading.Event()
         self._requested = threading.Event()
         self._request_lock = threading.Lock()
@@ -252,9 +276,15 @@ class PollingProjectVersionMonitor(ProjectVersionMonitor):
         with self._tick_lock:
             current = self._read()
             with self._request_lock:
-                previous = None if self._requested.is_set() else self._previous
+                manual = self._requested.is_set()
+                previous = None if manual else self._previous
                 self._requested.clear()
-            if current == previous:
+            candidate = hashlib.sha256(json.dumps([current.head, current.branch, current.working_tree_fingerprint]).encode()).hexdigest()
+            if not manual and self._failure and self._failure.get('candidate') == candidate:
+                retry_at = self._failure.get('retry_at')
+                if retry_at is None or time.time() < retry_at:
+                    return None
+            if current == previous and not (self._failure and self._failure.get("candidate") == candidate):
                 return None
             head_changed = previous is None or current.head != previous.head or current.branch != previous.branch
             tree_changed = previous is None or current.working_tree_fingerprint != previous.working_tree_fingerprint
@@ -268,15 +298,35 @@ class PollingProjectVersionMonitor(ProjectVersionMonitor):
             )
             try:
                 accepted = self.on_change(event)
-            except Exception:
+            except Exception as exc:
+                from pi_platform.core.ingest.failures import CandidateIndexingError
+                if isinstance(exc, CandidateIndexingError):
+                    attempted = getattr(exc, 'candidate_state', current)
+                    candidate = hashlib.sha256(json.dumps([attempted.head, attempted.branch, attempted.working_tree_fingerprint]).encode()).hexdigest()
+                    attempts = (self._failure.get('attempts', 0) if self._failure and self._failure.get('candidate') == candidate else 0) + 1
+                    self._failure = {'schema_version': 1, 'candidate': candidate,
+                        'categories': exc.categories, 'attempts': attempts,
+                        'state': 'retry-delayed' if exc.retryable and attempts < 5 else 'blocked-by-source-errors',
+                        'retry_at': time.time() + min(300, 5 * 2 ** min(attempts, 6)) if exc.retryable and attempts < 5 else None}
+                    self._persist_failure()
                 # Explicit refreshes may target the already accepted version.
                 # Preserve the retry even for deterministic/manual polling.
-                self._previous = None
+                if not isinstance(exc, CandidateIndexingError):
+                    self._previous = None
                 raise
             # A publisher can return its verified snapshot identity after bootstrap
             # creates settings. Never re-read here: that could swallow a later edit.
             self._previous = accepted if isinstance(accepted, ProjectVersionState) else current
+            if self._failure is not None:
+                self._failure = None
+                self._failure_path.unlink(missing_ok=True)
             return event
+
+    def _persist_failure(self):
+        self._failure_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self._failure_path.with_suffix('.tmp')
+        temporary.write_text(json.dumps(self._failure, sort_keys=True), encoding='utf-8')
+        os.replace(temporary, self._failure_path)
 
     def request_refresh(self) -> None:
         """Queue an explicit operator refresh even if source bytes are unchanged."""
@@ -288,7 +338,6 @@ class PollingProjectVersionMonitor(ProjectVersionMonitor):
             try:
                 self.poll_once()
             except Exception as exc:
-                self._previous = None
                 if self._on_error:
                     self._on_error(exc)
                 else:

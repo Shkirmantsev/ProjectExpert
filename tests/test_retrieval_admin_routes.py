@@ -217,7 +217,7 @@ class JobQueueTests(AdminRoutesTestBase):
 class DispatcherTests(AdminRoutesTestBase):
     """Route recognition and pass-through behaviour."""
 
-    def test_dispatcher_recognises_the_four_routes(self) -> None:
+    def test_dispatcher_recognises_admin_routes(self) -> None:
         routes, dispatch = self.build()
         table = routes.route_table()
         self.assertEqual(
@@ -227,6 +227,9 @@ class DispatcherTests(AdminRoutesTestBase):
                 ("PUT", RETRIEVAL_PATH),
                 ("POST", MODELS_PULL_PATH),
                 ("POST", REINDEX_PATH),
+                ("GET", "/api/v1/admin/source-encodings"),
+                ("POST", "/api/v1/admin/source-encodings"),
+                ("PUT", "/api/v1/admin/source-encodings"),
             },
         )
         recognised = [

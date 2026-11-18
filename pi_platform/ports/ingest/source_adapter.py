@@ -73,6 +73,10 @@ class SourceAdapterError(RuntimeError):
     """Base class for SourceAdapter errors."""
 
 
+class SourceReadError(SourceAdapterError):
+    """Source bytes are temporarily unavailable; decoding did not run."""
+
+
 class AdapterMissing(SourceAdapterError):
     """Raised when the registry has no adapter for the requested family."""
 

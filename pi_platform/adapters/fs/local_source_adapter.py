@@ -22,8 +22,10 @@ class LocalSourceAdapter(SourceAdapterPort):
             return HtmlAdapter().parse(source, context)
         from pi_platform.core.canonical.value_types import KnowledgeState
         legacy = Path(source.uri).suffix.lower() in (".txt", ".text", ".csv", ".log", ".xml", ".properties")
+        from pi_platform.core.ingest.source_decoding_policy import decoding_options
         text, decoding = read_text_with_provenance(source.uri, legacy=legacy,
-                                                   html=Path(source.uri).suffix.lower() == ".xml")
+                                                   html=Path(source.uri).suffix.lower() == ".xml",
+                                                   **decoding_options(source, context))
         return document_result(
             source, [("", 0, text, {"textDecoding": decoding})], "plain_text", "text-stdlib-2",
             state=KnowledgeState.ASSUMPTION if decoding["degraded"] else KnowledgeState.VERIFIED,

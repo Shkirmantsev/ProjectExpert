@@ -67,6 +67,8 @@ DEFAULT_INCLUDE_PATTERNS: tuple[str, ...] = (
 )
 
 DEFAULT_EXCLUDE_PATTERNS: tuple[str, ...] = (
+    # Generated agent checkouts
+    ".claude/worktrees/**", "**/.claude/worktrees/**",
     # Version control
     ".git/**", ".hg/**", ".svn/**", ".projectexpert-workspace/**",
     # Runtime caches
@@ -523,6 +525,8 @@ class RepositorySourceDiscovery:
         )
 
     def _is_excluded(self, rel_posix: str) -> bool:
+        if is_generated_worktree(rel_posix):
+            return True
         return any(
             self._match(rel_posix, pattern)
             for pattern in self._exclude
@@ -554,3 +558,8 @@ class RepositorySourceDiscovery:
     def _now() -> str:
         import datetime as _dt
         return _dt.datetime.now(_dt.timezone.utc).isoformat()
+
+
+def is_generated_worktree(relative_path):
+    parts = relative_path.lower().strip('/').split('/')
+    return any(a == '.claude' and b == 'worktrees' for a, b in zip(parts, parts[1:]))
