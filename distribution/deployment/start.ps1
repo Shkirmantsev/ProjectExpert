@@ -10,10 +10,11 @@ try {
     # The readiness line is produced by the shared resolver, so the reported
     # URL is the effective one (shell environment, then deployment.env, then
     # default).
-    $ready = (& (Join-Path $PSScriptRoot 'url.ps1') | Out-String).Trim()
-    Write-Host $ready
-    if ($env:PI_OPEN_BROWSER -ne '0') {
-        try { Start-Process ($ready -replace '^Ready:\s*', '') } catch { Write-Host $ready }
+    $statusLines = @(& (Join-Path $PSScriptRoot 'url.ps1'))
+    foreach ($line in $statusLines) { Write-Host $line }
+    $browserUrl = ($statusLines | Where-Object { $_ -match '^Service URL: https?://' } | Select-Object -First 1) -replace '^Service URL:\s*', ''
+    if ($env:PI_OPEN_BROWSER -ne '0' -and $browserUrl) {
+        try { Start-Process $browserUrl } catch { Write-Host $browserUrl }
     }
 } finally {
     Pop-Location

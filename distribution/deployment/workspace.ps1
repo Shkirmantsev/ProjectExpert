@@ -23,7 +23,7 @@ if (-not $workspaceMode) { $workspaceMode = 'auto' }
 if ($workspaceMode -notin @('auto','bind','volume')) { throw 'PI_WORKSPACE_MODE must be auto, bind or volume' }
 $workspaceManaged = $workspaceMode -in @('auto','volume')
 if ($workspaceManaged) {
-    foreach ($key in @('PI_WORKSPACE_EXCLUDE','PI_WORKSPACE_MAX_FILE_BYTES','PI_RUNTIME_BACKUP','PI_RUNTIME_BACKUP_DIR','PI_RUNTIME_BACKUP_INTERVAL_MINUTES','PI_RUNTIME_BACKUP_INTERVAL_SECONDS','PI_WORKSPACE_DEBOUNCE_MS','PI_WORKSPACE_VERIFY_INTERVAL_SECONDS')) {
+    foreach ($key in @('PI_WORKSPACE_EXCLUDE','PI_WORKSPACE_MAX_FILE_BYTES','PI_RUNTIME_BACKUP','PI_RUNTIME_BACKUP_DIR','PI_RUNTIME_BACKUP_INTERVAL_MINUTES','PI_RUNTIME_BACKUP_INTERVAL_SECONDS','PI_WORKSPACE_DEBOUNCE_MS','PI_WORKSPACE_VERIFY_INTERVAL_SECONDS','PI_WORKSPACE_STOP_TIMEOUT_SECONDS')) {
         $setting = Get-WorkspaceValue $key
         if ($setting) { [Environment]::SetEnvironmentVariable($key, $setting, 'Process') }
     }
@@ -53,8 +53,8 @@ function Initialize-Workspace([string[]]$Commands) {
         Invoke-WorkspaceAgent sync
     }
     if ($Commands -contains 'down') {
-        try { Invoke-WorkspaceAgent backup } catch { Write-Warning "Workspace backup failed: $_" }
         Invoke-WorkspaceAgent stop
+        if ($Commands -contains 'backup') { Invoke-WorkspaceAgent backup }
     } elseif ($Commands -contains 'stop') { Invoke-WorkspaceAgent stop }
     if (($Commands -contains 'up') -or ($Commands -contains 'restart')) { Invoke-WorkspaceAgent supervise }
 }

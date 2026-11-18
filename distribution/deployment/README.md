@@ -156,7 +156,7 @@ Windows uses Docker Desktop with Linux containers. The CPU profile runs the
 managed sidecar container. When a GPU candidate validates, a pinned **native**
 `llama-server` is started on the host instead, and the application reaches it
 through `host.docker.internal:8769`; it does not require Vulkan passthrough
-into Docker. The native service listens on 127.0.0.1 with a per-run bearer
+into Docker. The native service listens on `0.0.0.0:8769` for container-to-host access with a per-run bearer
 token stored in `accelerator/llama-api-key`; the token is never printed.
 Permit access only from Docker/WSL in Windows Firewall, not public networks.
 Run `powershell -File stop.ps1` before switching models or backends, then
@@ -518,7 +518,7 @@ container, and reconnect the MCP client to refresh discovery.
 
 ## Managed workspace (opt-in)
 
-Set `PI_WORKSPACE_MODE=volume` in `deployment.env` to use the packaged native helper. `auto` and `bind` retain direct host mounts. Mutating `up`, `run`, and `restart` prepare and synchronize before application execution. `up` and `restart` start session supervision; `config`, logs, and status never initialize storage. The generated `workspace.env` is persistent local state; do not edit it. Normal shutdown requests a verified checkpoint before stopping supervision and retains both volumes. Backup failure is reported but does not prevent shutdown.
+Set `PI_WORKSPACE_MODE=volume` in `deployment.env` to use the packaged native helper. `auto` also selects managed volumes on Windows. On Linux, `auto` selects volumes for WSL `/mnt/<drive>` checkouts and direct bind mounts elsewhere; explicit `bind` always uses direct host mounts. Mutating `up`, `run`, and `restart` prepare and synchronize before application execution. `up` and `restart` start session supervision; `config`, logs, and status never initialize storage. The generated `workspace.env` is persistent local state; do not edit it. Normal shutdown first quiesces supervision and retains both volumes; it does not wait for a new full checkpoint. Use `./stop.ps1 -Backup` for explicit backup-and-stop: backup failure aborts container shutdown. If an importer is still committing at the bounded stop deadline, `STOP_PENDING` leaves the containers running; retry stop after the safe commit. Scheduled backups and the explicit helper backup command remain available.
 
 The default supervisor is session-only. For explicit per-user login startup, run `bash workspace-autostart.sh install` on Linux (systemd user session) or `./workspace-autostart.ps1 -Action Install` on Windows (Task Scheduler). These commands register a task only when invoked; launchers never register one. Remove using `uninstall` / `-Action Uninstall`. Linux login startup does not imply system-wide lingering. Windows native login execution requires platform acceptance testing.
 

@@ -140,11 +140,11 @@ class DeploymentTests(unittest.TestCase):
                    'CALLS': str(temp / 'calls'), 'PI_OPEN_BROWSER': '0'}
             run = subprocess.run(['bash', str(temp / 'kit/start.sh')], env=env, capture_output=True, text=True)
             self.assertEqual(run.returncode, 0, run.stderr)
-            self.assertIn('Ready:', run.stdout)
+            self.assertIn('Service URL:', run.stdout)
             self.assertIn('--wait --wait-timeout 1800', (temp / 'calls').read_text())
             run = subprocess.run(['bash', str(temp / 'kit/start.sh')], env={**env, 'START_EXIT': '7'}, capture_output=True, text=True)
             self.assertEqual(run.returncode, 7)
-            self.assertNotIn('Ready:', run.stdout)
+            self.assertNotIn('Service URL:', run.stdout)
 
     @unittest.skipUnless(shutil.which('make'), 'make unavailable')
     def test_make_commands_are_container_only_and_keep_volumes(self):
@@ -353,7 +353,7 @@ class DeploymentHelpTests(unittest.TestCase):
                    'CALLS': str(calls), 'PI_OPEN_BROWSER': '0'}
             run = subprocess.run(['bash', str(kit / 'start.sh')], env=env, capture_output=True, text=True)
             self.assertEqual(run.returncode, 0, run.stderr)
-            self.assertIn('Ready: http://localhost:9123', run.stdout)
+            self.assertIn('Service URL: http://localhost:9123', run.stdout)
 
     @unittest.skipUnless(os.name != 'nt' and shutil.which('bash'), 'Bash launcher required')
     def test_the_shell_environment_overrides_the_env_file_port(self):
@@ -367,7 +367,7 @@ class DeploymentHelpTests(unittest.TestCase):
                    'CALLS': str(calls), 'PI_OPEN_BROWSER': '0', 'PI_CONTROL_PORT': '9331'}
             run = subprocess.run(['bash', str(kit / 'start.sh')], env=env, capture_output=True, text=True)
             self.assertEqual(run.returncode, 0, run.stderr)
-            self.assertIn('Ready: http://localhost:9331', run.stdout)
+            self.assertIn('Service URL: http://localhost:9331', run.stdout)
             self.assertNotIn('9123', run.stdout)
 
     @unittest.skipUnless(os.name != 'nt' and shutil.which('bash'), 'Bash launcher required')
@@ -381,7 +381,7 @@ class DeploymentHelpTests(unittest.TestCase):
                    'CALLS': str(calls), 'PI_OPEN_BROWSER': '0'}
             run = subprocess.run(['bash', str(kit / 'start.sh')], env=env, capture_output=True, text=True)
             self.assertNotEqual(run.returncode, 0)
-            self.assertNotIn('Ready:', run.stdout)
+            self.assertNotIn('Service URL:', run.stdout)
 
     @unittest.skipUnless(shutil.which('make'), 'make unavailable')
     def test_a_failed_make_start_never_reports_ready(self):
@@ -401,7 +401,7 @@ class DeploymentHelpTests(unittest.TestCase):
             run = subprocess.run(['make', 'platform-start', command], cwd=kit,
                                  capture_output=True, text=True, timeout=30)
             self.assertNotEqual(run.returncode, 0)
-            self.assertNotIn('Ready:', run.stdout)
+            self.assertNotIn('Service URL:', run.stdout)
             self.assertIn('up -d --wait', calls.read_text())
 
 

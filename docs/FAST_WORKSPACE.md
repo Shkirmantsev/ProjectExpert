@@ -2,8 +2,9 @@
 
 Managed workspace mode keeps source scans and derived indexes in Linux Docker
 volumes while canonical `project-knowledge/` remains directly writable on the host.
-It is optional: `PI_WORKSPACE_MODE=auto` currently selects `bind`, as does explicit
-`bind`. Existing CPU, CUDA, Vulkan, Windows native inference, model-cache, endpoint
+Windows `PI_WORKSPACE_MODE=auto` selects managed volumes; Linux `auto` selects
+volumes for WSL `/mnt/<drive>` paths and bind elsewhere. Explicit `bind` always
+selects direct host mounts. Existing CPU, CUDA, Vulkan, Windows native inference, model-cache, endpoint
 and accelerator selection settings retain their existing behavior.
 
 This guide describes the implementation of the active
@@ -186,7 +187,28 @@ nor cross-compilation prove reboot/crash recovery on a particular host.
 | Windows native helper, PowerShell, GPU and login/reboot lifecycle | NOT TESTED on native Windows |
 | Power-loss durability, reboot recovery, hardware GPU throughput | NOT TESTED |
 
-`auto` remains `bind` until measured platform acceptance justifies promotion.
+These are observed launcher defaults, not hardware acceptance claims.
 
 Detailed commands, measured timings and remaining platform gates are in the
 [verification record](../openspec/changes/add-managed-fast-workspace/verification.md).
+
+## Cooperative stop
+
+Normal shutdown signals the helper before waiting for its OS locks. Scans check
+the signal at bounded intervals without adding a stat for every source. An active
+importer completes its existing atomic publication boundary; it is never killed
+by ordinary stop. `PI_WORKSPACE_STOP_TIMEOUT_SECONDS` defaults to 15 (range 1–120).
+`STOP_PENDING` prevents Compose shutdown and points to private
+`workspace-operation-status.json`; retry stop after the active operation finishes.
+Do not delete lock files. Their existence does not mean the OS lock is owned.
+
+Normal stop keeps the volumes and scheduled verified snapshots; it no longer
+starts an unbounded backup first. Windows `./stop.ps1 -Backup` quiesces, backs up
+and stops, aborting if backup fails. Linux operators can run the existing explicit
+helper `stop`, then `backup`, then ordinary Compose shutdown. No stop removes volumes.
+
+Generated `.claude/worktrees` trees are pruned by both the host helper and Python,
+including nested copies. Authored `.claude/commands` and ordinary docs remain.
+Use `.projectexpert-workspaceignore`/`PI_WORKSPACE_EXCLUDE` for extra transfer
+exclusions. Git exclude files are not the Python source-scanner policy; no manual
+PowerShell append to `.git/info/exclude` is required for generated worktrees.

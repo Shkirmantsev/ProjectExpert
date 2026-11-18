@@ -130,8 +130,8 @@ fi
             self.assertTrue(calls[1].startswith('helper sync '))
             self.assertEqual(len(calls), 4)
             calls = run(['down'])
-            self.assertTrue(calls[0].startswith('helper backup '))
-            self.assertTrue(calls[1].startswith('helper stop '))
+            self.assertTrue(calls[0].startswith('helper stop '))
+            self.assertFalse(any(call.startswith('helper backup ') for call in calls))
             self.assertIn('compose.accelerator.yaml', calls[-1])
             # Workspace preparation can pull the application image implicitly.
             # Diagnose registry trust before invoking that helper as well.

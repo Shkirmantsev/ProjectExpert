@@ -37,6 +37,13 @@ try {
     if (-not ($global:Calls -match 'compose --env-file deployment.env .*up -d --wait --wait-timeout 1800')) {
         throw 'Bundle launcher did not wait for readiness'
     }
+    $global:OpenedBrowserUrl = $null
+    function global:Start-Process([string]$FilePath) { $global:OpenedBrowserUrl = $FilePath }
+    $env:PI_OPEN_BROWSER = '1'
+    & (Join-Path $temp 'start.ps1')
+    if ($global:OpenedBrowserUrl -ne 'http://localhost:8765') { throw 'Browser received status text instead of service URL' }
+    $env:PI_OPEN_BROWSER = '0'
+    Remove-Item Function:\Start-Process
     # Model selection must survive the Windows wrapper into native setup.
     $setupPath = Join-Path $temp 'setup-windows-accelerator.ps1'
     Set-Content -LiteralPath $setupPath -Value @'
@@ -88,4 +95,5 @@ New-Item -ItemType Directory -Force -Path $cache | Out-Null
     Remove-Item -Recurse -Force $temp
     Remove-Item Function:\docker
     Remove-Item Function:\Invoke-WebRequest
+    Remove-Item Function:\Start-Process -ErrorAction SilentlyContinue
 }
