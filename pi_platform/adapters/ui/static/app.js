@@ -404,6 +404,25 @@ document.addEventListener("DOMContentLoaded", function () {
       show("wizard-result", 'Model preferences loaded. Apply to update the local index.');
       }).catch(function (error) { show("wizard-result", error.message); });
     }
+    function loadSourceEncodings() {
+      return call('GET', API + '/admin/source-encodings').then(function (data) {
+        document.getElementById('source-encoding-policy').value = JSON.stringify(data.policy, null, 2);
+        if (data.retry) { show('source-encoding-result', data.retry); }
+      }).catch(function (error) { show('source-encoding-result', error.message); });
+    }
+    ['preview', 'save'].forEach(function (action) {
+      document.getElementById('source-encoding-' + action).addEventListener('click', function () {
+        var payload;
+        try { payload = JSON.parse(document.getElementById('source-encoding-policy').value); }
+        catch (error) { show('source-encoding-result', 'Enter valid JSON rules.'); return; }
+        show('source-encoding-result', 'Checking source encodings…');
+        call(action === 'save' ? 'PUT' : 'POST', API + '/admin/source-encodings', payload)
+          .then(function (data) { show('source-encoding-result', data); })
+          .catch(function (error) { show('source-encoding-result', error.message); });
+      });
+    });
+    loadSourceEncodings();
+    reloadProtected.push(loadSourceEncodings);
     loadRuntimeSettings();
     reloadProtected.push(loadRuntimeSettings);
 

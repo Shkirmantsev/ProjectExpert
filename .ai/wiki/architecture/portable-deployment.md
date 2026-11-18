@@ -154,8 +154,9 @@ See [installation](../../../docs/PRODUCTION_INSTALL.md),
 
 ## Managed fast workspace — observed implementation, 2026-11-10
 
-The current `workspace.ps1` and `workspace.sh` select managed storage for both
-`auto` and `volume`; `bind` is explicit. The earlier description of `auto` as bind
+The current Windows `workspace.ps1` selects managed storage for `auto` and `volume`.
+Linux `workspace.sh` uses volumes for WSL `/mnt/<drive>` paths in `auto`, otherwise
+bind; explicit `bind` and `volume` select their named modes. The earlier description of `auto` as bind
 was stale relative to the implementation. A host-native checksummed Go helper pins a local Docker
 context, prepares compatible image/volume/canonical-host access, and reconciles
 verified source manifests before mutating startup commands. The last Compose
@@ -211,3 +212,21 @@ normalization, so separators and NUL bytes cannot disappear before strict native
 asset path validation. Host-independent fixtures retain actual malformed ZIP names
 and exact operator dotenv bytes. This preserves the earlier archive/upgrade
 contracts; see the recovery change's verification evidence.
+
+## Production recovery follow-up — observed software, 2026-11-18
+
+Generated `.claude/worktrees` paths are pruned in both discovery boundaries.
+Workspace stop signals before waiting, cancels scans at safe boundaries and
+reports `STOP_PENDING` rather than terminating an active atomic importer. Normal
+shutdown no longer starts a blocking backup first; Windows `stop.ps1 -Backup` is
+explicit backup-and-stop and aborts on backup error. The stop deadline defaults
+to 15 seconds. Private operation status contains phase/count/timing, not source text.
+
+Native asset extraction uses staging and verifies before renaming into the active
+cache path. `-RepairAssets` explicitly stages a replacement and preserves the old
+pack after success. Sanitized `accelerator/asset-verification.json` records release
+pins, requested backend, verifier code and exit status. Actual work-PC pack failure
+remains unclassified until that diagnostic is collected; no checksum/license rule
+is weakened. Native host serving binds 0.0.0.0 for authenticated Docker/WSL access,
+with Windows Firewall restricting reachability to the intended host/container peers.
+See [recovery guide](../../../docs/PRODUCTION_SOURCE_RECOVERY.md).

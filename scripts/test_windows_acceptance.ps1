@@ -3,6 +3,7 @@
 $ErrorActionPreference = 'Stop'
 & (Join-Path $PSScriptRoot 'test_deployment_launchers.ps1')
 & (Join-Path $PSScriptRoot '../tests/windows_deployment_runtime.ps1')
+& (Join-Path $PSScriptRoot '../tests/windows_workspace_stop.ps1')
 & (Join-Path $PSScriptRoot '../tests/windows_offline_assets.ps1')
 & (Join-Path $PSScriptRoot '../tests/windows_container_cuda.ps1')
 & (Join-Path $PSScriptRoot '../tests/windows_native_cuda.ps1')

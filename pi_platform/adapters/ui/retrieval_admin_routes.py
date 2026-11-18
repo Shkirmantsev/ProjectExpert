@@ -59,11 +59,12 @@ ADMIN_CAPABILITY = "administrator"
 RETRIEVAL_PATH = "/api/v1/admin/retrieval"
 MODELS_PULL_PATH = "/api/v1/admin/models/pull"
 REINDEX_PATH = "/api/v1/admin/reindex"
+SOURCE_ENCODINGS_PATH = "/api/v1/admin/source-encodings"
 JOBS_PREFIX = "/api/v1/admin/jobs/"
 ADMIN_PREFIX = "/api/v1/admin/"
 
 _FIXED_ADMIN_PATHS = frozenset({
-    RETRIEVAL_PATH, MODELS_PULL_PATH, REINDEX_PATH,
+    RETRIEVAL_PATH, MODELS_PULL_PATH, REINDEX_PATH, SOURCE_ENCODINGS_PATH,
 })
 
 
@@ -319,6 +320,45 @@ class RetrievalAdminRoutes:
 
     # -- handlers -------------------------------------------------------
 
+    def handle_source_encodings(self, method, body=None):
+        denied = self._authorize_admin(method=method, path=SOURCE_ENCODINGS_PATH, operation='source encoding policy')
+        if denied is not None:
+            return denied
+        from pi_platform.core.ingest.source_decoding_policy import SourceDecodingPolicy, POLICY_PATH, preview_policy
+        import os
+        cache = (self.knowledge_sync.cache if self.knowledge_sync is not None else
+                 self.target_repo / '.project-intelligence-cache')
+        path = Path(cache) / POLICY_PATH
+        try:
+            if path.parent.is_symlink() or path.is_symlink() or not path.resolve().is_relative_to(Path(cache).resolve()):
+                raise ValueError('Unsafe encoding policy location')
+            if method == 'GET':
+                policy = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {'schema_version': 1, 'rules': []}
+                SourceDecodingPolicy.from_dict(policy)
+                retry = Path(cache) / 'index-retry.json'
+                return RouteResponse.ok({'policy': policy, 'retry': json.loads(retry.read_text(encoding='utf-8')) if retry.exists() else None})
+            payload = dict(_as_mapping(body))
+            if len(json.dumps(payload).encode('utf-8')) > 131072:
+                raise ValueError('Oversized encoding policy')
+            policy = SourceDecodingPolicy.from_dict(payload)
+            from pi_platform.core.orchestration.repository_indexing import _family
+            preview = preview_policy(self.target_repo, policy, family_resolver=_family)
+            if method == 'PUT':
+                if preview['failed']:
+                    return RouteResponse.error(409, error='Some matched sources cannot decode or use a different format parser; review rules', code='encoding-preview-failed', details=preview)
+                from pi_platform.adapters.fs.private_cache import ensure_private_cache
+                ensure_private_cache(self.target_repo, cache)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                temporary = path.with_name(path.name + '.' + secrets.token_hex(8) + '.tmp')
+                try:
+                    temporary.write_text(json.dumps(payload, sort_keys=True, ensure_ascii=True), encoding='utf-8')
+                    os.replace(temporary, path)
+                finally:
+                    temporary.unlink(missing_ok=True)
+            return RouteResponse.ok({**preview, 'saved': method == 'PUT', 'nextAction': 'Reindex to apply saved rules'})
+        except (ValueError, OSError):
+            return RouteResponse.error(400, error='Invalid or conflicting source encoding policy; use relative patterns and supported codecs', code='invalid-encoding-policy')
+
     def handle_get_retrieval(self, body: Any = None) -> RouteResponse:
         """``GET /api/v1/admin/retrieval`` — current settings."""
 
@@ -457,6 +497,9 @@ class RetrievalAdminRoutes:
 
         return {
             ("GET", RETRIEVAL_PATH): self.handle_get_retrieval,
+            ("GET", SOURCE_ENCODINGS_PATH): lambda body: self.handle_source_encodings('GET', body),
+            ("POST", SOURCE_ENCODINGS_PATH): lambda body: self.handle_source_encodings('POST', body),
+            ("PUT", SOURCE_ENCODINGS_PATH): lambda body: self.handle_source_encodings('PUT', body),
             ("PUT", RETRIEVAL_PATH): self.handle_put_retrieval,
             ("POST", MODELS_PULL_PATH): self.handle_models_pull,
             ("POST", REINDEX_PATH): self.handle_reindex,

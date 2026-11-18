@@ -69,13 +69,13 @@ def verify_pack(root: Path, digest: str, *, native_backend=None) -> dict:
     """Verify hashes and the complete production shape before any indexing writes."""
     manifest = load_manifest(root / 'manifest.json', digest)
     if manifest['runtime_compatibility'] != COMPATIBILITY:
-        raise AssetPackError('Offline asset runtime/kit mismatch; upgrade the matching application, deployment kit and asset release')
+        raise AssetPackError('Offline asset runtime/kit mismatch; upgrade the matching application, deployment kit and asset release', code='runtime_compatibility_mismatch')
     # Scripts outside the application directory import the installed wheel.
     # The production image retains its lock under its explicit application home.
     application_home = Path(os.environ.get('PI_PLATFORM_HOME') or Path(__file__).resolve().parents[2])
     lock = application_home / 'requirements-production-linux-x86_64.txt'
     if not lock.is_file() or manifest.get('production_lock_sha256') != sha256(lock):
-        raise AssetPackError('Offline assets do not match the exact production dependency lock')
+        raise AssetPackError('Offline assets do not match the exact production dependency lock', code='production_lock_mismatch')
     verify(root, manifest)
     for name, expected in ((GEMMA_FILENAME, GEMMA_SHA256), (GEMMA_PROJECTOR_FILENAME, GEMMA_PROJECTOR_SHA256)):
         if sha256(local_file(root, 'embedding/' + name)) != expected:
@@ -128,6 +128,7 @@ def main():
     parser.add_argument('--load-models', action='store_true')
     parser.add_argument('--deployment-env', type=Path)
     parser.add_argument('--root', type=Path)
+    parser.add_argument('--diagnostic-json', action='store_true', help='Sanitized structured verification result; never executes assets')
     parser.add_argument('--candidate', action='store_true', help='Integrity inspection only; does not permit seeding or production activation')
     parser.add_argument('--manifest-sha256')
     parser.add_argument('--bind-image', help='Immutable registry output from the trusted release job; requires --release and --manifest-sha256')
@@ -136,6 +137,35 @@ def main():
         parser.error('--bind-image requires --release and --manifest-sha256')
     if args.candidate and (not args.root or args.release or args.load_models):
         parser.error('--candidate requires --root and cannot activate models or releases')
+    if args.diagnostic_json:
+        if not args.root or args.release or args.candidate or args.load_models:
+            parser.error('--diagnostic-json requires --root for production verification only')
+        from pi_platform.adapters.pdf.assets import FigureAssetError
+        result = {'schema_version': 1, 'stage': 'offline-pack-verification',
+                  'expected_manifest_sha256': args.manifest_sha256, 'ok': False}
+        try:
+            result['actual_manifest_sha256'] = sha256(args.root / 'manifest.json')
+            verify_pack(args.root, args.manifest_sha256 or '')
+        except AssetPackError as exc:
+            result['code'] = exc.code
+            if exc.expected_sha256 is not None:
+                result.update(expected_asset_sha256=exc.expected_sha256, actual_asset_sha256=exc.actual_sha256)
+            if exc.asset and re.fullmatch(r'[A-Za-z0-9_./-]+', exc.asset):
+                result['asset'] = exc.asset
+        except FileNotFoundError:
+            result['code'] = 'asset_missing'
+        except PermissionError:
+            result['code'] = 'asset_unreadable'
+        except FigureAssetError:
+            result['code'] = 'docling_assets_missing'
+        except (OSError, ValueError, KeyError, TypeError):
+            result['code'] = 'manifest_or_io_invalid'
+        else:
+            result.update(ok=True, code='verified')
+        print(json.dumps(result, sort_keys=True))
+        if not result['ok']:
+            raise SystemExit(2)
+        return
     if args.release:
         if args.bind_image:
             bind_published_release(args.release, args.bind_image, args.manifest_sha256)

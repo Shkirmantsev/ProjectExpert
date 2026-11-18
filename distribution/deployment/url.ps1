@@ -17,5 +17,7 @@ try {
         }
     }
     if (-not $port) { $port = '8765' }
-    Write-Host "Ready: http://localhost:$port"
+    Write-Output "Service URL: http://localhost:$port"
 } finally { Pop-Location }
+
+Write-Output 'Index readiness: /health/ready (the service can start while indexing is pending)'

@@ -15,12 +15,12 @@ from pi_platform.core.canonical.value_types import (
     Section,
 )
 from pi_platform.ports.ingest.source_adapter import (
-    SourceAdapterError,
+    SourceAdapterError, SourceReadError,
     SourceParseResult,
 )
 
 
-def read_text_with_provenance(uri, *, legacy=False, html=False):
+def read_text_with_provenance(uri, *, legacy=False, html=False, source_path=None, encoding_policy=None):
     """Decode known text deterministically; never reinterpret binary as legacy text."""
     import codecs
     import re
@@ -28,6 +28,7 @@ def read_text_with_provenance(uri, *, legacy=False, html=False):
         from pi_platform.adapters.fs import LocalFilesystemAdapter
         raw = LocalFilesystemAdapter(Path(uri).resolve().parent).read_source_bytes(Path(uri))
         encoding, replacements = None, 0
+        profile = encoding_policy.profile(source_path) if encoding_policy is not None else None
         for bom, codec in ((codecs.BOM_UTF32_LE, "utf-32"),
                            (codecs.BOM_UTF32_BE, "utf-32"),
                            (codecs.BOM_UTF16_LE, "utf-16"),
@@ -56,13 +57,15 @@ def read_text_with_provenance(uri, *, legacy=False, html=False):
                                    "utf-8": "utf-8"}
                         encoding = allowed.get(declared)
                 if encoding is None:
+                    encoding = profile
+                if encoding is None:
                     if not legacy:
                         raise
                     encoding = "cp1252"
                 try:
                     text = raw.decode(encoding)
                 except UnicodeDecodeError:
-                    if not legacy:
+                    if not legacy or profile is not None:
                         raise
                     text = raw.decode(encoding, errors="replace")
                     replacements = text.count("\ufffd")
@@ -73,9 +76,14 @@ def read_text_with_provenance(uri, *, legacy=False, html=False):
         return text.replace("\r\n", "\n").replace("\r", "\n"), {
             "encoding": encoding, "replacementCount": replacements,
             "degraded": bool(replacements),
+            **({"policyRevision": "source-decoding/v1:" + profile,
+                "provenance": "reviewed-fallback" if encoding == profile else "unicode-or-declaration-precedence"}
+               if profile else {}),
         }
-    except (OSError, UnicodeError) as exc:
-        raise SourceAdapterError(f"cannot read text source {uri}: {exc}") from exc
+    except OSError as exc:
+        raise SourceReadError("Cannot read source bytes; retry when source is available") from exc
+    except UnicodeError as exc:
+        raise SourceAdapterError("Cannot decode source losslessly; review source encoding policy") from exc
 
 
 def read_text(uri):

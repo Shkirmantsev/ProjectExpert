@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestScanIncremental(t *testing.T) {
@@ -150,5 +153,54 @@ func TestChangedSourceDiagnosticIsDeterministic(t *testing.T) {
 	}
 	if firstChangedSource(before, before) != "VCS metadata" {
 		t.Fatal("missing VCS diagnostic")
+	}
+}
+
+func TestClaudeGeneratedWorktreesExcluded(t *testing.T) {
+	for _, name := range []string{".claude/worktrees/copy/src/a.java", "nested/.claude/worktrees/copy/a.sql", ".CLAUDE/WORKTREES/branch"} {
+		if !excluded(name) {
+			t.Errorf("generated clone admitted: %s", name)
+		}
+	}
+	for _, name := range []string{".claude/commands/help.md", "docs/worktrees/guide.md", "src/a.java"} {
+		if excluded(name) {
+			t.Errorf("authored source excluded: %s", name)
+		}
+	}
+}
+
+func TestStopInterruptsScanWithoutDeletingSources(t *testing.T) {
+	root, kit := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "a.java"), []byte("class A {}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(kit, "workspace-stop"), []byte("stop"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := scanUntilStopped(root, kit)
+	if !errors.Is(err, errStopRequested) {
+		t.Fatalf("expected cooperative stop, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "a.java")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestQuiesceDoesNotReportSafeWhileManualSyncOwnsLock(t *testing.T) {
+	kit := t.TempDir()
+	lock, err := supervisorLock(filepath.Join(kit, "workspace-operation.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = quiesce(kit, 100*time.Millisecond)
+	if err == nil || !strings.Contains(err.Error(), "STOP_PENDING") {
+		t.Fatalf("expected pending, got %v", err)
+	}
+	if !stopRequested(kit) {
+		t.Fatal("stop signal was not written before waiting")
+	}
+	lock.Close()
+	if err := quiesce(kit, time.Second); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -97,3 +97,28 @@ monitoring includes eligible additions/edits/deletions. Hydration locally exclud
 Generated `tmp/local/` state remains excluded except the source inbox. Known cache,
 build and vendor trees and symlinks are not document inputs. Runtime image
 metadata now also preserves the source policy for private tmp image inputs.
+
+## Production source decoding — observed software, 2026-11-18
+
+Java and local plain-text/SQL adapters accept a reviewed fallback charset policy
+from private cache `config/source-encodings.json`. Unicode BOM and valid UTF-8 take
+precedence. Supported legacy Windows, ISO, Cyrillic and East Asian charsets decode
+strictly; rules never rewrite source files or silently replace undecodable bytes.
+Existing legacy text/HTML degraded decoding remains compatible outside reviewed
+rules. Conflicting matching rules fail before parser submission. Preview/save is
+an owner-admin action under `/api/v1/admin/source-encodings`; counts contain no
+document text. Preview is not a semantic language detector or publication approval.
+
+The effective charset and decoder version bind each matching source pipeline key;
+unmatched sources retain their prior keys. Portable import compares these same
+keys, so a target with a different private policy reparses incompatible sources.
+Private policy/review text is never placed in portable records. Provenance records
+charset and exact decoder identity. Original byte hashes, complete candidate
+publication, safe export and local confidential cache/MCP access remain intact.
+
+Typed incomplete-ingestion errors suspend unchanged permanent/configuration/internal
+candidates in private `index-retry.json`, including after restart. Manual Reindex
+permits one further attempt; source or policy changes produce a new candidate.
+Typed transient failures use bounded backoff (five attempts); legacy untyped
+callbacks retain their established recovery behavior. Parser worker admission and
+last-good publication fences remain unchanged.

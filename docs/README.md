@@ -4,6 +4,8 @@
 
 ## Setup and daily work
 
+- [Production source recovery](PRODUCTION_SOURCE_RECOVERY.md): strict multilingual decoding, retry suspension, safe stop and offline diagnostics.
+
 - [Git-portable canonical snapshots](GIT_PORTABLE_CANONICAL_SYNC.md): approved production export, cold-clone import, textual vectors and release limits.
 
 - [Production remediation acceptance](PRODUCTION_REMEDIATION_ACCEPTANCE.md): source fixes, actual CPU/iGPU measurements and outstanding release gates.

@@ -18,4 +18,6 @@ port="${port//\'/}"
 port="${port//$'\r'/}"
 port="${port//$'\t'/}"
 port="${port// /}"
-printf 'Ready: http://localhost:%s\n' "${port:-8765}"
+printf 'Service URL: http://localhost:%s\n' "${port:-8765}"
+
+printf 'Index readiness: /health/ready (the service can start while indexing is pending)\n'

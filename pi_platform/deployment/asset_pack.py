@@ -18,6 +18,13 @@ import tempfile
 class AssetPackError(ValueError):
     """An incomplete, unreviewed or damaged pack cannot be activated."""
 
+    def __init__(self, message, *, code='asset_invalid', asset=None, expected_sha256=None, actual_sha256=None):
+        self.code = code
+        self.asset = asset
+        self.expected_sha256 = expected_sha256
+        self.actual_sha256 = actual_sha256
+        super().__init__(message)
+
 
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -35,17 +42,17 @@ def local_file(root: Path, name: str) -> Path:
     if candidate.is_symlink() or not candidate.resolve().is_relative_to(root.resolve()):
         raise AssetPackError(f'Linked asset outside pack: {name}')
     if not candidate.is_file():
-        raise AssetPackError(f'Missing asset: {name}')
+        raise AssetPackError(f'Missing asset: {name}', code='asset_missing', asset=name)
     return candidate
 
 
 def load_manifest(manifest: Path, expected_digest: str) -> dict:
     raw = manifest.read_bytes()
     if not re.fullmatch(r'[0-9a-f]{64}', expected_digest) or hashlib.sha256(raw).hexdigest() != expected_digest:
-        raise AssetPackError('Asset manifest digest mismatch')
+        raise AssetPackError('Asset manifest digest mismatch', code='manifest_digest_mismatch')
     data = json.loads(raw)
     if data.get('schema_version') != 1 or data.get('release_status') != 'verified':
-        raise AssetPackError('Asset pack release is blocked or schema unsupported')
+        raise AssetPackError('Asset pack release is blocked or schema unsupported', code='release_blocked')
     if not data.get('runtime_compatibility') or not data.get('files'):
         raise AssetPackError('Asset manifest lacks runtime compatibility or files')
     seen = set()
@@ -55,7 +62,7 @@ def load_manifest(manifest: Path, expected_digest: str) -> dict:
             raise AssetPackError(f'Duplicate path or unpinned digest: {name}')
         seen.add(name)
         if not all(entry.get(key) for key in ('source', 'revision', 'license', 'license_evidence')):
-            raise AssetPackError(f'Missing provenance or redistribution review: {name}')
+            raise AssetPackError(f'Missing provenance or redistribution review: {name}', code='asset_review_missing', asset=name)
     for entry in data['files']:
         if entry['license_evidence'] not in seen:
             raise AssetPackError(f'License evidence is not inventoried: {entry["path"]}')
@@ -70,8 +77,10 @@ def verify(root: Path, manifest: dict) -> None:
         if path.is_file() and path != root / 'manifest.json' and path.relative_to(root).as_posix() not in expected:
             raise AssetPackError(f'Uninventoried asset: {path.relative_to(root)}')
     for entry in manifest['files']:
-        if sha256(local_file(root, entry['path'])) != entry['sha256']:
-            raise AssetPackError(f'Asset checksum mismatch: {entry["path"]}')
+        observed = sha256(local_file(root, entry['path']))
+        if observed != entry['sha256']:
+            raise AssetPackError(f'Asset checksum mismatch: {entry["path"]}', code='asset_digest_mismatch',
+                                 asset=entry['path'], expected_sha256=entry['sha256'], actual_sha256=observed)
 
 
 

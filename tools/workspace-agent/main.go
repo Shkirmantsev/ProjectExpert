@@ -44,6 +44,12 @@ func command(args ...string) (string, error) {
 func contextName() (string, error) { return command("context", "show") }
 func excluded(name string) bool {
 	name = filepath.ToSlash(name)
+	parts := strings.Split(strings.ToLower(name), "/")
+	for i := 0; i+1 < len(parts); i++ {
+		if parts[i] == ".claude" && parts[i+1] == "worktrees" {
+			return true
+		}
+	}
 	if name == ".idea/workspace.xml" || strings.HasSuffix(name, "/.idea/workspace.xml") {
 		return true
 	}
@@ -62,7 +68,28 @@ func excluded(name string) bool {
 	}
 	return false
 }
+
+var errStopRequested = errors.New("workspace quiesced before transfer")
+
+func stopRequested(kit string) bool {
+	_, err := os.Stat(filepath.Join(kit, "workspace-stop"))
+	return err == nil
+}
+func scanUntilStopped(root, kit string) (Manifest, error) {
+	// Avoid an extra NTFS stat per source while keeping cancellation responsive.
+	nextCheck := time.Time{}
+	return scanControlled(root, func() bool {
+		if time.Now().Before(nextCheck) {
+			return false
+		}
+		nextCheck = time.Now().Add(100 * time.Millisecond)
+		return stopRequested(kit)
+	}, kit)
+}
 func scan(root string, omit ...string) (Manifest, error) {
+	return scanControlled(root, nil, omit...)
+}
+func scanControlled(root string, stopped func() bool, omit ...string) (Manifest, error) {
 	policy, policyErr := loadPolicy(root)
 	if policyErr != nil {
 		return Manifest{}, policyErr
@@ -71,6 +98,9 @@ func scan(root string, omit ...string) (Manifest, error) {
 	var total int64
 	seen := map[string]bool{}
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, e error) error {
+		if stopped != nil && stopped() {
+			return errStopRequested
+		}
 		if e != nil {
 			return e
 		}
@@ -281,12 +311,21 @@ func writeWorkspaceEnv(c Config, kit string) error {
 	return saveBytes(filepath.Join(kit, "workspace.env"), []byte(env))
 }
 func syncRepo(c Config, kit string) error {
-	lock, e := operationLock(filepath.Join(kit, "workspace-operation.lock"))
-	if e != nil {
-		return e
+	deadline := time.Now().Add(120 * time.Second)
+	for {
+		if stopRequested(kit) {
+			return errStopRequested
+		}
+		lock, err := supervisorLock(filepath.Join(kit, "workspace-operation.lock"))
+		if err == nil {
+			defer lock.Close()
+			return syncRepoLocked(c, kit)
+		}
+		if time.Now().After(deadline) {
+			return errors.New("workspace operation lock timed out")
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
-	defer lock.Close()
-	return syncRepoLocked(c, kit)
 }
 
 // firstChangedSource makes a volatile source actionable without exposing contents.
@@ -313,6 +352,14 @@ func firstChangedSource(before, after Manifest) string {
 	return "VCS metadata"
 }
 func syncRepoLocked(c Config, kit string) error {
+	started := time.Now()
+	phase := func(name string, count int) {
+		save(filepath.Join(kit, "workspace-operation-status.json"), map[string]any{
+			"schema_version": 1, "operation": "sync", "phase": name, "scan_entries": count,
+			"stop_requested": stopRequested(kit), "elapsed_seconds": time.Since(started).Seconds()})
+	}
+	phase("scan", 0)
+	defer phase("idle", 0)
 	if e := pinned(c); e != nil {
 		return e
 	}
@@ -324,11 +371,11 @@ func syncRepoLocked(c Config, kit string) error {
 			hashCache = map[string]cachedHash{}
 		}
 	}
-	m, e := scan(c.Repo, kit)
+	m, e := scanUntilStopped(c.Repo, kit)
 	if e != nil {
 		return e
 	}
-	confirm, err := scan(c.Repo, kit)
+	confirm, err := scanUntilStopped(c.Repo, kit)
 	if err != nil {
 		return err
 	}
@@ -349,6 +396,12 @@ func syncRepoLocked(c Config, kit string) error {
 	if err = json.Unmarshal([]byte(raw), &old); err != nil {
 		return err
 	}
+	if stopRequested(kit) {
+		return errStopRequested
+	}
+	// After starting the importer, let its atomic commit finish; stop reports
+	// pending at its deadline rather than terminating the publisher.
+	phase("transfer-and-commit", len(m.Files))
 	args := []string{"--context", c.Context, "run", "--rm", "-i", "--network", "none", "--mount", "type=volume,src=" + c.Workspace + ",dst=/repo", "--entrypoint", "python", c.Image, "-m", "pi_platform.adapters.sync.workspace_importer", "--owner-uid", fmt.Sprint(c.UID), "--owner-gid", fmt.Sprint(c.GID)}
 	cmd := exec.Command("docker", args...)
 	stdin, e := cmd.StdinPipe()
@@ -447,6 +500,12 @@ func run() error {
 	}
 	switch action {
 	case "sync":
+		// An explicit startup/manual sync resumes a previously quiesced kit.
+		if stopRequested(k) {
+			if err := resumeQuiesced(k); err != nil {
+				return err
+			}
+		}
 		return syncRepo(c, k)
 	case "context":
 		if e = pinned(c); e != nil {
@@ -476,6 +535,12 @@ func run() error {
 				status["backup"] = backupState
 			}
 		}
+		if raw, err := os.ReadFile(filepath.Join(k, "workspace-operation-status.json")); err == nil {
+			var operationState any
+			if json.Unmarshal(raw, &operationState) == nil {
+				status["operation"] = operationState
+			}
+		}
 		output, e := json.MarshalIndent(status, "", "  ")
 		if e != nil {
 			return e
@@ -483,18 +548,15 @@ func run() error {
 		fmt.Println(string(output))
 		return nil
 	case "stop":
-		if e = os.WriteFile(filepath.Join(k, "workspace-stop"), []byte("stop"), 0600); e != nil {
-			return e
-		}
-		deadline := time.Now().Add(120 * time.Second)
-		for time.Now().Before(deadline) {
-			if f, err := supervisorLock(filepath.Join(k, "workspace-supervisor.lock")); err == nil {
-				f.Close()
-				return nil
+		timeout := 15 * time.Second
+		if raw := os.Getenv("PI_WORKSPACE_STOP_TIMEOUT_SECONDS"); raw != "" {
+			parsed, err := time.ParseDuration(raw + "s")
+			if err != nil || parsed < time.Second || parsed > 120*time.Second {
+				return errors.New("stop timeout must be 1..120 seconds")
 			}
-			time.Sleep(100 * time.Millisecond)
+			timeout = parsed
 		}
-		return errors.New("supervisor stop pending; active operation did not finish within 120 seconds")
+		return quiesce(k, timeout)
 	case "supervise":
 		lock := filepath.Join(k, "workspace-supervisor.lock")
 		f, e := supervisorLock(lock)
@@ -512,14 +574,22 @@ func run() error {
 				return nil
 			}
 			e = syncRepo(c, k)
+			if errors.Is(e, errStopRequested) {
+				return nil
+			}
 			if e != nil {
 				save(filepath.Join(k, "workspace-status.json"), map[string]string{"error": e.Error()})
-				time.Sleep(backoff)
+				if waitForStop(k, backoff) {
+					return nil
+				}
 				if backoff < 30*time.Second {
 					backoff *= 2
 				}
 			} else {
 				backoff = time.Second
+				if stopRequested(k) {
+					return nil
+				}
 				if os.Getenv("PI_RUNTIME_BACKUP") != "off" {
 					generation, err := activeGeneration(c)
 					interval := 30 * time.Minute
@@ -549,6 +619,58 @@ func run() error {
 		return errors.New("unknown action")
 	}
 }
+
+func waitForStop(kit string, duration time.Duration) bool {
+	deadline := time.Now().Add(duration)
+	for time.Now().Before(deadline) {
+		if stopRequested(kit) {
+			return true
+		}
+		remaining := time.Until(deadline)
+		if remaining > 100*time.Millisecond {
+			remaining = 100 * time.Millisecond
+		}
+		time.Sleep(remaining)
+	}
+	return stopRequested(kit)
+}
+
+func resumeQuiesced(kit string) error {
+	supervisor, err := supervisorLock(filepath.Join(kit, "workspace-supervisor.lock"))
+	if err != nil {
+		return errors.New("STOP_PENDING: supervisor has not quiesced")
+	}
+	defer supervisor.Close()
+	operation, err := supervisorLock(filepath.Join(kit, "workspace-operation.lock"))
+	if err != nil {
+		return errors.New("STOP_PENDING: operation has not quiesced")
+	}
+	defer operation.Close()
+	return os.Remove(filepath.Join(kit, "workspace-stop"))
+}
+
+// Signal first; never wait on the operation lock before asking the scanner to stop.
+func quiesce(kit string, timeout time.Duration) error {
+	if err := os.WriteFile(filepath.Join(kit, "workspace-stop"), []byte("stop"), 0600); err != nil {
+		return err
+	}
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		supervisor, err := supervisorLock(filepath.Join(kit, "workspace-supervisor.lock"))
+		if err == nil {
+			operation, opErr := supervisorLock(filepath.Join(kit, "workspace-operation.lock"))
+			if opErr == nil {
+				operation.Close()
+				supervisor.Close()
+				return save(filepath.Join(kit, "workspace-operation-status.json"), map[string]any{"schema_version": 1, "state": "quiesced", "stop_requested": true})
+			}
+			supervisor.Close()
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return errors.New("STOP_PENDING: workspace operation still owns its OS lock; retry stop after safe commit; inspect workspace-operation-status.json")
+}
+
 func main() {
 	if e := run(); e != nil {
 		fmt.Fprintln(os.Stderr, e)

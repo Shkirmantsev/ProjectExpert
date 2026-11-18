@@ -4,7 +4,9 @@ Canonical files are read-only. Parsed chunks are reused across model switches;
 vectors are persisted by embedding profile. Only callers publish the returned
 candidate after checking the source version and committing its snapshot.
 """
+from pi_platform.core.ingest.failures import CandidateIndexingError
 from dataclasses import replace
+from collections import Counter
 import hashlib
 import json
 from pathlib import Path
@@ -288,7 +290,16 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         # remains a projection at the embedding adapter boundary.
         chunkers.register(PdfStructuralChunker())
     parallel = durable_cache is not None and os.environ.get('PI_INDEX_PARALLEL', '1') == '1'
-    driver = LocalPipelineDriver(parser_registry=parsers, chunker_registry=chunkers, cache=cache,
+    from pi_platform.core.ingest.source_decoding_policy import SourceDecodingPolicy, supported_policy_target
+    try:
+        decoding_policy = SourceDecodingPolicy.load(cache_root)
+        # Validate conflicting rules before submitting any parser work.
+        for entry in inventory.entries:
+            if decoding_policy.profile(entry.path) and not supported_policy_target(entry.path, _family(entry.path)):
+                raise ValueError('Legacy decoding rules require a Java or plain-text source')
+    except ValueError as exc:
+        raise CandidateIndexingError({'configuration_error': 1}) from exc
+    driver = LocalPipelineDriver(decoding_policy=decoding_policy, parser_registry=parsers, chunker_registry=chunkers, cache=cache,
                                  parse_workers=None if parallel else 1, parallel_safe_registry=True)
     failures, sources = [], []
     for entry in inventory.entries:
@@ -356,16 +367,13 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
                 failures.append({'path': source.metadata.sourcePath, 'error': report.error_message,
                                  'category': report.error_category})
                 if report.error_category in {"configuration_error", "internal_error"}:
-                    from pi_platform.core.sync.export_policy import diagnostic_source
-                    label = ('protected source' if diagnostic_source(source) == 'protected-source'
-                             else source.metadata.sourcePath)
-                    raise RuntimeError(f"Ingestion failed for {label}: {report.error_message}")
+                    raise CandidateIndexingError({report.error_category: 1})
         degraded = sum(report.ok and report.degraded for report in reports)
         progress('sources', len(sources) + len(media_sources), len(cache.source_ids()), len(failures), degraded,
                  state='failed' if failures else 'complete')
         require_complete = os.environ.get('PI_INDEX_REQUIRE_COMPLETE', '1') == '1'
         if durable_cache is not None and not restore_only and require_complete and (failures or len(reports) != len(sources)):
-            raise RuntimeError(f'Incomplete ingestion blocks publication: {len(failures)} failed sources')
+            raise CandidateIndexingError(dict(Counter(f['category'] for f in failures)) or {'internal_error': 1})
     finally:
         if pdf_db is not None:
             pdf_db.commit()
@@ -457,7 +465,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
     exact_path = cache_root / 'indexes' / 'exact' / (corpus_hash + '.sqlite')
     exact_path.parent.mkdir(parents=True, exist_ok=True)
     if durable_cache is not None and require_complete and failures:
-        raise RuntimeError(f'Incomplete ingestion blocks publication: {len(failures)} failed sources')
+        raise CandidateIndexingError(dict(Counter(f['category'] for f in failures)) or {'internal_error': 1})
     from pi_platform.adapters.runtime.candidate_artifacts import build_exact
     exact = build_exact(exact_path, [(cid, hit.snippet) for cid, hit in catalog.items()], corpus_hash,
                         progress=lambda completed, total: progress('exact', total, completed,

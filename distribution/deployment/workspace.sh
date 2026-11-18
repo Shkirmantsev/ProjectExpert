@@ -22,7 +22,7 @@ workspace_repo=${PI_TARGET_REPO:-$(workspace_value PI_TARGET_REPO)}
 if [ "$workspace_managed" = 1 ]; then workspace_repo=$(cd -- "${workspace_repo:-..}" && pwd -P); fi
 # Only documented helper settings cross the data/command boundary.
 if [ "$workspace_managed" = 1 ]; then
-  for workspace_key in PI_WORKSPACE_EXCLUDE PI_WORKSPACE_MAX_FILE_BYTES PI_RUNTIME_BACKUP PI_RUNTIME_BACKUP_DIR PI_RUNTIME_BACKUP_INTERVAL_MINUTES PI_RUNTIME_BACKUP_INTERVAL_SECONDS PI_WORKSPACE_DEBOUNCE_MS PI_WORKSPACE_VERIFY_INTERVAL_SECONDS; do
+  for workspace_key in PI_WORKSPACE_EXCLUDE PI_WORKSPACE_MAX_FILE_BYTES PI_RUNTIME_BACKUP PI_RUNTIME_BACKUP_DIR PI_RUNTIME_BACKUP_INTERVAL_MINUTES PI_RUNTIME_BACKUP_INTERVAL_SECONDS PI_WORKSPACE_DEBOUNCE_MS PI_WORKSPACE_VERIFY_INTERVAL_SECONDS PI_WORKSPACE_STOP_TIMEOUT_SECONDS; do
     if [ -z "${!workspace_key:-}" ]; then
       workspace_setting=$(workspace_value "$workspace_key")
       if [ -n "$workspace_setting" ]; then export "$workspace_key=$workspace_setting"; fi
@@ -43,7 +43,7 @@ workspace_before() {
   [ "$workspace_managed" = 1 ] || return 0
   case " $* " in
     *" up "*|*" run "*|*" restart "*) workspace_agent prepare; workspace_agent sync ;;
-    *" down "*) workspace_agent backup || echo "Warning: workspace backup failed" >&2; workspace_agent stop ;;
+    *" down "*) workspace_agent stop || return; case " $* " in *" backup "*) workspace_agent backup || return ;; esac ;;
     *" stop "*) workspace_agent stop ;;
   esac
   case " $* " in

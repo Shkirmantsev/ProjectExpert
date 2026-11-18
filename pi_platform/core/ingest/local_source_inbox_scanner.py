@@ -100,7 +100,8 @@ class LocalSourceInboxScanner(LocalSourceInboxScannerPort):
                     rel = directory.relative_to(root).as_posix() + "/"
                     excluded = any(fnmatch.fnmatch(rel, pattern) for pattern in patterns)
                     keep = any(rel.startswith(prefix) or prefix.startswith(rel) for prefix in prefixes)
-                    if directory.is_symlink() or name in blocked or (excluded and not keep):
+                    from pi_platform.core.ingest.repository_source_discovery import is_generated_worktree
+                    if directory.is_symlink() or name in blocked or is_generated_worktree(rel) or (excluded and not keep):
                         dirs.remove(name)
                 for name in names:
                     yield Path(folder) / name
@@ -165,7 +166,7 @@ class LocalSourceInboxScanner(LocalSourceInboxScannerPort):
             )
             current[str(path)] = source
             # Driver owns content/body reuse; scanner skips only explicitly completed source hashes.
-            if self.cache is not None and self.cache.source_is_current(
+            if not context.extra.get('pipeline_compatibility_check', False) and self.cache is not None and self.cache.source_is_current(
                 sid,
                 digest,
                 content_address(to_canonical_json(source.metadata).decode()),

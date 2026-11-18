@@ -1,0 +1,68 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Final unchanged-code full gate running; prior full suite passed2138 tests/167 suites with21 skips, but manifest needed refresh after late review edits."
+  ],
+  "decisions": [
+    "Preserve accepted fail-closed readiness after refresh failure; attachment suggestion of stale-query serving conflicts with existing readiness/security tests. Last-good durable generation is retained for recovery, not silently advertised ready."
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Software repair complete with three structured local commits; required tests, diff review and final manifest PASS; tracked source tree ready for owner push"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Owner pushes commits and installs a paired app/deployment kit for backed-up Windows corporate corpus, physical GPU, NTFS and first-PDF acceptance. No push/merge/live upgrade performed.",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-18T11:09:16+00:00",
+    "id": "repair-production-ingestion",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-18T11:50:27+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Strict lossless multilingual source decoding with affected-only cache invalidation; no source rewrites or weaker completeness/export/asset checks; focused regression tests and full harness; local commits only"
+    ],
+    "goal": "Repair production multilingual decoding, duplicate scans, retries and Windows lifecycle/diagnostics from audited design",
+    "openspec_change": "repair-production-ingestion",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Final full harness PASS2140 tests/167 suites/21 skips; final offline Python3.11 38 PASS; final manifest1644 PASS; OpenSpec98/Wiki138 PASS"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "distribution/deployment/setup-windows-accelerator.ps1",
+      "sha256": "6b1cce9dd0871fdf82c64b8bbb4bc4628e9b0dd381306b5a7eabaeb5c510b624"
+    },
+    {
+      "path": "pi_platform/core/ingest/source_decoding_policy.py",
+      "sha256": "69919883eda496e314c8fce646e3cadbae11e4f39f910740caf7739d111dd93b"
+    },
+    {
+      "path": "pi_platform/core/sync/version_monitor.py",
+      "sha256": "4ec84f7c0bdb50ae94d29f6b00a1fac74cd42601ab298406d1e79ad5a9705bdb"
+    },
+    {
+      "path": "tools/workspace-agent/main.go",
+      "sha256": "4c9b22ad50b966010a11f3374ac837230a21246100365141f1b8b77b74609012"
+    }
+  ]
+}

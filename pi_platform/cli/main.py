@@ -820,6 +820,8 @@ def _cmd_ingest_sources(args: argparse.Namespace) -> int:
             cache._store = {k: v.encode() for k, v in saved.get("records", {}).items()}
             cache._sources = saved.get("sources", {})
             cache._owners = {k: set(v) for k, v in saved.get("owners", {}).items()}
+        from ..core.ingest.source_decoding_policy import SourceDecodingPolicy
+        decoding_policy = SourceDecodingPolicy.load(cache_root)
         scanner = LocalSourceInboxScanner(cache)
         from ..core.canonical.value_types import Source, dataclass_from_dict
 
@@ -860,6 +862,7 @@ def _cmd_ingest_sources(args: argparse.Namespace) -> int:
                     "max_source_bytes": inbox_config.get(
                         "maxSourceBytes", 256 * 1024 * 1024
                     ),
+                    "pipeline_compatibility_check": True,
                     "processing_fingerprint": hashlib.sha256(
                         json.dumps(config, sort_keys=True).encode()
                     ).hexdigest()
@@ -875,6 +878,7 @@ def _cmd_ingest_sources(args: argparse.Namespace) -> int:
             compute_version_identity(target) if (target / ".git").exists() else None
         )
         driver = LocalPipelineDriver(
+            decoding_policy=decoding_policy, decoding_root=target,
             parser_registry=registry,
             cache=cache,
             project_version=version,
@@ -924,7 +928,7 @@ def _cmd_ingest_sources(args: argparse.Namespace) -> int:
     print(
         json.dumps(
             {
-                "reports": [dataclass_to_dict(r) for r in reports],
+                "reports": [dataclass_to_dict(r) for r in reports if not r.ok or r.cache_miss_count],
                 "skipped": len(scan.skipped_paths),
                 "deleted_source_ids": list(scan.deleted_source_ids),
                 "cache_root": str(cache_root),
@@ -1196,10 +1200,11 @@ def _cmd_serve(args: argparse.Namespace) -> int:
                         'new_vectors': getattr(report, 'embedded_count', 0),
                         'reused_vectors': getattr(report, 'reused_count', 0),
                         'figure_assets_regenerated': runtime.extra.get('figure_assets_regenerated', 0)}
-            except Exception:
+            except Exception as exc:
                 # A manual retry can fail with no source edit. Ask the serving
                 # monitor to retry rather than leaving a stable tree unready.
-                if server.refresh_requested is not None:
+                from ..core.ingest.failures import CandidateIndexingError
+                if not isinstance(exc, CandidateIndexingError) and server.refresh_requested is not None:
                     server.refresh_requested()
                 raise
         elif kind == 'knowledge.restore':
@@ -1225,7 +1230,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
             service=service, readiness=readiness, **kw), authenticated_operator=bool(server.token), local_operator=server.local_admin_enabled)
     server.admin_routes.knowledge_sync = knowledge_sync
     server.admin_routes.job_executor = execute_admin_job
-    monitor = PollingProjectVersionMonitor(target, on_change=refresh, on_error=failed)
+    monitor = PollingProjectVersionMonitor(target, on_change=refresh, on_error=failed, cache_root=cache_root)
     server.refresh_requested = monitor.request_refresh
     server.start_background()
     print(json.dumps({
@@ -1265,7 +1270,7 @@ def _cmd_mcp_serve(args: argparse.Namespace) -> int:
     def failed(exc):
         readiness.record_failure(str(exc))
         readiness.end_refresh()
-    monitor = PollingProjectVersionMonitor(target, on_change=refresh, on_error=failed)
+    monitor = PollingProjectVersionMonitor(target, on_change=refresh, on_error=failed, cache_root=cache_root)
     if auto_hydrate:
         try:
             monitor.poll_once()
@@ -2443,7 +2448,7 @@ def _bootstrap_and_index_target_locked(
     from ..adapters.orchestration.managed_runtime import apply_selection
     managed_execution = apply_selection(cache_root, initial_config.embedding_model, initial_config.embedding_device)
 
-    before = read_project_version(target)
+    before = read_project_version(target, cache_root=cache_root)
     transient_readiness = DefaultKnowledgeReadiness()
     hydrate_report = hydrate_and_reconcile_target(
         target, cache_root, transient_readiness, lock_held=True, persist_state=False,
@@ -2463,19 +2468,27 @@ def _bootstrap_and_index_target_locked(
         previous_inventory=prev_inv,
         new_inventory=fresh_inv,
     )
-    runtime = index_repository(
-        target=target, cache_root=cache_root, inventory=merged_inv,
-        previous_inventory=prev_inv, settings=settings, restore_only=restore_only,
-        cli_overrides={
-            **operator_overrides,
-            **({"embedding_model": model_alias} if model_alias else {}),
-            **({"embedding_device": device} if device else {}),
-        },
-    )
+    try:
+        runtime = index_repository(
+            target=target, cache_root=cache_root, inventory=merged_inv,
+            previous_inventory=prev_inv, settings=settings, restore_only=restore_only,
+            cli_overrides={
+                **operator_overrides,
+                **({"embedding_model": model_alias} if model_alias else {}),
+                **({"embedding_device": device} if device else {}),
+            },
+        )
+    except Exception as exc:
+        from ..core.ingest.failures import CandidateIndexingError
+        if isinstance(exc, CandidateIndexingError):
+            # Bind the actual attempted input, including first-start settings;
+            # never re-read here and accidentally swallow a later source edit.
+            exc.candidate_state = before
+        raise
     if managed_execution is not None:
         runtime.extra["managed_execution"] = managed_execution
     merged_inv = runtime.extra.get("source_inventory", merged_inv)
-    after = read_project_version(target)
+    after = read_project_version(target, cache_root=cache_root)
     if after != before:
         raise RuntimeError("Project version changed during indexing; refresh will retry")
 
@@ -2584,7 +2597,7 @@ def _bootstrap_and_index_target_locked(
                         f'{(cache_root / "indexing-state.sqlite").as_uri()}?mode=ro', uri=True)) as db:
                     if _active(db) != runtime.extra["index_job_id"]:
                         raise RuntimeError("Generation moved after portable publication")
-                    current_version = read_project_version(target)
+                    current_version = read_project_version(target, cache_root=cache_root)
                     if current_version.head != before.head or current_version.branch != before.branch:
                         raise RuntimeError("Checkout moved after portable publication")
                     actual_sources = {e.path: e.content_hash for e in discovery.discover(target).entries}

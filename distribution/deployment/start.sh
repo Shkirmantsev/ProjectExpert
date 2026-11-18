@@ -8,5 +8,6 @@ bash ./compose.sh up -d --wait --wait-timeout "${PI_WAIT_TIMEOUT:-1800}"
 ready=$(bash ./url.sh)
 printf '%s\n' "$ready"
 if [ "${PI_OPEN_BROWSER:-1}" != 0 ] && command -v xdg-open >/dev/null 2>&1; then
-  xdg-open "${ready#Ready: }" >/dev/null 2>&1 || true
+  browser_url=${ready%%$'\n'*}
+  xdg-open "${browser_url#Service URL: }" >/dev/null 2>&1 || true
 fi
