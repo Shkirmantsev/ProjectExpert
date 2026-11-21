@@ -75,6 +75,14 @@ class WorkspaceDeploymentTests(unittest.TestCase):
                 if profile and profile != ['compose.windows-gpu.yaml']:
                     self.assertEqual(ordinary['services']['embeddings']['depends_on']['model-setup']['condition'],
                                      'service_completed_successfully')
+                    override = {**env, 'PI_LLAMA_PORT': '9009', 'PI_SIDECAR_LLAMA_AUTH': 'none'}
+                    custom = compose_config(args, override)['services']
+                    self.assertEqual(custom['production']['environment']['PI_LLAMA_ENDPOINT'], 'http://embeddings:9009')
+                    self.assertEqual(custom['production']['environment']['PI_LLAMA_AUTH'], 'none')
+                    self.assertIn('9009', custom['embeddings']['command'])
+                    self.assertIn('http://127.0.0.1:9009/health', custom['embeddings']['healthcheck']['test'])
+                    self.assertNotIn('ports', custom['embeddings'])
+                self.assertNotIn('extra_hosts', ordinary['services']['production'])
                 mounts = {v['target']: v for v in managed['services']['production'].pop('volumes')}
                 original = {v['target']: v for v in ordinary['services']['production'].pop('volumes')}
                 self.assertEqual(managed['services'], ordinary['services'])

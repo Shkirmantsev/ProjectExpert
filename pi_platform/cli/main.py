@@ -451,6 +451,13 @@ def build_parser() -> argparse.ArgumentParser:
                                      help="warm-up requests (default: 5)")
     inference_benchmark.add_argument("--timeout", type=float, default=120.0,
                                      help="per-request timeout in seconds")
+    inference_route = inference_sub.add_parser(
+        "native-route", help="verify the native Windows embedding route from this container",
+    )
+    inference_route.add_argument("--host-ip", action="append", default=[])
+    inference_route.add_argument("--port", type=int, default=8769)
+    inference_route.add_argument("--model", required=True)
+    inference_route.add_argument("--host-only", action="store_true")
 
     return parser
 

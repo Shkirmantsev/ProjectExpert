@@ -248,11 +248,19 @@ def cmd_doctor(args) -> int:
     return 0
 
 
+def _validate_benchmark_embedding(result) -> None:
+    rows = result.get("data", []) if isinstance(result, dict) else []
+    vector = rows[0].get("embedding", []) if rows and isinstance(rows[0], dict) else []
+    if len(vector) != 768 or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in vector):
+        raise ValueError("benchmark endpoint did not return a valid 768-dimensional embedding")
+
+
 def _benchmark_client(args):
     """Return a callable that embeds one text through the runtime."""
 
     import urllib.error
     import urllib.request
+    from pi_platform.adapters.retrieval.llama_cpp_embedding_model import _NoRedirect
 
     endpoint = (
         getattr(args, "endpoint", None)
@@ -262,7 +270,7 @@ def _benchmark_client(args):
         os.environ.get("PI_LLAMA_API_KEY_FILE", "/models/llama-api-key")
     )
     token = ""
-    if key_file.is_file():
+    if os.environ.get("PI_LLAMA_AUTH") != "none" and key_file.is_file():
         try:
             token = key_file.read_text().strip().splitlines()
             token = next(
@@ -276,6 +284,10 @@ def _benchmark_client(args):
     if len(token) >= 32:
         headers["Authorization"] = "Bearer " + token
     timeout = float(getattr(args, "timeout", None) or 120)
+    handlers = [_NoRedirect()]
+    if os.environ.get("PI_LLAMA_DIRECT") == "1":
+        handlers.append(urllib.request.ProxyHandler({}))
+    opener = urllib.request.build_opener(*handlers)
 
     def embed(text: str) -> None:
         request = urllib.request.Request(
@@ -285,14 +297,26 @@ def _benchmark_client(args):
             }).encode(),
             headers=headers,
         )
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with opener.open(request, timeout=timeout) as response:
             result = json.loads(response.read(1024 * 1024))
-        rows = result.get("data", []) if isinstance(result, dict) else []
-        vector = rows[0].get("embedding", []) if rows and isinstance(rows[0], dict) else []
-        if len(vector) != 768 or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in vector):
-            raise ValueError("benchmark endpoint did not return a valid 768-dimensional embedding")
+        _validate_benchmark_embedding(result)
 
     return embed, endpoint
+
+
+def cmd_native_route(args) -> int:
+    from pi_platform.deployment.native_route import verify_native_route
+
+    result = verify_native_route(
+        port=args.port,
+        model=args.model,
+        host_ips=args.host_ip,
+        key_file=Path(os.environ.get("PI_LLAMA_API_KEY_FILE", "/accelerator/llama-api-key")),
+        host_only=args.host_only,
+        auth=os.environ.get("PI_LLAMA_AUTH", "managed-token"),
+    )
+    print(json.dumps(result))
+    return 0 if result["ok"] else 1
 
 
 def cmd_benchmark(args) -> int:
@@ -352,8 +376,12 @@ def cmd_status(args) -> int:
     key_file = Path(
         os.environ.get("PI_LLAMA_API_KEY_FILE", "/models/llama-api-key")
     )
+    from pi_platform.adapters.retrieval.llama_cpp_embedding_model import _NoRedirect
+
+    auth = os.environ.get("PI_LLAMA_AUTH", "managed-token")
     payload = {
         "endpoint": endpoint,
+        "auth": auth,
         "key_file": str(key_file),
         "key_present": key_file.is_file(),
         "reachable": False,
@@ -361,7 +389,7 @@ def cmd_status(args) -> int:
         "models": [],
     }
     token = None
-    if payload["key_present"]:
+    if auth != "none" and payload["key_present"]:
         try:
             token = key_file.read_text().strip().splitlines()
             token = next((line.strip() for line in token if line.strip() and not line.startswith("#")), "")
@@ -373,8 +401,11 @@ def cmd_status(args) -> int:
         # The bearer token is sent but never printed.
         headers["Authorization"] = "Bearer " + token
     request = urllib.request.Request(endpoint + "/v1/models", headers=headers)
+    handlers = [_NoRedirect()]
+    if os.environ.get("PI_LLAMA_DIRECT") == "1":
+        handlers.append(urllib.request.ProxyHandler({}))
     try:
-        with urllib.request.urlopen(request, timeout=5) as response:
+        with urllib.request.build_opener(*handlers).open(request, timeout=5) as response:
             payload["http_status"] = getattr(response, "status", 200)
             body = json.loads(response.read(1024 * 1024).decode("utf-8"))
     except (urllib.error.URLError, OSError, ValueError) as exc:
@@ -395,6 +426,7 @@ _HANDLERS = {
     "doctor": cmd_doctor,
     "status": cmd_status,
     "benchmark": cmd_benchmark,
+    "native-route": cmd_native_route,
 }
 
 

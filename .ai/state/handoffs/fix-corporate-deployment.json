@@ -1,0 +1,52 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Verified and committed the source recovery slice; deployment software gate passed and the paired release remains unverified on physical Windows"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "Implement the remaining OpenSpec publication and licensing steps, then exercise the paired release on the corporate host",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "continue",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-21T17:35:02+00:00",
+    "id": "fix-corporate-deployment",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-21T18:02:23+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Portable verified runtime startup, source failure recovery, and focused plus harness checks"
+    ],
+    "goal": "Repair corporate deployment and source recovery from the zero-workaround incident",
+    "openspec_change": "fix-corporate-deployment",
+    "status": "executing"
+  },
+  "verification": {
+    "passed": [
+      "Full harness PASS, 2144 tests across 168 suites with 21 skips; artifact manifest 1658 files"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "pi_platform/deployment/native_route.py",
+      "sha256": "8cbe93683132ba2b552a671abd6ae4a6c6c8d1db6d75ae2031796eb9d68a870d"
+    }
+  ]
+}

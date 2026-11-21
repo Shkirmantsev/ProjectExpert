@@ -18,6 +18,7 @@ profile's 512 dimensions and re-normalises afterwards.
 from __future__ import annotations
 
 import base64
+import ipaddress
 import json
 import math
 import mimetypes
@@ -136,6 +137,18 @@ class LlamaCppEmbeddingModel(EmbeddingModelPort):
         self.key_file = key_file or os.environ.get(
             "PI_LLAMA_API_KEY_FILE", "/models/llama-api-key"
         )
+        self.auth = os.environ.get("PI_LLAMA_AUTH", "managed-token")
+        if self.auth not in {"managed-token", "none"}:
+            raise EmbeddingModelError("PI_LLAMA_AUTH must be managed-token or none")
+        if self.auth == "none" and parsed.hostname != "embeddings":
+            try:
+                native = (os.environ.get("PI_LLAMA_NATIVE_PRIVATE") == "1" and
+                          os.environ.get("PI_LLAMA_DIRECT") == "1" and
+                          ipaddress.IPv4Address(parsed.hostname).is_private)
+            except ValueError:
+                native = False
+            if not native:
+                raise EmbeddingModelError("Tokenless embeddings require a verified private route")
         self.timeout = timeout
         self._calls = 0
         self._ready = False
@@ -146,19 +159,22 @@ class LlamaCppEmbeddingModel(EmbeddingModelPort):
 
     def _request(self, path, payload=None):
         try:
-            token = Path(self.key_file).read_text().strip()
-            if len(token) < 32:
-                raise ValueError("invalid runtime key")
+            headers = {"Content-Type": "application/json"}
+            if self.auth != "none":
+                token = Path(self.key_file).read_text().strip()
+                if len(token) < 32:
+                    raise ValueError("invalid runtime key")
+                headers["Authorization"] = "Bearer " + token
             body = None if payload is None else json.dumps(payload).encode()
             req = urllib.request.Request(
                 self.endpoint + path,
                 data=body,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token,
-                },
+                headers=headers,
             )
-            with urllib.request.build_opener(_NoRedirect).open(req, timeout=self.timeout) as response:
+            handlers = [_NoRedirect()]
+            if os.environ.get("PI_LLAMA_DIRECT") == "1":
+                handlers.append(urllib.request.ProxyHandler({}))
+            with urllib.request.build_opener(*handlers).open(req, timeout=self.timeout) as response:
                 raw = response.read(_MAX_RESPONSE_BYTES + 1)
                 if len(raw) > _MAX_RESPONSE_BYTES:
                     raise ValueError("embedding response exceeds size limit")

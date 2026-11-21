@@ -42,10 +42,12 @@ function global:docker {
         $candidate = @($request.candidates | Where-Object { $_.ok -and $_.backend -ne 'cpu' }) | Select-Object -First 1
         $backend='cpu';$device=$null
         if ($candidate) { $backend=$candidate.backend; $device=$(if ($backend -eq 'cuda') {'CUDA0'} else {'Vulkan1'}) }
-        @{ok=$true;backend=$backend;device=$device;fit_target_mib=192;rejected=@();server_args=@('--host','0.0.0.0','--model','/models/embeddinggemma-2-Q8_0.gguf')} | ConvertTo-Json -Depth 8
-    } elseif ($call -match 'inference benchmark') {
+        $port = $args[[Array]::IndexOf($args, '--port') + 1]
+        @{ok=$true;backend=$backend;device=$device;fit_target_mib=192;rejected=@();server_args=@('--host','0.0.0.0','--port',$port,'--model','/models/embeddinggemma-2-Q8_0.gguf')} | ConvertTo-Json -Depth 8
+    } elseif ($call -match 'inference native-route') {
         $global:routingSmoke++
-        '{"ok":true,"median_ms":2.5}'
+        $port = $args[[Array]::IndexOf($args, '--port') + 1]
+        @{ok=$true;endpoint="http://172.30.0.1:$port";route='host.rancher-desktop.internal';median_ms=2.5} | ConvertTo-Json
     }
 }
 try {
@@ -83,11 +85,12 @@ function Resolve-OptionalNativeCuda {
     foreach ($request in @('cuda','vulkan','auto','cpu')) {
         $global:routingStarted=$false
         Remove-Item (Join-Path $temporary 'accelerator/runtime-identity.json') -ErrorAction SilentlyContinue
-        & (Join-Path $temporary 'setup-windows-accelerator.ps1') -Backend $request
+        & (Join-Path $temporary 'setup-windows-accelerator.ps1') -Backend $request -Port 9009
         $plan=Get-Content (Join-Path $temporary 'accelerator/plan.json') -Raw | ConvertFrom-Json
         $expected=$(if ($request -eq 'auto') {'cuda'} else {$request})
         if ($plan.backend -ne $expected -or $plan.requestedBackend -ne $request) { throw 'Native selection lost request or selected backend' }
-        if ($expected -ne 'cpu' -and (-not $plan.embeddingSmoke.ok -or -not $global:routingStarted)) { throw 'Native GPU lacks serving-path smoke' }
+        if ($expected -ne 'cpu' -and (-not $plan.embeddingSmoke.ok -or -not $global:routingStarted -or
+            $plan.endpoint -ne 'http://172.30.0.1:9009')) { throw 'Native GPU lacks a verified serving route' }
     }
     $global:routingCudaMissing=$true;$global:routingStarted=$false
     & (Join-Path $temporary 'setup-windows-accelerator.ps1') -Backend auto

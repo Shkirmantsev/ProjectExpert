@@ -155,10 +155,12 @@ class BenchmarkValidationTests(unittest.TestCase):
         for payload in ({'error': 'not an embedding'}, {'data': [{'embedding': [0.1]}]},
                         {'data': [{'embedding': [float('nan')] * 768}]}):
             with self.subTest(payload=str(payload)[:80]):
-                embed, _ = _benchmark_client(SimpleNamespace(endpoint='http://localhost:8769'))
-                with patch('urllib.request.urlopen', return_value=io.BytesIO(json.dumps(payload).encode())):
+                with patch('urllib.request.build_opener') as build:
+                    build.return_value.open.return_value = io.BytesIO(json.dumps(payload).encode())
+                    embed, _ = _benchmark_client(SimpleNamespace(endpoint='http://localhost:8769'))
                     with self.assertRaises(ValueError):
                         embed('query')
-        embed, _ = _benchmark_client(SimpleNamespace(endpoint='http://localhost:8769'))
-        with patch('urllib.request.urlopen', return_value=io.BytesIO(json.dumps({'data': [{'embedding': [0.1] * 768}]}).encode())):
+        with patch('urllib.request.build_opener') as build:
+            build.return_value.open.return_value = io.BytesIO(json.dumps({'data': [{'embedding': [0.1] * 768}]}).encode())
+            embed, _ = _benchmark_client(SimpleNamespace(endpoint='http://localhost:8769'))
             embed('query')

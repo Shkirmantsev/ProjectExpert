@@ -8,4 +8,5 @@ $ErrorActionPreference = 'Stop'
 & (Join-Path $PSScriptRoot '../tests/windows_container_cuda.ps1')
 & (Join-Path $PSScriptRoot '../tests/windows_native_cuda.ps1')
 & (Join-Path $PSScriptRoot '../tests/windows_native_routing.ps1')
+& (Join-Path $PSScriptRoot '../tests/windows_external_llama.ps1')
 $global:LASTEXITCODE = 0

@@ -24,11 +24,25 @@ function Assert-NativeAssetDirectory([string]$Root) {
 }
 function Resolve-OptionalNativeCuda([string]$AppImage, [string]$PrimaryDigest) {
     $source = Get-WorkspaceValue 'PI_NATIVE_CUDA_SOURCE'
+    $digest = Get-WorkspaceValue 'PI_NATIVE_CUDA_MANIFEST_SHA256'
+    $base = Join-Path $PSScriptRoot 'accelerator/native-cuda'
+    if (-not $source -and -not $digest) {
+        $selectionPath = Join-Path $base 'selected.json'
+        if (Test-Path -LiteralPath $selectionPath -PathType Leaf) {
+            if ((Get-Item -LiteralPath $selectionPath).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                throw 'native_cuda_pack_invalid: linked selection'
+            }
+            $selection = Get-Content -LiteralPath $selectionPath -Raw | ConvertFrom-Json
+            if ($selection.schemaVersion -ne 1 -or $selection.primaryManifestSha256 -cne $PrimaryDigest) {
+                throw 'native_cuda_manifest_mismatch: selected native CUDA pack requires the matching primary release'
+            }
+            $source = 'operator-local'
+            $digest = [string]$selection.nativeManifestSha256
+        }
+    }
     if (-not $source -or $source -eq 'disabled') { throw 'native_cuda_pack_missing: import the pinned archives offline or configure a reviewed companion; default pack contains Vulkan only' }
     if ($source -notin @('operator-local','reviewed-oci')) { throw 'native_cuda_pack_unapproved: unsupported CUDA source' }
-    $digest = Get-WorkspaceValue 'PI_NATIVE_CUDA_MANIFEST_SHA256'
     if ($digest -notmatch '^[0-9a-f]{64}$') { throw 'native_cuda_manifest_mismatch: missing independent native manifest pin' }
-    $base = Join-Path $PSScriptRoot 'accelerator/native-cuda'
     New-Item -ItemType Directory -Force -Path $base | Out-Null
     $final = Join-Path $base $digest
     if (Test-Path -LiteralPath $final) {

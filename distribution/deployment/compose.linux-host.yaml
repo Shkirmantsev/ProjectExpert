@@ -1,0 +1,6 @@
+# Linux Docker Engine supplies no built-in host.docker.internal DNS record.
+# Desktop engines supply their own route and must not use this overlay.
+services:
+  production:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

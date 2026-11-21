@@ -36,9 +36,9 @@ weights or provider SDK are bundled.
 
 For LM Studio, start its API server and allow connections from Docker. A server
 bound only to host `127.0.0.1` may not accept connections via the host gateway;
-configure its listen address/authentication appropriately. The updated deployment
-kit adds `host.docker.internal:host-gateway` for Linux; an existing kit needs that
-`extra_hosts` entry under `production`, or use a reachable host LAN address.
+configure its listen address/authentication appropriately. The Linux kit launcher
+adds the host gateway for native Linux hosts. Windows engines supply their own
+host name resolution.
 Inside a container, `127.0.0.1` refers to that container. If using a direct
 Open WebUI-to-LM Studio connection instead, configure reachability for the
 Open WebUI container as well.

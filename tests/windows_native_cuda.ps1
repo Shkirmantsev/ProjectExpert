@@ -36,6 +36,15 @@ try {
     $directory = Resolve-OptionalNativeCuda 'app:fixture' ('2' * 64)
     if ($directory -notmatch 'native-cuda.*3333.*windows.*cuda') { throw 'Native runtime not isolated by manifest identity' }
     if (($global:nativeCalls -join "`n") -notmatch '--network none.*native_runtime_assets.*--mode operator-local') { throw 'Independent offline verifier not used' }
+    $env:PI_IMAGE = 'app:fixture'
+    $env:PI_ASSET_MANIFEST_SHA256 = '2' * 64
+    & (Join-Path $temporary 'native-cuda.ps1') -Action install -Source $env:PI_NATIVE_CUDA_LOCAL_ROOT -ManifestSha256 ('3' * 64)
+    $env:PI_NATIVE_CUDA_SOURCE = ''
+    $env:PI_NATIVE_CUDA_MANIFEST_SHA256 = ''
+    $env:PI_NATIVE_CUDA_LOCAL_ROOT = ''
+    if ((Resolve-OptionalNativeCuda 'app:fixture' ('2' * 64)) -ne $directory) {
+        throw 'Installed pack was not selected without environment settings'
+    }
     $global:invalidNative = $true
     $failed = $false
     try { Resolve-OptionalNativeCuda 'app:fixture' ('2' * 64) } catch { $failed = $true }

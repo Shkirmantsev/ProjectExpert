@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 Push-Location $PSScriptRoot
 try {
     docker info | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'Start Docker Desktop with Linux containers and WSL2 first.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Start the Docker engine selected by your CLI context in Linux-container mode. Check docker context show and docker info.' }
     $timeout = 1800
     if ($env:PI_WAIT_TIMEOUT) { $timeout = [int]$env:PI_WAIT_TIMEOUT }
     & (Join-Path $PSScriptRoot 'compose.ps1') up -d --wait --wait-timeout $timeout

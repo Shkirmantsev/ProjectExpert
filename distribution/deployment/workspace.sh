@@ -58,6 +58,9 @@ workspace_compose() {
     docker_arguments=(--context "$context")
     overlays=(--env-file workspace.env -f compose.workspace-volume.yaml)
   fi
+  if [ "$(uname -s)" = Linux ] && [[ "$(uname -r)" != *[Mm]icrosoft* ]]; then
+    overlays=(-f compose.linux-host.yaml "${overlays[@]}")
+  fi
   if [ "${PI_HOST_CA_MODE:-$(workspace_value PI_HOST_CA_MODE)}" != off ] && [ -f host-trust/host-ca-bundle.pem ]; then
     overlays+=(-f compose.host-trust.yaml)
   fi
