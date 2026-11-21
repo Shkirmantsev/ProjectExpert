@@ -12,6 +12,10 @@ _ALLOWED = {codecs.lookup(name).name for name in (
     'koi8-r', 'koi8-u', 'cp866', 'shift_jis', 'cp932', 'gb18030', 'big5', 'euc-kr', 'euc-jp')}
 
 
+def supported_legacy_encodings():
+    return sorted(_ALLOWED)
+
+
 def canonical_path(value):
     if not isinstance(value, str) or not value or '\\' in value or ':' in value or any(ord(c) < 32 for c in value):
         raise ValueError('Source encoding paths must be repository-relative POSIX paths')

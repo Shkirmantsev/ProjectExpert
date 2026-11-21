@@ -13,6 +13,9 @@ endif
 CLI = $(COMPOSE) exec -T production python -m pi_platform.cli
 WAIT_TIMEOUT ?= 1800
 MODEL ?= gemma
+LLAMA_PORT ?= 8769
+LLAMA_AUTH ?= managed-token
+GPU ?= vulkan
 # LLM is deliberately unset: normal startup preserves existing UI configuration.
 # Values are exported by NAME, never interpolated into shell command text.
 LLM ?=
@@ -28,7 +31,7 @@ else ifneq ($(strip $(LLM)),)
 $(error LLM must be 1 to configure/enable, 0 to disable, or omitted to preserve settings)
 endif
 
-.PHONY: help platform-start platform-stop platform-status platform-logs platform-pull platform-restart platform-init platform-hydrate platform-materialise platform-models platform-assets platform-model-pull platform-reindex platform-doctor platform-llm-configure platform-llm-status platform-llm-test platform-llm-disable eval eval-retrieval eval-chunk-size-sweep invariants metrics-gate
+.PHONY: help platform-start platform-stop platform-status platform-logs platform-pull platform-restart platform-init platform-hydrate platform-materialise platform-models platform-assets platform-model-pull platform-reindex platform-doctor platform-llm-configure platform-llm-status platform-llm-test platform-llm-disable platform-llama-start platform-llama-connect platform-trust-setup platform-gpu-install platform-index-failures eval eval-retrieval eval-chunk-size-sweep invariants metrics-gate
 
 help: ## List every command with a one-line description (default; changes nothing)
 	@printf '%s\n' "Project Intelligence deployment kit -- available commands"
@@ -40,6 +43,48 @@ help: ## List every command with a one-line description (default; changes nothin
 platform-start: ## Start the deployment and wait until the service reports readiness
 	$(COMPOSE) up -d --wait --wait-timeout $(WAIT_TIMEOUT)
 	@$(URL)
+
+platform-llama-start: export PI_LLAMA_PORT = $(LLAMA_PORT)
+platform-llama-start: export PI_SIDECAR_LLAMA_AUTH = $(LLAMA_AUTH)
+platform-llama-start: ## Start ProjectExpert with its pinned embedding server (LLAMA_PORT, LLAMA_AUTH)
+	$(COMPOSE) up -d --wait --wait-timeout $(WAIT_TIMEOUT)
+	@$(URL)
+
+platform-llama-connect: ## Connect a running native Windows llama-server (LLAMA_PORT, LLAMA_AUTH, LLAMA_TOKEN_FILE)
+platform-trust-setup: ## Refresh public host CA roots for container HTTPS
+platform-gpu-install: ## Prepare the pinned GPU runtime (GPU=cuda or GPU=vulkan)
+
+ifeq ($(OS),Windows_NT)
+platform-llama-connect: export PI_LLAMA_PORT = $(LLAMA_PORT)
+platform-llama-connect: export PI_NATIVE_LLAMA_AUTH = $(LLAMA_AUTH)
+platform-llama-connect: export PI_NATIVE_LLAMA_TOKEN_FILE = $(LLAMA_TOKEN_FILE)
+platform-llama-connect:
+	powershell -NoProfile -File ./llama-connect.ps1
+platform-trust-setup:
+	powershell -NoProfile -File ./host-trust.ps1
+ifeq ($(GPU),cuda)
+platform-gpu-install: export PI_GPU_PACK_ROOT = $(GPU_PACK)
+platform-gpu-install: export PI_GPU_PACK_SHA256 = $(GPU_PACK_SHA256)
+platform-gpu-install:
+	powershell -NoProfile -File ./native-cuda.ps1 -Action install
+else ifeq ($(GPU),vulkan)
+platform-gpu-install:
+	powershell -NoProfile -File ./setup-windows-accelerator.ps1 -Backend vulkan -AssetsOnly
+else
+platform-gpu-install:
+	@echo GPU must be cuda or vulkan
+	@exit 2
+endif
+else
+platform-llama-connect:
+	@printf '%s\n' 'Native Windows connection is only available on Windows. Use platform-llama-start for the Linux sidecar.' >&2
+	@exit 2
+platform-trust-setup:
+	bash ./host-trust.sh
+platform-gpu-install: export PI_GPU_INSTALL_BACKEND = $(GPU)
+platform-gpu-install:
+	bash ./compose.sh gpu-install
+endif
 platform-llm-configure: ## Save optional chat settings before startup (LLM_URL, LLM_MODEL, LLM_SHARE_CONTEXT=1)
 	$(CHAT_RUN) configure --from-env --enable --target /repo
 platform-llm-status: ## Show the same saved chat configuration as the UI (provider key hidden)
@@ -72,6 +117,8 @@ platform-model-pull: ## Explicit developer model pull (disabled for production o
 	$(CLI) models pull "$(MODEL)" --target /repo
 platform-reindex: ## Rebuild the retrieval index for the target repository
 	$(CLI) reindex --target /repo
+platform-index-failures: ## Show the private source-stage report (includes repository file paths)
+	$(COMPOSE) run --rm --no-deps -T production source-failures --target /repo
 platform-doctor: ## Diagnose the deployment runtime and the retrieval configuration
 	$(CLI) doctor --target /repo
 eval: ## Run the retrieval evaluation against the bundled fixture benchmark

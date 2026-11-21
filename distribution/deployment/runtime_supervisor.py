@@ -42,6 +42,16 @@ def server_arguments(base, device, fit_target):
 
 class Supervisor:
     def __init__(self, base):
+        port = int(base[base.index('--port')+1]) if '--port' in base else 8769
+        if not 1 <= port <= 65535 or port == 8770:
+            raise ValueError('Embedding port must be 1–65535 and must differ from control port 8770')
+        self.health_url = f'http://127.0.0.1:{port}/health'
+        auth = os.environ.get('PI_LLAMA_AUTH', 'managed-token')
+        if auth not in ('managed-token', 'none'):
+            raise ValueError('PI_SIDECAR_LLAMA_AUTH must be managed-token or none')
+        if auth == 'none' and '--api-key-file' in base:
+            index = base.index('--api-key-file')
+            base = base[:index] + base[index+2:]
         self.base=base
         self.device='none'
         if '--device' in base:
@@ -65,7 +75,7 @@ class Supervisor:
         if self.process is None or self.process.poll() is not None:
             return False
         try:
-            with urllib.request.urlopen('http://127.0.0.1:8769/health', timeout=2) as response:
+            with urllib.request.urlopen(self.health_url, timeout=2) as response:
                 return response.status == 200
         except OSError:
             return False

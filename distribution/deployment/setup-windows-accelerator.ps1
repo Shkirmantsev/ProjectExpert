@@ -7,7 +7,9 @@
 param(
     [ValidateSet('auto','cpu','vulkan','cuda')][string]$Backend = 'auto',
     [ValidateSet('gemma','gemma-torch')][string]$Model = 'gemma',
-    [switch]$RepairAssets
+    [ValidateRange(1,65535)][int]$Port = 8769,
+    [switch]$RepairAssets,
+    [switch]$AssetsOnly
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'native-process.ps1')
@@ -84,6 +86,10 @@ if ($stagedAssets) {
     }
     Move-Item -LiteralPath $offlineRoot -Destination $publishedRoot
     $offlineRoot = $publishedRoot
+}
+if ($AssetsOnly) {
+    Write-Output 'Pinned offline assets verified, including the native Vulkan runtime.'
+    return
 }
 
 function Get-VerifiedFile([string]$Name, [string]$Path, [string]$Hash) {
@@ -174,7 +180,7 @@ $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($evidenceJso
 # production service (--no-deps).
 $composeArgs = @('--env-file','deployment.env','-f','compose.yaml','-f','compose.accelerator.yaml',
                  '-f','compose.cpu.yaml','run','--rm','--no-deps','-T','production',
-                 'inference','plan','--host','0.0.0.0','--evidence-b64',$encoded)
+                 'inference','plan','--host','0.0.0.0','--port',"$Port",'--evidence-b64',$encoded)
 . (Join-Path $PSScriptRoot 'workspace.ps1')
 $planRaw = Invoke-WorkspaceCompose @composeArgs 2>$null
 if ($LASTEXITCODE -ne 0 -or -not $planRaw) {
@@ -248,19 +254,34 @@ $server = Get-ChildItem -LiteralPath $runtimeDir -Filter llama-server.exe -Recur
 if (-not $server) { throw "The pinned $backend runtime is not available in $runtimeDir" }
 
 function Test-NativeServingPath {
+    $routeArgs = @('--model', $modelSpec.model_alias, '--port', "$Port")
+    if (Get-Command Get-PrivateWindowsBridgeAddresses -ErrorAction SilentlyContinue) {
+        $addresses = @(Get-PrivateWindowsBridgeAddresses)
+        foreach ($address in $addresses) { $routeArgs += @('--host-ip', $address) }
+    }
     $raw = Invoke-WorkspaceCompose --env-file deployment.env -f compose.yaml -f compose.windows-gpu.yaml `
-        run --rm --no-deps -T production inference benchmark --endpoint 'http://host.docker.internal:8769' `
-        --iterations 1 --warmup 1 --timeout 30 2>$null
-    if ($LASTEXITCODE -ne 0 -or -not $raw) { throw 'native_embedding_smoke_failed: authenticated container-to-host 768-dimensional embedding did not validate' }
-    $result = ($raw -join "`n") | ConvertFrom-Json
-    if (-not $result.ok) { throw 'native_embedding_smoke_failed: invalid embedding response' }
-    $plan | Add-Member -NotePropertyName embeddingSmoke -NotePropertyValue @{ok=$true;dimension=768;medianMs=$result.median_ms} -Force
+        run --rm --no-deps -T production inference native-route @routeArgs 2>$null
+    $routeExit = $LASTEXITCODE
+    $result = $null
+    try { $result = ($raw -join "`n") | ConvertFrom-Json } catch { }
+    if ($result) {
+        $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $cache 'route-probe.json') -Encoding UTF8
+    }
+    if ($routeExit -ne 0 -or -not $result.ok -or $result.endpoint -cnotmatch "^http://[\d.]+:${Port}$") {
+        $reason = 'probe_unavailable'
+        if ($result.code -cmatch '^[a-z_]+$') { $reason = $result.code }
+        $codes = @($result.attempts | ForEach-Object { $_.code } | Where-Object { $_ -cmatch '^[a-z_0-9]+$' })
+        throw "native_embedding_smoke_failed: $reason $($codes -join ', '); check container-to-host networking and firewall policy"
+    }
+    $plan | Add-Member -NotePropertyName endpoint -NotePropertyValue $result.endpoint -Force
+    $plan | Add-Member -NotePropertyName embeddingSmoke -NotePropertyValue @{ok=$true;dimension=768;medianMs=$result.median_ms;route=$result.route} -Force
 }
 
 # An already-running matching service can be reused, but never kill a process by port.
+$localModelsUrl = "http://127.0.0.1:${Port}/v1/models"
 $models = $null
 try {
-    $models = Invoke-RestMethod -Uri 'http://127.0.0.1:8769/v1/models' -Headers @{Authorization="Bearer $token"} -TimeoutSec 3
+    $models = Invoke-RestMethod -Uri $localModelsUrl -Headers @{Authorization="Bearer $token"} -TimeoutSec 3 -MaximumRedirection 0
 } catch { }
 if ($models) {
     $identityPath = Join-Path $cache 'runtime-identity.json'
@@ -268,7 +289,8 @@ if ($models) {
     $identity = Get-Content -LiteralPath $identityPath -Raw | ConvertFrom-Json
     $owned = Get-Process -Id $identity.pid -ErrorAction SilentlyContinue
     if (-not $owned -or $owned.Path -ne $server.FullName -or $identity.backend -ne $backend -or $identity.device -ne $device -or
-        $identity.startedUtc -ne $owned.StartTime.ToUniversalTime().ToString('o')) {
+        $identity.startedUtc -ne $owned.StartTime.ToUniversalTime().ToString('o') -or
+        ($identity.port -and $identity.port -ne $Port)) {
         throw 'native_server_conflict: stop the previous accelerator before switching runtime or device'
     }
     if ($models.data.id -notcontains $modelSpec.model_alias) { throw 'Stop the previous accelerator with stop.ps1 before switching models.' }
@@ -276,6 +298,19 @@ if ($models) {
     Write-Output "Selected inference backend: $backend (device $device; an instance is already running)"
     $plan | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $cache 'plan.json') -Encoding UTF8
     exit 0
+}
+if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
+    if (Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue) {
+        throw 'native_server_conflict: the requested port is already in use; select another port or stop the existing server'
+    }
+}
+$identityPath = Join-Path $cache 'runtime-identity.json'
+if (Test-Path -LiteralPath $identityPath) {
+    $identity = Get-Content -LiteralPath $identityPath -Raw | ConvertFrom-Json
+    $prior = Get-Process -Id $identity.pid -ErrorAction SilentlyContinue
+    if ($prior -and $prior.StartTime.ToUniversalTime().ToString('o') -eq $identity.startedUtc) {
+        throw 'native_server_conflict: stop the kit-owned native runtime before changing its port'
+    }
 }
 
 # The launch arguments come from the shared Python policy, with the native
@@ -300,7 +335,7 @@ try {
 $nativeReady = $false
 try {
     [IO.File]::WriteAllText((Join-Path $cache 'runtime.pid'), [string]$process.Id)
-    @{pid=$process.Id;executable=$server.FullName;backend=$backend;device=$device;startedUtc=$process.StartTime.ToUniversalTime().ToString('o')} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $cache 'runtime-identity.json') -Encoding UTF8
+    @{pid=$process.Id;executable=$server.FullName;backend=$backend;device=$device;port=$Port;startedUtc=$process.StartTime.ToUniversalTime().ToString('o')} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $cache 'runtime-identity.json') -Encoding UTF8
 
     [IO.File]::WriteAllText((Join-Path $cache 'backend.txt'), $backend)
     [IO.File]::WriteAllText((Join-Path $cache 'device.txt'), $device)
@@ -313,7 +348,7 @@ try {
             throw "${failureCode}: inspect private accelerator/runtime-error.log; model did not become ready"
         }
         try {
-            $models = Invoke-RestMethod -Uri 'http://127.0.0.1:8769/v1/models' -Headers @{Authorization="Bearer $token"} -TimeoutSec 2
+            $models = Invoke-RestMethod -Uri $localModelsUrl -Headers @{Authorization="Bearer $token"} -TimeoutSec 2 -MaximumRedirection 0
             if ($models.data.id -contains $modelSpec.model_alias) { $ready = $true; break }
         } catch { }
         Start-Sleep -Seconds 2

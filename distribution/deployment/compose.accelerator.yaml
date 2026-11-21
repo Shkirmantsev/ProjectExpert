@@ -8,8 +8,10 @@ services:
   production:
     environment:
       PI_EMBEDDING_MODEL: gemma
-      PI_LLAMA_ENDPOINT: http://embeddings:8769
+      PI_LLAMA_ENDPOINT: http://embeddings:${PI_LLAMA_PORT:-8769}
       PI_LLAMA_API_KEY_FILE: /models/llama-api-key
+      PI_LLAMA_AUTH: ${PI_SIDECAR_LLAMA_AUTH:-managed-token}
+      PI_LLAMA_DIRECT: "1"
       PI_RUNTIME_CONTROL_URL: http://embeddings:8770
     depends_on:
       model-setup:
@@ -41,6 +43,7 @@ services:
         main()
     environment:
       PI_HOST_CA_MODE: ${PI_HOST_CA_MODE:-auto}
+      PI_EXTRA_CA_BUNDLE: ${PI_EXTRA_CA_BUNDLE:-}
       PI_ASSET_MANIFEST_SHA256: ${PI_ASSET_MANIFEST_SHA256:?Missing reviewed offline asset manifest SHA-256}
       PI_ALLOW_REMOTE_ASSET_DOWNLOADS: "0"
       HF_HUB_OFFLINE: "1"
@@ -58,6 +61,7 @@ services:
     entrypoint: ["/bin/sh", "/control/runtime-entrypoint.sh"]
     environment:
       PI_RUNTIME_BACKEND: vulkan
+      PI_LLAMA_AUTH: ${PI_SIDECAR_LLAMA_AUTH:-managed-token}
     # The always-present CPU runtime. The Vulkan overlay keeps this image and
     # adds the device passthrough; the CUDA overlay replaces it with the
     # CUDA build. The CPU overlay disables GPU device use entirely.
@@ -98,12 +102,12 @@ services:
       - --host
       - 0.0.0.0
       - --port
-      - "8769"
+      - "${PI_LLAMA_PORT:-8769}"
       - --api-key-file
       - /models/llama-api-key
       - --no-mmproj-offload
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8769/health"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${PI_LLAMA_PORT:-8769}/health"]
       interval: 5s
       timeout: 5s
       retries: 120

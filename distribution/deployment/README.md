@@ -104,6 +104,60 @@ detection; an explicit choice that does not validate still degrades to CPU.
 `PI_GPU_DEVICE` pins a specific device (for example `Vulkan1` or `CUDA1`); it
 is honoured only when the runtime actually reported that device.
 
+### Corporate and custom-port startup
+
+Use `./start.ps1` on Windows or `./start.sh` on Linux. The Windows launcher
+uses the active Docker context and verifies a native GPU route from the
+production container before enabling it. It preserves Docker Desktop and
+Rancher Desktop host DNS and can try Windows virtual-interface addresses.
+If a route fails, inspect the private `accelerator/route-probe.json` for DNS,
+connection and authentication results. A timeout can indicate firewall policy
+or a routing problem.
+
+`make platform-llama-start LLAMA_PORT=9009` starts ProjectExpert and its pinned
+embedding runtime on the selected port. The default is 8769. For the equivalent
+without Make, set `$env:PI_LLAMA_PORT = '9009'` before `./start.ps1`, or run
+`PI_LLAMA_PORT=9009 ./start.sh`. Stop the kit before changing the port of a
+running native Windows server. Run the same launch command on subsequent
+starts if you want to keep a command-line override.
+
+Managed authentication is automatic. `LLAMA_AUTH=none` on the Make command
+(or `PI_SIDECAR_LLAMA_AUTH=none` with the scripts) disables embedding API
+authentication for the private managed sidecar. Its port stays inside the
+Compose network. Windows native embedding retains the managed key. The
+launcher will use a qualifying container GPU or the private CPU sidecar in
+Auto mode. The separate runtime control API remains authenticated.
+
+On Windows, to use a server you started yourself, run
+`./llama-connect.ps1 -Port 9009 -Auth token-file -TokenFile C:\Private\llama.key`
+or `./llama-connect.ps1 -Port 9009 -Auth none`. The latter requires the server
+to listen on a private WSL/Docker bridge address without any wildcard or LAN
+listener. The server must serve the pinned Gemma model alias and return a
+valid embedding. The command verifies it from the application container
+before starting ProjectExpert. Reconnect with the same command after a stop
+or address change. ProjectExpert does not take ownership of that server.
+The Make alias is `platform-llama-connect`; supply `LLAMA_PORT`, `LLAMA_AUTH`
+and, for token-file mode, `LLAMA_TOKEN_FILE`.
+
+`make platform-gpu-install GPU=vulkan` prepares the pinned Vulkan runtime.
+Use `GPU=cuda` for the pinned Linux CUDA image or the approved Windows CUDA
+pack. On Windows, supply `GPU_PACK` and `GPU_PACK_SHA256` for an approved local
+pack. The installer verifies the pack and selects it for subsequent startups.
+See [Windows native GPU recovery](WINDOWS_NATIVE_GPU_RECOVERY.md) for direct
+PowerShell commands. Display drivers and engine device access are provided
+by your workstation.
+
+Startup imports public host trust roots for container HTTPS.
+`make platform-trust-setup` refreshes the bundle explicitly. Registry image
+pulls use the selected Docker engine's own trust configuration. If the engine
+reports a certificate error, the workstation or engine administrator needs
+to configure the approved CA in that engine.
+
+`make platform-index-failures` reads the private report from the last completed
+source pass. Use **Legacy source encodings** in the browser to add and preview
+fallback rules, then save and run **Reindex**. The report includes repository
+paths and hashes, so keep it in the project cache.
+
 ### What is supported and what is not
 
 * **ROCm / HIP is not supported.** There is no AMD ROCm backend, and no ROCm

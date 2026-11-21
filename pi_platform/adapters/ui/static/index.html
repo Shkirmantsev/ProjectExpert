@@ -61,11 +61,11 @@
       <details class="knowledge-options">
         <summary>Legacy source encodings</summary>
         <p class="hint">UTF-8 and Unicode BOMs work automatically. For older Java, SQL and text files, preview a reviewed fallback charset rule. Source files stay unchanged. Rules stay in the local cache; safe Git export checks still apply.</p>
-        <label for="source-encoding-policy">Fallback rules (relative repository patterns)</label>
-        <textarea id="source-encoding-policy" rows="7" spellcheck="false" aria-describedby="source-encoding-result">{"schema_version":1,"rules":[]}</textarea>
+        <div id="source-encoding-rules"></div>
+        <button id="source-encoding-add" type="button" disabled>Add encoding rule</button>
         <p><button id="source-encoding-preview" type="button">Preview decoding</button>
         <button id="source-encoding-save" type="button">Save reviewed rules</button></p>
-        <p class="hint">Example rule: {"pattern":"legacy/**/*.java","encoding":"cp1252"}. Other reviewed choices include cp1251 for Cyrillic and shift_jis for Japanese. Save, then Reindex.</p>
+        <p class="hint">Use a repository-relative pattern such as <code>legacy/**/*.java</code>. Confirm the encoding against the original editor or file producer. Preview, save, then run Reindex.</p>
         <pre id="source-encoding-result" role="status" aria-live="polite"></pre>
       </details>
       <p class="hint" id="knowledge-export-policy">One export policy applies to all discovered files. No file paths or individual approvals are needed. Confidential context stays in the local cache and ProjectExpert MCP. Git export checks content and keeps only safe, independently usable context.</p>

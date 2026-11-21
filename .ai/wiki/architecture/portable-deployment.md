@@ -21,7 +21,7 @@ maintenance:
 # Portable production deployment
 
 The production image is Linux amd64. Windows runs the application through Docker
-Desktop with WSL2/Linux containers. The exported kit defaults to EmbeddingGemma 2
+Desktop or Rancher Desktop with WSL2/Linux containers. The exported kit defaults to EmbeddingGemma 2
 Q8_0 plus its pinned multimodal projector, served by llama.cpp. The standalone
 application image defaults to `gemma-torch`, because it has no managed sidecar.
 The diagnostic core image uses hashing rather than semantic inference.
@@ -32,7 +32,8 @@ Linux runs CPU, Vulkan or CUDA inference in a sidecar. Windows GPU inference use
 a native service reachable from Docker; CPU inference stays in the container.
 Auto selection probes actual runtime devices and compares successful embeddings
 against CPU. Software rasterizers and failed candidates are rejected. Missing
-measurements select CPU. Explicit GPU selection still requires usable inference,
+measurements select CPU. Native Windows startup preserves engine DNS and probes
+the actual production network before selecting the host endpoint. Explicit GPU selection still requires usable inference,
 but does not require outperforming CPU. CPU threads and GPU free-memory fit margins
 come from the inference plan; PDF/OCR processing remains on CPU.
 
@@ -44,12 +45,14 @@ audio/video repository ingestion is not exposed.
 
 ## Startup and security
 
-Launchers wait for retrieval readiness, not merely liveness. GPU setup failures
+Launchers report the service URL and provide a separate full index readiness check. GPU setup failures
 fall back to CPU. The version monitor accepts the identity published by bootstrap
 so startup-generated configuration does not immediately invalidate readiness;
 subsequent user edits still trigger refresh.
 
-The UI binds to loopback. GGUF HTTP uses a bearer key and checks model identity.
+The UI binds to loopback. The managed native GGUF runtime uses a bearer key and
+checks model identity. Operators can select a custom port or disable embedding
+API authentication for the private managed sidecar.
 The upgraded managed kit mounts a stdlib child supervisor read-only and exposes
 its authenticated controller only inside the Compose network. UI selections
 use a stdlib-only Python bundle prepared from the application image in the model

@@ -104,6 +104,13 @@ class SourceDecodingTests(unittest.TestCase):
         bad.write_bytes(original)
         (fixture.root / 'unicode.sql').write_text('select \'Україна 日本語\';', encoding='utf-8')
         with self.assertRaises(CandidateIndexingError): fixture.build()
+        private_report = fixture.cache() / 'source-failures.json'
+        report = json.loads(private_report.read_text(encoding='utf-8'))
+        self.assertEqual(report['failedSources'], 1)
+        self.assertEqual(report['unattemptedSources'], 0)
+        self.assertEqual(report['failures'][0]['path'], 'legacy.sql')
+        self.assertEqual(report['failures'][0]['sourceHash'], hashlib.sha256(original).hexdigest())
+        self.assertNotIn('select ', private_report.read_text(encoding='utf-8'))
         policy_path = fixture.cache() / 'config/source-encodings.json'
         policy_path.parent.mkdir(parents=True, exist_ok=True)
         policy_path.write_text(json.dumps({'schema_version': 1, 'rules': [{'pattern': 'legacy.sql', 'encoding': 'cp1252'}]}))
@@ -111,6 +118,7 @@ class SourceDecodingTests(unittest.TestCase):
         fixture.publish_runtime(runtime)
         self.assertEqual(runtime.extra['source_parse_misses'], 1)
         self.assertEqual(runtime.extra['source_parse_hits'], 3)
+        self.assertEqual(json.loads(private_report.read_text(encoding='utf-8'))['failedSources'], 0)
         warm = fixture.build()
         self.assertEqual(warm.extra['source_parse_misses'], 0)
         self.assertEqual(warm.extra['indexing_report'].embedded_count, 0)

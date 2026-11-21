@@ -1,0 +1,11 @@
+services:
+  production:
+    environment:
+      PI_LLAMA_API_KEY_FILE: /run/projectexpert/llama-external-key
+    volumes:
+      - type: bind
+        source: ${PI_NATIVE_LLAMA_TOKEN_FILE:?Supply the private llama-server token file}
+        target: /run/projectexpert/llama-external-key
+        read_only: true
+        bind:
+          create_host_path: false

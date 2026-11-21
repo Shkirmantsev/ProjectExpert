@@ -41,8 +41,6 @@ services:
             configure(load_models=True)
         from pi_platform.cli.main import main
         raise SystemExit(main())
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     ports:
       - "${PI_BIND_HOST:-127.0.0.1}:${PI_CONTROL_PORT:-8765}:8765"
     volumes:

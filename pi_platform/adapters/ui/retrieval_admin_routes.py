@@ -324,7 +324,9 @@ class RetrievalAdminRoutes:
         denied = self._authorize_admin(method=method, path=SOURCE_ENCODINGS_PATH, operation='source encoding policy')
         if denied is not None:
             return denied
-        from pi_platform.core.ingest.source_decoding_policy import SourceDecodingPolicy, POLICY_PATH, preview_policy
+        from pi_platform.core.ingest.source_decoding_policy import (
+            SourceDecodingPolicy, POLICY_PATH, preview_policy, supported_legacy_encodings,
+        )
         import os
         cache = (self.knowledge_sync.cache if self.knowledge_sync is not None else
                  self.target_repo / '.project-intelligence-cache')
@@ -336,7 +338,10 @@ class RetrievalAdminRoutes:
                 policy = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {'schema_version': 1, 'rules': []}
                 SourceDecodingPolicy.from_dict(policy)
                 retry = Path(cache) / 'index-retry.json'
-                return RouteResponse.ok({'policy': policy, 'retry': json.loads(retry.read_text(encoding='utf-8')) if retry.exists() else None})
+                return RouteResponse.ok({
+                    'policy': policy, 'encodings': supported_legacy_encodings(),
+                    'retry': json.loads(retry.read_text(encoding='utf-8')) if retry.exists() else None,
+                })
             payload = dict(_as_mapping(body))
             if len(json.dumps(payload).encode('utf-8')) > 131072:
                 raise ValueError('Oversized encoding policy')

@@ -7,23 +7,28 @@ function browser(options = {}) {
   const nodes = new Map();
   function node(id) {
     if (!nodes.has(id)) nodes.set(id, {value: '', checked: true, disabled: false,
-      textContent: '', attrs: {}, listeners: {},
+      textContent: '', attrs: {}, listeners: {}, children: [],
       setAttribute(k, v) { this.attrs[k] = v; },
       addEventListener(k, fn) { this.listeners[k] = fn; },
       add() {},
+      appendChild(child) { this.children.push(child); },
+      remove() {},
     });
     return nodes.get(id);
   }
   const requests = [];
   let readyChecks = 0, jobChecks = 0, knowledgeChecks = 0;
   const context = {console, Promise, Date, Option: function () {},
-    document: {getElementById: node, addEventListener(_, fn) { this.start = fn; }},
+    document: {getElementById: node, createElement() { return node(Symbol()); }, addEventListener(_, fn) { this.start = fn; }},
     window: {location:{protocol:options.preview ? 'file:':'http:'},setInterval() {}, setTimeout(fn) { fn(); }},
     fetch(path, init) {
       requests.push({path, ...init});
       let body = {};
       let status = 200;
       if (path.endsWith('/admin/retrieval')) body = {embedding_model_alias:'gemma',device:'cpu',document_processing_enabled:true};
+      else if (path.endsWith('/admin/source-encodings')) body = init.method === 'GET'
+        ? {policy:{schema_version:1, rules:[]}, encodings:['cp1251','cp1252']}
+        : {matched:1, decoded:1, failed:0, saved:init.method === 'PUT'};
       else if (path.endsWith('/admin/runtime')) body = {managed_control:options.managed !== false,models:[{value:'gemma',label:'Managed Gemma'},{value:'gemma-torch',label:'Native Gemma'}],devices:{gemma:['auto','cpu','vulkan'], 'gemma-torch':['auto','cpu']},message:'Applies runtime changes'};
       else if (path.endsWith('/ui-version')) body = {ui_contract:'knowledge-sync/2',ui_build:'fixture-build'};
       else if (path.endsWith('/auth-status')) body = {token_required:options.auth || false,local_owner_access:!options.auth};
@@ -60,6 +65,16 @@ async function main() {
   assert.equal(b.node('embedding-model-select').value, 'gemma');
   assert.equal(b.node('access-token').disabled,true);
   assert.match(b.node('access-token-help').textContent,/No API token required/);
+  b.node('source-encoding-add').listeners.click();
+  const [pattern, encoding] = b.node('source-encoding-rules').children[0].children;
+  pattern.value = 'db/**/*.sql'; pattern.listeners.input();
+  encoding.value = 'cp1251'; encoding.listeners.change();
+  b.node('source-encoding-preview').listeners.click(); await flush();
+  const previewRequest = b.requests.find(r => r.method === 'POST' && r.path.endsWith('/admin/source-encodings'));
+  assert.deepEqual(JSON.parse(previewRequest.body), {
+    schema_version:1, rules:[{pattern:'db/**/*.sql',encoding:'cp1251'}],
+  });
+  assert.match(b.node('source-encoding-result').textContent,/1 of 1 matching files decoded/);
   const secured=browser({auth:true});await flush();
   assert.equal(secured.node('access-token').disabled,false);
   assert.match(secured.node('access-token-help').textContent,/not an LLM key/);

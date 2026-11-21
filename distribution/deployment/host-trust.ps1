@@ -4,8 +4,10 @@ $destination = Join-Path $PSScriptRoot 'host-trust'
 New-Item -ItemType Directory -Force -Path $destination | Out-Null
 $seen = @{}
 $builder = New-Object Text.StringBuilder
+$now = Get-Date
 foreach ($store in @('Cert:\LocalMachine\Root','Cert:\CurrentUser\Root')) {
     foreach ($certificate in Get-ChildItem -Path $store) {
+        if ($certificate.NotBefore -gt $now -or $certificate.NotAfter -lt $now) { continue }
         if ($seen.ContainsKey($certificate.Thumbprint)) { continue }
         $seen[$certificate.Thumbprint] = $true
         [void]$builder.AppendLine('-----BEGIN CERTIFICATE-----')

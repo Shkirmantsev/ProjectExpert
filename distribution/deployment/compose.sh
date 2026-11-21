@@ -8,6 +8,15 @@ set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 source ./workspace.sh
+if [ "${1:-}" = gpu-install ]; then
+  case "${PI_GPU_INSTALL_BACKEND:-vulkan}" in
+    cuda) overlay=compose.cuda.yaml ;;
+    vulkan) overlay=compose.vulkan.yaml ;;
+    *) echo 'GPU must be cuda or vulkan' >&2; exit 2 ;;
+  esac
+  exec docker compose --env-file deployment.env -f compose.yaml -f compose.accelerator.yaml \
+    -f "$overlay" pull embeddings
+fi
 if [[ " $* " == *" up "* ]] && [ "${PI_HOST_CA_MODE:-$(workspace_value PI_HOST_CA_MODE)}" != off ]; then
   bash ./host-trust.sh
 fi
@@ -24,6 +33,13 @@ model="${PI_EMBEDDING_MODEL:-$(read_env PI_EMBEDDING_MODEL)}"
 model="${model:-gemma}"
 pinned_device="${PI_GPU_DEVICE:-$(read_env PI_GPU_DEVICE)}"
 benchmark_iterations="${PI_BENCHMARK_ITERATIONS:-20}"
+export PI_LLAMA_PORT="${PI_LLAMA_PORT:-$(workspace_value PI_LLAMA_PORT)}"
+PI_LLAMA_PORT="${PI_LLAMA_PORT:-8769}"
+if ! [[ "$PI_LLAMA_PORT" =~ ^[1-9][0-9]{0,4}$ ]] ||
+   (( PI_LLAMA_PORT > 65535 || PI_LLAMA_PORT == 8770 )); then
+  echo 'PI_LLAMA_PORT must be 1–65535 and must differ from control port 8770' >&2
+  exit 2
+fi
 
 case "$model" in
   gemma|gemma-gguf) model=gemma ;;
@@ -97,14 +113,12 @@ add_measurement() { # backend median_ms
 }
 
 b64_encode() {
-  if command -v base64 >/dev/null 2>&1 && printf 'x' | base64 --wrap=0 >/dev/null 2>&1; then
-    base64 --wrap=0
+  if command -v base64 >/dev/null 2>&1; then
+    base64 | tr -d '\r\n'
   elif command -v openssl >/dev/null 2>&1; then
     openssl base64 -A
-  elif command -v python3 >/dev/null 2>&1; then
-    python3 -c 'import base64,sys; sys.stdout.write(base64.b64encode(sys.stdin.buffer.read()).decode("ascii"))'
   else
-    echo 'No portable base64 encoder found (need GNU base64 --wrap=0, openssl base64 -A, or python3). Install one and retry.' >&2
+    echo 'No base64 encoder found. Use base64 or openssl.' >&2
     return 1
   fi
 }
@@ -161,7 +175,7 @@ benchmark_backend() { # backend -> prints the median latency in ms
     -f compose.accelerator.yaml -f "compose.$backend.yaml" \
     run --rm --no-deps -T production \
     inference benchmark \
-    --endpoint http://embeddings:8769 --iterations "$benchmark_iterations" \
+    --endpoint "http://embeddings:$PI_LLAMA_PORT" --iterations "$benchmark_iterations" \
     2>/dev/null \
     | sed -n 's/^[[:space:]]*"median_ms":[[:space:]]*\([0-9.]*\).*$/\1/p' | head -1)
   workspace_compose --env-file deployment.env -f compose.yaml \

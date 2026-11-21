@@ -63,6 +63,17 @@ reviewer must inspect the exact archive inventory and actual licenses:
 Do not label NVIDIA DLLs MIT because llama.cpp is MIT. There is no public CUDA
 companion approved in this repository; the default asset review is unchanged.
 
+When the reviewed pack and its manifest hash are supplied by your organization,
+install and select it in one command. No deployment.env edits are required.
+
+```powershell
+.\native-cuda.ps1 -Action install -Source 'C:\ApprovedAssets\cuda-candidate' -ManifestSha256 $nativeManifest
+```
+
+The equivalent Make command is `make platform-gpu-install GPU=cuda GPU_PACK=... GPU_PACK_SHA256=...`.
+For the bundled Vulkan runtime use `./setup-windows-accelerator.ps1 -Backend vulkan -AssetsOnly`.
+An explicit `PI_NATIVE_CUDA_SOURCE` setting overrides the installed selection.
+
 ```powershell
 $nativeManifest = (Get-FileHash 'C:\ApprovedAssets\cuda-candidate\manifest.json' -Algorithm SHA256).Hash.ToLowerInvariant()
 .\native-cuda.ps1 -Action verify -Source 'C:\ApprovedAssets\cuda-candidate' -ManifestSha256 $nativeManifest
@@ -96,7 +107,8 @@ pinned model/projector and expected alias. Before activating production, a real
 authenticated container-to-host request must return a finite 768-dimensional
 embedding. Failure remains an explicit diagnostic, never GPU success.
 
-Native serving uses `host.docker.internal:8769`. The host runtime binds beyond
+Native serving uses the address verified from inside the application network
+and the configured port (8769 by default). The managed host runtime binds beyond
 loopback so Docker/WSL can reach it and requires the private API key file. Retain
 Windows Firewall restrictions for the required Docker/WSL network; the launcher
 does not change firewall rules. DLL resolution uses the isolated verified runtime

@@ -68,3 +68,10 @@ function Stop-OwnedNativeRuntime([string]$Cache) {
     }
     Remove-Item -LiteralPath $pidFile
 }
+function Get-PrivateWindowsBridgeAddresses {
+    if (-not (Get-Command Get-NetIPAddress -ErrorAction SilentlyContinue)) { return }
+    Get-NetIPAddress -AddressFamily IPv4 -AddressState Preferred -ErrorAction SilentlyContinue |
+        Where-Object { $_.InterfaceAlias -match '^vEthernet \((?:WSL|Docker|Rancher)' -and
+            $_.IPAddress -match '^(?:10\.|172\.(?:1[6-9]|2[0-9]|3[01])\.|192\.168\.)' } |
+        Select-Object -ExpandProperty IPAddress -Unique -First 8
+}
