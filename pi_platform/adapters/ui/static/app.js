@@ -404,20 +404,69 @@ document.addEventListener("DOMContentLoaded", function () {
       show("wizard-result", 'Model preferences loaded. Apply to update the local index.');
       }).catch(function (error) { show("wizard-result", error.message); });
     }
+    var encodingRules = document.getElementById('source-encoding-rules');
+    var encodingChoices = [];
+    var encodingPolicy = null;
+    function addEncodingRule(rule) {
+      var row = document.createElement('p');
+      var pattern = document.createElement('input');
+      pattern.type = 'text';
+      pattern.setAttribute('aria-label', 'Repository file pattern');
+      pattern.placeholder = 'Repository file pattern';
+      pattern.value = rule.pattern || '';
+      var encoding = document.createElement('select');
+      encoding.setAttribute('aria-label', 'Fallback encoding');
+      encoding.add(new Option('Choose encoding', ''));
+      encodingChoices.forEach(function (name) { encoding.add(new Option(name, name)); });
+      if (rule.encoding && encodingChoices.indexOf(rule.encoding) < 0) {
+        encoding.add(new Option(rule.encoding, rule.encoding));
+      }
+      encoding.value = rule.encoding || '';
+      pattern.addEventListener('input', function () { rule.pattern = pattern.value.trim(); });
+      encoding.addEventListener('change', function () { rule.encoding = encoding.value; });
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'Remove rule';
+      remove.addEventListener('click', function () {
+        encodingPolicy.rules.splice(encodingPolicy.rules.indexOf(rule), 1);
+        row.remove();
+      });
+      row.appendChild(pattern);
+      row.appendChild(encoding);
+      row.appendChild(remove);
+      encodingRules.appendChild(row);
+    }
+    var encodingAdd = document.getElementById('source-encoding-add');
+    encodingAdd.addEventListener('click', function () {
+      if (!encodingPolicy || encodingPolicy.rules.length >= 256) return;
+      var rule = {pattern: '', encoding: ''};
+      encodingPolicy.rules.push(rule);
+      addEncodingRule(rule);
+    });
     function loadSourceEncodings() {
       return call('GET', API + '/admin/source-encodings').then(function (data) {
-        document.getElementById('source-encoding-policy').value = JSON.stringify(data.policy, null, 2);
-        if (data.retry) { show('source-encoding-result', data.retry); }
+        encodingPolicy = data.policy;
+        encodingPolicy.rules = encodingPolicy.rules || [];
+        encodingChoices = data.encodings || [];
+        encodingRules.textContent = '';
+        encodingPolicy.rules.forEach(addEncodingRule);
+        encodingAdd.disabled = false;
+        if (data.retry) { show('source-encoding-result', 'The last indexing attempt needs attention. Review encoding rules, then run Reindex.'); }
       }).catch(function (error) { show('source-encoding-result', error.message); });
     }
     ['preview', 'save'].forEach(function (action) {
       document.getElementById('source-encoding-' + action).addEventListener('click', function () {
-        var payload;
-        try { payload = JSON.parse(document.getElementById('source-encoding-policy').value); }
-        catch (error) { show('source-encoding-result', 'Enter valid JSON rules.'); return; }
+        if (!encodingPolicy) return;
+        if (encodingPolicy.rules.some(function (rule) { return !rule.pattern || !rule.encoding; })) {
+          show('source-encoding-result', 'Enter a file pattern and choose an encoding for each rule.');
+          return;
+        }
         show('source-encoding-result', 'Checking source encodings…');
-        call(action === 'save' ? 'PUT' : 'POST', API + '/admin/source-encodings', payload)
-          .then(function (data) { show('source-encoding-result', data); })
+        call(action === 'save' ? 'PUT' : 'POST', API + '/admin/source-encodings', encodingPolicy)
+          .then(function (data) {
+            show('source-encoding-result', data.decoded + ' of ' + data.matched + ' matching files decoded. ' +
+              data.failed + ' failed. ' + (data.saved ? 'Rules saved. Run Reindex to apply them.' : 'Review the result before saving.'));
+          })
           .catch(function (error) { show('source-encoding-result', error.message); });
       });
     });

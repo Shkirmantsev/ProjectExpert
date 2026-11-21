@@ -374,6 +374,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     reindex_parser.add_argument("--target", type=Path, default=Path("."),
                                 help="target repository root (default: current directory)")
+    source_failures = sub.add_parser(
+        "source-failures", help="show the private report from the last repository source pass",
+    )
+    source_failures.add_argument("--target", type=Path, default=Path("."))
 
     doctor_parser = sub.add_parser(
         "doctor",
@@ -2655,6 +2659,18 @@ def _cmd_start(args: argparse.Namespace) -> int:
     return _cmd_serve(args)
 
 
+def _cmd_source_failures(args: argparse.Namespace) -> int:
+    from pi_platform.core.ingest.source_failure_report import read_source_failures
+
+    try:
+        report = read_source_failures(_resolve_cache_root(args))
+    except (OSError, ValueError):
+        print("Cannot read the private source failure report.", file=sys.stderr)
+        return 1
+    print(json.dumps(report if report is not None else {"state": "no-report"}, indent=2))
+    return 0
+
+
 def _cmd_reindex(args: argparse.Namespace) -> int:
     """Incrementally discover, reconcile, and reindex a target repository."""
 
@@ -2971,6 +2987,7 @@ _DISPATCH.update(
         "inference": _cmd_inference,
         "chat": _cmd_chat,
         "reindex": _cmd_reindex,
+        "source-failures": _cmd_source_failures,
         "doctor": _cmd_doctor,
     }
 )

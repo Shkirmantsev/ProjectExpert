@@ -28,7 +28,7 @@ else ifneq ($(strip $(LLM)),)
 $(error LLM must be 1 to configure/enable, 0 to disable, or omitted to preserve settings)
 endif
 
-.PHONY: help platform-start platform-stop platform-status platform-logs platform-pull platform-restart platform-init platform-hydrate platform-materialise platform-models platform-assets platform-model-pull platform-reindex platform-doctor platform-llm-configure platform-llm-status platform-llm-test platform-llm-disable eval eval-retrieval eval-chunk-size-sweep invariants metrics-gate
+.PHONY: help platform-start platform-stop platform-status platform-logs platform-pull platform-restart platform-init platform-hydrate platform-materialise platform-models platform-assets platform-model-pull platform-reindex platform-index-failures platform-doctor platform-llm-configure platform-llm-status platform-llm-test platform-llm-disable eval eval-retrieval eval-chunk-size-sweep invariants metrics-gate
 
 help: ## List every command with a one-line description (default; changes nothing)
 	@printf '%s\n' "Project Intelligence deployment kit -- available commands"
@@ -72,6 +72,8 @@ platform-model-pull: ## Explicit developer model pull (disabled for production o
 	$(CLI) models pull "$(MODEL)" --target /repo
 platform-reindex: ## Rebuild the retrieval index for the target repository
 	$(CLI) reindex --target /repo
+platform-index-failures: ## Show the private source-stage report (includes repository file paths)
+	$(COMPOSE) run --rm --no-deps -T production source-failures --target /repo
 platform-doctor: ## Diagnose the deployment runtime and the retrieval configuration
 	$(CLI) doctor --target /repo
 eval: ## Run the retrieval evaluation against the bundled fixture benchmark

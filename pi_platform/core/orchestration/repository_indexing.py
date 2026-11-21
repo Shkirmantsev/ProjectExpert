@@ -301,7 +301,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         raise CandidateIndexingError({'configuration_error': 1}) from exc
     driver = LocalPipelineDriver(decoding_policy=decoding_policy, parser_registry=parsers, chunker_registry=chunkers, cache=cache,
                                  parse_workers=None if parallel else 1, parallel_safe_registry=True)
-    failures, sources = [], []
+    failures, diagnostics, sources = [], [], []
     for entry in inventory.entries:
         if entry.path in image_paths:
             continue
@@ -360,14 +360,29 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         else:
             reports = driver.run_many(sources, target)
         source_by_id = {source.id: source for source in sources}
+        fatal = Counter()
         for report in reports:
             source = source_by_id[report.source_id]
             if not report.ok:
                 cache.invalidate_source(source.id, stale=False)
                 failures.append({'path': source.metadata.sourcePath, 'error': report.error_message,
                                  'category': report.error_category})
-                if report.error_category in {"configuration_error", "internal_error"}:
-                    raise CandidateIndexingError({report.error_category: 1})
+                failed_stage = next((stage for stage in report.stages if stage.error_category), None)
+                diagnostics.append({
+                    'path': source.metadata.sourcePath, 'sourceHash': source.contentHash,
+                    'family': source.family, 'category': report.error_category,
+                    'stage': failed_stage.stage if failed_stage else 'source',
+                    'attempts': failed_stage.attempts if failed_stage else 1,
+                })
+                if report.error_category in {"configuration_error", "internal_error", "cancelled"}:
+                    fatal[report.error_category] += 1
+        if durable_cache is not None and not restore_only:
+            from pi_platform.core.ingest.source_failure_report import write_source_failures
+            durable_cache.assert_fence()
+            write_source_failures(cache_root, job_id=durable_cache.generation,
+                                  eligible=len(sources), attempted=len(reports), failures=diagnostics)
+        if fatal:
+            raise CandidateIndexingError(dict(fatal))
         degraded = sum(report.ok and report.degraded for report in reports)
         progress('sources', len(sources) + len(media_sources), len(cache.source_ids()), len(failures), degraded,
                  state='failed' if failures else 'complete')

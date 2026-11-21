@@ -13,7 +13,8 @@ Ukrainian, German, Japanese and Arabic do not require separate parser modes.
 Older byte encodings require a reviewed fallback: identical bytes can mean
 different characters in different code pages, so automatic guessing is unsafe.
 
-Open **Project knowledge → Legacy source encodings**. Enter rules, preview the
+Open **Project knowledge → Legacy source encodings**. Add a rule, enter a
+repository-relative pattern and select the encoding in the form. Preview the
 aggregate decoding outcomes, save reviewed rules, then run **Reindex / Update
 local knowledge**. One rule covers any number of matching files; no per-file
 security approval is needed. For example:
