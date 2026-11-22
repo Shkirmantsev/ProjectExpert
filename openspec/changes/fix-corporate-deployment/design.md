@@ -50,7 +50,11 @@ The private source-stage report is atomic, records the job identity, attempted
 counts, relative source paths, hashes, parser family, stage and category, and
 omits source text or raw exception messages. It is diagnostic evidence for the
 source pass. It is not an active generation or a statement about embedding
-success. The encoding form writes the existing private policy via its protected API.
+success. Windows-1251 and Windows-1252 are tried automatically for supported
+text families after UTF-8 decoding fails. The decoder uses a bounded sample and
+records the selected encoding. The advanced form writes private overrides via
+its protected API. The decoder revision participates in source-cache keys and
+resumable retry identity.
 
 Strict indexing remains the default. The explicit local partial policy permits
 isolated source failures, records coverage in the fenced SQLite job, validates

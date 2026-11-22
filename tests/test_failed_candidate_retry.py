@@ -49,7 +49,7 @@ class FailedCandidateTests(unittest.TestCase):
         from tests.test_portable_canonical_sync import PortableProductionTests
         fixture = PortableProductionTests('test_cold_clone_skips_parser_and_document_embedding_and_queries')
         fixture.setUp(); self.addCleanup(fixture.doCleanups)
-        (fixture.root / 'legacy.sql').write_bytes('select \'Grüße\';'.encode('cp1252'))
+        (fixture.root / 'legacy.sql').write_bytes(b'invalid\x00source')
         calls = []
         def refresh(event):
             calls.append(event)

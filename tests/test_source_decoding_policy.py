@@ -40,12 +40,49 @@ class SourceDecodingTests(unittest.TestCase):
                 self.assertEqual(chunk.metadata.extensions['textDecoding']['replacementCount'], 0)
                 self.assertEqual(Path(source.uri).read_bytes(), before)
 
+    def test_windows_code_pages_are_detected_without_rules(self):
+        from pi_platform.core.ingest.records import read_text_with_provenance
+
+        for codec, text in [('cp1251', "select 'Повернення платежу, Київ';"),
+                            ('cp1252', "select 'Grüße €';")]:
+            for filename in ('old.sql', 'old.txt'):
+                with self.subTest(codec=codec, filename=filename):
+                    source = self.source(filename, text, codec)
+                    chunk = LocalSourceAdapter().parse(source).sections[0].chunks[0]
+                    self.assertEqual(chunk.rawText, text)
+                    self.assertEqual(chunk.metadata.extensions['textDecoding']['encoding'], codec)
+                    self.assertEqual(chunk.metadata.extensions['textDecoding']['provenance'], 'automatic-fallback')
+                    self.assertEqual(Path(source.uri).read_bytes(), text.encode(codec))
+        long_sql = '-- ASCII header\n' * 2048 + "select 'Повернення платежу';"
+        source = self.source('large.sql', long_sql, 'cp1251')
+        self.assertEqual(read_text_with_provenance(source.uri, automatic=True)[0], long_sql)
+        from dataclasses import replace
+        from pi_platform.adapters.html.html_adapter import HtmlAdapter
+        from pi_platform.adapters.java.java_structured_adapter import JavaStructuredAdapter
+        from pi_platform.adapters.markdown.markdown_adapter import MarkdownAdapter
+
+        for adapter, filename, body in (
+            (HtmlAdapter(), 'manual.html', '<p>Повернення платежу</p>'),
+            (MarkdownAdapter(), 'manual.md', '# Довідка\nПовернення платежу'),
+            (JavaStructuredAdapter(), 'Order.java', 'class Order { String label = "Повернення платежу"; }'),
+        ):
+            with self.subTest(filename=filename):
+                source = replace(self.source(filename, body, 'cp1251'), family=adapter.family.value)
+                parsed = adapter.parse(source)
+                self.assertTrue(any('Повернення платежу' in chunk.rawText
+                                    for section in parsed.sections for chunk in section.chunks))
+        path = self.root / 'bad.sql'
+        for raw in (b'\xff\xff\xff', b'abc\x00binary', b'\xff\xfe\x01'):
+            path.write_bytes(raw)
+            with self.assertRaises(SourceAdapterError):
+                read_text_with_provenance(path, automatic=True)
+
     def test_utf8_and_bom_precede_legacy_fallback(self):
         from pi_platform.core.ingest.records import read_text_with_provenance
         policy = self.policy([{'pattern': '*.sql', 'encoding': 'cp1251'}])
         for codec in ('utf-8', 'utf-16', 'utf-32'):
             source = self.source('x.sql', 'Grüße Україна 日本語', codec)
-            text, info = read_text_with_provenance(source.uri, source_path='x.sql', encoding_policy=policy)
+            text, info = read_text_with_provenance(source.uri, automatic=True, source_path='x.sql', encoding_policy=policy)
             self.assertEqual(text, 'Grüße Україна 日本語')
             self.assertEqual(info['replacementCount'], 0)
 
@@ -92,41 +129,38 @@ class SourceDecodingTests(unittest.TestCase):
         denied = create_dispatcher(RetrievalAdminRoutes(target_repo=self.root, caller_capability_provider=lambda: 'coding-agent'))
         self.assertEqual(denied('PUT', route, policy).status, 403)
 
-    def test_resumable_index_policy_repair_reuses_unaffected_sources_and_warm_cache(self):
+    def test_resumable_automatic_decoding_reuses_cache_and_respects_an_override(self):
         import json
         from tests.test_portable_canonical_sync import PortableProductionTests
-        from pi_platform.core.ingest.failures import CandidateIndexingError
         fixture = PortableProductionTests('test_cold_clone_skips_parser_and_document_embedding_and_queries')
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
         bad = fixture.root / 'legacy.sql'
-        original = 'select \'Grüße €\';'.encode('cp1252')
+        original = "select 'Повернення платежу';".encode('cp1251')
         bad.write_bytes(original)
         (fixture.root / 'unicode.sql').write_text('select \'Україна 日本語\';', encoding='utf-8')
-        with self.assertRaises(CandidateIndexingError): fixture.build()
-        private_report = fixture.cache() / 'source-failures.json'
-        report = json.loads(private_report.read_text(encoding='utf-8'))
-        self.assertEqual(report['failedSources'], 1)
-        self.assertEqual(report['unattemptedSources'], 0)
-        self.assertEqual(report['failures'][0]['path'], 'legacy.sql')
-        self.assertEqual(report['failures'][0]['sourceHash'], hashlib.sha256(original).hexdigest())
-        self.assertNotIn('select ', private_report.read_text(encoding='utf-8'))
+        automatic = fixture.build()
+        fixture.publish_runtime(automatic)
+        self.assertEqual(automatic.extra['source_coverage'], {'eligible': 4, 'indexed': 4, 'skipped': 0})
+        self.assertTrue(any('Повернення платежу' in hit.snippet
+                            for hit in automatic.extra['chunk_catalog'].values()))
+        self.assertEqual(automatic.extra['source_failures'], [])
         policy_path = fixture.cache() / 'config/source-encodings.json'
         policy_path.parent.mkdir(parents=True, exist_ok=True)
-        policy_path.write_text(json.dumps({'schema_version': 1, 'rules': [{'pattern': 'legacy.sql', 'encoding': 'cp1252'}]}))
+        policy_path.write_text(json.dumps({'schema_version': 1, 'rules': [{'pattern': 'legacy.sql', 'encoding': 'cp1251'}]}))
         runtime = fixture.build()
         fixture.publish_runtime(runtime)
         self.assertEqual(runtime.extra['source_parse_misses'], 1)
         self.assertEqual(runtime.extra['source_parse_hits'], 3)
-        self.assertEqual(json.loads(private_report.read_text(encoding='utf-8'))['failedSources'], 0)
+        self.assertEqual(runtime.extra['source_failures'], [])
         warm = fixture.build()
         self.assertEqual(warm.extra['source_parse_misses'], 0)
         self.assertEqual(warm.extra['indexing_report'].embedded_count, 0)
         self.assertEqual(bad.read_bytes(), original)
-        policy_path.write_text(json.dumps({'schema_version': 1, 'rules': [{'pattern': 'legacy.sql', 'encoding': 'cp1251'}]}))
-        changed = fixture.build()
-        self.assertEqual(changed.extra['source_parse_misses'], 1)
-        self.assertEqual(changed.extra['source_parse_hits'], 3)
+        policy_path.unlink()
+        restored = fixture.build()
+        self.assertEqual(restored.extra['source_parse_misses'], 0)
+        self.assertEqual(restored.extra['source_parse_hits'], 4)
 
     def test_reviewed_legacy_java_reaches_real_pinned_worker(self):
         import importlib.util
@@ -145,7 +179,6 @@ class SourceDecodingTests(unittest.TestCase):
     def test_portable_restore_does_not_accept_different_private_decoder(self):
         import json
         from tests.test_portable_canonical_sync import PortableProductionTests, git
-        from pi_platform.core.ingest.failures import CandidateIndexingError
         fixture = PortableProductionTests('test_cold_clone_skips_parser_and_document_embedding_and_queries')
         fixture.setUp(); self.addCleanup(fixture.doCleanups)
         (fixture.root / 'legacy.sql').write_bytes('select \'Grüße\';'.encode('cp1252'))
@@ -156,7 +189,10 @@ class SourceDecodingTests(unittest.TestCase):
         runtime = fixture.build(); fixture.publish_runtime(runtime)
         fixture.publish(fixture.stage(vectors=True))
         clone = fixture.clone()
-        with self.assertRaises(CandidateIndexingError): fixture.build(clone)
+        automatic = fixture.build(clone)
+        self.assertEqual(automatic.extra['source_parse_misses'], 1)
+        self.assertTrue(any(hit.metadata.extensions.get('textDecoding', {}).get('provenance') == 'automatic-fallback'
+                            for hit in automatic.extra['chunk_catalog'].values()))
         path = fixture.cache(clone) / 'config/source-encodings.json'
         path.parent.mkdir(parents=True, exist_ok=True)
         policy['rules'][0]['encoding'] = 'cp1251'; path.write_text(json.dumps(policy))

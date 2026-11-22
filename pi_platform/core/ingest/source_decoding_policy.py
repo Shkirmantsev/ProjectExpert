@@ -6,6 +6,12 @@ from pathlib import Path
 import re
 
 POLICY_PATH = Path('config/source-encodings.json')
+AUTOMATIC_DECODING_REVISION = 'windows-codepages/v1'
+AUTOMATIC_TEXT_FAMILIES = frozenset({'plain_text', 'java_source', 'markdown', 'html'})
+_WORD = re.compile(r'[^\W\d_]+')
+_CYRILLIC = re.compile(r'[А-Яа-яЁёІіЇїЄєҐґЎў]+')
+_WESTERN_LATIN = re.compile(r'[a-zA-ZÀ-ÖØ-öø-ÿŒœŠšŽžŸ]+')
+_CYRILLIC_VOWELS = frozenset('аеёиоуыэюяіїє')
 _ALLOWED = {codecs.lookup(name).name for name in (
     'cp1250', 'cp1251', 'cp1252', 'cp1253', 'cp1254', 'cp1255', 'cp1256', 'cp1257', 'cp1258',
     'iso-8859-1', 'iso-8859-2', 'iso-8859-5', 'iso-8859-7', 'iso-8859-9', 'iso-8859-15',
@@ -14,6 +20,44 @@ _ALLOWED = {codecs.lookup(name).name for name in (
 
 def supported_legacy_encodings():
     return sorted(_ALLOWED)
+
+
+def automatic_encodings(raw, error_offset):
+    """Rank supported Windows code pages using a bounded text sample."""
+    # ASCII-only headers can be long. Include the first failing UTF-8 byte.
+    sample = raw[max(0, error_offset - 4096):error_offset + 16384]
+    scores = {}
+    for codec, alphabet in (('cp1251', _CYRILLIC), ('cp1252', _WESTERN_LATIN)):
+        try:
+            text = sample.decode(codec)
+        except UnicodeDecodeError:
+            continue
+        score = 0
+        for match in _WORD.finditer(text):
+            word = match.group()
+            if word.isascii() or not alphabet.fullmatch(word):
+                continue
+            if codec == 'cp1251':
+                lower = word.lower()
+                if (len(word) >= 3 and len(set(lower)) >= 2
+                        and (word.islower() or word.istitle() or word.isupper())
+                        and not _CYRILLIC_VOWELS.isdisjoint(lower)):
+                    score += len(word)
+            elif any(letter.isascii() for letter in word):
+                score += sum(not letter.isascii() for letter in word)
+        if score:
+            scores[codec] = score
+    if not scores or len(set(scores.values())) != len(scores):
+        return ()
+    return tuple(sorted(scores, key=scores.get, reverse=True))
+
+
+def declared_encoding(name):
+    try:
+        codec = codecs.lookup(name).name
+    except LookupError:
+        return None
+    return codec if codec == 'utf-8' or codec in _ALLOWED else None
 
 
 def canonical_path(value):

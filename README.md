@@ -124,7 +124,7 @@ For deeper library research and examples, see
 | **Sharing preferences** | Adjust how you share snapshots. | **Export after index updates** uses a time-limited approval. **Include embeddings** speeds up restoration and uses more Git storage. The default generated-file size cap is 8 MiB. Export runs the same safety checks for all sources. |
 | **Diagnostics and project version** | Investigate slow or failed indexing, or check which checkout is searchable. | See indexing progress, Git version, and knowledge freshness. Failed files can also be inspected with `platform-index-failures`. |
 | **Embedding device and PDF processing** | Change how the local index is built. | **Embedding device** is selectable when the app controls the runtime. For host-managed CUDA/Vulkan, the launcher selects the device. **Include PDFs in the index** enables Docling. **Apply and update index** saves the settings and starts a refresh. |
-| **Legacy text encodings** | Recover older text files that failed decoding, such as Windows-1251 SQL or Windows-1252 Java. | Add a rule with a project-relative pattern and the original encoding. **Preview decoding** reports counts of matching, decoded, and failed files without saving. **Save rules** stores the rules locally. **Update local index** then applies them. Original files are preserved. |
+| **Text encoding overrides** | Correct a file when automatic decoding cannot identify its encoding. Windows-1251 and Windows-1252 are tried automatically. | Add a rule with a project-relative pattern and the original encoding. **Preview decoding** reports counts of matching, decoded, and failed files without saving. **Save rules** stores the rules locally. **Update local index** then applies them. Original files are preserved. |
 | **Generated answers** | Add prose answers backed by project excerpts. | Set the provider type, endpoint URL, and exact model ID. Enter a provider key only if required. Grant excerpt access for an endpoint you want to receive project context. Save settings, then **Test saved connection**. Search otherwise returns evidence. |
 
 The **Workspace access token** form appears only when the service is configured
@@ -132,7 +132,7 @@ with `PI_UI_TOKEN`. The standard loopback installation leaves it unset.
 The **Operator workflows** section describes signed approval for canonical writes
 and delegation through a connected MCP client.
 
-**Legacy text encodings** works with source files. The older
+**Text encoding overrides** work with source files. The older
 `PI_OPENAI_BASE_URL` setting belongs to the OpenAI-compatible adapter and is
 kept for configuration compatibility. Configure the chat provider in
 **Generated answers**. Open WebUI connects to the ProjectExpert service's

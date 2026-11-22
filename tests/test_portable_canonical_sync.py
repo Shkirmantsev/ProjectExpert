@@ -91,7 +91,7 @@ class PortableProductionTests(unittest.TestCase):
         from pi_platform.core.ingest.failures import CandidateIndexingError
 
         legacy = self.root / 'legacy.sql'
-        legacy.write_bytes("select 'Grüße';".encode('cp1252'))
+        legacy.write_bytes(b'invalid\x00source')
         with patch.dict(os.environ, {'PI_INDEX_REQUIRE_COMPLETE': '1'}):
             with self.assertRaises(CandidateIndexingError):
                 self.build()

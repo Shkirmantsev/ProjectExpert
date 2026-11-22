@@ -142,8 +142,8 @@
       </details>
 
       <details id="source-encoding-panel">
-        <summary>Legacy text encodings</summary>
-        <p class="hint">Use a rule when an older text file fails UTF-8 decoding. Enter a repository-relative pattern such as <code>legacy/**/*.sql</code>, choose the original encoding, preview, then save and update the index.</p>
+        <summary>Text encoding overrides</summary>
+        <p class="hint">ProjectExpert automatically tries Windows-1251 and Windows-1252 for text that fails UTF-8 decoding. For plain-text and Java files that still need correction, choose the original encoding for a project-relative pattern, preview, then save and update the index.</p>
         <div id="source-encoding-rules"></div>
         <div class="controls">
           <button id="source-encoding-add" type="button" class="secondary" disabled>Add rule</button>

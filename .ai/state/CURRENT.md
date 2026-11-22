@@ -6,7 +6,7 @@ Structured source: [handoffs/fix-corporate-deployment.json](handoffs/fix-corpora
 
 Task: `fix-corporate-deployment`
 Status: `executing`
-Updated: `2026-11-22T11:00:02+00:00`
+Updated: `2026-11-22T11:26:40+00:00`
 Active OpenSpec change: `fix-corporate-deployment`
 
 ## Objective
@@ -19,7 +19,7 @@ Repair corporate deployment and source recovery from the zero-workaround inciden
 
 ## Completed
 
-- Updated the root README for the current UI and clarified read-only preview and live encoding control states
+- Verified default Windows-1251/1252 detection, precedence, portable restore and warm cache use
 
 ## Remaining
 
@@ -39,12 +39,12 @@ Repair corporate deployment and source recovery from the zero-workaround inciden
 
 ## Working set
 
-- `README.md`
-- `pi_platform/adapters/ui/static/app.js`
+- `pi_platform/core/ingest/records.py`
+- `pi_platform/core/ingest/source_decoding_policy.py`
 
 ## Verification passed
 
-- Full harness and browser JS PASS; Chrome confirmed file preview disables encoding controls and live loopback server enables them
+- Full harness PASS with strict OpenSpec and 1,659 manifest files; browser workflow passed
 
 ## Verification pending
 
@@ -52,7 +52,7 @@ Repair corporate deployment and source recovery from the zero-workaround inciden
 
 ## Next action
 
-Verify preview and live permission/loading paths
+Verify the matched application image and kit on the corporate Windows host
 
 ## Prerequisites
 

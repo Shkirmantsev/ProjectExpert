@@ -8,6 +8,18 @@ The platform MUST make per-source failures from the last attempted resumable sou
 - **THEN** the private report identifies the source and failing stage
 - **AND** strict readiness continues to require a complete generation
 
+### Requirement: Automatic Windows text decoding
+The text, Java, Markdown, and HTML adapters SHALL attempt supported Windows
+code pages automatically after UTF-8 decoding fails and when the original
+encoding has neither been declared nor explicitly configured. Selection SHALL
+use deterministic bounded text evidence and strict decoding. The platform
+SHALL record automatic decoding provenance and preserve source bytes.
+
+#### Scenario: A project contains Windows-1251 SQL files
+- **WHEN** an operator indexes a Windows-1251 SQL file with recognizable Cyrillic text
+- **AND** no encoding override has been configured
+- **THEN** indexing SHALL use the decoded text automatically and make the source searchable.
+
 ### Requirement: Opt-in local index with source failures
 
 Operators SHALL be able to allow isolated source failures during resumable local

@@ -29,10 +29,14 @@ private report, repair the affected sources, and select **Update local index**.
 
 UTF-8, UTF-8 BOM and BOM-marked UTF-16/32 work automatically. Languages such as
 Ukrainian, German, Japanese and Arabic do not require separate parser modes.
-Older byte encodings require a reviewed fallback: identical bytes can mean
-different characters in different code pages, so automatic guessing is unsafe.
+When UTF-8 decoding fails, plain text (including SQL), Java, Markdown and HTML
+can fall back to Windows-1251 or Windows-1252. The adapter ranks the candidates
+using a bounded sample around the first UTF-8 error and strictly decodes the
+original bytes with the selected codec. No configuration is needed for this
+path. The detected codec is recorded in the local search records.
 
-Open **Settings → Legacy text encodings**. Add a rule, enter a
+For plain text and Java that still needs correction, open
+**Settings → Text encoding overrides**. Add a rule, enter a
 repository-relative pattern and select the encoding in the form. Preview the
 aggregate decoding outcomes, save reviewed rules, then run **Update local index**. One rule covers any number of matching files; no per-file
 security approval is needed. For example:
@@ -51,8 +55,9 @@ security approval is needed. For example:
 Use the charset that actually produced those files. CP1252 is common for German
 Windows sources, CP1251 for historical Cyrillic, and Shift-JIS (`shift_jis`) for
 Japanese. Supported alternatives include CP1250–1258, selected ISO-8859 charsets,
-KOI8-R/U, CP866, CP932, GB18030, Big5 and EUC-JP/KR. These are explicit choices,
-not language detectors. UTF-8 and valid Unicode BOMs retain precedence.
+KOI8-R/U, CP866, CP932, GB18030, Big5 and EUC-JP/KR. An explicit encoding
+override takes precedence over automatic detection. UTF-8, Unicode BOMs and
+supported document charset declarations retain precedence.
 
 Patterns are case-sensitive repository-relative POSIX paths, independent of
 Windows drive letters or container `/repo` paths. `*` matches a path component,
@@ -70,8 +75,9 @@ configure the same reviewed policy before restoring/reindexing its affected
 sources. An incompatible portable source pipeline is reparsed; it is not silently
 accepted under a different decoder.
 
-Only matching source compatibility keys change. Unrelated parsed sources and
-embeddings remain reusable. A warm unchanged reindex does no new parsing or
+Editing an override changes only the matching source compatibility keys. The
+first refresh after upgrading the automatic decoder revalidates its supported
+text families. Compatible embeddings remain reusable. A warm unchanged reindex does no new parsing or
 embedding for compatible completed sources. Parser workers remain parallel and
 resource bounded. Confidential text remains searchable locally and through MCP;
 existing safe-fragment export checks still run on decoded text. A decoding rule

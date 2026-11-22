@@ -8,12 +8,12 @@
   "progress": {
     "blocked": [],
     "done": [
-      "Updated the root README for the current UI and clarified read-only preview and live encoding control states"
+      "Verified default Windows-1251/1252 detection, precedence, portable restore and warm cache use"
     ],
     "todo": []
   },
   "resume": {
-    "next_action": "Verify preview and live permission/loading paths",
+    "next_action": "Verify the matched application image and kit on the corporate Windows host",
     "prerequisites": []
   },
   "runtime": {
@@ -27,7 +27,7 @@
     "created_at": "2026-11-21T17:35:02+00:00",
     "id": "fix-corporate-deployment",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-22T11:00:02+00:00"
+    "updated_at": "2026-11-22T11:26:40+00:00"
   },
   "task": {
     "acceptance": [
@@ -39,7 +39,7 @@
   },
   "verification": {
     "passed": [
-      "Full harness and browser JS PASS; Chrome confirmed file preview disables encoding controls and live loopback server enables them"
+      "Full harness PASS with strict OpenSpec and 1,659 manifest files; browser workflow passed"
     ],
     "pending": [
       "Windows CI after push, physical corporate Windows CUDA/Vulkan and long-path acceptance"
@@ -47,12 +47,12 @@
   },
   "working_set": [
     {
-      "path": "README.md",
-      "sha256": "de15da89edf4c63203d369aec4586b68aae8049db4ba0a28e4512c7172e0a05d"
+      "path": "pi_platform/core/ingest/records.py",
+      "sha256": "a143daed6a3e52cc44e416dad4ccc93ccad8edf0f0a843a1a55270cbae3b088f"
     },
     {
-      "path": "pi_platform/adapters/ui/static/app.js",
-      "sha256": "3cce793710b580766999a6a6cff58edb99c800acd9b259d272de361707503eac"
+      "path": "pi_platform/core/ingest/source_decoding_policy.py",
+      "sha256": "73210af69a72d678eab9fa74ff73bfee82e87a1aa2fd1caf6b2c098a5b061d8f"
     }
   ]
 }

@@ -5,6 +5,7 @@
 - [x] Expose custom ports and verify opt-in tokenless managed embeddings.
 - [x] Add kit commands for pinned GPU library preparation and CA refresh.
 - [x] Surface source-pass failures privately and replace the JSON encoding form.
+- [x] Detect Windows-1251 and Windows-1252 automatically with optional private overrides.
 - [x] Add Windows manual host adoption with an operator token file and private tokenless listener checks.
 - [ ] Add guided review for an exact licensed archive closure and prove corporate daemon TLS.
 - [x] Publish opt-in local coverage using fenced source stages and gate Git export on zero skips.

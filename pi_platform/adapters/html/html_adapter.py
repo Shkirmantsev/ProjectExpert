@@ -58,7 +58,7 @@ class HtmlAdapter(SourceAdapterPort):
 
     def parse(self, source, context=None):
         parser = _SectionParser()
-        text, decoding = read_text_with_provenance(source.uri, legacy=True, html=True)
+        text, decoding = read_text_with_provenance(source.uri, legacy=True, html=True, automatic=True)
         parser.feed(text)
         parser.close()
         parser.flush()
