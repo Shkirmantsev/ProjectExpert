@@ -94,7 +94,10 @@ retired), binding-specific devices, the Docling toggle and
 the single `initialise_and_build_index` action. `submit()`
 validates the form and returns a `RetrievalSettings`. HTTP submission persists
 `not-started`, never `ready`; the serving worker applies model/device changes.
-The UI polls `/api/v1/indexing-status` every three seconds. Model failures leave
+The workspace leads with search and local index status. Git operations,
+diagnostics, device settings and optional chat are available in expandable
+groups. The UI polls `/api/v1/indexing-status` every three seconds and displays
+the current stage and any skipped sources. Model failures leave
 HTTP and setup accessible while retrieval returns 503; failed builds retry.
 
 The persistent control form also switches bindings/devices after initial setup.
@@ -106,7 +109,7 @@ current process state, independently of the requested Auto preference. See the
 kit README for native Windows limits and model-download behavior.
 
 `GET /api/v1/auth-status` is public and returns only `token_required`. The page
-explains optional `PI_UI_TOKEN` API protection and disables the field when unset;
+shows an unlock form only when `PI_UI_TOKEN` API protection is configured;
 configured values stay private and are never returned by that endpoint.
 
 ## Administrative REST routes
@@ -161,8 +164,10 @@ it cannot silently manufacture a Gemma choice over a configured Qwen default.
 Make targets and Bash/PowerShell launchers. The `deployment-kit` Containerfile
 stage exports them without overwriting existing files. Published kits bind the
 runtime to a tested image digest. The kit defaults to Gemma Q8_0 with its pinned
-projector and a managed inference service. Startup waits for retrieval readiness
-for up to 30 minutes. Auto selection measures usable GPU inference against CPU;
+projector and a managed inference service. Startup waits for container health.
+Index readiness is tracked separately in the UI and through `/health/ready`.
+On Windows all kit Make targets use PowerShell 7 when available, with 5.1 as
+fallback, regardless of the parent shell. Auto selection measures usable GPU inference against CPU;
 failed candidates fall back to CPU. Linux uses sidecars; Windows GPU inference
 uses a native service with compatible drivers. CPU operation requires no GPU.
 Standalone application/container Make targets default to `gemma-torch`.

@@ -227,7 +227,7 @@ aebfe8772454446d88ac9f6485e5dae4638acdedd914b21530ceb304aa91c1b5  ./.ai/wiki/int
 4b3723a4a6644d5b4a9bf0e1424d0228df17e8c73af82d9daf446f169230d294  ./.ai/wiki/interfaces/licensing.md
 46904ee297f40063638124db741e481a310135890ae3d3609200bce9697fe657  ./.ai/wiki/interfaces/local-contextualizer.md
 de4a633070666fa5c9bd3e61e128c0194b5c2fd241074be3311bd1603aafcf2a  ./.ai/wiki/interfaces/mcp-tools.md
-02fe03b9840a5e6dc9162468fb0c41dbc308d931b3ab176299074176079dbb44  ./.ai/wiki/interfaces/one-command-ux.md
+f96b182fef9878e54e21af415bc33c7964fe94ba9b4f30348d6cec5bc1435c91  ./.ai/wiki/interfaces/one-command-ux.md
 6d9afec45b048fb96d0ba09b9ece5cdfbc792807709bfe3418f65d9decbd7ccc  ./.ai/wiki/interfaces/plugin-distribution.md
 e10d762b74bb05a2ba23ed0becb6126c3c3b989d2c5a6164056d1a48f536d6bb  ./.ai/wiki/interfaces/plugin-supply-chain.md
 1ca5cef3d2214896b6d5bf5228e62427c4df84e0d0656055e51712f422cb2af9  ./.ai/wiki/interfaces/policy-engine.md
@@ -342,7 +342,7 @@ e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution/codex/.gitkeep
 040e2caed9ea8bb4b3ebcf67b9fffc5894b4bb81388a4bb8e08efa7e50704244  ./distribution/deployment/.gitignore
 d6025649bba03033d149abb052aafc91969fc62a1658a10591f3e3225f492ed5  ./distribution/deployment/Makefile
-4c7bc292e58d52f9d25d9403d457c0472534c5297c034dc4648d94dde56d2708  ./distribution/deployment/README.md
+e74b386ec43e2c9e6592af182ada06656a2801729ccf95628ff39382d755dd98  ./distribution/deployment/README.md
 9eb8ee2d3f31eb02ef9f88eac53ece1c72659bacf55fb02ad37a709dbaf130bb  ./distribution/deployment/WINDOWS_NATIVE_GPU_RECOVERY.md
 6a7a568641fc706e97264a162705ceffae8b6d0e212e23a4724032d633deb5a6  ./distribution/deployment/accelerator-lock.json
 7f4e203448e4090b756da2e6d0c5bd36284bd48378f749de545a7a3fbdc6830c  ./distribution/deployment/compose.accelerator.yaml
@@ -431,7 +431,7 @@ b4fa6d5bb050796f565aadea87e87aaabefa86066e29afbf5e91feb3533ad6d7  ./docs/PRODUCT
 0aa2d489176417d3fb61133e0cedd1c616ccb814b861700ea8e4289e9e672ecf  ./docs/PRODUCTION_LICENSE_REVIEW.md
 ad963e82310827d994914560c337e41ca157e611c48451054056c121f4679d26  ./docs/PRODUCTION_RECONCILIATION_STATUS.md
 bfbb77f0f4a8e138124f8080ccf7c8c1d9fabf983a599da87fa2830230d09940  ./docs/PRODUCTION_REMEDIATION_ACCEPTANCE.md
-b488f88166627ad2e9ac2c55bae7962f16ea56d2892ad25856fa14fc275bf4b8  ./docs/PRODUCTION_SOURCE_RECOVERY.md
+39de7dd3998ee26b45af27ed59d32320d7e48a2cd29b80a38c275e76df9bb91b  ./docs/PRODUCTION_SOURCE_RECOVERY.md
 e5d3b84145be7110d7e5106b16b18ac7cda33f6fd788706cf9ad431c52e8737d  ./docs/PROJECT_STRUCTURE.md
 7674611013ea95bf881ebc1c684de0a0fb7cba417fe0bffd540670a6a537d1ad  ./docs/PYTHON_DEPENDENCY_ANALYSIS.md
 d0720e3cd6579aacf4dba012bb98cfb721f551be6f7e7078ef8a5c21dff7cb8c  ./docs/QUICKSTART.md
@@ -833,11 +833,11 @@ e9ee63822a165a6de1519ba4561ecb96c415cd4d68b2b18f89625cb016f74769  ./openspec/cha
 107b89dca9f11ab1fa14d928100982e450ded34057aa8e6af5bfbb60584a3dc2  ./openspec/changes/archive/2026-11-08-prevent-deployment-owner-regressions/specs/2026-10-25-llm-wiki-curated-knowledge/spec.md
 dc989c155f08992905bcc8653b4678c73a9cd22649e7b24308ae56f4fbdbc84b  ./openspec/changes/archive/2026-11-08-prevent-deployment-owner-regressions/tasks.md
 675b870a2050744a25e6d244e4ef20cda3c9fbe3f7b5eb15567ebadefee5c4e1  ./openspec/changes/fix-corporate-deployment/context-impact.md
-dfc71534df18c1f8267091dfbe7b9c36cf4061fb918c16fb3af6b2eea05d36a6  ./openspec/changes/fix-corporate-deployment/design.md
+a781615899b4ea611dcdb4ea10a170e895efa9fca94d5264c1af4d5a1e208a48  ./openspec/changes/fix-corporate-deployment/design.md
 acbc1290f2882cedde543c72bdbfd72f6b410110f311462d9b9e80e61951fb5c  ./openspec/changes/fix-corporate-deployment/proposal.md
-48a94c7821bd3230667b8515c20a6c145a7f98d0b6196a2350943a5e27f997c0  ./openspec/changes/fix-corporate-deployment/specs/2026-10-04-document-source-adapters/spec.md
+40f0637afa0e351a44e8f7787655d06ebe5c4fe71cdda9db46e9885349140018  ./openspec/changes/fix-corporate-deployment/specs/2026-10-04-document-source-adapters/spec.md
 2c598a8f237cefe5c5371d7d6a47deb0e89095dcb8bf00e0f0102f1e853271ab  ./openspec/changes/fix-corporate-deployment/specs/2026-10-18-one-command-production-ux/spec.md
-c55c62c38ae47f38fda563af6689bed3a47c9591b8d3240508462a0f5bbb61e3  ./openspec/changes/fix-corporate-deployment/tasks.md
+635278f7892a5072a9f96ebf350ba0deff37217fee80e6982193177c3bdabcdc  ./openspec/changes/fix-corporate-deployment/tasks.md
 635e0fcb84d016573f0a190d65e4da4446b63e3ae67ce120b17f4c53df36b565  ./openspec/changes/fix-corporate-deployment/verification.md
 9b212b196f0e600f09c2964fd1ff1acb39a44a243c2f069f23ce9b8b62689a52  ./openspec/changes/implement-git-portable-canonical-sync/context-impact.md
 222fcb881332621589c27dfda7dd16cfb25261c8f24037cc15adab98935c0887  ./openspec/changes/implement-git-portable-canonical-sync/design.md
@@ -1152,9 +1152,9 @@ e1719ba8d0cb285e0c90956a144905aba0ac4fa36eeb0253b70b38b99846e9cf  ./pi_platform/
 8f52905731de38af3d8b0c42a9a6c2627413a21c6947d70f1b228513ea333d94  ./pi_platform/adapters/ui/openai_compat.py
 3656441a6f3fe22963bbe067f7d1099119c33254075cfe42d1497de63c700de9  ./pi_platform/adapters/ui/projections.py
 e7e2b81807d5c8eec5d6f8184027d67e3eaf1453a525accbdc385ea24e37cc84  ./pi_platform/adapters/ui/retrieval_admin_routes.py
-21f92e51a3a6aaaaac2c6ca3bcfc427b775fe7c15ac33927b4fc8f80ec958af4  ./pi_platform/adapters/ui/static/app.js
-4f0fc3bac50b36e0f990cba1534063c80c981ae5ee4225555e26aad978e9b523  ./pi_platform/adapters/ui/static/index.html
-e5778b119466c60bc371bbbd12068b77ca22733e287b620aa58fbbdab0ddd45c  ./pi_platform/adapters/ui/static/styles.css
+7ccc49dfc002d18eabab5078b42f2ee2874eb2c5ae660275d8bb31bba765519e  ./pi_platform/adapters/ui/static/app.js
+033a14373776895a7e97e5c2fe070b392ee26d93b719c461b325102f3dbe430a  ./pi_platform/adapters/ui/static/index.html
+4b380515b81be1ff1dac2301f363de988b6181c22b52d460d551cd51ce14f902  ./pi_platform/adapters/ui/static/styles.css
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./pi_platform/cli/__init__.py
 74c1a24e87ff3ae2379c09ae4e34877627becdc6991b5f16d16606aa3efc22c7  ./pi_platform/cli/__main__.py
 1e8030c456dae64874e357610ba4b2edf73174be5d4b89a6c61454fa83435f3e  ./pi_platform/cli/chat.py
@@ -1619,7 +1619,7 @@ fcc344db330ba7ea20d6d5c85e84364cefc76c360eca70691ed22da5d3ce3884  ./tests/test_w
 f7b89fb6ae629b3fd852794353a5a99439dfce13cda4770f2d120f3f5973bdec  ./tests/test_workspace_deployment.py
 50a525cf6bcee310ab0507384b6c36b3700fdc229aa0049afa38e3c6bdf42733  ./tests/test_workspace_importer.py
 7f80b8645828179e1ab4942c997aafc0fffe2b617af2e842783dcb2419b0796c  ./tests/test_workspace_sync_contract.py
-5b87a8e26052e9c593aeccba2ef638bef47990b1b618d93e17d6b630ad9a8442  ./tests/ui_container_search.test.js
+06daf27f36e8658514b3664e60d8156f70abc02cf4ace4cd20f8f79b083cafdf  ./tests/ui_container_search.test.js
 a567e68dc88e21b7348ba9cfa9b20768e090938f3d47f8af56f0e6a871a5c92e  ./tests/windows_container_cuda.ps1
 f14fa35c6c95c8b9cbf670fe8bea3d5e72ec1b2426c78368c76c68a87578f829  ./tests/windows_deployment_runtime.ps1
 5949b931e23269092062e280edbebb5b51d1d9f626deb77d1a84a642c83bb0ff  ./tests/windows_external_llama.ps1

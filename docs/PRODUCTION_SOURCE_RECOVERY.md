@@ -3,8 +3,27 @@
 Use a matching application image and deployment kit. Upgrading the source checkout
 or refreshing the browser does not replace an existing application container.
 Keep the previous kit, verified asset packs and consistent runtime backup. This
-change never rewrites source encodings, disables complete-index publication,
-pushes Git files or modifies host drivers.
+Encoding rules affect the local index and leave the original source bytes intact.
+
+## Search with skipped files
+
+Use the same command from Windows PowerShell 5.1, PowerShell 7 or a Linux shell:
+
+```text
+make -C .project-intelligence-deploy platform-start ALLOW_SKIPPED_SOURCES=1
+```
+
+The launcher passes the option to Compose for this invocation. Set
+`PI_INDEX_REQUIRE_COMPLETE=0` in the kit's `deployment.env` to keep the policy
+across launches. The default requires a complete index.
+
+With this option, isolated source failures are recorded and the other sources
+continue through embedding and local index publication. Search and MCP can
+then use the indexed sources. The page and the REST indexing status report the
+coverage. Configuration errors, cancelled runs, model failures and invalid
+artifacts still block publication. Git export requires a generation with zero
+skips. Run `make -C .project-intelligence-deploy platform-index-failures` for the
+private report, repair the affected sources, and select **Update local index**.
 
 ## Legacy encodings and languages
 
@@ -13,10 +32,9 @@ Ukrainian, German, Japanese and Arabic do not require separate parser modes.
 Older byte encodings require a reviewed fallback: identical bytes can mean
 different characters in different code pages, so automatic guessing is unsafe.
 
-Open **Project knowledge → Legacy source encodings**. Add a rule, enter a
+Open **Settings → Legacy text encodings**. Add a rule, enter a
 repository-relative pattern and select the encoding in the form. Preview the
-aggregate decoding outcomes, save reviewed rules, then run **Reindex / Update
-local knowledge**. One rule covers any number of matching files; no per-file
+aggregate decoding outcomes, save reviewed rules, then run **Update local index**. One rule covers any number of matching files; no per-file
 security approval is needed. For example:
 
 ```json
@@ -86,7 +104,7 @@ Use `./wait-ready.ps1` or `bash wait-ready.sh` as an explicit bounded index-read
 step for deployment/CI; ordinary startup does not wait indefinitely for a large
 index. Existing readiness rules block retrieval during a running or failed refresh,
 even while the prior durable generation is retained. Do not set
-`PI_INDEX_REQUIRE_COMPLETE=0` to hide decoding failures.
+`PI_INDEX_REQUIRE_COMPLETE=0` when you need a complete index.
 
 ## Workspace shutdown and exclusions
 

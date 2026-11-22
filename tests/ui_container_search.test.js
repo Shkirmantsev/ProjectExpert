@@ -33,7 +33,7 @@ function browser(options = {}) {
       else if (path.endsWith('/ui-version')) body = {ui_contract:'knowledge-sync/2',ui_build:'fixture-build'};
       else if (path.endsWith('/auth-status')) body = {token_required:options.auth || false,local_owner_access:!options.auth};
       else if (path.endsWith('/wizard')) {body = {job_id:'apply-123'}; status=202;}
-      else if (path.endsWith('/indexing-status')) body = {ready: ++readyChecks > 2, hydration:{in_progress:true}, indexes:{active_sources:3,retrieval:{execution:{mode:options.mode || 'CPU',backend:'cpu',reason:'Verified deployment CPU profile',source:'selected deployment profile'}}}};
+      else if (path.endsWith('/indexing-status')) body = {ready: Boolean(options.coverage) || ++readyChecks > 2, hydration:{in_progress:true}, indexes:{active_sources:3,retrieval:{execution:{mode:options.mode || 'CPU',backend:'cpu',reason:'Verified deployment CPU profile',source:'selected deployment profile'},source_coverage:options.coverage}}};
       else if (path.endsWith('/admin/chat')) body = init.method === 'PUT' ? {...JSON.parse(init.body), api_key:undefined,api_key_set:true} : {enabled:false,provider:'openai',base_url:'',model:'',share_context:false,api_key_set:false};
       else if (path.endsWith('/admin/chat/test')) body = {ok:true,message:'Connection successful'};
       else if (path.endsWith('/admin/reindex')) { body = {job_id:'job-123',status:'queued'}; status = 202; }
@@ -77,10 +77,13 @@ async function main() {
   assert.match(b.node('source-encoding-result').textContent,/1 of 1 matching files decoded/);
   const secured=browser({auth:true});await flush();
   assert.equal(secured.node('access-token').disabled,false);
-  assert.match(secured.node('access-token-help').textContent,/not an LLM key/);
-  assert.equal(b.node('active-mode').textContent,'Active mode: CPU');
+  assert.match(secured.node('access-token-help').textContent,/PI_UI_TOKEN/);
+  assert.equal(b.node('active-mode').textContent,'Embedding device: CPU');
   const hybrid=browser({mode:'Hybrid'}); await flush();
-  assert.equal(hybrid.node('active-mode').textContent,'Active mode: Hybrid');
+  assert.equal(hybrid.node('active-mode').textContent,'Embedding device: Hybrid');
+  const partial = browser({coverage: {eligible: 16000, indexed: 15960, skipped: 40}});
+  await flush();
+  assert.match(partial.node('bootstrap-status').textContent, /15960 of 16000 sources indexed. 40 skipped/);
   b.node('chat-enabled').checked=true;
   b.node('chat-share-context').checked=true;
   b.node('chat-base-url').value='http://host.docker.internal:1234/v1';
@@ -122,11 +125,12 @@ async function main() {
   failed.node('admin-reindex-button').listeners.click(); await flush(); await flush();
   assert.match(failed.node('knowledge-sync-result').textContent,/Embedding server unreachable/);
   assert.equal(failed.node('admin-reindex-button').disabled,false);
-  b.node('approval-token').value='approval';
-  assert.equal(b.node('approval-token').listeners.change,undefined);
-  b.node('access-token').value='api-token';b.node('access-token').listeners.change();
-  b.node('sources-button').listeners.click(); await flush();
-  assert.equal(b.requests.at(-1).headers.Authorization,'Bearer api-token');
+  secured.node('access-token').value = 'api-token';
+  secured.node('api-access-form').listeners.submit({preventDefault(){}});
+  await flush();
+  secured.node('sources-button').listeners.click(); await flush();
+  assert.equal(secured.requests.at(-1).headers.Authorization, 'Bearer api-token');
+  assert.equal(secured.node('access-token').value, '');
   assert.match(b.context.formatResult('wiki-result',{documents:[{path:'page.md',text:'# Useful wiki'}]}),/# Useful wiki/);
   assert.match(b.context.formatResult('query-result',{results:[{metadata:{sourcePath:'brief.md'},snippet:'Evidence',score:0.5}]}),/brief.md.*score 0.5\nEvidence/);
   b.node('knowledge-restore-button').listeners.click();await flush();await flush();

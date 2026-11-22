@@ -8,12 +8,12 @@
   "progress": {
     "blocked": [],
     "done": [
-      "Verified and committed the source recovery slice; deployment software gate passed and the paired release remains unverified on physical Windows"
+      "Verified the UI, local partial publication and PowerShell-independent command changes"
     ],
     "todo": []
   },
   "resume": {
-    "next_action": "Implement the remaining OpenSpec publication and licensing steps, then exercise the paired release on the corporate host",
+    "next_action": "Verify the matched application image and kit on the corporate Windows host",
     "prerequisites": []
   },
   "runtime": {
@@ -27,7 +27,7 @@
     "created_at": "2026-11-21T17:35:02+00:00",
     "id": "fix-corporate-deployment",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-21T18:02:23+00:00"
+    "updated_at": "2026-11-22T10:26:03+00:00"
   },
   "task": {
     "acceptance": [
@@ -39,14 +39,21 @@
   },
   "verification": {
     "passed": [
-      "Full harness PASS, 2144 tests across 168 suites with 21 skips; artifact manifest 1658 files"
+      "Full harness PASS: 2,149 tests in 168 suites, 22 skipped; strict OpenSpec 99/99 and 1,659 manifest files",
+      "CLI cold and warm partial startup, Compose policy forwarding, browser workflow and Chrome light/dark layout passed"
     ],
-    "pending": []
+    "pending": [
+      "Windows CI after push, physical corporate Windows CUDA/Vulkan and long-path acceptance"
+    ]
   },
   "working_set": [
     {
-      "path": "pi_platform/deployment/native_route.py",
-      "sha256": "8cbe93683132ba2b552a671abd6ae4a6c6c8d1db6d75ae2031796eb9d68a870d"
+      "path": "pi_platform/adapters/runtime/sqlite_ingestion_cache.py",
+      "sha256": "9f70a465a7cd6389d0832697b7912c7070981734256ef1c30619f3896ac9cb39"
+    },
+    {
+      "path": "pi_platform/core/orchestration/repository_indexing.py",
+      "sha256": "fab870aaf6e13503eec754a504fccf78db7eb6178aaa7587b05c70ff9621565e"
     }
   ]
 }
