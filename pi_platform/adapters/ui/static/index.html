@@ -7,214 +7,200 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <header>
-    <h1>Project Intelligence</h1>
-    <p class="subtitle">Local project knowledge, version-aware and agent-neutral.</p>
-    <p id="deployment-status" class="deployment-notice" role="status">Connecting to the running application…</p>
-    <p id="local-access-notice" class="deployment-notice" hidden>Local owner access · no API token or sign-in needed.</p>
-    <a id="preview-live-link" class="text-link" href="http://127.0.0.1:8765/" hidden>Open the running application</a>
+  <header class="site-header">
+    <div>
+      <h1>Project Intelligence</h1>
+      <p id="deployment-status" class="hint" role="status">Connecting to the application…</p>
+      <a id="preview-live-link" href="http://127.0.0.1:8765/" hidden>Open the local service on port 8765</a>
+    </div>
+    <nav aria-label="Workspace">
+      <a href="#search">Search</a>
+      <a href="#index">Local index</a>
+      <a href="#settings">Settings</a>
+    </nav>
   </header>
 
   <main>
-    <section class="panel" id="api-access-panel">
-      <label for="access-token">API access token (only if configured by your operator)</label>
-      <input id="access-token" type="password" autocomplete="off" placeholder="PI_UI_TOKEN; kept in memory" />
-      <p id="access-token-help" class="hint" role="status">Checking API access requirements…</p>
-    </section>
-    <section class="panel knowledge-panel" aria-labelledby="knowledge-heading">
-      <div class="panel-heading">
-        <div><h2 id="knowledge-heading">Project knowledge</h2>
-        <p class="hint">Restore shared knowledge, update your local index, then share the safe results.</p></div>
-        <span class="scope-badge">Private data stays local</span>
-      </div>
-      <p id="active-mode" class="mode-badge" role="status" aria-live="polite">Active mode: checking…</p>
-      <div class="knowledge-actions">
-        <article class="action-card">
-          <span class="step-number">1</span><h3>Restore from Git</h3>
-          <p>Reuse the snapshot in your checkout. No source parsing or new embeddings.</p>
-          <button id="knowledge-restore-button" type="button">Restore knowledge from Git</button>
-        </article>
-        <article class="action-card">
-          <span class="step-number">2</span><h3>Update local knowledge</h3>
-          <p>Process only missing or changed work. Search stays independent of export.</p>
-          <button id="admin-reindex-button" type="button">Reindex / Update local knowledge</button>
-        </article>
-        <article class="action-card">
-          <span class="step-number">3</span><h3>Share safe knowledge</h3>
-          <p>Review a safe export before writing Git files. Commit and push remain yours.</p>
-          <button id="knowledge-export-button" type="button">Export safe knowledge to Git files</button>
-        </article>
-      </div>
-      <div id="knowledge-sync-result" class="operation-result" role="status" aria-live="polite">Ready when you are. Choose an action above.</div>
-      <button id="knowledge-publish-button" type="button" hidden>Authorize and publish reviewed safe files</button>
-      <details class="knowledge-options">
-        <summary>Sharing preferences</summary>
-        <fieldset id="knowledge-settings">
-          <legend>Choose what this project shares</legend>
-          <label><input id="knowledge-share" type="checkbox"> Enable safe Git export</label>
-          <label><input id="knowledge-auto" type="checkbox"> Automatically export after Reindex (approval lasts one hour)</label>
-          <label><input id="knowledge-vectors" type="checkbox"> Include eligible embeddings for faster restore (larger Git storage)</label>
-          <button id="knowledge-save" type="button">Save sharing preferences</button>
-        </fieldset>
-        <p class="hint">Reindex once after first enabling sharing. Local owner access needs no token. Protected servers use the operator’s API token; signing keys stay on the server. Generated files stay below 8 MiB by default.</p>
-      </details>
-      <details class="knowledge-options">
-        <summary>Legacy source encodings</summary>
-        <p class="hint">UTF-8 and Unicode BOMs work automatically. For older Java, SQL and text files, preview a reviewed fallback charset rule. Source files stay unchanged. Rules stay in the local cache; safe Git export checks still apply.</p>
-        <div id="source-encoding-rules"></div>
-        <button id="source-encoding-add" type="button" disabled>Add encoding rule</button>
-        <p><button id="source-encoding-preview" type="button">Preview decoding</button>
-        <button id="source-encoding-save" type="button">Save reviewed rules</button></p>
-        <p class="hint">Use a repository-relative pattern such as <code>legacy/**/*.java</code>. Confirm the encoding against the original editor or file producer. Preview, save, then run Reindex.</p>
-        <pre id="source-encoding-result" role="status" aria-live="polite"></pre>
-      </details>
-      <p class="hint" id="knowledge-export-policy">One export policy applies to all discovered files. No file paths or individual approvals are needed. Confidential context stays in the local cache and ProjectExpert MCP. Git export checks content and keeps only safe, independently usable context.</p>
-      <p class="hint">Git history retains previously committed data. Export never runs Git add, commit or push.</p>
-    </section>
-
-    <section class="panel" id="wizard-panel">
-      <h2>0. First-start wizard &amp; semantic search model</h2>
-      <p class="hint">
-        Search and ranking use EmbeddingGemma 2; no chat LLM or API key is required.
-        Select the execution device and PDF processing. Private document inputs: tmp/ and its subfolders. Keep generated caches under tmp/local/; tmp/local/source/ remains an explicit source inbox.
-      </p>
-      <p id="active-mode-detail" class="hint">This shows embedding inference, independently of an optional chat model.</p>
-      <p id="runtime-help" class="hint">Loading runtime controls…</p>
-      <form id="wizard-form">
-        <label for="embedding-model-select">Embedding model</label>
-        <select id="embedding-model-select">
-          <option value="gemma">EmbeddingGemma 2 (Q8_0, managed embedding runtime)</option>
-        </select>
-        <label for="embedding-device-select">Execution device</label>
-        <select id="embedding-device-select">
-          <option value="auto">Auto (measure CPU/GPU; select faster)</option>
-          <option value="cpu">CPU</option>
-          <option value="vulkan">GPU / Vulkan (GGUF runtime)</option>
-          <option value="cuda">GPU / CUDA</option>
-        </select>
-        <label>
-          <input id="docling-enabled-checkbox" type="checkbox" checked />
-          Enable Docling PDF processing
-        </label>
-        <button id="wizard-submit-button" type="submit">Apply model &amp; device and build index</button>
+    <section class="panel" id="api-access-panel" hidden>
+      <h2>Unlock this workspace</h2>
+      <form id="api-access-form">
+        <label for="access-token">Workspace access token</label>
+        <div class="controls">
+          <input id="access-token" type="password" autocomplete="off" aria-describedby="access-token-help" />
+          <button type="submit">Unlock</button>
+        </div>
       </form>
-      <pre id="bootstrap-status" class="output" aria-live="polite">Loading bootstrap status…</pre>
-      <pre id="wizard-result" class="output">Ready to configure or switch semantic model.</pre>
+      <p id="access-token-help" class="hint" role="status">Checking access requirements…</p>
     </section>
 
-
-    <section class="panel">
-      <h2>1. Ask about your project</h2>
-      <p class="hint">Search works immediately with embeddings. Enable the optional chat LLM below to also generate an answer grounded in these sources.</p>
+    <section class="panel search-panel" id="search">
+      <h2>Search your project</h2>
       <form id="query-form">
-        <input id="query-text" type="text" placeholder="What is the contract of OrderService.cancel?" autocomplete="off" />
-        <button type="submit">Ask / Search</button>
+        <label for="query-text">Question, keyword or code identifier</label>
+        <div class="controls">
+          <input id="query-text" type="text" placeholder="How are refunds processed?" autocomplete="off" required />
+          <button type="submit">Search</button>
+        </div>
       </form>
-      <pre id="query-result" class="output">Enter a question or identifier to find evidence.</pre>
+      <p class="hint">Find relevant project excerpts. You can enable generated answers in Settings.</p>
+      <pre id="query-result" class="output" aria-live="polite"></pre>
+
+      <details>
+        <summary>Browse the Wiki, sources and graph</summary>
+        <div class="tool-grid">
+          <form id="wiki-form">
+            <label for="wiki-query">Curated Wiki pages</label>
+            <div class="controls"><input id="wiki-query" type="text" placeholder="Page title or topic" required />
+            <button type="submit" class="secondary">Find pages</button></div>
+            <pre id="wiki-result" class="output"></pre>
+          </form>
+          <div>
+            <button id="sources-button" type="button" class="secondary">List indexed sources</button>
+            <pre id="sources-result" class="output"></pre>
+          </div>
+          <form id="graph-form">
+            <label for="graph-entity">Graph entity ID</label>
+            <div class="controls"><input id="graph-entity" type="text" placeholder="ID from a source or result" required />
+            <button type="submit" class="secondary">Show connections</button></div>
+            <pre id="graph-result" class="output"></pre>
+          </form>
+          <div>
+            <button id="retrieve-button" type="button" class="secondary">Retrieve excerpts only</button>
+            <p class="hint">Uses the question above and skips answer generation.</p>
+            <pre id="retrieve-result" class="output"></pre>
+          </div>
+        </div>
+      </details>
     </section>
 
-    <section class="panel">
-      <h2>2. Inspect retrieved evidence</h2>
-      <button id="retrieve-button">Run deterministic retrieval</button>
-      <pre id="retrieve-result" class="output">No retrieval executed yet.</pre>
+    <section class="panel" id="index">
+      <h2>Local index</h2>
+      <div class="index-status" role="status">
+        <p id="bootstrap-status">Checking the local index…</p>
+        <p id="active-mode" class="mode-badge">Checking the embedding runtime…</p>
+      </div>
+      <div class="controls">
+        <button id="admin-reindex-button" type="button">Update local index</button>
+        <p class="hint">Process new and changed sources. Existing compatible results are reused.</p>
+      </div>
+      <div id="knowledge-sync-result" class="operation-result" role="status" aria-live="polite"></div>
+      <button id="knowledge-publish-button" type="button" hidden>Write reviewed Git files</button>
+      <details>
+        <summary>Restore or share via Git</summary>
+        <div class="tool-grid">
+          <div>
+            <button id="knowledge-restore-button" type="button" class="secondary">Restore from Git</button>
+            <p class="hint">Reuse a compatible snapshot from your current checkout. Run a local update if any sources or embeddings are missing.</p>
+          </div>
+          <div>
+            <button id="knowledge-export-button" type="button" class="secondary">Preview Git export</button>
+            <p class="hint">Review the files before writing them. Commit and push separately when ready.</p>
+          </div>
+        </div>
+        <details>
+          <summary>Sharing preferences</summary>
+          <fieldset id="knowledge-settings">
+            <legend>Safe Git export</legend>
+            <label><input id="knowledge-share" type="checkbox"> Enable export</label>
+            <label><input id="knowledge-auto" type="checkbox"> Export after index updates (approval lasts one hour)</label>
+            <label><input id="knowledge-vectors" type="checkbox"> Include embeddings for faster restores (uses more Git storage)</label>
+            <button id="knowledge-save" type="button" class="secondary">Save preferences</button>
+          </fieldset>
+          <p class="hint">The same export checks apply to all discovered files. Confidential material stays available through local search and MCP. Generated files are capped at 8 MiB by default.</p>
+        </details>
+      </details>
+      <details>
+        <summary>Diagnostics and project version</summary>
+        <p class="hint">For a private list of failed files, run <code>make -C .project-intelligence-deploy platform-index-failures</code> from your project.</p>
+        <div class="tool-grid">
+          <div><button id="indexing-button" type="button" class="secondary">Show index details</button><pre id="indexing-result" class="output"></pre></div>
+          <div><button id="version-button" type="button" class="secondary">Show Git version</button><pre id="version-result" class="output"></pre></div>
+          <div><button id="knowledge-button" type="button" class="secondary">Check knowledge freshness</button><pre id="knowledge-result" class="output"></pre></div>
+        </div>
+      </details>
     </section>
 
-    <section class="panel">
-      <h2>3. Browse sources</h2>
-      <button id="sources-button">List sources</button>
-      <pre id="sources-result" class="output">—</pre>
-    </section>
+    <section class="panel" id="settings">
+      <h2>Settings</h2>
+      <p id="local-access-notice" class="hint" hidden>Local owner access is enabled.</p>
+      <details id="wizard-panel">
+        <summary>Embedding device and PDF processing</summary>
+        <p id="active-mode-detail" class="hint"></p>
+        <p id="runtime-help" class="hint">Loading runtime controls…</p>
+        <form id="wizard-form">
+          <label id="embedding-model-field">Embedding model
+            <select id="embedding-model-select"><option value="gemma">EmbeddingGemma 2 (Q8_0)</option></select>
+          </label>
+          <label>Embedding device
+            <select id="embedding-device-select" aria-describedby="runtime-help" disabled></select>
+          </label>
+          <label class="choice"><input id="docling-enabled-checkbox" type="checkbox" checked /> Include PDFs in the index</label>
+          <p class="hint">Uses Docling to extract text and structure from discovered PDFs.</p>
+          <button id="wizard-submit-button" type="submit">Apply and update index</button>
+        </form>
+        <pre id="wizard-result" class="output" aria-live="polite"></pre>
+      </details>
 
-    <section class="panel">
-      <h2>4. Navigate the graph</h2>
-      <form id="graph-form">
-        <input id="graph-entity" type="text" placeholder="Entity id" autocomplete="off" />
-        <button type="submit">Expand</button>
-      </form>
-      <pre id="graph-result" class="output">—</pre>
-    </section>
+      <details id="source-encoding-panel">
+        <summary>Text encoding overrides</summary>
+        <p class="hint">ProjectExpert automatically tries Windows-1251 and Windows-1252 for text that fails UTF-8 decoding. For plain-text and Java files that still need correction, choose the original encoding for a project-relative pattern, preview, then save and update the index.</p>
+        <div id="source-encoding-rules"></div>
+        <div class="controls">
+          <button id="source-encoding-add" type="button" class="secondary" disabled>Add rule</button>
+          <button id="source-encoding-preview" type="button" class="secondary" disabled>Preview decoding</button>
+          <button id="source-encoding-save" type="button" disabled>Save rules</button>
+        </div>
+        <pre id="source-encoding-result" class="output" role="status" aria-live="polite"></pre>
+      </details>
 
-    <section class="panel">
-      <h2>5. Browse the Wiki</h2>
-      <p class="hint">Searches curated Markdown under project-knowledge/wiki/. A new project may contain only templates. Embeddings do not write Wiki articles; ask your connected agent to curate them from retrieved sources.</p>
-      <form id="wiki-form">
-        <input id="wiki-query" type="text" placeholder="Wiki query" autocomplete="off" />
-        <button type="submit">Search</button>
-      </form>
-      <pre id="wiki-result" class="output">—</pre>
-    </section>
+      <details>
+        <summary>Generated answers (optional)</summary>
+        <p class="hint">Connect a chat model to answer questions using retrieved excerpts. Search and indexing work independently.</p>
+        <form id="chat-form">
+          <label class="choice"><input id="chat-enabled" type="checkbox" /> Enable generated answers</label>
+          <label>Provider API
+            <select id="chat-provider" aria-describedby="chat-help">
+              <option value="openai">OpenAI-compatible (including LM Studio)</option>
+              <option value="anthropic">Anthropic Messages API</option>
+            </select>
+          </label>
+          <label>Endpoint URL
+            <input id="chat-base-url" type="url" placeholder="http://host.docker.internal:1234/v1" autocomplete="off" aria-describedby="chat-help" />
+          </label>
+          <label>Model identifier
+            <input id="chat-model" type="text" placeholder="Exact ID shown by the provider" autocomplete="off" />
+          </label>
+          <p id="chat-help" class="hint"></p>
+          <label>Provider API key (if required)
+            <input id="chat-key" type="password" placeholder="Leave blank to keep the saved key" autocomplete="off" />
+          </label>
+          <label class="choice"><input id="chat-clear-key" type="checkbox" /> Remove the saved provider key</label>
+          <label class="choice"><input id="chat-share-context" type="checkbox" /> Allow this endpoint to receive project excerpts</label>
+          <div class="controls">
+            <button id="chat-save" type="submit">Save chat settings</button>
+            <button id="chat-test" type="button" class="secondary">Test saved connection</button>
+          </div>
+        </form>
+        <pre id="chat-status" class="output" aria-live="polite"></pre>
+      </details>
 
-    <section class="panel">
-      <h2>6. Current project version</h2>
-      <button id="version-button">Show version</button>
-      <pre id="version-result" class="output">—</pre>
-    </section>
-
-    <section class="panel">
-      <h2>7. Indexing status</h2>
-      <button id="indexing-button">Check indexing</button>
-      <pre id="indexing-result" class="output">—</pre>
-    </section>
-
-    <section class="panel">
-      <h2>8. Knowledge status</h2>
-      <button id="knowledge-button">Check stale/conflicting knowledge</button>
-      <pre id="knowledge-result" class="output">—</pre>
-    </section>
-
-    <section class="panel">
-      <h2>9. Materialise approved knowledge</h2>
-      <form id="materialize-form" hidden>
-        <input id="approval-token" type="password" placeholder="Approval token" autocomplete="off" />
-        <button type="submit">Materialise</button>
-      </form>
-      <p class="hint">Advanced canonical write operation, not needed for indexing or search. This retrieval UI does not issue approval tokens. It requires an operator-configured signing key, administrator policy and a signed, scoped token; an API key or arbitrary password is not an approval. Use your approved administrative workflow.</p>
-      <pre id="materialize-result" class="output">—</pre>
-    </section>
-
-    <section class="panel">
-      <h2>10. Delegate a complex task</h2>
-      <form id="delegation-form" hidden>
-        <input id="delegation-task" type="text" placeholder="Task for the orchestrator" autocomplete="off" />
-        <input id="delegation-target" type="text" placeholder="Optional egress target" autocomplete="off" />
-        <button type="submit">Delegate</button>
-      </form>
-      <p class="hint">No coding-agent delegation is configured. Optional chat generates text from evidence; send complex tasks to Claude Code, Codex or another connected MCP client to use agent tools.</p>
-      <pre id="delegation-result" class="output">—</pre>
-    </section>
-
-    <section class="panel">
-      <h2>11. Optional chat LLM — answers from project evidence</h2>
-      <p class="hint">Embeddings find and rank your sources. A separate chat LLM can explain, summarize and compare the retrieved evidence. Search and reindexing still work when chat is disabled or unavailable.</p>
-      <form id="chat-form">
-        <label><input id="chat-enabled" type="checkbox" /> Enable generated answers</label>
-        <label for="chat-provider">API type</label>
-        <select id="chat-provider">
-          <option value="openai">OpenAI-compatible (LM Studio, local server or hosted API)</option>
-          <option value="anthropic">Anthropic Messages API</option>
-        </select>
-        <label for="chat-base-url">Chat API base URL (reachable from the ProjectExpert container)</label>
-        <input id="chat-base-url" type="url" placeholder="http://host.docker.internal:1234/v1" autocomplete="off" />
-        <label for="chat-model">Chat model identifier</label>
-        <input id="chat-model" type="text" placeholder="Exact identifier shown by your model server" autocomplete="off" />
-        <label for="chat-key">Provider API key (optional for servers without authentication)</label>
-        <input id="chat-key" type="password" placeholder="Leave blank to retain a saved key" autocomplete="off" />
-        <label><input id="chat-clear-key" type="checkbox" /> Clear the saved provider key</label>
-        <label><input id="chat-share-context" type="checkbox" /> Allow sending retrieved project excerpts to this endpoint</label>
-        <button id="chat-save" type="submit">Save and apply</button>
-        <button id="chat-test" type="button">Test saved connection</button>
-      </form>
-      <p id="chat-help" class="hint">LM Studio: start its server and load a chat model; use http://host.docker.internal:1234/v1 from Docker, not 127.0.0.1. On Linux, the deployment kit adds the host-gateway mapping. The model name must match the loaded chat model. An embedding model is not a chat model.</p>
-      <p class="hint">The URL and model configured before startup through Make appear in these same fields and can be edited here.</p>
-      <p class="hint">Saved on this ProjectExpert server and applied immediately to Ask and Open WebUI through ProjectExpert. The provider key is stored in ignored private runtime settings; it is never returned to the browser. To stop generated answers, uncheck Enable and save. This connection generates answers; it does not execute agent tools or edit the Wiki.</p>
-      <pre id="chat-status" class="output" aria-live="polite">Chat is optional. Loading server configuration…</pre>
-      <p class="hint">Open WebUI on the same Docker network: http://production:8765/v1, model project-intelligence. This route uses the settings above. A separate direct Open WebUI → LM Studio connection does not automatically retrieve ProjectExpert context.</p>
+      <details>
+        <summary>Operator workflows</summary>
+        <p class="hint">Canonical writes use a signed approval from the administrator's workflow. Run coding-agent tasks in your connected MCP client.</p>
+        <form id="materialize-form" hidden>
+          <label>Signed approval <input id="approval-token" type="password" autocomplete="off" /></label>
+          <button type="submit">Apply approved changes</button>
+        </form>
+        <pre id="materialize-result" class="output"></pre>
+        <form id="delegation-form" hidden>
+          <label>Task <input id="delegation-task" type="text" /></label>
+          <label>Optional destination <input id="delegation-target" type="text" /></label>
+          <button type="submit">Delegate</button>
+        </form>
+        <pre id="delegation-result" class="output"></pre>
+      </details>
     </section>
   </main>
-
-  <footer>
-    <p>REST contract: <code>/api/v1/</code> · OpenAI-compatible: <code>/v1/</code> · health: <code>/health</code> · readiness: <code>/health/ready</code></p>
-  </footer>
 
   <script src="./app.js"></script>
 </body>

@@ -3,20 +3,42 @@
 Use a matching application image and deployment kit. Upgrading the source checkout
 or refreshing the browser does not replace an existing application container.
 Keep the previous kit, verified asset packs and consistent runtime backup. This
-change never rewrites source encodings, disables complete-index publication,
-pushes Git files or modifies host drivers.
+Encoding rules affect the local index and leave the original source bytes intact.
+
+## Search with skipped files
+
+Use the same command from Windows PowerShell 5.1, PowerShell 7 or a Linux shell:
+
+```text
+make -C .project-intelligence-deploy platform-start
+```
+
+Make passes its default `ALLOW_SKIPPED_SOURCES=1` to the existing policy.
+Use `ALLOW_SKIPPED_SOURCES=0` to require a complete index. Direct launch scripts
+use `PI_INDEX_REQUIRE_COMPLETE` from the kit's `deployment.env`.
+
+With skips allowed, isolated source failures are recorded and the other sources
+continue through embedding and local index publication. Search and MCP can
+then use the indexed sources. The page and the REST indexing status report the
+coverage. Configuration errors, cancelled runs, model failures and invalid
+artifacts still block publication. Git export requires a generation with zero
+skips. Run `make -C .project-intelligence-deploy platform-index-failures` for the
+private report, repair the affected sources, and select **Update local index**.
 
 ## Legacy encodings and languages
 
 UTF-8, UTF-8 BOM and BOM-marked UTF-16/32 work automatically. Languages such as
 Ukrainian, German, Japanese and Arabic do not require separate parser modes.
-Older byte encodings require a reviewed fallback: identical bytes can mean
-different characters in different code pages, so automatic guessing is unsafe.
+When UTF-8 decoding fails, plain text (including SQL), Java, Markdown and HTML
+can fall back to Windows-1251 or Windows-1252. The adapter ranks the candidates
+using a bounded sample around the first UTF-8 error and strictly decodes the
+original bytes with the selected codec. No configuration is needed for this
+path. The detected codec is recorded in the local search records.
 
-Open **Project knowledge → Legacy source encodings**. Add a rule, enter a
+For plain text and Java that still needs correction, open
+**Settings → Text encoding overrides**. Add a rule, enter a
 repository-relative pattern and select the encoding in the form. Preview the
-aggregate decoding outcomes, save reviewed rules, then run **Reindex / Update
-local knowledge**. One rule covers any number of matching files; no per-file
+aggregate decoding outcomes, save reviewed rules, then run **Update local index**. One rule covers any number of matching files; no per-file
 security approval is needed. For example:
 
 ```json
@@ -33,8 +55,9 @@ security approval is needed. For example:
 Use the charset that actually produced those files. CP1252 is common for German
 Windows sources, CP1251 for historical Cyrillic, and Shift-JIS (`shift_jis`) for
 Japanese. Supported alternatives include CP1250–1258, selected ISO-8859 charsets,
-KOI8-R/U, CP866, CP932, GB18030, Big5 and EUC-JP/KR. These are explicit choices,
-not language detectors. UTF-8 and valid Unicode BOMs retain precedence.
+KOI8-R/U, CP866, CP932, GB18030, Big5 and EUC-JP/KR. An explicit encoding
+override takes precedence over automatic detection. UTF-8, Unicode BOMs and
+supported document charset declarations retain precedence.
 
 Patterns are case-sensitive repository-relative POSIX paths, independent of
 Windows drive letters or container `/repo` paths. `*` matches a path component,
@@ -52,8 +75,9 @@ configure the same reviewed policy before restoring/reindexing its affected
 sources. An incompatible portable source pipeline is reparsed; it is not silently
 accepted under a different decoder.
 
-Only matching source compatibility keys change. Unrelated parsed sources and
-embeddings remain reusable. A warm unchanged reindex does no new parsing or
+Editing an override changes only the matching source compatibility keys. The
+first refresh after upgrading the automatic decoder revalidates its supported
+text families. Compatible embeddings remain reusable. A warm unchanged reindex does no new parsing or
 embedding for compatible completed sources. Parser workers remain parallel and
 resource bounded. Confidential text remains searchable locally and through MCP;
 existing safe-fragment export checks still run on decoded text. A decoding rule
@@ -85,8 +109,8 @@ be reached; inspect `/health/ready` and the UI index status for search readiness
 Use `./wait-ready.ps1` or `bash wait-ready.sh` as an explicit bounded index-ready
 step for deployment/CI; ordinary startup does not wait indefinitely for a large
 index. Existing readiness rules block retrieval during a running or failed refresh,
-even while the prior durable generation is retained. Do not set
-`PI_INDEX_REQUIRE_COMPLETE=0` to hide decoding failures.
+even while the prior durable generation is retained. For a complete index,
+use `ALLOW_SKIPPED_SOURCES=0` with Make or `PI_INDEX_REQUIRE_COMPLETE=1` for direct launches.
 
 ## Workspace shutdown and exclusions
 

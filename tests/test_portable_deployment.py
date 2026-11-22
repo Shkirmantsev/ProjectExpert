@@ -151,11 +151,30 @@ class DeploymentTests(unittest.TestCase):
         run = subprocess.run(['make', '-n', '-C', str(BUNDLE), 'platform-start', 'platform-stop',
                               'platform-models', 'eval-retrieval'], capture_output=True, text=True)
         self.assertEqual(run.returncode, 0, run.stderr)
-        launcher = 'powershell -NoProfile -File ./compose.ps1' if os.name == 'nt' else 'bash ./compose.sh'
+        if os.name == 'nt':
+            engine = 'pwsh.exe' if shutil.which('pwsh.exe') else 'powershell.exe'
+            launcher = f'{engine} -NoProfile -File ./compose.ps1'
+        else:
+            launcher = 'bash ./compose.sh'
         self.assertIn(launcher + ' up -d --wait', run.stdout)
         self.assertIn('exec -T production python -m pi_platform.cli', run.stdout)
         self.assertNotIn('down -v', run.stdout)
         self.assertNotIn('harness.py', run.stdout)
+
+    @unittest.skipUnless(shutil.which('make') and os.name != 'nt', 'POSIX Make fixture')
+    def test_skip_override_reaches_the_launcher_without_changing_dotenv(self):
+        with tempfile.TemporaryDirectory() as raw:
+            kit = _kit_copy(raw)
+            before = (kit / 'deployment.env').read_bytes()
+            (kit / 'compose.sh').write_text('printf "%s\\n" "${PI_INDEX_REQUIRE_COMPLETE-unset}"\n')
+            env = {key: value for key, value in os.environ.items() if key != 'PI_INDEX_REQUIRE_COMPLETE'}
+            for options, expected in (([], '0'), (['ALLOW_SKIPPED_SOURCES='], 'unset'),
+                                      (['ALLOW_SKIPPED_SOURCES=1'], '0'),
+                                      (['ALLOW_SKIPPED_SOURCES=0'], '1')):
+                result = subprocess.run(['make', 'platform-start', *options], cwd=kit, env=env,
+                                        check=True, capture_output=True, text=True)
+                self.assertIn(expected, result.stdout.splitlines())
+            self.assertEqual((kit / 'deployment.env').read_bytes(), before)
 
 
     @unittest.skipUnless(os.name != 'nt' and shutil.which('docker'), 'Linux Compose config required')
@@ -280,6 +299,35 @@ def _fake_docker(directory: Path, exit_code: int = 0) -> Path:
 
 class DeploymentHelpTests(unittest.TestCase):
     """`make` and `make help` are read-only command lists."""
+
+    @unittest.skipUnless(os.name == 'nt' and os.environ.get('PI_TEST_POWERSHELL'),
+                         'explicit Windows PowerShell acceptance')
+    def test_windows_make_surface(self):
+        def run(command):
+            result = subprocess.run([os.environ['PI_TEST_POWERSHELL'], '-NoProfile', '-NonInteractive',
+                                     '-Command', command + '; exit $LASTEXITCODE'],
+                                    cwd=ROOT, capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            return result.stdout
+
+        run('make help')
+        run('make wiki-init')
+        help_output = run('make -C distribution/deployment help')
+        targets = re.findall(r'(?m)^\s+make\s+([\w.-]+)\s+\S', help_output)
+        self.assertIn('platform-start', targets)
+        self.assertIn('platform-index-failures', targets)
+        kit = run('make -n -C distribution/deployment ' + ' '.join(targets) +
+                  ' ALLOW_SKIPPED_SOURCES=1')
+        self.assertIn('-File ./compose.ps1 up -d --wait', kit)
+        self.assertIn('-File ./compose.ps1 down', kit)
+        self.assertIn('-File ./setup-windows-accelerator.ps1', kit)
+        names = 'platform-init platform-hydrate license-gate okf-validate version-identity wal-recover'
+        host = run('make -n ' + names + ' pi-up pi-model pi-status pi-reindex pi-doctor pi-down')
+        self.assertNotIn('then', host)
+        self.assertIn('--target "."', host)
+        docker = run('make -n pi-up pi-model pi-status pi-reindex pi-doctor DOCKER=1')
+        self.assertIn('docker compose --profile production up', docker)
+        self.assertIn('reindex --target /repo', docker)
 
     def _snapshot(self, kit: Path) -> dict:
         state = {}

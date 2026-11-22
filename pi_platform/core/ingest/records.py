@@ -20,7 +20,7 @@ from pi_platform.ports.ingest.source_adapter import (
 )
 
 
-def read_text_with_provenance(uri, *, legacy=False, html=False, source_path=None, encoding_policy=None):
+def read_text_with_provenance(uri, *, legacy=False, html=False, automatic=False, source_path=None, encoding_policy=None):
     """Decode known text deterministically; never reinterpret binary as legacy text."""
     import codecs
     import re
@@ -28,6 +28,7 @@ def read_text_with_provenance(uri, *, legacy=False, html=False, source_path=None
         from pi_platform.adapters.fs import LocalFilesystemAdapter
         raw = LocalFilesystemAdapter(Path(uri).resolve().parent).read_source_bytes(Path(uri))
         encoding, replacements = None, 0
+        detected = False
         profile = encoding_policy.profile(source_path) if encoding_policy is not None else None
         for bom, codec in ((codecs.BOM_UTF32_LE, "utf-32"),
                            (codecs.BOM_UTF32_BE, "utf-32"),
@@ -45,30 +46,38 @@ def read_text_with_provenance(uri, *, legacy=False, html=False, source_path=None
             try:
                 text = raw.decode("utf-8")
                 encoding = "utf-8"
-            except UnicodeDecodeError:
+            except UnicodeDecodeError as error:
                 if html:
                     declaration = re.search(
                         br"(?:charset\s*=\s*[\"']?([A-Za-z0-9_-]+)|encoding\s*=\s*[\"']([A-Za-z0-9_-]+))",
                         raw[:4096], re.I)
                     if declaration:
                         declared = (declaration[1] or declaration[2]).decode("ascii").lower()
-                        allowed = {"windows-1252": "cp1252", "cp1252": "cp1252",
-                                   "iso-8859-1": "iso-8859-1", "latin-1": "iso-8859-1",
-                                   "utf-8": "utf-8"}
-                        encoding = allowed.get(declared)
+                        from pi_platform.core.ingest.source_decoding_policy import declared_encoding
+                        encoding = declared_encoding(declared)
                 if encoding is None:
                     encoding = profile
-                if encoding is None:
-                    if not legacy:
-                        raise
-                    encoding = "cp1252"
-                try:
-                    text = raw.decode(encoding)
-                except UnicodeDecodeError:
-                    if not legacy or profile is not None:
-                        raise
-                    text = raw.decode(encoding, errors="replace")
-                    replacements = text.count("\ufffd")
+                if encoding is None and automatic:
+                    from pi_platform.core.ingest.source_decoding_policy import automatic_encodings
+                    for candidate in automatic_encodings(raw, error.start):
+                        try:
+                            text = raw.decode(candidate)
+                        except UnicodeDecodeError:
+                            continue
+                        encoding, detected = candidate, True
+                        break
+                if not detected:
+                    if encoding is None:
+                        if not legacy:
+                            raise
+                        encoding = "cp1252"
+                    try:
+                        text = raw.decode(encoding)
+                    except UnicodeDecodeError:
+                        if not legacy or profile is not None:
+                            raise
+                        text = raw.decode(encoding, errors="replace")
+                        replacements = text.count("\ufffd")
         else:
             text = raw.decode(encoding)
         if "\0" in text:
@@ -78,7 +87,7 @@ def read_text_with_provenance(uri, *, legacy=False, html=False, source_path=None
             "degraded": bool(replacements),
             **({"policyRevision": "source-decoding/v1:" + profile,
                 "provenance": "reviewed-fallback" if encoding == profile else "unicode-or-declaration-precedence"}
-               if profile else {}),
+               if profile else {'provenance': 'automatic-fallback'} if detected else {}),
         }
     except OSError as exc:
         raise SourceReadError("Cannot read source bytes; retry when source is available") from exc

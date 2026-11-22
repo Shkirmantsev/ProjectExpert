@@ -302,6 +302,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
     driver = LocalPipelineDriver(decoding_policy=decoding_policy, parser_registry=parsers, chunker_registry=chunkers, cache=cache,
                                  parse_workers=None if parallel else 1, parallel_safe_registry=True)
     failures, diagnostics, sources = [], [], []
+    require_complete = os.environ.get('PI_INDEX_REQUIRE_COMPLETE', '1') != '0'
     for entry in inventory.entries:
         if entry.path in image_paths:
             continue
@@ -320,6 +321,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         metadata=Metadata(documentId='repo:' + e.path, version='0.1.0', language='und', sourcePath=e.path,
                           policy=e.policy or None, extensions={'portable_identity': 'v2', 'media': 'image'}))
         for e in image_entries]
+    eligible = len(sources) + len(media_sources)
     portable_import = {'state': 'rejected-snapshot'} if skip_portable else {}
     if durable_cache is not None:
         from pi_platform.core.canonical.content_address import content_address
@@ -376,28 +378,47 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
                 })
                 if report.error_category in {"configuration_error", "internal_error", "cancelled"}:
                     fatal[report.error_category] += 1
+        if config.embedding_model not in {'gemma', 'gemma-torch'}:
+            for source in media_sources:
+                cache.invalidate_source(source.id, stale=False)
+                failures.append({'path': source.metadata.sourcePath, 'category': 'unsupported_modality',
+                                 'error': 'Image embeddings require the Gemma binding'})
+                diagnostics.append({'path': source.metadata.sourcePath, 'sourceHash': source.contentHash,
+                                    'family': source.family, 'category': 'unsupported_modality',
+                                    'stage': 'source', 'attempts': 1})
         if durable_cache is not None and not restore_only:
             from pi_platform.core.ingest.source_failure_report import write_source_failures
             durable_cache.assert_fence()
             write_source_failures(cache_root, job_id=durable_cache.generation,
-                                  eligible=len(sources), attempted=len(reports), failures=diagnostics)
+                                  eligible=eligible, attempted=len(reports) + len(media_sources), failures=diagnostics)
+        degraded = sum(report.ok and report.degraded for report in reports)
+        if durable_cache is not None and not restore_only and not fatal and len(reports) != len(sources):
+            fatal['internal_error'] += 1
+        blocked = bool(fatal or (failures and (restore_only or require_complete) and durable_cache is not None))
+        if blocked:
+            progress('sources', eligible, len(cache.source_ids()), len(failures), degraded, state='failed')
         if fatal:
             raise CandidateIndexingError(dict(fatal))
-        degraded = sum(report.ok and report.degraded for report in reports)
-        progress('sources', len(sources) + len(media_sources), len(cache.source_ids()), len(failures), degraded,
-                 state='failed' if failures else 'complete')
-        require_complete = os.environ.get('PI_INDEX_REQUIRE_COMPLETE', '1') == '1'
-        if durable_cache is not None and not restore_only and require_complete and (failures or len(reports) != len(sources)):
-            raise CandidateIndexingError(dict(Counter(f['category'] for f in failures)) or {'internal_error': 1})
+        if blocked:
+            raise CandidateIndexingError(dict(Counter(f['category'] for f in failures)))
     finally:
         if pdf_db is not None:
             pdf_db.commit()
             pdf_db.close()
     if durable_cache is not None:
-        for source in media_sources:
-            persist_image(cache, source, driver)
-        progress('sources', len(sources) + len(media_sources), len(cache.source_ids()), len(failures), degraded,
-                 state='failed' if failures else 'complete')
+        if config.embedding_model in {'gemma', 'gemma-torch'}:
+            for source in media_sources:
+                persist_image(cache, source, driver)
+        indexed = len(cache.source_ids())
+        if indexed + len(failures) != eligible or (failures and not indexed):
+            progress('sources', eligible, indexed, len(failures), degraded, state='failed')
+            raise CandidateIndexingError(dict(Counter(f['category'] for f in failures)) or {'internal_error': 1})
+    else:
+        indexed = eligible - len(failures)
+    coverage = {'eligible': eligible, 'indexed': indexed, 'skipped': len(failures)}
+    progress('sources', eligible, indexed, len(failures), degraded,
+             state='complete_with_skips' if failures else 'complete')
+    progress('projection', len(inventory.entries))
     chunks_by_id = {}
     for raw in cache.iter_records():
         data = json.loads(raw)
@@ -411,11 +432,15 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
     # Persist the effective retrieval projection per source alongside raw
     # fingerprints. This remains model-independent across vector namespaces.
     projected_entries = []
-    for entry in inventory.entries:
-        record = cache.source_record('repo:' + entry.path) or {}
+    for completed, entry in enumerate(inventory.entries, 1):
+        source_id = 'repo:' + entry.path
+        if durable_cache is not None:
+            payloads = cache.source_payloads(source_id)
+        else:
+            record = cache.source_record(source_id) or {}
+            payloads = (cache.get(address) for address in record.get('addresses', ()))
         projected = {}
-        for address in record.get('addresses', ()):
-            raw = cache.get(address)
+        for raw in payloads:
             if raw is None:
                 continue
             body = json.loads(raw)
@@ -425,6 +450,8 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
                 projected[body['id']] = hashlib.sha256(text.encode()).hexdigest()
         projection_hash = hashlib.sha256(json.dumps(sorted(projected.items())).encode()).hexdigest() if projected else ''
         projected_entries.append(replace(entry, retrieval_text_hash=projection_hash))
+        if completed % 256 == 0:
+            progress('projection', len(inventory.entries), completed)
     projected_inventory = replace(inventory, entries=tuple(projected_entries))
     catalog, active = {}, []
     for cid, body in sorted(chunks_by_id.items()):
@@ -455,8 +482,6 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
             active.append(ActiveChunk(cid, text_hash, text, text_hash, meta))
     for entry in image_entries:
         if config.embedding_model not in {'gemma', 'gemma-torch'}:
-            failures.append({'path': entry.path, 'category': 'unsupported_modality',
-                             'error': 'Image embeddings require the Gemma binding'})
             continue
         path = (target / entry.path).resolve()
         if not path.is_relative_to(target):
@@ -479,14 +504,15 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
     corpus_hash = hashlib.sha256(json.dumps([(c.chunk_id, c.retrieval_text_hash) for c in active]).encode()).hexdigest()
     exact_path = cache_root / 'indexes' / 'exact' / (corpus_hash + '.sqlite')
     exact_path.parent.mkdir(parents=True, exist_ok=True)
-    if durable_cache is not None and require_complete and failures:
-        raise CandidateIndexingError(dict(Counter(f['category'] for f in failures)) or {'internal_error': 1})
+    progress('projection', len(inventory.entries), len(inventory.entries), state='complete')
+    progress('exact', len(catalog))
     from pi_platform.adapters.runtime.candidate_artifacts import build_exact
     exact = build_exact(exact_path, [(cid, hit.snippet) for cid, hit in catalog.items()], corpus_hash,
                         progress=lambda completed, total: progress('exact', total, completed,
                             state='complete' if completed == total else 'running'))
     if durable_cache is not None:
         cache.artifact('exact', 'sqlite-fts', exact_path, corpus_hash, len(catalog))
+    progress('graph', 0)
     graph_expansion, graph_node_ids = _candidate_graph(target, cache_root, cache,
         progress=lambda completed, total: progress('graph', total, completed,
             state='complete' if completed == total else 'running'))
@@ -501,6 +527,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         top_n=config.reranking_top_n,
         timeout_ms=config.reranking_timeout_ms,
     )
+    progress('embedding', len(active))
     runtime = build_production_retrieval_runtime(
         cache_root=cache_root / 'indexes', embedding_alias=config.embedding_model,
         startup_profile=config.startup_profile, device=config.embedding_device,
@@ -550,7 +577,6 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
                 projected.append(replace(chunk, embedding_segments=segments, image_path=image_path,
                                          retrieval_text_hash=projection_hash))
             active = projected
-    progress('embedding', len(active))
     if durable_cache is not None:
         runtime.semantic_index_service.set_progress_callback(
             lambda completed, total: progress('embedding', total, completed,
@@ -614,7 +640,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         'chunk_ids': tuple(catalog), 'chunk_catalog': catalog,
         'source_generation': report.source_generation,
         'dense_generation_loaded': dense_generation_loaded,
-        'indexing_report': report, 'source_failures': failures,
+        'indexing_report': report, 'source_failures': failures, 'source_coverage': coverage,
         'resolved_configuration': config.as_dict(),
         'index_engine': 'resumable' if durable_cache is not None else 'legacy',
         'index_job_id': durable_cache.generation if durable_cache is not None else '',

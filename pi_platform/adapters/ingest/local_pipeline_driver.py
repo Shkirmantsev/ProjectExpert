@@ -384,6 +384,9 @@ class LocalPipelineDriver(PipelineDriverPort):
         relative = (Path(source.uri).resolve().relative_to(self.decoding_root).as_posix()
                     if self.decoding_root is not None else source.metadata.sourcePath or source.id.removeprefix('repo:'))
         profile = self.decoding_policy.profile(relative) if self.decoding_policy is not None else None
+        from pi_platform.core.ingest.source_decoding_policy import AUTOMATIC_DECODING_REVISION, AUTOMATIC_TEXT_FAMILIES
+        decoding_identity = ('source-decoding/v1:' + profile if profile else
+                             AUTOMATIC_DECODING_REVISION if source.family in AUTOMATIC_TEXT_FAMILIES else None)
         if portable:
             family = SourceContentFamily(source.family)
             parser, chunker, enricher = (self._parsers.resolve(family),
@@ -404,8 +407,7 @@ class LocalPipelineDriver(PipelineDriverPort):
                 "uri": (source.id if source.metadata.extensions.get("portable_identity") == "v2" else source.uri),
                 "metadata": dataclass_to_dict(source.metadata),
                 "pipelineVersion": "phase2-2",
-                **({"sourceDecoding": "source-decoding/v1:" + profile}
-                   if profile else {}),
+                **({"sourceDecoding": decoding_identity} if decoding_identity else {}),
                 "chunking": (
                     dataclass_to_dict(self.chunker_context)
                     if self.chunker_context

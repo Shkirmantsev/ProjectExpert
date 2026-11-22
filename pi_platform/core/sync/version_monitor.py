@@ -191,6 +191,8 @@ def read_project_version(repo_root: Path, *, include_portable: bool = True, cach
         branch = result.stdout.strip() if result.returncode == 0 else "HEAD"
     inventory = RepositorySourceDiscovery().discover(root)
     hashes = {entry.path: entry.content_hash for entry in inventory.entries}
+    from pi_platform.core.ingest.source_decoding_policy import AUTOMATIC_DECODING_REVISION
+    hashes['@automatic-source-decoding'] = AUTOMATIC_DECODING_REVISION
     if managed is not None:
         hashes["@workspace-generation"] = managed["generation"]
     canonical_hashes = canonical_fingerprints(root)

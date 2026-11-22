@@ -43,7 +43,7 @@ function formatResult(targetId, result) {
     var report = result.result || result;
     if (report.state === 'requires-reindex') {
       return 'Restore needs a local update.\n' + (report.importedSources || 0) +
-        ' sources imported. No source parsing or new embeddings were run. Choose Reindex to complete missing work.';
+        ' sources imported. No source parsing or new embeddings were run. Choose Update local index to complete missing work.';
     }
     if (report.state === 'portable-restored') {
       var restored = report.portable_import || report;
@@ -51,7 +51,7 @@ function formatResult(targetId, result) {
         ' sources imported · ' + (restored.importedVectors || 0) + ' embeddings restored.';
     }
     if (report.state === 'no-exportable-sources') {
-      return 'No independently safe export context is available.\nLocal search and MCP keep the complete context. Reindex once after first enabling sharing.' +
+      return 'No independently safe export context is available.\nLocal search and MCP keep the complete context. Update the local index after enabling sharing.' +
         (report.cleanupRequired ? '\nPreviously generated files need owner-reviewed cleanup before sharing.' : '');
     }
     if (report.stagingId) {
@@ -66,8 +66,10 @@ function formatResult(targetId, result) {
     }
     if (report.state === 'source-review-saved') { return 'Classification saved for ' + (report.reviewedCount || 1) + ' file(s): ' + report.classification + '.'; }
     if ('new_vectors' in report || 'source_parse_misses' in report) {
-      return 'Local knowledge update completed.\n' + (report.source_parse_misses || 0) + ' sources processed · ' +
-        (report.source_parse_hits || 0) + ' reused · ' + (report.new_vectors || 0) + ' new embeddings.';
+      var skipped = report.source_coverage && report.source_coverage.skipped;
+      return 'Local index update completed.\n' + (report.source_parse_misses || 0) + ' sources processed · ' +
+        (report.source_parse_hits || 0) + ' reused · ' + (report.new_vectors || 0) + ' new embeddings.' +
+        (skipped ? '\n' + skipped + ' sources skipped. See Diagnostics and project version.' : '');
     }
     return report.message || 'Processing project knowledge…';
   }
@@ -102,16 +104,6 @@ function run(targetId, action) {
   });
 }
 
-function bindForm(formId, buttonId, targetId, buildBody) {
-  var form = document.getElementById(formId);
-  var button = document.getElementById(buttonId);
-  if (!form || !button) { return; }
-  form.addEventListener("submit", function (event) {
-    event.preventDefault();
-    run(targetId, function () { return call("POST", API + form.dataset.endpoint, buildBody()); });
-  });
-}
-
 function bindButton(buttonId, targetId, action) {
   var button = document.getElementById(buttonId);
   if (!button) { return; }
@@ -120,9 +112,12 @@ function bindButton(buttonId, targetId, action) {
 
 document.addEventListener("DOMContentLoaded", function () {
   if (window.location && window.location.protocol === 'file:') {
-    show('deployment-status', 'Design preview — styles are available, but this file is not a running application. Open the live server to use search and knowledge actions.');
+    document.body.setAttribute('data-file-preview', 'true');
+    show('deployment-status', 'Read-only design preview. Open the ProjectExpert service URL to use buttons and fields.');
     show('active-mode', 'Preview only — no runtime connected');
+    show('bootstrap-status', 'Open the running application to check index readiness.');
     show('runtime-help', 'GPU selection belongs to the running server, not this design preview.');
+    show('source-encoding-result', 'Encoding rules can be edited in the running application.');
     document.getElementById('preview-live-link').hidden = false;
     if (document.querySelectorAll) {
       document.querySelectorAll('button, input, select').forEach(function (control) { control.disabled = true; });
@@ -140,18 +135,29 @@ document.addEventListener("DOMContentLoaded", function () {
   var reloadProtected = [];
   var tokenField = document.getElementById("access-token");
   if (tokenField) {
-    tokenField.addEventListener("change", function () {
+    document.getElementById("api-access-form").addEventListener("submit", function (event) {
+      event.preventDefault();
       accessToken = tokenField.value.trim();
-      reloadProtected.forEach(function (reload) { reload(); });
+      call("GET", API + "/indexing-status").then(function () {
+        tokenField.value = "";
+        show("access-token-help", "Unlocked for this tab.");
+        reloadProtected.forEach(function (reload) { reload(); });
+      }).catch(function (error) {
+        accessToken = "";
+        show("access-token-help", error.message);
+      });
     });
     call("GET", API + "/auth-status").then(function (auth) {
       tokenField.disabled = !auth.token_required;
       document.getElementById('api-access-panel').hidden = !auth.token_required;
       document.getElementById('local-access-notice').hidden = !auth.local_owner_access;
       show("access-token-help", auth.token_required ?
-        "API authentication is enabled. Enter PI_UI_TOKEN provided by the operator, from the private deployment environment. It protects ProjectExpert API access; it is not an LLM key or an approval token. Kept only in this tab's memory." :
-        "No API token required: PI_UI_TOKEN is not configured. Leave this field empty. This optional password protects ProjectExpert API access; it is not needed for local embedding search. The operator can enable it in the private deployment environment.");
-    }).catch(function (error) { show("access-token-help", error.message); });
+        "Enter the PI_UI_TOKEN provided by your workspace administrator. It is kept in this tab until you reload." :
+        "No API token required.");
+    }).catch(function (error) {
+      document.getElementById('api-access-panel').hidden = false;
+      show("access-token-help", error.message);
+    });
   }
 
   bindButton("sources-button", "sources-result", function () { return call("GET", API + "/sources"); });
@@ -192,7 +198,7 @@ document.addEventListener("DOMContentLoaded", function () {
     event.preventDefault();
     var token = document.getElementById("approval-token").value.trim();
     run("materialize-result", function () {
-      return call("POST", API + "/materialize", { approval_token: token });
+      return call("POST", API + "/materialize", {approval_token: token});
     });
   });
 
@@ -207,13 +213,47 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  function indexMessage(status) {
+    var retrieval = status.indexes && status.indexes.retrieval || {};
+    var progress = retrieval.indexing_progress || {};
+    var hydration = status.hydration || {};
+    var sourceStage = (progress.stages || []).find(function (stage) { return stage.stage === 'sources'; });
+    var coverage = retrieval.source_coverage || {};
+    if (status.ready) {
+      return coverage.skipped
+        ? 'Search is ready. ' + coverage.indexed + ' of ' + coverage.eligible + ' sources indexed. ' +
+          coverage.skipped + ' skipped. See Diagnostics for details.'
+        : 'Local search is ready.';
+    }
+    if (hydration.in_progress) {
+      var labels = {sources: 'Reading files', projection: 'Preparing searchable text',
+        exact: 'Building exact search', graph: 'Building the knowledge graph',
+        embedding: 'Preparing and creating embeddings', sparse: 'Building keyword search'};
+      var stage = (progress.stages || []).find(function (item) { return item.stage === progress.active_stage; });
+      if (progress.state === 'running' && stage) {
+        return (labels[stage.stage] || 'Building the index') +
+          (stage.total_items ? ' · ' + stage.completed_items + ' / ' + stage.total_items : '') +
+          (sourceStage && sourceStage.failed_items ? ' · ' + sourceStage.failed_items + ' source errors' : '');
+      }
+      return 'Preparing the workspace for indexing…';
+    }
+    return hydration.reason || 'Local search is unavailable. See Diagnostics, then update the index.';
+  }
+
+  function renderIndexStatus(status) {
+    show('bootstrap-status', indexMessage(status));
+    var retrieval = status.indexes && status.indexes.retrieval || {};
+    var attention = status.ready ? Boolean(retrieval.source_coverage && retrieval.source_coverage.skipped) :
+      Boolean(status.hydration && !status.hydration.in_progress);
+    document.getElementById('bootstrap-status').setAttribute('data-attention', String(attention));
+  }
+
   function refreshBootstrapStatus() {
     call("GET", API + "/indexing-status").then(function (status) {
-      show("bootstrap-status", status.ready ? 'Local search is ready.' :
-        (status.hydration && status.hydration.reason || 'Preparing local knowledge. Progress appears here.'));
+      renderIndexStatus(status);
       var retrieval = status.indexes && status.indexes.retrieval;
       var execution = retrieval && retrieval.execution;
-      show("active-mode", "Active mode: " + (execution ? execution.mode : "not ready"));
+      show("active-mode", execution ? "Embedding device: " + execution.mode : "Embedding device pending");
       show("active-mode-detail", execution ? ("Backend: " + execution.backend + " · " +
         (!status.ready ? "Index refresh in progress or failed; details below. " : "") +
         (execution.device ? "Device: " + execution.device + " · " : "") +
@@ -283,7 +323,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function pause() { return new Promise(function (resolve) { window.setTimeout(resolve, 1000); }); }
   function waitForIndex(deadline) {
     return call("GET", API + "/indexing-status").then(function (status) {
-      show("bootstrap-status", status);
+      renderIndexStatus(status);
       if (status.ready) { return { status: "completed", message: "Search index ready", indexes: status.indexes }; }
       if (!status.hydration.in_progress) { throw new Error(status.hydration.reason || "Indexing failed; inspect container logs."); }
       if (Date.now() > deadline) { throw new Error("Indexing still running. Check indexing status and container logs."); }
@@ -368,6 +408,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var wizardForm = document.getElementById("wizard-form");
   if (wizardForm) {
     var runtimeCaps = null;
+    var savedRuntimeSettings = null;
     function fillDevices(selected) {
       if (!runtimeCaps || !runtimeCaps.devices) { return; }
       var model = document.getElementById("embedding-model-select").value;
@@ -379,7 +420,7 @@ document.addEventListener("DOMContentLoaded", function () {
       select.value = devices.indexOf(selected) >= 0 ? selected : "auto";
       select.disabled = model === 'gemma' && !runtimeCaps.managed_control;
       if (select.disabled) {
-        show('runtime-help', 'This external embedding runtime has no live controller. Its host deployment selects CPU/GPU. Upgrade the managed deployment kit to enable hardware changes here.');
+        show('runtime-help', 'This external embedding runtime is controlled by the host launcher. To change hardware, change the host deployment settings and restart.');
       } else {
         show('runtime-help', runtimeCaps.message || 'Apply saves settings and updates the local index.');
       }
@@ -392,14 +433,15 @@ document.addEventListener("DOMContentLoaded", function () {
         if (caps.models) {
           select.innerHTML = "";
           caps.models.forEach(function (model) { select.add(new Option(model.label, model.value)); });
+          document.getElementById("embedding-model-field").hidden = caps.models.length === 1;
         }
         show("runtime-help", caps.message || "Apply saves server settings and rebuilds the index.");
         return call("GET", API + "/admin/retrieval");
       }).then(function (settings) {
+      savedRuntimeSettings = settings;
       var select = document.getElementById("embedding-model-select");
       select.value = settings.embedding_model_alias;
       fillDevices(settings.device);
-      document.getElementById("embedding-device-select").value = settings.device;
       document.getElementById("docling-enabled-checkbox").checked = settings.document_processing_enabled;
       show("wizard-result", 'Model preferences loaded. Apply to update the local index.');
       }).catch(function (error) { show("wizard-result", error.message); });
@@ -409,6 +451,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var encodingPolicy = null;
     function addEncodingRule(rule) {
       var row = document.createElement('p');
+      row.className = 'source-review-fields';
       var pattern = document.createElement('input');
       pattern.type = 'text';
       pattern.setAttribute('aria-label', 'Repository file pattern');
@@ -437,6 +480,8 @@ document.addEventListener("DOMContentLoaded", function () {
       encodingRules.appendChild(row);
     }
     var encodingAdd = document.getElementById('source-encoding-add');
+    var encodingActions = [encodingAdd, document.getElementById('source-encoding-preview'),
+      document.getElementById('source-encoding-save')];
     encodingAdd.addEventListener('click', function () {
       if (!encodingPolicy || encodingPolicy.rules.length >= 256) return;
       var rule = {pattern: '', encoding: ''};
@@ -444,15 +489,19 @@ document.addEventListener("DOMContentLoaded", function () {
       addEncodingRule(rule);
     });
     function loadSourceEncodings() {
+      encodingActions.forEach(function (button) { button.disabled = true; });
+      show('source-encoding-result', 'Loading encoding rules…');
       return call('GET', API + '/admin/source-encodings').then(function (data) {
         encodingPolicy = data.policy;
         encodingPolicy.rules = encodingPolicy.rules || [];
         encodingChoices = data.encodings || [];
         encodingRules.textContent = '';
         encodingPolicy.rules.forEach(addEncodingRule);
-        encodingAdd.disabled = false;
-        if (data.retry) { show('source-encoding-result', 'The last indexing attempt needs attention. Review encoding rules, then run Reindex.'); }
-      }).catch(function (error) { show('source-encoding-result', error.message); });
+        encodingActions.forEach(function (button) { button.disabled = false; });
+        show('source-encoding-result', data.retry
+          ? 'The last indexing attempt needs attention. Review encoding rules, then update the local index.'
+          : '');
+      }).catch(function (error) { show('source-encoding-result', 'Encoding rules unavailable. ' + error.message); });
     }
     ['preview', 'save'].forEach(function (action) {
       document.getElementById('source-encoding-' + action).addEventListener('click', function () {
@@ -465,7 +514,7 @@ document.addEventListener("DOMContentLoaded", function () {
         call(action === 'save' ? 'PUT' : 'POST', API + '/admin/source-encodings', encodingPolicy)
           .then(function (data) {
             show('source-encoding-result', data.decoded + ' of ' + data.matched + ' matching files decoded. ' +
-              data.failed + ' failed. ' + (data.saved ? 'Rules saved. Run Reindex to apply them.' : 'Review the result before saving.'));
+              data.failed + ' failed. ' + (data.saved ? 'Rules saved. Update the local index to apply them.' : 'Review the result before saving.'));
           })
           .catch(function (error) { show('source-encoding-result', error.message); });
       });
@@ -477,9 +526,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     wizardForm.addEventListener("submit", function (event) {
       event.preventDefault();
+      var model = document.getElementById("embedding-model-select").value;
+      var device = document.getElementById("embedding-device-select");
       var payload = {
-        embedding_model_alias: document.getElementById("embedding-model-select").value,
-        device: document.getElementById("embedding-device-select").value,
+        embedding_model_alias: model,
+        device: device.disabled
+          ? (savedRuntimeSettings && savedRuntimeSettings.embedding_model_alias === model ? savedRuntimeSettings.device : "auto")
+          : device.value,
         document_processing_enabled: Boolean(document.getElementById("docling-enabled-checkbox").checked)
       };
       indexAction(function () {

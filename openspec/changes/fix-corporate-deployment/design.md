@@ -50,8 +50,20 @@ The private source-stage report is atomic, records the job identity, attempted
 counts, relative source paths, hashes, parser family, stage and category, and
 omits source text or raw exception messages. It is diagnostic evidence for the
 source pass. It is not an active generation or a statement about embedding
-success. The existing strict readiness and source-cache keys stay in force.
-The encoding form writes the existing private policy via its protected API.
+success. Windows-1251 and Windows-1252 are tried automatically for supported
+text families after UTF-8 decoding fails. The decoder uses a bounded sample and
+records the selected encoding. The advanced form writes private overrides via
+its protected API. The decoder revision participates in source-cache keys and
+resumable retry identity.
+
+Deployment Make targets enable the existing local partial policy by default.
+Explicit strict Make runs and the standalone indexer's default require
+completion. The local partial policy permits isolated source failures,
+records coverage in the fenced SQLite job, validates
+the candidate artifacts, and exposes coverage through indexing status. Local
+search and MCP can use the successful portion. Git export checks the published
+source stage and requires zero skipped sources. Model, cancellation,
+configuration, and integrity errors still block publication.
 
 ## Remaining design and acceptance sequence
 
@@ -60,14 +72,9 @@ The encoding form writes the existing private policy via its protected API.
    registry TLS at the effective daemon and validate actual pulls with the
    organization-approved root. Retain the existing separate host CA runtime
    bundle, strict TLS and no persistent setup container.
-2. Extend source error classification to distinguish file-local failures,
-   optional parser-family outages and systemic faults. Record classified
-   failures and coverage in the fenced SQLite candidate transaction. Reuse
-   the source cache for unaffected inputs. Never publish a partial generation
-   by dropping the strict check. Bind coverage to generation manifest,
-   artifact validation and publication intent. Reject it under older readers
-   and leave complete-only readiness stable. Add query readiness, declare
-   coverage in REST and MCP, and preserve strict graph and export gates.
+2. Extend the source error classification to distinguish optional parser-family
+   outages from individual file failures. Provide explicit partial coverage
+   metadata to MCP clients and guard mixed-version readers.
 3. Exercise interrupted builds, invalid assets, changed branches, missing
    vectors, corrupt SQLite, and repair from partial to complete. Verify
    exact paired image and kit digests on Windows Docker Desktop, Windows

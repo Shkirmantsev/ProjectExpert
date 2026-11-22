@@ -8,12 +8,12 @@
   "progress": {
     "blocked": [],
     "done": [
-      "Verified and committed the source recovery slice; deployment software gate passed and the paired release remains unverified on physical Windows"
+      "Enabled the existing skipped-source policy by default for deployment Make commands"
     ],
     "todo": []
   },
   "resume": {
-    "next_action": "Implement the remaining OpenSpec publication and licensing steps, then exercise the paired release on the corporate host",
+    "next_action": "Verify the matched application image and kit on the corporate Windows host",
     "prerequisites": []
   },
   "runtime": {
@@ -27,7 +27,7 @@
     "created_at": "2026-11-21T17:35:02+00:00",
     "id": "fix-corporate-deployment",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-21T18:02:23+00:00"
+    "updated_at": "2026-11-22T11:47:07+00:00"
   },
   "task": {
     "acceptance": [
@@ -39,14 +39,16 @@
   },
   "verification": {
     "passed": [
-      "Full harness PASS, 2144 tests across 168 suites with 21 skips; artifact manifest 1658 files"
+      "23 focused deployment and partial-index tests passed with one Windows-only skip; OpenSpec 99/99, Wiki and artifact manifest passed"
     ],
-    "pending": []
+    "pending": [
+      "Windows CI after push, physical corporate Windows CUDA/Vulkan and long-path acceptance"
+    ]
   },
   "working_set": [
     {
-      "path": "pi_platform/deployment/native_route.py",
-      "sha256": "8cbe93683132ba2b552a671abd6ae4a6c6c8d1db6d75ae2031796eb9d68a870d"
+      "path": "distribution/deployment/Makefile",
+      "sha256": "53531e0dde2f6d3680e57126aecf9e57b3528d16fbf005091bfa96e5daa4d795"
     }
   ]
 }

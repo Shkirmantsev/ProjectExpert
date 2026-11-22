@@ -132,26 +132,31 @@ test: ## Run core tests without requiring Docker/Tailscale.
 # Phase 1 v0.8 Project Intelligence Platform targets.
 # ---------------------------------------------------------------------------
 
+TARGET ?= .
+APPROVAL_TOKEN ?= manual
+WIKI_ROOT ?= project-knowledge/wiki
+CACHE_ROOT ?= .project-intelligence-cache
+
 platform-init: ## Initialise a target project with the Phase 1 foundation.
-	@$(PYTHON) -m pi_platform.cli init-project --target ${TARGET:-.}
+	@$(PYTHON) -m pi_platform.cli init-project --target "$(TARGET)"
 
 platform-hydrate: ## Restore the runtime cache from the canonical tree.
-	@$(PYTHON) -m pi_platform.cli hydrate --target ${TARGET:-.}
+	@$(PYTHON) -m pi_platform.cli hydrate --target "$(TARGET)"
 
 platform-materialise: ## Write durable changes back to the canonical tree (approval-gated).
-	@$(PYTHON) -m pi_platform.cli materialise --target ${TARGET:-.} --approval-token ${APPROVAL_TOKEN:-manual}
+	@$(PYTHON) -m pi_platform.cli materialise --target "$(TARGET)" --approval-token "$(APPROVAL_TOKEN)"
 
 license-gate: ## Run the CI license gate against the dependency inventory.
-	@$(PYTHON) -m pi_platform.cli license-gate --target ${TARGET:-.}
+	@$(PYTHON) -m pi_platform.cli license-gate --target "$(TARGET)"
 
 okf-validate: ## Validate a Wiki bundle against the OKF v0.2 profile.
-	@$(PYTHON) -m pi_platform.cli okf-validate --wiki-root ${WIKI_ROOT:-project-knowledge/wiki}
+	@$(PYTHON) -m pi_platform.cli okf-validate --wiki-root "$(WIKI_ROOT)"
 
 version-identity: ## Compute the runtime project version identity.
-	@$(PYTHON) -m pi_platform.cli version-identity --target ${TARGET:-.}
+	@$(PYTHON) -m pi_platform.cli version-identity --target "$(TARGET)"
 
 wal-recover: ## Recover a crashed materialise from the write-ahead log.
-	@$(PYTHON) -m pi_platform.cli wal-recover --cache-root ${CACHE_ROOT:-.project-intelligence-cache}
+	@$(PYTHON) -m pi_platform.cli wal-recover --cache-root "$(CACHE_ROOT)"
 
 platform-test: ## Run the Phase 1 platform regression suite.
 	@$(PYTHON) -m unittest discover -s tests -p "test_platform_*.py" -v
@@ -273,44 +278,41 @@ pi-help: ## Show the user-facing Project Intelligence product commands.
 	@echo "      Stop running Project Intelligence product containers."
 
 pi-up: ## Start Project Intelligence against TARGET with MODEL (gemma-torch|gemma) and DEVICE (auto|cpu|cuda).
-	@if [ "$(DOCKER)" = "1" ]; then \
-		PI_TARGET_REPO="$(PI_TARGET)" PI_EMBEDDING_MODEL="$(PI_MODEL)" PI_EMBEDDING_DEVICE="$(PI_DEVICE)" \
-		docker compose --profile production up -d --build; \
-	else \
-		$(PYTHON) -m pi_platform.cli start --target "$(PI_TARGET)" --model "$(PI_MODEL)" --device "$(PI_DEVICE)" --host "$(PI_HOST)" --port "$(PI_PORT)" $(if $(filter 1 true yes,$(SERVE)),--serve,); \
-	fi
-
 pi-model: ## Switch MODEL in the active host or Docker deployment without changing canonical knowledge.
-	@if [ "$(DOCKER)" = "1" ]; then \
-		PI_TARGET_REPO="$(PI_TARGET)" PI_EMBEDDING_MODEL="$(PI_MODEL)" PI_EMBEDDING_DEVICE="$(PI_DEVICE)" \
-		docker compose --profile production up -d --force-recreate production; \
-	else \
-		$(PYTHON) -m pi_platform.cli models use "$(PI_MODEL)" --target "$(PI_TARGET)" && \
-		$(PYTHON) -m pi_platform.cli reindex --target "$(PI_TARGET)"; \
-	fi
-
 pi-status: ## Show model profile and retrieval index status in the active host or Docker deployment.
-	@if [ "$(DOCKER)" = "1" ]; then \
-		PI_TARGET_REPO="$(PI_TARGET)" docker compose --profile production exec -T production python -m pi_platform.cli models status --target /repo && \
-		PI_TARGET_REPO="$(PI_TARGET)" docker compose --profile production exec -T production python -m pi_platform.cli retrieval-status --target /repo; \
-	else \
-		$(PYTHON) -m pi_platform.cli models status --target "$(PI_TARGET)" && \
-		$(PYTHON) -m pi_platform.cli retrieval-status --target "$(PI_TARGET)"; \
-	fi
-
 pi-reindex: ## Refresh indexes in the active host or Docker deployment.
-	@if [ "$(DOCKER)" = "1" ]; then \
-		PI_TARGET_REPO="$(PI_TARGET)" docker compose --profile production exec -T production python -m pi_platform.cli reindex --target /repo; \
-	else \
-		$(PYTHON) -m pi_platform.cli reindex --target "$(PI_TARGET)"; \
-	fi
-
 pi-doctor: ## Check production readiness in the active host or Docker deployment.
-	@if [ "$(DOCKER)" = "1" ]; then \
-		PI_TARGET_REPO="$(PI_TARGET)" docker compose --profile production exec -T production python -m pi_platform.cli doctor --target /repo; \
-	else \
-		$(PYTHON) -m pi_platform.cli doctor --target "$(PI_TARGET)"; \
-	fi
+
+ifeq ($(DOCKER),1)
+pi-up pi-model pi-status pi-reindex pi-doctor: export PI_TARGET_REPO = $(PI_TARGET)
+pi-up pi-model: export PI_EMBEDDING_MODEL = $(PI_MODEL)
+pi-up pi-model: export PI_EMBEDDING_DEVICE = $(PI_DEVICE)
+PRODUCTION_CLI = docker compose --profile production exec -T production python -m pi_platform.cli
+pi-up:
+	@docker compose --profile production up -d --build
+pi-model:
+	@docker compose --profile production up -d --force-recreate production
+pi-status:
+	@$(PRODUCTION_CLI) models status --target /repo
+	@$(PRODUCTION_CLI) retrieval-status --target /repo
+pi-reindex:
+	@$(PRODUCTION_CLI) reindex --target /repo
+pi-doctor:
+	@$(PRODUCTION_CLI) doctor --target /repo
+else
+pi-up:
+	@$(PYTHON) -m pi_platform.cli start --target "$(PI_TARGET)" --model "$(PI_MODEL)" --device "$(PI_DEVICE)" --host "$(PI_HOST)" --port "$(PI_PORT)" $(if $(filter 1 true yes,$(SERVE)),--serve,)
+pi-model:
+	@$(PYTHON) -m pi_platform.cli models use "$(PI_MODEL)" --target "$(PI_TARGET)"
+	@$(PYTHON) -m pi_platform.cli reindex --target "$(PI_TARGET)"
+pi-status:
+	@$(PYTHON) -m pi_platform.cli models status --target "$(PI_TARGET)"
+	@$(PYTHON) -m pi_platform.cli retrieval-status --target "$(PI_TARGET)"
+pi-reindex:
+	@$(PYTHON) -m pi_platform.cli reindex --target "$(PI_TARGET)"
+pi-doctor:
+	@$(PYTHON) -m pi_platform.cli doctor --target "$(PI_TARGET)"
+endif
 
 pi-down: ## Stop Project Intelligence production containers.
-	@docker compose --profile production down 2>/dev/null || true
+	-@docker compose --profile production down

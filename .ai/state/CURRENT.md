@@ -6,7 +6,7 @@ Structured source: [handoffs/fix-corporate-deployment.json](handoffs/fix-corpora
 
 Task: `fix-corporate-deployment`
 Status: `executing`
-Updated: `2026-11-21T18:02:23+00:00`
+Updated: `2026-11-22T11:47:07+00:00`
 Active OpenSpec change: `fix-corporate-deployment`
 
 ## Objective
@@ -19,7 +19,7 @@ Repair corporate deployment and source recovery from the zero-workaround inciden
 
 ## Completed
 
-- Verified and committed the source recovery slice; deployment software gate passed and the paired release remains unverified on physical Windows
+- Enabled the existing skipped-source policy by default for deployment Make commands
 
 ## Remaining
 
@@ -39,19 +39,19 @@ Repair corporate deployment and source recovery from the zero-workaround inciden
 
 ## Working set
 
-- `pi_platform/deployment/native_route.py`
+- `distribution/deployment/Makefile`
 
 ## Verification passed
 
-- Full harness PASS, 2144 tests across 168 suites with 21 skips; artifact manifest 1658 files
+- 23 focused deployment and partial-index tests passed with one Windows-only skip; OpenSpec 99/99, Wiki and artifact manifest passed
 
 ## Verification pending
 
-- none
+- Windows CI after push, physical corporate Windows CUDA/Vulkan and long-path acceptance
 
 ## Next action
 
-Implement the remaining OpenSpec publication and licensing steps, then exercise the paired release on the corporate host
+Verify the matched application image and kit on the corporate Windows host
 
 ## Prerequisites
 

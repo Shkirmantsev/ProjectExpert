@@ -1,8 +1,10 @@
 # Project Intelligence deployment
 
-Run `bash start.sh` on Linux or `powershell -File start.ps1` on Windows.
-Alternatively run `make platform-start` (GNU Make required). Windows uses
-Docker Desktop with WSL2 and Linux containers. Docker Compose 2.30+ is required
+Run `bash start.sh` on Linux or `.\start.ps1` from Windows PowerShell 5.1 or
+PowerShell 7. Alternatively run `make platform-start` (GNU Make required).
+All kit Make targets use the same command syntax from both Windows shells.
+Make uses PowerShell 7 when `pwsh.exe` is on PATH and Windows PowerShell 5.1
+otherwise. The kit requires a Docker engine in Linux-container mode. Docker Compose 2.30+ is required
 for the optional CUDA profile; the CPU profile needs Compose 2.20+.
 
 ## Commands
@@ -34,7 +36,12 @@ then verifies local embedding, tokenizer and Docling assets. Registry pulls stil
 require the engine's normal TLS/enterprise trust; setup/indexing do not download
 models from HF/GitHub. Missing reviewed release pins stop startup with an explicit
 error. The asset release is currently blocked; see the release gate below.
-The launcher timeout is 30 minutes. Success requires retrieval readiness.
+The default launcher timeout is 30 minutes for container startup. Follow index
+progress through **Local index** or `/api/v1/indexing-status`; the browser can
+open while the index is still building. `make platform-start` allows isolated
+file failures by default. For strict indexing, add `ALLOW_SKIPPED_SOURCES=0`.
+Direct script or Compose launches take `PI_INDEX_REQUIRE_COMPLETE` from
+`deployment.env`. Use `make platform-index-failures` for the private file report.
 
 ## The reported address
 
@@ -502,7 +509,7 @@ explicit UI GPU selection reports a failure instead of claiming success.
 
 Auto compares CPU/GPU median latency using the launcher's fixed query corpus,
 keeping GPU only at >=1.0x measured speedup. A later refresh reuses this result while the
-controller generation is unchanged. **Active mode** reads the current process:
+controller generation is unchanged. **Embedding device** reports the observed runtime:
 CPU, or Hybrid for a GPU backend with CPU projector. It does not promise a measured
 GPU layer count. Legacy remote endpoints and native Windows GPU services have no
 live child controller; the page explains that their hardware must be configured
@@ -514,7 +521,7 @@ on their host. Native in-process bindings apply supported device choices directl
 ProjectExpert's REST/MCP/OpenAI-compatible API, including settings changes. It is
 not an embedding requirement, provider API key or knowledge approval token. It
 is unset by default for a loopback-only local installation: there is no generated
-token to find, and the UI disables the empty token field with an explanation.
+token to find, and the page hides the access form.
 
 To enable it, generate a random secret privately, set `PI_UI_TOKEN` in the shell
 environment used by Compose and recreate production with `make platform-start`.
