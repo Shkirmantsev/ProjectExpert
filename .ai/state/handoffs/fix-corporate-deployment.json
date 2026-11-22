@@ -8,12 +8,12 @@
   "progress": {
     "blocked": [],
     "done": [
-      "Verified the UI, local partial publication and PowerShell-independent command changes"
+      "Updated the root README for the current UI and clarified read-only preview and live encoding control states"
     ],
     "todo": []
   },
   "resume": {
-    "next_action": "Verify the matched application image and kit on the corporate Windows host",
+    "next_action": "Verify preview and live permission/loading paths",
     "prerequisites": []
   },
   "runtime": {
@@ -27,7 +27,7 @@
     "created_at": "2026-11-21T17:35:02+00:00",
     "id": "fix-corporate-deployment",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-22T10:26:03+00:00"
+    "updated_at": "2026-11-22T11:00:02+00:00"
   },
   "task": {
     "acceptance": [
@@ -39,8 +39,7 @@
   },
   "verification": {
     "passed": [
-      "Full harness PASS: 2,149 tests in 168 suites, 22 skipped; strict OpenSpec 99/99 and 1,659 manifest files",
-      "CLI cold and warm partial startup, Compose policy forwarding, browser workflow and Chrome light/dark layout passed"
+      "Full harness and browser JS PASS; Chrome confirmed file preview disables encoding controls and live loopback server enables them"
     ],
     "pending": [
       "Windows CI after push, physical corporate Windows CUDA/Vulkan and long-path acceptance"
@@ -48,12 +47,12 @@
   },
   "working_set": [
     {
-      "path": "pi_platform/adapters/runtime/sqlite_ingestion_cache.py",
-      "sha256": "9f70a465a7cd6389d0832697b7912c7070981734256ef1c30619f3896ac9cb39"
+      "path": "README.md",
+      "sha256": "de15da89edf4c63203d369aec4586b68aae8049db4ba0a28e4512c7172e0a05d"
     },
     {
-      "path": "pi_platform/core/orchestration/repository_indexing.py",
-      "sha256": "fab870aaf6e13503eec754a504fccf78db7eb6178aaa7587b05c70ff9621565e"
+      "path": "pi_platform/adapters/ui/static/app.js",
+      "sha256": "3cce793710b580766999a6a6cff58edb99c800acd9b259d272de361707503eac"
     }
   ]
 }

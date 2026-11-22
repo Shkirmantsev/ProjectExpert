@@ -6,7 +6,7 @@ Structured source: [handoffs/fix-corporate-deployment.json](handoffs/fix-corpora
 
 Task: `fix-corporate-deployment`
 Status: `executing`
-Updated: `2026-11-22T10:26:03+00:00`
+Updated: `2026-11-22T11:00:02+00:00`
 Active OpenSpec change: `fix-corporate-deployment`
 
 ## Objective
@@ -19,7 +19,7 @@ Repair corporate deployment and source recovery from the zero-workaround inciden
 
 ## Completed
 
-- Verified the UI, local partial publication and PowerShell-independent command changes
+- Updated the root README for the current UI and clarified read-only preview and live encoding control states
 
 ## Remaining
 
@@ -39,13 +39,12 @@ Repair corporate deployment and source recovery from the zero-workaround inciden
 
 ## Working set
 
-- `pi_platform/adapters/runtime/sqlite_ingestion_cache.py`
-- `pi_platform/core/orchestration/repository_indexing.py`
+- `README.md`
+- `pi_platform/adapters/ui/static/app.js`
 
 ## Verification passed
 
-- Full harness PASS: 2,149 tests in 168 suites, 22 skipped; strict OpenSpec 99/99 and 1,659 manifest files
-- CLI cold and warm partial startup, Compose policy forwarding, browser workflow and Chrome light/dark layout passed
+- Full harness and browser JS PASS; Chrome confirmed file preview disables encoding controls and live loopback server enables them
 
 ## Verification pending
 
@@ -53,7 +52,7 @@ Repair corporate deployment and source recovery from the zero-workaround inciden
 
 ## Next action
 
-Verify the matched application image and kit on the corporate Windows host
+Verify preview and live permission/loading paths
 
 ## Prerequisites
 

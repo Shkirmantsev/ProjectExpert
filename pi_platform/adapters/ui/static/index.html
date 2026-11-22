@@ -11,7 +11,7 @@
     <div>
       <h1>Project Intelligence</h1>
       <p id="deployment-status" class="hint" role="status">Connecting to the application…</p>
-      <a id="preview-live-link" href="http://127.0.0.1:8765/" hidden>Open the running application</a>
+      <a id="preview-live-link" href="http://127.0.0.1:8765/" hidden>Open the local service on port 8765</a>
     </div>
     <nav aria-label="Workspace">
       <a href="#search">Search</a>
@@ -147,8 +147,8 @@
         <div id="source-encoding-rules"></div>
         <div class="controls">
           <button id="source-encoding-add" type="button" class="secondary" disabled>Add rule</button>
-          <button id="source-encoding-preview" type="button" class="secondary">Preview decoding</button>
-          <button id="source-encoding-save" type="button">Save rules</button>
+          <button id="source-encoding-preview" type="button" class="secondary" disabled>Preview decoding</button>
+          <button id="source-encoding-save" type="button" disabled>Save rules</button>
         </div>
         <pre id="source-encoding-result" class="output" role="status" aria-live="polite"></pre>
       </details>

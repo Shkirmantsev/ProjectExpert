@@ -96,6 +96,8 @@ button {
 button.secondary, .source-review-fields button { background: var(--panel); color: var(--primary); }
 button:hover:not(:disabled) { box-shadow: inset 0 0 0 1px currentColor; }
 :is(button, input, select):disabled { opacity: .65; cursor: not-allowed; }
+[data-file-preview] :is(button, input, select):disabled { cursor: default; }
+[data-file-preview] #deployment-status { color: var(--notice); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .controls { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem .9rem; }
 .controls input { flex: 1 1 12rem; }

@@ -112,10 +112,12 @@ function bindButton(buttonId, targetId, action) {
 
 document.addEventListener("DOMContentLoaded", function () {
   if (window.location && window.location.protocol === 'file:') {
-    show('deployment-status', 'Design preview — styles are available, but this file is not a running application. Open the live server to use search and knowledge actions.');
+    document.body.setAttribute('data-file-preview', 'true');
+    show('deployment-status', 'Read-only design preview. Open the ProjectExpert service URL to use buttons and fields.');
     show('active-mode', 'Preview only — no runtime connected');
     show('bootstrap-status', 'Open the running application to check index readiness.');
     show('runtime-help', 'GPU selection belongs to the running server, not this design preview.');
+    show('source-encoding-result', 'Encoding rules can be edited in the running application.');
     document.getElementById('preview-live-link').hidden = false;
     if (document.querySelectorAll) {
       document.querySelectorAll('button, input, select').forEach(function (control) { control.disabled = true; });
@@ -478,6 +480,8 @@ document.addEventListener("DOMContentLoaded", function () {
       encodingRules.appendChild(row);
     }
     var encodingAdd = document.getElementById('source-encoding-add');
+    var encodingActions = [encodingAdd, document.getElementById('source-encoding-preview'),
+      document.getElementById('source-encoding-save')];
     encodingAdd.addEventListener('click', function () {
       if (!encodingPolicy || encodingPolicy.rules.length >= 256) return;
       var rule = {pattern: '', encoding: ''};
@@ -485,15 +489,19 @@ document.addEventListener("DOMContentLoaded", function () {
       addEncodingRule(rule);
     });
     function loadSourceEncodings() {
+      encodingActions.forEach(function (button) { button.disabled = true; });
+      show('source-encoding-result', 'Loading encoding rules…');
       return call('GET', API + '/admin/source-encodings').then(function (data) {
         encodingPolicy = data.policy;
         encodingPolicy.rules = encodingPolicy.rules || [];
         encodingChoices = data.encodings || [];
         encodingRules.textContent = '';
         encodingPolicy.rules.forEach(addEncodingRule);
-        encodingAdd.disabled = false;
-        if (data.retry) { show('source-encoding-result', 'The last indexing attempt needs attention. Review encoding rules, then update the local index.'); }
-      }).catch(function (error) { show('source-encoding-result', error.message); });
+        encodingActions.forEach(function (button) { button.disabled = false; });
+        show('source-encoding-result', data.retry
+          ? 'The last indexing attempt needs attention. Review encoding rules, then update the local index.'
+          : '');
+      }).catch(function (error) { show('source-encoding-result', 'Encoding rules unavailable. ' + error.message); });
     }
     ['preview', 'save'].forEach(function (action) {
       document.getElementById('source-encoding-' + action).addEventListener('click', function () {

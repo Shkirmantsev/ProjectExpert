@@ -16,7 +16,8 @@ commands](#everyday-commands).
 
 You need Docker Desktop or Docker Engine with Compose, an internet connection,
 GNU Make, and enough disk space for the application and its model. Start Docker first.
-The first startup downloads files and can take a while.
+Allow time on first startup for Docker to pull the release images and for
+ProjectExpert to build the local index.
 
 Open a terminal in the folder of the project **you want to understand**. For
 example, if your project is in `~/projects/my-app`, enter:
@@ -55,12 +56,13 @@ Make calls the kit's Compose helper, which selects the runtime profile and
 starts the ProjectExpert services with Docker Compose. If Make is unavailable,
 run `bash .project-intelligence-deploy/start.sh` instead.
 
-Wait for a message beginning with `Ready:`. Open the address shown there,
-usually **[http://localhost:8765/](http://localhost:8765/)**. Keep Docker
-running while you use ProjectExpert. The browser page may still be preparing
-its search index after the service starts; check
-[readiness](http://localhost:8765/health/ready) if your question cannot yet
-be answered.
+Open the address printed after `Service URL:`, usually
+**[http://localhost:8765/](http://localhost:8765/)**. Keep Docker running
+while you use ProjectExpert. The URL becomes available while indexing is
+still underway. Watch **Local index** or check
+[/health/ready](http://localhost:8765/health/ready) for search readiness.
+Opening the source file `index.html` directly gives a read-only design
+preview. Use the service URL for interactive controls.
 
 The `:dev` image is a development version. Setup preserves an existing kit and
 its image pins; to update an existing installation, follow the
@@ -71,14 +73,17 @@ platform matrix and release status.
 <details>
 <summary>Using Windows PowerShell?</summary>
 
-Open PowerShell in your project folder. With Docker Desktop running in WSL2
-and Linux container mode, use these commands:
+Open Windows PowerShell 5.1 or PowerShell 7 in your project folder. With
+Docker Desktop running in WSL2 and Linux container mode, use these commands:
 
 ```powershell
 docker run --pull=always --rm -v "${PWD}:/deployment" ghcr.io/shkirmantsev/project-intelligence-deployment:dev
-& .\.project-intelligence-deploy\start.ps1
+make -C .project-intelligence-deploy platform-start
 ```
 
+All kit Make commands use the same syntax in both PowerShell versions. The
+kit uses PowerShell 7 when it is on PATH and falls back to Windows PowerShell
+5.1. Without GNU Make, run `& .\.project-intelligence-deploy\start.ps1`.
 Windows must allow local PowerShell scripts. See the
 [deployment kit guide](distribution/deployment/README.md) for its platform
 limits and stop instructions.
@@ -87,14 +92,15 @@ limits and stop instructions.
 
 ## Ask your first question
 
-1. Open the `Ready:` address in your browser.
-2. Find **1. Ask a project question**. Type a question and select **Ask**.
-3. Read the result and check the referenced project evidence. If the page is
-   still preparing, wait and try again.
+1. Open the service URL and check **Local index** for readiness.
+2. Enter a question, keyword, or code identifier under **Search your project**.
+   Select **Search** to see matching excerpts and their source locations.
+3. After adding or changing files, select **Update local index**. Compatible
+   parsed data and embeddings are reused.
 
 For example, ask **“Where is order validation implemented?”** Replace “order
-validation” with a feature in your project. You can also select **List sources**
-on the page to see what ProjectExpert found.
+validation” with a feature in your project. For the source inventory, open
+**Browse the Wiki, sources and graph → List indexed sources**.
 
 | Your goal | Try asking |
 |---|---|
@@ -109,6 +115,29 @@ answer. Check the cited material and ask a more specific question if needed.
 For deeper library research and examples, see
 [dependency research](docs/DEPENDENCY_RESEARCH.md).
 
+## Browser controls
+
+| Where | When to use it | What to expect |
+|---|---|---|
+| **Browse the Wiki, sources and graph** | Inspect evidence or navigate from a known entity ID. | Search curated Wiki pages, list the inventory, show graph connections, or retrieve excerpts for the current search text without requesting a generated answer. |
+| **Restore or share via Git** | Reuse a snapshot in the current checkout or share reviewed knowledge. | **Restore from Git** reuses compatible data. If it reports missing work, use **Update local index**. To share, enable export, save preferences, update the index, then use **Preview Git export → Write reviewed Git files**. Commit and push are separate Git actions. |
+| **Sharing preferences** | Adjust how you share snapshots. | **Export after index updates** uses a time-limited approval. **Include embeddings** speeds up restoration and uses more Git storage. The default generated-file size cap is 8 MiB. Export runs the same safety checks for all sources. |
+| **Diagnostics and project version** | Investigate slow or failed indexing, or check which checkout is searchable. | See indexing progress, Git version, and knowledge freshness. Failed files can also be inspected with `platform-index-failures`. |
+| **Embedding device and PDF processing** | Change how the local index is built. | **Embedding device** is selectable when the app controls the runtime. For host-managed CUDA/Vulkan, the launcher selects the device. **Include PDFs in the index** enables Docling. **Apply and update index** saves the settings and starts a refresh. |
+| **Legacy text encodings** | Recover older text files that failed decoding, such as Windows-1251 SQL or Windows-1252 Java. | Add a rule with a project-relative pattern and the original encoding. **Preview decoding** reports counts of matching, decoded, and failed files without saving. **Save rules** stores the rules locally. **Update local index** then applies them. Original files are preserved. |
+| **Generated answers** | Add prose answers backed by project excerpts. | Set the provider type, endpoint URL, and exact model ID. Enter a provider key only if required. Grant excerpt access for an endpoint you want to receive project context. Save settings, then **Test saved connection**. Search otherwise returns evidence. |
+
+The **Workspace access token** form appears only when the service is configured
+with `PI_UI_TOKEN`. The standard loopback installation leaves it unset.
+The **Operator workflows** section describes signed approval for canonical writes
+and delegation through a connected MCP client.
+
+**Legacy text encodings** works with source files. The older
+`PI_OPENAI_BASE_URL` setting belongs to the OpenAI-compatible adapter and is
+kept for configuration compatibility. Configure the chat provider in
+**Generated answers**. Open WebUI connects to the ProjectExpert service's
+`/v1` instead. See [chat frontends](docs/USER_GUIDE.md#open-webui-and-other-chat-frontends).
+
 ## Everyday commands
 
 Run these from the same project folder. These commands need GNU Make; the
@@ -121,11 +150,20 @@ alternatives and Windows commands.
 | Start again | `make -C .project-intelligence-deploy platform-start` |
 | Check whether it is ready | `make -C .project-intelligence-deploy platform-status` |
 | See startup messages | `make -C .project-intelligence-deploy platform-logs` |
-| Refresh the search index after project changes | `make -C .project-intelligence-deploy platform-hydrate` |
+| Refresh the search index after project changes | `make -C .project-intelligence-deploy platform-reindex` |
+| Start with isolated file errors allowed | `make -C .project-intelligence-deploy platform-start ALLOW_SKIPPED_SOURCES=1` |
+| See which files failed | `make -C .project-intelligence-deploy platform-index-failures` |
 | Stop ProjectExpert | `make -C .project-intelligence-deploy platform-stop` |
 
+Allowing isolated file errors makes the successfully indexed sources available
+to local search and MCP. **Local index** and `/api/v1/indexing-status` show
+indexed and skipped counts. Model, configuration, and integrity failures still
+block publication. Git export requires zero skips. See
+[source recovery](docs/PRODUCTION_SOURCE_RECOVERY.md).
+
 Press `Ctrl+C` to leave the live log view. Stopping keeps your downloaded model
-cache. To stop without Make, run `bash .project-intelligence-deploy/compose.sh down`.
+cache. Without Make, run `bash .project-intelligence-deploy/compose.sh down` on
+Linux or `& .\.project-intelligence-deploy\stop.ps1` on Windows.
 
 ## Choose how to use it
 
@@ -184,24 +222,19 @@ same name in your shell for a single run:
 | `PI_TARGET_REPO` | `..` | Which folder gets analysed. The kit sits in `.project-intelligence-deploy/`, so `..` is your project root. Use forward slashes on Windows. |
 | `PI_CONTROL_PORT` | `8765` | The port you open in the browser. |
 | `PI_BIND_HOST` | `127.0.0.1` | The interface the service listens on. Keep it on loopback unless you really mean to expose it. |
-| `PI_EMBEDDING_MODEL` | `gemma` | `gemma` (the default; the model is downloaded on first start) or `gemma-torch` (native PyTorch, text and image only). |
+| `PI_EMBEDDING_MODEL` | `gemma` | `gemma` uses the packaged EmbeddingGemma 2 runtime. `gemma-torch` selects the native PyTorch binding. |
 | `PI_ACCELERATOR` | `auto` | `auto`, `cpu`, `vulkan` or `cuda`. `auto` picks the fastest backend it can prove works, and falls back to CPU when the GPU is missing, unusable or slower. |
 | `PI_GPU_DEVICE` | auto-detected | Pins one device, for example `Vulkan1`. It is honoured only when the runtime actually reports that device. |
 | `PI_DOCLING_ENABLED` | `1` | PDF, table and OCR parsing. Set it to `0` to skip that work. |
+| `PI_INDEX_REQUIRE_COMPLETE` | `1` | Set to `0` to allow isolated file failures for local search and MCP across launches. |
+| `PI_UI_TOKEN` | unset | Optional access token for ProjectExpert's own API. |
 | `PI_IMAGE` | published production image | Pins the application image. Change it only when you upgrade deliberately. |
 
 Stop and start the service after changing the port or the model.
 
-The only setting that can be a secret is `HF_TOKEN`, and you need it only when
-you select a gated Hugging Face model. Export it in your shell rather than
-writing it into the kit:
-
-```bash
-export HF_TOKEN=hf_...
-```
-
-Keep secrets out of `deployment.env`: it lives in your project folder and can
-end up in Git.
+Keep workspace tokens and provider keys out of Git. An operator can supply
+`PI_UI_TOKEN` through a private environment. Optional chat credentials are
+configured through **Generated answers**.
 
 See the [deployment kit guide](distribution/deployment/README.md) for the full
 list of settings, the model and accelerator details, and the upgrade steps.

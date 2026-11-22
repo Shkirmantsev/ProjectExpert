@@ -19,16 +19,25 @@ function browser(options = {}) {
   const requests = [];
   let readyChecks = 0, jobChecks = 0, knowledgeChecks = 0;
   const context = {console, Promise, Date, Option: function () {},
-    document: {getElementById: node, createElement() { return node(Symbol()); }, addEventListener(_, fn) { this.start = fn; }},
+    document: {body: node('body'), getElementById: node, createElement() { return node(Symbol()); },
+      querySelectorAll() { return ['query-text', 'source-encoding-add', 'source-encoding-preview', 'source-encoding-save'].map(node); },
+      addEventListener(_, fn) { this.start = fn; }},
     window: {location:{protocol:options.preview ? 'file:':'http:'},setInterval() {}, setTimeout(fn) { fn(); }},
     fetch(path, init) {
       requests.push({path, ...init});
       let body = {};
       let status = 200;
       if (path.endsWith('/admin/retrieval')) body = {embedding_model_alias:'gemma',device:'cpu',document_processing_enabled:true};
-      else if (path.endsWith('/admin/source-encodings')) body = init.method === 'GET'
-        ? {policy:{schema_version:1, rules:[]}, encodings:['cp1251','cp1252']}
-        : {matched:1, decoded:1, failed:0, saved:init.method === 'PUT'};
+      else if (path.endsWith('/admin/source-encodings')) {
+        if (options.auth && !init.headers.Authorization) {
+          status = 401;
+          body = {error:'Authentication required'};
+        } else {
+          body = init.method === 'GET'
+            ? {policy:{schema_version:1, rules:[]}, encodings:['cp1251','cp1252']}
+            : {matched:1, decoded:1, failed:0, saved:init.method === 'PUT'};
+        }
+      }
       else if (path.endsWith('/admin/runtime')) body = {managed_control:options.managed !== false,models:[{value:'gemma',label:'Managed Gemma'},{value:'gemma-torch',label:'Native Gemma'}],devices:{gemma:['auto','cpu','vulkan'], 'gemma-torch':['auto','cpu']},message:'Applies runtime changes'};
       else if (path.endsWith('/ui-version')) body = {ui_contract:'knowledge-sync/2',ui_build:'fixture-build'};
       else if (path.endsWith('/auth-status')) body = {token_required:options.auth || false,local_owner_access:!options.auth};
@@ -58,10 +67,19 @@ async function main() {
   const preview=browser({preview:true});await flush();
   assert.equal(preview.requests.length,0,'File preview must not call unavailable APIs');
   assert.match(preview.node('deployment-status').textContent,/preview/i);
+  assert.equal(preview.node('body').attrs['data-file-preview'], 'true');
+  assert.equal(preview.node('preview-live-link').hidden, false);
+  assert.equal(preview.node('query-text').disabled, true);
+  assert.equal(preview.node('source-encoding-preview').disabled, true);
   const external=browser({managed:false});await flush();
   assert.equal(external.node('embedding-device-select').disabled,true,'Uncontrolled remote hardware must not look switchable');
   assert.match(external.node('runtime-help').textContent,/external|controller/i);
-  const b = browser(); await flush();
+  const b = browser();
+  assert.equal(b.node('source-encoding-preview').disabled, true);
+  assert.equal(b.node('source-encoding-save').disabled, true);
+  await flush();
+  assert.equal(b.node('source-encoding-preview').disabled, false);
+  assert.equal(b.node('source-encoding-save').disabled, false);
   assert.equal(b.node('embedding-model-select').value, 'gemma');
   assert.equal(b.node('access-token').disabled,true);
   assert.match(b.node('access-token-help').textContent,/No API token required/);
@@ -75,8 +93,12 @@ async function main() {
     schema_version:1, rules:[{pattern:'db/**/*.sql',encoding:'cp1251'}],
   });
   assert.match(b.node('source-encoding-result').textContent,/1 of 1 matching files decoded/);
+  b.node('source-encoding-save').listeners.click(); await flush();
+  assert.match(b.node('source-encoding-result').textContent, /Rules saved. Update the local index/);
   const secured=browser({auth:true});await flush();
   assert.equal(secured.node('access-token').disabled,false);
+  assert.equal(secured.node('source-encoding-save').disabled, true);
+  assert.match(secured.node('source-encoding-result').textContent, /Authentication required/);
   assert.match(secured.node('access-token-help').textContent,/PI_UI_TOKEN/);
   assert.equal(b.node('active-mode').textContent,'Embedding device: CPU');
   const hybrid=browser({mode:'Hybrid'}); await flush();
@@ -127,7 +149,8 @@ async function main() {
   assert.equal(failed.node('admin-reindex-button').disabled,false);
   secured.node('access-token').value = 'api-token';
   secured.node('api-access-form').listeners.submit({preventDefault(){}});
-  await flush();
+  await flush(); await flush();
+  assert.equal(secured.node('source-encoding-save').disabled, false);
   secured.node('sources-button').listeners.click(); await flush();
   assert.equal(secured.requests.at(-1).headers.Authorization, 'Bearer api-token');
   assert.equal(secured.node('access-token').value, '');
