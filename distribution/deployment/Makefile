@@ -4,14 +4,27 @@
 # need neither Docker, Python nor deployment.env. Startup is always explicit.
 .DEFAULT_GOAL := help
 ifeq ($(OS),Windows_NT)
-COMPOSE = powershell -NoProfile -File ./compose.ps1
-URL = powershell -NoProfile -File ./url.ps1
+# Use PowerShell 7 when installed, independent of the shell that invoked Make.
+WINDOWS_PS := $(if $(filter %pwsh.exe,$(shell where.exe pwsh.exe 2>&1)),pwsh.exe,powershell.exe)
+PS_SCRIPT = $(WINDOWS_PS) -NoProfile -File
+COMPOSE = $(PS_SCRIPT) ./compose.ps1
+URL = $(PS_SCRIPT) ./url.ps1
 else
 COMPOSE = bash ./compose.sh
 URL = bash ./url.sh
 endif
 CLI = $(COMPOSE) exec -T production python -m pi_platform.cli
 WAIT_TIMEOUT ?= 1800
+# Optional shell-independent override. Omission preserves deployment.env.
+ifneq ($(strip $(ALLOW_SKIPPED_SOURCES)),)
+ifeq ($(ALLOW_SKIPPED_SOURCES),1)
+export PI_INDEX_REQUIRE_COMPLETE := 0
+else ifeq ($(ALLOW_SKIPPED_SOURCES),0)
+export PI_INDEX_REQUIRE_COMPLETE := 1
+else
+$(error ALLOW_SKIPPED_SOURCES must be 1 or 0)
+endif
+endif
 MODEL ?= gemma
 LLAMA_PORT ?= 8769
 LLAMA_AUTH ?= managed-token
@@ -34,13 +47,17 @@ endif
 .PHONY: help platform-start platform-stop platform-status platform-logs platform-pull platform-restart platform-init platform-hydrate platform-materialise platform-models platform-assets platform-model-pull platform-reindex platform-doctor platform-llm-configure platform-llm-status platform-llm-test platform-llm-disable platform-llama-start platform-llama-connect platform-trust-setup platform-gpu-install platform-index-failures eval eval-retrieval eval-chunk-size-sweep invariants metrics-gate
 
 help: ## List every command with a one-line description (default; changes nothing)
+ifeq ($(OS),Windows_NT)
+	@$(PS_SCRIPT) ./help.ps1
+else
 	@printf '%s\n' "Project Intelligence deployment kit -- available commands"
 	@printf '%s\n' ""
 	@awk '{ line = $$0; colon = index(line, ":"); if (colon == 0) next; name = substr(line, 1, colon - 1); if (name !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$$/) next; rest = substr(line, colon + 1); mark = index(rest, "##"); if (mark == 0) next; desc = substr(rest, mark + 2); gsub(/^[[:space:]]+/, "", desc); gsub(/[[:space:]]+$$/, "", desc); printf "  make %-22s %s\n", name, desc; }' $(MAKEFILE_LIST)
 	@printf '%s\n' ""
-	@printf '%s\n' "Startup is explicit: run 'make platform-start'. Optional: LLM=1 (configure), LLM=0 (disable)."
+	@printf '%s\n' "Startup is explicit: run 'make platform-start'. Optional: LLM=1 (configure), LLM=0 (disable), ALLOW_SKIPPED_SOURCES=1 (local search with file errors)."
+endif
 
-platform-start: ## Start the deployment and wait until the service reports readiness
+platform-start: ## Start the services and print the browser URL
 	$(COMPOSE) up -d --wait --wait-timeout $(WAIT_TIMEOUT)
 	@$(URL)
 
@@ -59,17 +76,17 @@ platform-llama-connect: export PI_LLAMA_PORT = $(LLAMA_PORT)
 platform-llama-connect: export PI_NATIVE_LLAMA_AUTH = $(LLAMA_AUTH)
 platform-llama-connect: export PI_NATIVE_LLAMA_TOKEN_FILE = $(LLAMA_TOKEN_FILE)
 platform-llama-connect:
-	powershell -NoProfile -File ./llama-connect.ps1
+	$(PS_SCRIPT) ./llama-connect.ps1
 platform-trust-setup:
-	powershell -NoProfile -File ./host-trust.ps1
+	$(PS_SCRIPT) ./host-trust.ps1
 ifeq ($(GPU),cuda)
 platform-gpu-install: export PI_GPU_PACK_ROOT = $(GPU_PACK)
 platform-gpu-install: export PI_GPU_PACK_SHA256 = $(GPU_PACK_SHA256)
 platform-gpu-install:
-	powershell -NoProfile -File ./native-cuda.ps1 -Action install
+	$(PS_SCRIPT) ./native-cuda.ps1 -Action install
 else ifeq ($(GPU),vulkan)
 platform-gpu-install:
-	powershell -NoProfile -File ./setup-windows-accelerator.ps1 -Backend vulkan -AssetsOnly
+	$(PS_SCRIPT) ./setup-windows-accelerator.ps1 -Backend vulkan -AssetsOnly
 else
 platform-gpu-install:
 	@echo GPU must be cuda or vulkan

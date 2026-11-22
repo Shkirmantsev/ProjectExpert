@@ -2,7 +2,7 @@
 function Get-WorkspaceValue([string]$Name) {
     $value = [Environment]::GetEnvironmentVariable($Name)
     if ($value) { return $value }
-    foreach ($line in Get-Content -LiteralPath (Join-Path $PSScriptRoot 'deployment.env')) {
+    foreach ($line in Get-Content -LiteralPath (Join-Path $PSScriptRoot 'deployment.env') -Encoding UTF8) {
         if ($line.StartsWith($Name + '=')) { $value = $line.Substring($Name.Length + 1).TrimEnd("`r") }
     }
     if ($value -and $value.Length -ge 2 -and (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'")))) { $value = $value.Substring(1, $value.Length - 2) }

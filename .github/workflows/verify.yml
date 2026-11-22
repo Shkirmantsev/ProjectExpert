@@ -110,6 +110,14 @@ jobs:
             choco install make --no-progress -y
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - run: make help PYTHON=python SHELL=cmd.exe
-      - run: make wiki-init PYTHON=python SHELL=cmd.exe
+      - name: Verify Make commands from Windows PowerShell 5.1
+        shell: powershell
+        run: python -m unittest tests.test_portable_deployment.DeploymentHelpTests.test_windows_make_surface
+        env:
+          PI_TEST_POWERSHELL: powershell.exe
+      - name: Verify Make commands from PowerShell 7
+        shell: pwsh
+        run: python -m unittest tests.test_portable_deployment.DeploymentHelpTests.test_windows_make_surface
+        env:
+          PI_TEST_POWERSHELL: pwsh.exe
       - run: python harness.py check-delegated
