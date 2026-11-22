@@ -637,13 +637,15 @@ class PublishedRetrieval:
         return {"indexing_progress": progress, "execution": observed_execution(saved) if saved else embedding_execution_status(self.runtime.embedding_model),
                 **self.runtime.multi_stage_retrieval.stats(), **self.runtime.stage_report(),
                 "source_failures": list(self.runtime.extra.get("source_failures", ())),
+                "source_coverage": self.runtime.extra.get("source_coverage", {}),
                 "index_engine": self.runtime.extra.get("index_engine", "unknown"),
                 "portable_import": self.runtime.extra.get("portable_import", {}),
                 "portable_export": self.runtime.extra.get("portable_export", {"state": "off"}),
                 "source_parse_hits": self.runtime.extra.get("source_parse_hits", 0),
                 "source_parse_misses": self.runtime.extra.get("source_parse_misses", 0),
                 "active_chunks": len(self.runtime.extra.get("chunk_ids", ())),
-                "active_sources": len(getattr(self.runtime.extra.get("source_inventory"), "entries", ())),
+                "active_sources": self.runtime.extra.get("source_coverage", {}).get("indexed",
+                    len(getattr(self.runtime.extra.get("source_inventory"), "entries", ()))),
                 "embedding_model_version": self.runtime.embedding_model.profile().model_revision,
                 "resolved_configuration": self.runtime.extra.get("resolved_configuration", {})}
 

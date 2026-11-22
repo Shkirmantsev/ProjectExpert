@@ -86,6 +86,41 @@ class PortableProductionTests(unittest.TestCase):
         git(self.base, 'clone', str(self.root), str(clone))
         return clone
 
+    def test_partial_local_index_embeds_good_sources_but_cannot_be_exported(self):
+        from pi_platform.adapters.runtime.sqlite_ingestion_cache import indexing_progress
+        from pi_platform.core.ingest.failures import CandidateIndexingError
+
+        legacy = self.root / 'legacy.sql'
+        legacy.write_bytes("select 'Grüße';".encode('cp1252'))
+        with patch.dict(os.environ, {'PI_INDEX_REQUIRE_COMPLETE': '1'}):
+            with self.assertRaises(CandidateIndexingError):
+                self.build()
+        with patch.dict(os.environ, {'PI_INDEX_REQUIRE_COMPLETE': '0'}):
+            runtime = self.build()
+            self.publish_runtime(runtime)
+        self.assertEqual(runtime.extra['source_coverage'], {'eligible': 3, 'indexed': 2, 'skipped': 1})
+        self.assertGreater(runtime.extra['indexing_report'].embedded_count, 0)
+        self.assertTrue(runtime.multi_stage_retrieval.retrieve(RetrievalQuery(text='refund')).hits)
+        progress = indexing_progress(self.cache() / 'indexing-state.sqlite')
+        sources = next(stage for stage in progress['stages'] if stage['stage'] == 'sources')
+        self.assertEqual(sources['state'], 'complete_with_skips')
+        with self.assertRaisesRegex(PortableSnapshotError, 'skipped sources'):
+            self.stage()
+
+        legacy.write_text("select 'Grüße';", encoding='utf-8')
+        repaired = self.build()
+        self.publish_runtime(repaired)
+        self.assertEqual(repaired.extra['source_coverage'], {'eligible': 3, 'indexed': 3, 'skipped': 0})
+        self.assertEqual(repaired.extra['source_parse_hits'], 2)
+        self.assertTrue(self.stage()['stagingId'])
+
+        for source in self.root.glob('*.md'):
+            source.unlink()
+        legacy.write_bytes(b'\xff\xff\xff')
+        with patch.dict(os.environ, {'PI_INDEX_REQUIRE_COMPLETE': '0'}):
+            with self.assertRaises(CandidateIndexingError):
+                self.build()
+
     def test_cold_clone_skips_parser_and_document_embedding_and_queries(self):
         first = self.build()
         self.publish_runtime(first)

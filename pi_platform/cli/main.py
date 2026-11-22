@@ -1206,6 +1206,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
                 if runtime is not None:
                     report = runtime.extra.get('indexing_report')
                     return {'localIndexReady': readiness.is_ready(),
+                        'source_coverage': runtime.extra.get('source_coverage', {}),
                         'source_parse_hits': runtime.extra.get('source_parse_hits', 0),
                         'source_parse_misses': runtime.extra.get('source_parse_misses', 0),
                         'new_vectors': getattr(report, 'embedded_count', 0),
@@ -2647,6 +2648,7 @@ def _bootstrap_and_index_target_locked(
         "reused_vectors": getattr(runtime.extra.get("indexing_report"), "reused_count", 0),
         "new_vectors": getattr(runtime.extra.get("indexing_report"), "embedded_count", 0),
         "source_failures": runtime.extra.get("source_failures", []),
+        "source_coverage": runtime.extra.get("source_coverage", {}),
         "dense_generation_loaded": runtime.extra.get("dense_generation_loaded", False),
         "ready": True,
         "bootstrap_state": settings.bootstrap_state,

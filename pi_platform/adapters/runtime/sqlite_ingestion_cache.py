@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS generation_sources(
  PRIMARY KEY(generation, source_id),
  FOREIGN KEY(source_id, source_hash, pipeline_key, metadata_key)
  REFERENCES source_outputs(source_id, source_hash, pipeline_key, metadata_key));
+CREATE INDEX IF NOT EXISTS generation_sources_by_pipeline ON generation_sources(generation,pipeline_key);
 CREATE TABLE IF NOT EXISTS indexer_lease(
  root_id INTEGER PRIMARY KEY CHECK(root_id=1), owner_token TEXT NOT NULL,
  fence INTEGER NOT NULL, updated_at REAL NOT NULL);
@@ -233,7 +234,7 @@ class SqliteIngestionCache:
         with self._lock:
             row = self._db.execute('''SELECT o.summary_json,o.checksum FROM source_outputs o
                 JOIN generation_sources g USING(source_id,source_hash,pipeline_key,metadata_key)
-                WHERE g.generation=? AND o.pipeline_key=? LIMIT 1''', (self.generation, key)).fetchone()
+                WHERE g.generation=? AND g.pipeline_key=? LIMIT 1''', (self.generation, key)).fetchone()
             if row:
                 self._verify_checksum(*row)
                 return bytes(row[0])
@@ -244,6 +245,25 @@ class SqliteIngestionCache:
             if row:
                 self._verify_checksum(*row)
             return bytes(row[0]) if row else None
+
+    def source_payloads(self, sid):
+        """Read this generation's payloads in the source summary's order."""
+        with self._lock:
+            record = self.source_record(sid)
+            if record is None:
+                return []
+            rows = self._db.execute('''SELECT p.address,p.payload,p.checksum FROM generation_sources g
+                JOIN source_payload_membership m USING(source_id,source_hash,pipeline_key,metadata_key)
+                JOIN canonical_payloads p USING(address)
+                WHERE g.generation=? AND g.source_id=?''', (self.generation, sid))
+            payloads = {}
+            for address, payload, checksum in rows:
+                self._verify_checksum(payload, checksum)
+                payloads[address] = bytes(payload)
+            try:
+                return [payloads[address] for address in record['addresses']]
+            except KeyError as exc:
+                raise IndexingStateError('Incomplete source membership in candidate') from exc
 
     def iter_records(self):
         # A separate read-only connection gives a bounded streaming snapshot and
@@ -509,6 +529,12 @@ def candidate_publication(cache_root, runtime):
                 ON j.fence=l.fence WHERE j.job_id=? AND j.fence=?''', (job_id, fence)).fetchone()
             if row != ('ready',):
                 raise IndexingStateError('Stale or incomplete candidate rejected before publication')
+            coverage = runtime.extra['source_coverage']
+            source_stage = db.execute('''SELECT total_items,completed_items,failed_items,state
+                FROM index_stages WHERE job_id=? AND stage='sources' ''', (job_id,)).fetchone()
+            if source_stage != (coverage['eligible'], coverage['indexed'], coverage['skipped'],
+                               'complete_with_skips' if coverage['skipped'] else 'complete'):
+                raise IndexingStateError('Candidate source coverage mismatch before publication')
             artifacts = db.execute('SELECT artifact_name,kind,relative_path,sha256,state FROM artifact_manifests WHERE generation=?',
                                    (job_id,)).fetchall()
             if not {'exact', 'graph'}.issubset({row[0] for row in artifacts}):

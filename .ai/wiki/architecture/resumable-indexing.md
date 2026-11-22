@@ -26,8 +26,12 @@ remain retained; no automatic GC or silent legacy fallback runs. SQLite backup
 and journaled restore operate on generated state, never canonical sources.
 
 Fresh source and kit defaults now use resumable indexing, parallel parsing and
-bounded embedding batches; explicit legacy settings remain supported. Existing
-operator environments remain preserved, with an explicit preview/backup migration. Source deployment now requires
+bounded embedding batches; explicit legacy settings remain supported. Operators can allow isolated file errors with `PI_INDEX_REQUIRE_COMPLETE=0`.
+The fenced source stage records indexed and skipped totals before embedding.
+The validated local candidate serves search and MCP with that coverage; Git
+export requires zero skips.
+
+Existing operator environments remain preserved, with an explicit preview/backup migration. Source deployment now requires
 verified offline asset seeding and fails closed when release pins/files are
 missing. The licensed inventory is reviewed; actual registry publication remains unverified locally;
 [release assembly](../../../distribution/assets/README.md) records the automatic

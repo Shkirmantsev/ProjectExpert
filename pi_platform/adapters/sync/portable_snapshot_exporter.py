@@ -20,6 +20,9 @@ def _active(db):
     row = db.execute("SELECT value FROM schema_meta WHERE key='active_job'").fetchone()
     if not row or db.execute('SELECT state FROM index_jobs WHERE job_id=?', row).fetchone() != ('published',):
         raise PortableSnapshotError('No published resumable generation to export')
+    stage = db.execute("SELECT failed_items FROM index_stages WHERE job_id=? AND stage='sources'", row).fetchone()
+    if stage and stage[0]:
+        raise PortableSnapshotError('Local index has skipped sources; resolve them and update the index before Git export')
     return row[0]
 
 
