@@ -24,10 +24,11 @@ and `1`; explicit operator settings remain effective. Existing environments are
 preserved. See the [selective migration procedure](../distribution/deployment/README.md#selective-environment-migration)
 for preview, backup and rollback. Source defaults are not a claim of completed
 pinned-model performance or target-platform acceptance.
-`PI_INDEX_REQUIRE_COMPLETE=1` is the resumable default: failed sources or
-unsupported images block the candidate. An explicit `0` allows incomplete
-local results with `source_failures` and `source_coverage`. The source stage
-records `complete_with_skips` and Git export requires zero skips.
+The standalone indexer defaults to `PI_INDEX_REQUIRE_COMPLETE=1`. The kit's
+Make targets pass `0` by default through `ALLOW_SKIPPED_SOURCES=1`, allowing
+local results with `source_failures` and `source_coverage`. Set
+`ALLOW_SKIPPED_SOURCES=0` for a strict Make launch. The source stage records
+`complete_with_skips` and Git export requires zero skips.
 
 The public `index_repository()` signature and existing `runtime.extra` fields
 are preserved. The runtime remains unpublished until the existing caller

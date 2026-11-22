@@ -10,14 +10,14 @@ Encoding rules affect the local index and leave the original source bytes intact
 Use the same command from Windows PowerShell 5.1, PowerShell 7 or a Linux shell:
 
 ```text
-make -C .project-intelligence-deploy platform-start ALLOW_SKIPPED_SOURCES=1
+make -C .project-intelligence-deploy platform-start
 ```
 
-The launcher passes the option to Compose for this invocation. Set
-`PI_INDEX_REQUIRE_COMPLETE=0` in the kit's `deployment.env` to keep the policy
-across launches. The default requires a complete index.
+Make passes its default `ALLOW_SKIPPED_SOURCES=1` to the existing policy.
+Use `ALLOW_SKIPPED_SOURCES=0` to require a complete index. Direct launch scripts
+use `PI_INDEX_REQUIRE_COMPLETE` from the kit's `deployment.env`.
 
-With this option, isolated source failures are recorded and the other sources
+With skips allowed, isolated source failures are recorded and the other sources
 continue through embedding and local index publication. Search and MCP can
 then use the indexed sources. The page and the REST indexing status report the
 coverage. Configuration errors, cancelled runs, model failures and invalid
@@ -109,8 +109,8 @@ be reached; inspect `/health/ready` and the UI index status for search readiness
 Use `./wait-ready.ps1` or `bash wait-ready.sh` as an explicit bounded index-ready
 step for deployment/CI; ordinary startup does not wait indefinitely for a large
 index. Existing readiness rules block retrieval during a running or failed refresh,
-even while the prior durable generation is retained. Do not set
-`PI_INDEX_REQUIRE_COMPLETE=0` when you need a complete index.
+even while the prior durable generation is retained. For a complete index,
+use `ALLOW_SKIPPED_SOURCES=0` with Make or `PI_INDEX_REQUIRE_COMPLETE=1` for direct launches.
 
 ## Workspace shutdown and exclusions
 

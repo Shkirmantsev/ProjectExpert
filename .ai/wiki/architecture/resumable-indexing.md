@@ -26,7 +26,9 @@ remain retained; no automatic GC or silent legacy fallback runs. SQLite backup
 and journaled restore operate on generated state, never canonical sources.
 
 Fresh source and kit defaults now use resumable indexing, parallel parsing and
-bounded embedding batches; explicit legacy settings remain supported. Operators can allow isolated file errors with `PI_INDEX_REQUIRE_COMPLETE=0`.
+bounded embedding batches; explicit legacy settings remain supported. Deployment Make targets allow isolated file errors by default through
+`ALLOW_SKIPPED_SOURCES=1`. Operators can require complete indexing with
+`ALLOW_SKIPPED_SOURCES=0`.
 The fenced source stage records indexed and skipped totals before embedding.
 The validated local candidate serves search and MCP with that coverage; Git
 export requires zero skips.

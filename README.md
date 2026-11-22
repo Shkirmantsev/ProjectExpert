@@ -151,12 +151,12 @@ alternatives and Windows commands.
 | Check whether it is ready | `make -C .project-intelligence-deploy platform-status` |
 | See startup messages | `make -C .project-intelligence-deploy platform-logs` |
 | Refresh the search index after project changes | `make -C .project-intelligence-deploy platform-reindex` |
-| Start with isolated file errors allowed | `make -C .project-intelligence-deploy platform-start ALLOW_SKIPPED_SOURCES=1` |
+| Start and require every source to succeed | `make -C .project-intelligence-deploy platform-start ALLOW_SKIPPED_SOURCES=0` |
 | See which files failed | `make -C .project-intelligence-deploy platform-index-failures` |
 | Stop ProjectExpert | `make -C .project-intelligence-deploy platform-stop` |
 
-Allowing isolated file errors makes the successfully indexed sources available
-to local search and MCP. **Local index** and `/api/v1/indexing-status` show
+Make startup allows isolated file errors by default. Successfully indexed sources
+remain available to local search and MCP. **Local index** and `/api/v1/indexing-status` show
 indexed and skipped counts. Model, configuration, and integrity failures still
 block publication. Git export requires zero skips. See
 [source recovery](docs/PRODUCTION_SOURCE_RECOVERY.md).
@@ -226,7 +226,7 @@ same name in your shell for a single run:
 | `PI_ACCELERATOR` | `auto` | `auto`, `cpu`, `vulkan` or `cuda`. `auto` picks the fastest backend it can prove works, and falls back to CPU when the GPU is missing, unusable or slower. |
 | `PI_GPU_DEVICE` | auto-detected | Pins one device, for example `Vulkan1`. It is honoured only when the runtime actually reports that device. |
 | `PI_DOCLING_ENABLED` | `1` | PDF, table and OCR parsing. Set it to `0` to skip that work. |
-| `PI_INDEX_REQUIRE_COMPLETE` | `1` | Set to `0` to allow isolated file failures for local search and MCP across launches. |
+| `PI_INDEX_REQUIRE_COMPLETE` | `1` for direct launches | Direct scripts and Compose use this setting. Make uses `ALLOW_SKIPPED_SOURCES`, which defaults to `1`. |
 | `PI_UI_TOKEN` | unset | Optional access token for ProjectExpert's own API. |
 | `PI_IMAGE` | published production image | Pins the application image. Change it only when you upgrade deliberately. |
 

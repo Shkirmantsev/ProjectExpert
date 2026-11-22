@@ -8,7 +8,7 @@
   "progress": {
     "blocked": [],
     "done": [
-      "Verified default Windows-1251/1252 detection, precedence, portable restore and warm cache use"
+      "Enabled the existing skipped-source policy by default for deployment Make commands"
     ],
     "todo": []
   },
@@ -27,7 +27,7 @@
     "created_at": "2026-11-21T17:35:02+00:00",
     "id": "fix-corporate-deployment",
     "project": "ProjectExpert",
-    "updated_at": "2026-11-22T11:26:40+00:00"
+    "updated_at": "2026-11-22T11:47:07+00:00"
   },
   "task": {
     "acceptance": [
@@ -39,7 +39,7 @@
   },
   "verification": {
     "passed": [
-      "Full harness PASS with strict OpenSpec and 1,659 manifest files; browser workflow passed"
+      "23 focused deployment and partial-index tests passed with one Windows-only skip; OpenSpec 99/99, Wiki and artifact manifest passed"
     ],
     "pending": [
       "Windows CI after push, physical corporate Windows CUDA/Vulkan and long-path acceptance"
@@ -47,12 +47,8 @@
   },
   "working_set": [
     {
-      "path": "pi_platform/core/ingest/records.py",
-      "sha256": "a143daed6a3e52cc44e416dad4ccc93ccad8edf0f0a843a1a55270cbae3b088f"
-    },
-    {
-      "path": "pi_platform/core/ingest/source_decoding_policy.py",
-      "sha256": "73210af69a72d678eab9fa74ff73bfee82e87a1aa2fd1caf6b2c098a5b061d8f"
+      "path": "distribution/deployment/Makefile",
+      "sha256": "53531e0dde2f6d3680e57126aecf9e57b3528d16fbf005091bfa96e5daa4d795"
     }
   ]
 }

@@ -38,10 +38,10 @@ models from HF/GitHub. Missing reviewed release pins stop startup with an explic
 error. The asset release is currently blocked; see the release gate below.
 The default launcher timeout is 30 minutes for container startup. Follow index
 progress through **Local index** or `/api/v1/indexing-status`; the browser can
-open while the index is still building. To allow local search when individual
-files cannot be parsed, add `ALLOW_SKIPPED_SOURCES=1` to `make platform-start`.
-Set `PI_INDEX_REQUIRE_COMPLETE=0` in `deployment.env` to keep that setting
-across launches. Use `make platform-index-failures` for the private file report.
+open while the index is still building. `make platform-start` allows isolated
+file failures by default. For strict indexing, add `ALLOW_SKIPPED_SOURCES=0`.
+Direct script or Compose launches take `PI_INDEX_REQUIRE_COMPLETE` from
+`deployment.env`. Use `make platform-index-failures` for the private file report.
 
 ## The reported address
 

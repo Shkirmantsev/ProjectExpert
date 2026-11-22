@@ -6,7 +6,7 @@ Structured source: [handoffs/fix-corporate-deployment.json](handoffs/fix-corpora
 
 Task: `fix-corporate-deployment`
 Status: `executing`
-Updated: `2026-11-22T11:26:40+00:00`
+Updated: `2026-11-22T11:47:07+00:00`
 Active OpenSpec change: `fix-corporate-deployment`
 
 ## Objective
@@ -19,7 +19,7 @@ Repair corporate deployment and source recovery from the zero-workaround inciden
 
 ## Completed
 
-- Verified default Windows-1251/1252 detection, precedence, portable restore and warm cache use
+- Enabled the existing skipped-source policy by default for deployment Make commands
 
 ## Remaining
 
@@ -39,12 +39,11 @@ Repair corporate deployment and source recovery from the zero-workaround inciden
 
 ## Working set
 
-- `pi_platform/core/ingest/records.py`
-- `pi_platform/core/ingest/source_decoding_policy.py`
+- `distribution/deployment/Makefile`
 
 ## Verification passed
 
-- Full harness PASS with strict OpenSpec and 1,659 manifest files; browser workflow passed
+- 23 focused deployment and partial-index tests passed with one Windows-only skip; OpenSpec 99/99, Wiki and artifact manifest passed
 
 ## Verification pending
 

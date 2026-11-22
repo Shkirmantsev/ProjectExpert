@@ -8,4 +8,4 @@ foreach ($line in Get-Content -LiteralPath (Join-Path $PSScriptRoot 'Makefile') 
     }
 }
 Write-Output ''
-Write-Output "Startup is explicit: run 'make platform-start'. Optional: LLM=1 (configure), LLM=0 (disable), ALLOW_SKIPPED_SOURCES=1 (local search with file errors)."
+Write-Output "Startup is explicit: run 'make platform-start'. Optional: LLM=1 (configure), LLM=0 (disable), ALLOW_SKIPPED_SOURCES=0 (require complete indexing)."

@@ -168,7 +168,8 @@ class DeploymentTests(unittest.TestCase):
             before = (kit / 'deployment.env').read_bytes()
             (kit / 'compose.sh').write_text('printf "%s\\n" "${PI_INDEX_REQUIRE_COMPLETE-unset}"\n')
             env = {key: value for key, value in os.environ.items() if key != 'PI_INDEX_REQUIRE_COMPLETE'}
-            for options, expected in (([], 'unset'), (['ALLOW_SKIPPED_SOURCES=1'], '0'),
+            for options, expected in (([], '0'), (['ALLOW_SKIPPED_SOURCES='], 'unset'),
+                                      (['ALLOW_SKIPPED_SOURCES=1'], '0'),
                                       (['ALLOW_SKIPPED_SOURCES=0'], '1')):
                 result = subprocess.run(['make', 'platform-start', *options], cwd=kit, env=env,
                                         check=True, capture_output=True, text=True)

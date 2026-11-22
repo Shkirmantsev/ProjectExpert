@@ -56,8 +56,10 @@ records the selected encoding. The advanced form writes private overrides via
 its protected API. The decoder revision participates in source-cache keys and
 resumable retry identity.
 
-Strict indexing remains the default. The explicit local partial policy permits
-isolated source failures, records coverage in the fenced SQLite job, validates
+Deployment Make targets enable the existing local partial policy by default.
+Explicit strict Make runs and the standalone indexer's default require
+completion. The local partial policy permits isolated source failures,
+records coverage in the fenced SQLite job, validates
 the candidate artifacts, and exposes coverage through indexing status. Local
 search and MCP can use the successful portion. Git export checks the published
 source stage and requires zero skipped sources. Model, cancellation,

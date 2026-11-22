@@ -15,7 +15,8 @@ URL = bash ./url.sh
 endif
 CLI = $(COMPOSE) exec -T production python -m pi_platform.cli
 WAIT_TIMEOUT ?= 1800
-# Optional shell-independent override. Omission preserves deployment.env.
+# An explicitly empty value leaves the policy to deployment.env.
+ALLOW_SKIPPED_SOURCES ?= 1
 ifneq ($(strip $(ALLOW_SKIPPED_SOURCES)),)
 ifeq ($(ALLOW_SKIPPED_SOURCES),1)
 export PI_INDEX_REQUIRE_COMPLETE := 0
@@ -54,7 +55,7 @@ else
 	@printf '%s\n' ""
 	@awk '{ line = $$0; colon = index(line, ":"); if (colon == 0) next; name = substr(line, 1, colon - 1); if (name !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$$/) next; rest = substr(line, colon + 1); mark = index(rest, "##"); if (mark == 0) next; desc = substr(rest, mark + 2); gsub(/^[[:space:]]+/, "", desc); gsub(/[[:space:]]+$$/, "", desc); printf "  make %-22s %s\n", name, desc; }' $(MAKEFILE_LIST)
 	@printf '%s\n' ""
-	@printf '%s\n' "Startup is explicit: run 'make platform-start'. Optional: LLM=1 (configure), LLM=0 (disable), ALLOW_SKIPPED_SOURCES=1 (local search with file errors)."
+	@printf '%s\n' "Startup is explicit: run 'make platform-start'. Optional: LLM=1 (configure), LLM=0 (disable), ALLOW_SKIPPED_SOURCES=0 (require complete indexing)."
 endif
 
 platform-start: ## Start the services and print the browser URL
