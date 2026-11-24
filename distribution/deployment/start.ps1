@@ -7,15 +7,7 @@ try {
     $timeout = 1800
     if ($env:PI_WAIT_TIMEOUT) { $timeout = [int]$env:PI_WAIT_TIMEOUT }
     & (Join-Path $PSScriptRoot 'compose.ps1') up -d --wait --wait-timeout $timeout
-    # The readiness line is produced by the shared resolver, so the reported
-    # URL is the effective one (shell environment, then deployment.env, then
-    # default).
-    $statusLines = @(& (Join-Path $PSScriptRoot 'url.ps1'))
-    foreach ($line in $statusLines) { Write-Host $line }
-    $browserUrl = ($statusLines | Where-Object { $_ -match '^Service URL: https?://' } | Select-Object -First 1) -replace '^Service URL:\s*', ''
-    if ($env:PI_OPEN_BROWSER -ne '0' -and $browserUrl) {
-        try { Start-Process $browserUrl } catch { Write-Host $browserUrl }
-    }
+    & (Join-Path $PSScriptRoot 'url.ps1') -OpenIfEnabled
 } finally {
     Pop-Location
 }

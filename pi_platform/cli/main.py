@@ -451,6 +451,12 @@ def build_parser() -> argparse.ArgumentParser:
                                      help="warm-up requests (default: 5)")
     inference_benchmark.add_argument("--timeout", type=float, default=120.0,
                                      help="per-request timeout in seconds")
+    inference_benchmark.add_argument("--workload", choices=("query", "document"), default="query",
+                                     help="query latency or synthetic document throughput")
+    inference_benchmark.add_argument("--batch-size", type=int, default=32,
+                                     help="document inputs per measured batch (default: 32)")
+    inference_benchmark.add_argument("--target", type=Path, default=None,
+                                     help="skip the document benchmark while this target is indexing")
     inference_route = inference_sub.add_parser(
         "native-route", help="verify the native Windows embedding route from this container",
     )

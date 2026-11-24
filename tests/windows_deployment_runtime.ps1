@@ -17,6 +17,20 @@ try {
     if (($output -join '') -notmatch 'native-output') { throw 'Native stdout lost' }
     if ($ErrorActionPreference -ne 'Stop') { throw 'ErrorActionPreference was not restored' }
     & (Join-Path $PSScriptRoot 'powershell_native_probe.ps1')
+    $browserKit = Join-Path $temporary 'browser'
+    New-Item -ItemType Directory -Path $browserKit | Out-Null
+    Copy-Item -LiteralPath (Join-Path $kit 'url.ps1') -Destination $browserKit
+    @'
+if ($args[0] -eq 'port') { '127.0.0.1:9876' }
+if ($args[0] -eq 'exec') { 'a' * 43 }
+'@ | Set-Content -LiteralPath (Join-Path $browserKit 'compose.ps1')
+    $opened = New-Object 'System.Collections.Generic.List[string]'
+    function Start-Process([string]$FilePath) { $opened.Add($FilePath) }
+    $result = & (Join-Path $browserKit 'url.ps1') -Open
+    if ($opened.Count -ne 1 -or $opened[0] -cne ('http://localhost:9876/#local-owner=' + ('a' * 43))) {
+        throw 'Windows local browser did not receive the managed credential on the published port'
+    }
+    if (($result -join ' ') -match ('a' * 43)) { throw 'Windows local credential was printed' }
     # Successful assertions must not return the intentional native failure (37)
     # to the Actions shell wrapper. Exceptions above still fail this script.
     $global:LASTEXITCODE = 0

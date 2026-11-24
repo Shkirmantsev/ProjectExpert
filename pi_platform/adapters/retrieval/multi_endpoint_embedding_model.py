@@ -202,15 +202,26 @@ class MultiEndpointEmbeddingModel(EmbeddingModelPort):
         return len(values) >= 3 and all(isinstance(value,(int,float)) and not isinstance(value,bool)
                                        and math.isfinite(value) and value > 0 for value in values)
 
+    @property
+    def document_work_window(self):
+        return min(512, 2 * self._batch_size * len(self._endpoints))
+
     def embed_requests(self, requests):
         requests=list(requests)
         if not requests:
             return []
-        _text_requests(requests)
         if any(request.role != EmbeddingRole.DOCUMENT for request in requests):
             # Document throughput evidence cannot authorize query scheduling.
             return _vectors(self._endpoints[0],requests,self._profile)
-        return _dispatch(self._endpoints,requests,self._profile,self._batch_size,self._max_retries)
+        text_positions = [i for i, request in enumerate(requests)
+                          if not (request.image_path or request.audio_path or request.video_path)]
+        text_results = _dispatch(self._endpoints, [requests[i] for i in text_positions],
+                                 self._profile, self._batch_size, self._max_retries)
+        by_position = dict(zip(text_positions, text_results, strict=True))
+        # The parity evidence applies to text only. Keep supported media
+        # singleton requests on the primary and restore original input order.
+        return [by_position[i] if i in by_position else _vectors(self._endpoints[0], [request], self._profile)[0]
+                for i, request in enumerate(requests)]
 
     def embed_request(self, request):
         return self.embed_requests([request])[0]

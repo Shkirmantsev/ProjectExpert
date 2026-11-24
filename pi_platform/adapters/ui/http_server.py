@@ -9,9 +9,9 @@ present the configured bearer token.
 from __future__ import annotations
 
 import dataclasses
+import hmac
 import json
 import ipaddress
-import socket
 import os
 import threading
 from http import HTTPStatus
@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
 from urllib.parse import parse_qs, urlparse
 
+from pi_platform.deployment.local_ui import provision_local_owner_key
 from pi_platform.ports import RuntimeNotReadyError, ReadinessSnapshot
 from pi_platform.core.ui.rest_service import UiOperationDenied
 from pi_platform.ports.ui.rest_api import (
@@ -36,6 +37,7 @@ from pi_platform.ports.ui.rest_api import (
 __all__ = ["UiHttpServer", "DEFAULT_HOST", "STATIC_ROOT"]
 
 DEFAULT_HOST = "127.0.0.1"
+_LOCAL_HOSTS = {'127.0.0.1', '::1', 'localhost'}
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
 
 _CONTENT_TYPES = {
@@ -88,22 +90,18 @@ class UiHttpServer:
         self.service = service
         self.host = host
         self._requested_port = port
-        self.token = token if token is not None else os.environ.get("PI_UI_TOKEN") or None
-        local_hosts = {'127.0.0.1', '::1', 'localhost'}
-        deployed_local = (os.environ.get('PI_UI_LOCAL_ADMIN') == '1'
-                          and os.environ.get('PI_UI_BIND_HOST', '') in local_hosts)
-        self.local_admin_enabled = host in local_hosts or deployed_local
-        self._local_proxy_peers = set()
-        if deployed_local:
-            # Docker forwards host loopback connections through its exact gateway.
-            # Other container addresses do not become trusted local administrators.
-            try:
-                for line in Path('/proc/net/route').read_text().splitlines()[1:]:
-                    fields = line.split()
-                    if len(fields) >= 4 and fields[1] == '00000000' and int(fields[3], 16) & 2:
-                        self._local_proxy_peers.add(socket.inet_ntoa(bytes.fromhex(fields[2])[::-1]))
-            except (OSError, ValueError):
-                pass
+        configured_token = token if token is not None else os.environ.get("PI_UI_TOKEN")
+        if configured_token and not configured_token.strip():
+            raise ValueError("PI_UI_TOKEN cannot contain only whitespace")
+        self.token = configured_token or None
+        self._direct_local_admin = host in _LOCAL_HOSTS
+        managed = os.environ.get('PI_UI_LOCAL_ADMIN') == '1'
+        if managed and not self.token and os.environ.get('PI_UI_BIND_HOST') not in _LOCAL_HOSTS:
+            raise ValueError('Non-loopback ProjectExpert publication requires PI_UI_TOKEN')
+        self._managed_admin_key = (
+            provision_local_owner_key() if managed and not self._direct_local_admin and not self.token else None
+        )
+        self.local_admin_enabled = self._direct_local_admin or self._managed_admin_key is not None
         self.static_root = Path(static_root) if static_root else STATIC_ROOT
         self._readiness = readiness or (lambda: False)
         self.openai_compat = openai_compat
@@ -111,6 +109,7 @@ class UiHttpServer:
         self.skill_plane = skill_plane
         self.a2a_adapter = a2a_adapter
         self.agent_card = agent_card
+        self._configured_role = actor.role if actor is not None else os.environ.get("PI_UI_ROLE")
         self.actor = actor or UiActor(
             actor_type="human",
             actor_id=os.environ.get("PI_UI_ACTOR_ID", "operator"),
@@ -133,7 +132,7 @@ class UiHttpServer:
 
         self._admin_capability = threading.local()
         self.admin_routes = RetrievalAdminRoutes(target_repo=self.target_repo,
-            caller_capability_provider=lambda: getattr(self._admin_capability, 'value', 'administrator'))
+            caller_capability_provider=lambda: getattr(self._admin_capability, 'value', 'viewer'))
         self.admin_routes.settings_changed = self.apply_runtime_settings
         self.refresh_requested = None
         self.wizard = FirstStartWizard()
@@ -234,23 +233,35 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 return True
             header = self.headers.get("Authorization", "")
             expected = f"Bearer {server.token}"
-            return header == expected
+            return hmac.compare_digest(header.encode(), expected.encode())
 
         def _local_owner_request(self) -> bool:
             if not server.local_admin_enabled:
                 return False
             try:
-                peer = self.client_address[0]
-                if not (ipaddress.ip_address(peer).is_loopback or peer in server._local_proxy_peers):
+                if server._managed_admin_key is not None:
+                    credentials = self.headers.get_all('X-ProjectExpert-Local-Owner') or []
+                    if len(credentials) != 1 or not hmac.compare_digest(
+                        credentials[0].encode(), server._managed_admin_key.encode()
+                    ):
+                        return False
+                elif not ipaddress.ip_address(self.client_address[0]).is_loopback:
+                    return False
+                if len(self.headers.get_all('Host') or []) != 1:
                     return False
                 host = urlparse('http://' + self.headers.get('Host', ''))
-                if host.hostname not in {'localhost', '127.0.0.1', '::1'} or host.username or host.password:
+                if (host.hostname not in _LOCAL_HOSTS or host.username is not None
+                        or host.path or host.query or host.fragment or host.port == 0):
                     return False
-                origin = self.headers.get('Origin')
-                if origin:
+                origins = self.headers.get_all('Origin') or []
+                if len(origins) > 1:
+                    return False
+                if origins:
+                    origin = origins[0]
                     parsed = urlparse(origin)
                     if (parsed.scheme not in {'http', 'https'} or parsed.netloc.lower() != host.netloc.lower()
-                            or parsed.username or parsed.password or parsed.path not in {'', '/'}):
+                            or parsed.username is not None or parsed.path not in {'', '/'}
+                            or parsed.query or parsed.fragment):
                         return False
                 return self.headers.get('Sec-Fetch-Site', 'none') in {'same-origin', 'none'}
             except ValueError:
@@ -296,7 +307,15 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                     'knowledge_operations': server.admin_routes.knowledge_sync is not None})
                 return
             if path == "/api/v1/auth-status":
-                self._send(HTTPStatus.OK, {"token_required": bool(server.token), "local_owner_access": server.local_admin_enabled and not bool(server.token)})
+                admin = self._admin_request()
+                local_owner = not server.token and admin
+                self._send(HTTPStatus.OK, {
+                    "token_required": bool(server.token),
+                    "local_owner_access": local_owner,
+                    "admin_access": admin,
+                    "local_launch_required": (server._managed_admin_key is not None and not local_owner
+                                              and self._resolve_caller_capability() == "administrator"),
+                })
                 return
             if path.startswith("/v1/") and server.openai_compat is not None:
                 # The OpenAI-compatible shim is auth-gated by the same
@@ -433,38 +452,37 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
             self._dispatch(lambda: _post_route(server, self, path, body))
 
         def _resolve_caller_capability(self) -> str:
-            cap_hdr = (
-                self.headers.get("X-Actor-Capability")
-                or self.headers.get("X-Actor-Role")
-                or ""
-            ).strip().lower()
-            if cap_hdr:
-                if cap_hdr in ("admin", "administrator", "operator"):
-                    return "administrator"
-                return cap_hdr
-            if (
-                server.actor.actor_type == "agent"
-                and server.actor.role not in ("administrator", "admin")
-            ):
-                return "coding-agent"
+            administrator_roles = {"admin", "administrator", "operator"}
+            if server._configured_role is not None and server._configured_role not in administrator_roles:
+                return server._configured_role or "viewer"
+            for name in ("X-Actor-Capability", "X-Actor-Role"):
+                for value in self.headers.get_all(name) or []:
+                    cap = value.strip().lower()
+                    if cap and cap not in administrator_roles:
+                        return cap
             return "administrator"
 
+        def _admin_request(self) -> bool:
+            admitted = self._authorised() if server.token else self._local_owner_request()
+            return admitted and self._resolve_caller_capability() == "administrator"
+
         def _try_admin_or_wizard(self, method: str, path: str, body: Any) -> bool:
-            if path.startswith('/api/v1/admin/knowledge/') and not server.token and not self._local_owner_request():
-                self._send(HTTPStatus.FORBIDDEN, {'error': 'Knowledge administration requires local owner access or a configured API token.'})
+            protected = (path.startswith('/api/v1/admin/')
+                         or (path == '/api/v1/wizard' and method != 'GET')
+                         or (path == '/api/v1/materialize' and method == 'POST'))
+            if protected and not self._admin_request():
+                self._send(HTTPStatus.FORBIDDEN, {
+                    'error': 'Administrator access required. Open the managed local UI with make platform-open or use the configured API token.',
+                    'code': 'admin-capability-required',
+                    'details': {'required_capability': 'administrator', 'method': method, 'path': path},
+                })
                 return True
             if path == "/api/v1/admin/runtime":
-                if self._resolve_caller_capability() != "administrator":
-                    self._send(HTTPStatus.FORBIDDEN, {"error": "Administrator access required"})
-                    return True
                 from pi_platform.adapters.orchestration.managed_runtime import capabilities
                 self._send(HTTPStatus.OK if method == "GET" else HTTPStatus.METHOD_NOT_ALLOWED,
                            capabilities() if method == "GET" else {"error": "Use GET"})
                 return True
             if path in ("/api/v1/admin/chat", "/api/v1/admin/chat/test"):
-                if self._resolve_caller_capability() != "administrator":
-                    self._send(HTTPStatus.FORBIDDEN, {"error": "Administrator access is required to configure a chat provider."})
-                    return True
                 connection = getattr(server.service, "_chat_connection", None)
                 if connection is None:
                     self._send(HTTPStatus.NOT_FOUND, {"error": "Chat configuration is unavailable in this service."})
@@ -494,9 +512,6 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                     self._send(HTTPStatus.OK, server.wizard.render(server.target_repo))
                     return True
                 if method == "POST":
-                    if self._resolve_caller_capability() != "administrator":
-                        self._send(HTTPStatus.FORBIDDEN, {"error": "Administrator access required to change the embedding runtime"})
-                        return True
                     try:
                         submitted = server.wizard.submit(body or {})
                         # A remote host cannot be reconfigured by changing a local preference.
@@ -543,10 +558,11 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                     create_dispatcher,
                 )
 
-                cap = self._resolve_caller_capability()
-                server._admin_capability.value = cap
-                dispatch = create_dispatcher(server.admin_routes)
-                resp = dispatch(method, path, body)
+                server._admin_capability.value = 'administrator'
+                try:
+                    resp = create_dispatcher(server.admin_routes)(method, path, body)
+                finally:
+                    del server._admin_capability.value
                 if resp is not None:
                     self._send(HTTPStatus(resp.status), resp.body)
                     return True

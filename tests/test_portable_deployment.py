@@ -146,6 +146,31 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual(run.returncode, 7)
             self.assertNotIn('Service URL:', run.stdout)
 
+    @unittest.skipUnless(os.name != 'nt' and shutil.which('bash'), 'Linux browser launcher')
+    def test_open_uses_container_published_loopback_and_keeps_credential_out_of_output(self):
+        with tempfile.TemporaryDirectory() as raw:
+            kit = _kit_copy(raw)
+            root = Path(raw)
+            fixture_key = 'a' * 43
+            (kit / 'compose.sh').write_text(
+                'case "$1" in\n'
+                'port) printf "%s\\n" "127.0.0.1:9876";;\n'
+                f'exec) printf "%s\\n" "{fixture_key}";;\n'
+                'esac\n'
+            )
+            opener = root / 'xdg-open'
+            opener.write_text('#!/bin/sh\nprintf "%s" "$1" > "$BROWSER_CAPTURE"\n')
+            opener.chmod(0o755)
+            capture = root / 'browser'
+            env = {**os.environ, 'PATH': str(root) + os.pathsep + os.environ['PATH'],
+                   'BROWSER_CAPTURE': str(capture)}
+            result = subprocess.run(['bash', './url.sh', '--open'], cwd=kit, env=env,
+                                    capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(capture.exists(), result.stdout)
+            self.assertEqual(capture.read_text(), f'http://localhost:9876/#local-owner={fixture_key}')
+            self.assertNotIn(fixture_key, result.stdout + result.stderr)
+
     @unittest.skipUnless(shutil.which('make'), 'make unavailable')
     def test_make_commands_are_container_only_and_keep_volumes(self):
         run = subprocess.run(['make', '-n', '-C', str(BUNDLE), 'platform-start', 'platform-stop',

@@ -77,6 +77,38 @@ class MultiEndpointTests(unittest.TestCase):
         self.assertEqual(actual,[self.models[0]._deterministic_vector(str(i)) for i in range(9)])
         self.assertTrue(all(entered))
 
+    def test_semantic_index_feeds_more_than_one_endpoint_request(self):
+        from tempfile import TemporaryDirectory
+        from pi_platform.adapters.runtime.usearch_dense_index import USearchDenseIndex
+        from pi_platform.core.retrieval.semantic_index_service import InMemoryVectorRecordStore, SemanticIndexService
+        from tests.test_semantic_index_service import _make_chunk
+
+        evidence = replace(self.evidence, batch_size=32)
+        model = MultiEndpointEmbeddingModel(self.endpoints, evidence, enabled=True)
+        chunks = [_make_chunk(str(i), f'text {i}') for i in range(96)]
+        # Warm half of the last window so cache hits cannot consume endpoint work.
+        with TemporaryDirectory() as root:
+            store = InMemoryVectorRecordStore()
+            dense = USearchDenseIndex(embedding_profile_hash=model.profile().identity(),
+                                      cache_root=root, prefer_real=False)
+            SemanticIndexService(embedding_model=self.models[0], vector_record_store=store,
+                                 dense_index=dense).embed_active_chunks(chunks[:32])
+            self.models[0].embed_request_calls.clear()
+            report = SemanticIndexService(embedding_model=model, vector_record_store=store,
+                                           dense_index=dense).embed_active_chunks(chunks)
+        self.assertEqual((report.reused_count, report.embedded_count), (32, 64))
+        self.assertEqual([len(port.embed_request_calls) for port in self.models], [32, 32])
+
+    def test_image_document_stays_on_primary_while_text_can_use_secondary(self):
+        model = self.build()
+        requests = [EmbeddingRequest('text-a', EmbeddingRole.DOCUMENT),
+                    EmbeddingRequest('figure', EmbeddingRole.DOCUMENT, image_path='fixture.png'),
+                    EmbeddingRequest('text-b', EmbeddingRole.DOCUMENT)]
+        vectors = model.embed_requests(requests)
+        self.assertEqual(vectors, [self.models[0]._deterministic_vector(request.text) for request in requests])
+        self.assertIn(requests[1], self.models[0].embed_request_calls)
+        self.assertEqual(self.models[1].embed_request_calls, [requests[2]])
+
     def test_failed_endpoint_retries_only_its_missing_batch(self):
         model=self.build()
         original=self.models[0].embed_requests

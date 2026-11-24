@@ -18,11 +18,16 @@ function browser(options = {}) {
   }
   const requests = [];
   let readyChecks = 0, jobChecks = 0, knowledgeChecks = 0;
+  const fragmentUpdates = [];
+  const storage = new Map();
   const context = {console, Promise, Date, Option: function () {},
     document: {body: node('body'), getElementById: node, createElement() { return node(Symbol()); },
       querySelectorAll() { return ['query-text', 'source-encoding-add', 'source-encoding-preview', 'source-encoding-save'].map(node); },
       addEventListener(_, fn) { this.start = fn; }},
-    window: {location:{protocol:options.preview ? 'file:':'http:'},setInterval() {}, setTimeout(fn) { fn(); }},
+    window: {location:{protocol:options.preview ? 'file:':'http:', hash:options.hash || '', pathname:'/', search:''},
+      history:{replaceState(_, __, path) { fragmentUpdates.push(path); }},
+      sessionStorage:{getItem(k) { return storage.get(k); }, setItem(k, v) { storage.set(k, v); }},
+      setInterval() {}, setTimeout(fn) { fn(); }},
     fetch(path, init) {
       requests.push({path, ...init});
       let body = {};
@@ -60,7 +65,7 @@ function browser(options = {}) {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync('pi_platform/adapters/ui/static/app.js', 'utf8'), context);
   context.document.start();
-  return {node, requests, context};
+  return {node, requests, context, fragmentUpdates};
 }
 async function flush() { for (let i=0;i<12;i++) await Promise.resolve(); }
 async function main() {
@@ -71,6 +76,12 @@ async function main() {
   assert.equal(preview.node('preview-live-link').hidden, false);
   assert.equal(preview.node('query-text').disabled, true);
   assert.equal(preview.node('source-encoding-preview').disabled, true);
+  const localKey='a'.repeat(43);
+  const managed=browser({hash:'#local-owner='+localKey});await flush();
+  const ownerRequest=managed.requests.find(request => request.path.endsWith('/knowledge/settings'));
+  assert.equal(ownerRequest.headers['X-ProjectExpert-Local-Owner'],localKey);
+  assert.deepEqual(managed.fragmentUpdates,['/']);
+  assert.equal(managed.node('api-access-panel').hidden,true);
   const external=browser({managed:false});await flush();
   assert.equal(external.node('embedding-device-select').disabled,true,'Uncontrolled remote hardware must not look switchable');
   assert.match(external.node('runtime-help').textContent,/external|controller/i);

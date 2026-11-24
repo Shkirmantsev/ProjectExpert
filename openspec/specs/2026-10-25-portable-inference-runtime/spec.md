@@ -159,3 +159,13 @@ A managed runtime controller SHALL own only the embedding server child, authenti
 - **GIVEN** a requested device not available to the controller
 - **WHEN** reconfiguration is requested
 - **THEN** no arbitrary process is launched, the previous child is retained or restored and an actionable failure is returned
+
+### Requirement: Short verified Windows asset cache
+
+The Windows launcher SHALL extract primary offline assets into a short user-local staging directory, verify the complete pinned manifest and preserve the previous pack on explicit repair.
+
+#### Scenario: Deep project checkout
+
+- **GIVEN** a deployment kit nested in a long Windows project path
+- **WHEN** the launcher verifies a primary offline asset pack
+- **THEN** extraction uses the short user directory and failed verification preserves the existing pack

@@ -128,7 +128,10 @@ For deeper library research and examples, see
 | **Generated answers** | Add prose answers backed by project excerpts. | Set the provider type, endpoint URL, and exact model ID. Enter a provider key only if required. Grant excerpt access for an endpoint you want to receive project context. Save settings, then **Test saved connection**. Search otherwise returns evidence. |
 
 The **Workspace access token** form appears only when the service is configured
-with `PI_UI_TOKEN`. The standard loopback installation leaves it unset.
+with `PI_UI_TOKEN`. In the standard loopback installation, `platform-start`
+opens a browser tab with local administrator access automatically. Use
+`platform-open` to open another administrator tab or reopen it after a
+container restart. For LAN publication, configure `PI_UI_TOKEN` privately.
 The **Operator workflows** section describes signed approval for canonical writes
 and delegation through a connected MCP client.
 
@@ -148,6 +151,9 @@ alternatives and Windows commands.
 |---|---|
 | See available commands and descriptions | `make -C .project-intelligence-deploy` |
 | Start again | `make -C .project-intelligence-deploy platform-start` |
+| Open the local administrator UI | `make -C .project-intelligence-deploy platform-open` |
+| Inspect the active GGUF endpoint | `make -C .project-intelligence-deploy platform-embedding-status` |
+| Measure GGUF document throughput on an idle installation | `make -C .project-intelligence-deploy platform-embedding-benchmark` |
 | Check whether it is ready | `make -C .project-intelligence-deploy platform-status` |
 | See startup messages | `make -C .project-intelligence-deploy platform-logs` |
 | Refresh the search index after project changes | `make -C .project-intelligence-deploy platform-reindex` |

@@ -9,9 +9,13 @@ WINDOWS_PS := $(if $(filter %pwsh.exe,$(shell where.exe pwsh.exe 2>&1)),pwsh.exe
 PS_SCRIPT = $(WINDOWS_PS) -NoProfile -File
 COMPOSE = $(PS_SCRIPT) ./compose.ps1
 URL = $(PS_SCRIPT) ./url.ps1
+OPEN = -Open
+OPEN_IF_ENABLED = -OpenIfEnabled
 else
 COMPOSE = bash ./compose.sh
 URL = bash ./url.sh
+OPEN = --open
+OPEN_IF_ENABLED = --open-if-enabled
 endif
 CLI = $(COMPOSE) exec -T production python -m pi_platform.cli
 WAIT_TIMEOUT ?= 1800
@@ -45,7 +49,7 @@ else ifneq ($(strip $(LLM)),)
 $(error LLM must be 1 to configure/enable, 0 to disable, or omitted to preserve settings)
 endif
 
-.PHONY: help platform-start platform-stop platform-status platform-logs platform-pull platform-restart platform-init platform-hydrate platform-materialise platform-models platform-assets platform-model-pull platform-reindex platform-doctor platform-llm-configure platform-llm-status platform-llm-test platform-llm-disable platform-llama-start platform-llama-connect platform-trust-setup platform-gpu-install platform-index-failures eval eval-retrieval eval-chunk-size-sweep invariants metrics-gate
+.PHONY: help platform-start platform-open platform-embedding-status platform-embedding-benchmark platform-stop platform-status platform-logs platform-pull platform-restart platform-init platform-hydrate platform-materialise platform-models platform-assets platform-model-pull platform-reindex platform-doctor platform-llm-configure platform-llm-status platform-llm-test platform-llm-disable platform-llama-start platform-llama-connect platform-trust-setup platform-gpu-install platform-index-failures eval eval-retrieval eval-chunk-size-sweep invariants metrics-gate
 
 help: ## List every command with a one-line description (default; changes nothing)
 ifeq ($(OS),Windows_NT)
@@ -58,15 +62,24 @@ else
 	@printf '%s\n' "Startup is explicit: run 'make platform-start'. Optional: LLM=1 (configure), LLM=0 (disable), ALLOW_SKIPPED_SOURCES=0 (require complete indexing)."
 endif
 
-platform-start: ## Start the services and print the browser URL
+platform-start: ## Start the services and open the local UI
 	$(COMPOSE) up -d --wait --wait-timeout $(WAIT_TIMEOUT)
-	@$(URL)
+	@$(URL) $(OPEN_IF_ENABLED)
+
+platform-open: ## Open the running local UI with administrator access
+	@$(URL) $(OPEN)
+
+platform-embedding-status: ## Inspect the configured GGUF embedding endpoint
+	$(CLI) inference status
+
+platform-embedding-benchmark: ## Measure synthetic document throughput using the configured GGUF endpoint
+	$(CLI) inference benchmark --workload document --target /repo
 
 platform-llama-start: export PI_LLAMA_PORT = $(LLAMA_PORT)
 platform-llama-start: export PI_SIDECAR_LLAMA_AUTH = $(LLAMA_AUTH)
 platform-llama-start: ## Start ProjectExpert with its pinned embedding server (LLAMA_PORT, LLAMA_AUTH)
 	$(COMPOSE) up -d --wait --wait-timeout $(WAIT_TIMEOUT)
-	@$(URL)
+	@$(URL) $(OPEN_IF_ENABLED)
 
 platform-llama-connect: ## Connect a running native Windows llama-server (LLAMA_PORT, LLAMA_AUTH, LLAMA_TOKEN_FILE)
 platform-trust-setup: ## Refresh public host CA roots for container HTTPS

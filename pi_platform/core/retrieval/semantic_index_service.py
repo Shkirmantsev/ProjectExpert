@@ -387,8 +387,13 @@ class SemanticIndexService:
             retrieval_text_hashes.append(chunk.retrieval_text_hash)
             unique_chunks.append(chunk)
 
-        for start in range(0, len(unique_chunks), self._batch_size):
-            batch = unique_chunks[start:start + self._batch_size]
+        # A dispatcher needs a window wider than one HTTP request to keep
+        # its accepted endpoints busy, including when some vectors are cached.
+        window_size = self._batch_size
+        if window_size > 1:
+            window_size = max(window_size, getattr(self._embedding_model, 'document_work_window', 0))
+        for start in range(0, len(unique_chunks), window_size):
+            batch = unique_chunks[start:start + window_size]
             lookup = getattr(self._vector_record_store, "get_many", None)
             if lookup is not None:
                 cached = lookup([chunk.chunk_id for chunk in batch], profile_hash)
@@ -399,18 +404,7 @@ class SemanticIndexService:
             ready = []
             for chunk in batch:
                 record = cached.get(chunk.chunk_id)
-                vector = None
-                if (record is not None
-                    and record.chunk_id == chunk.chunk_id
-                    and record.embedding_profile_hash == profile_hash
-                    and record.created_from_retrieval_text_hash == chunk.retrieval_text_hash
-                    and record.dimension == self._embedding_profile.output_dimension
-                    and record.model_revision == self._embedding_profile.model_revision
-                    and record.normalization == self._embedding_profile.normalization):
-                    try:
-                        vector = self._validate_vector(decode_vector_payload(record.vector_payload), chunk.chunk_id)
-                    except (SemanticIndexServiceError, VectorRecordStoreError, ValueError):
-                        vector = None
+                vector = self.compatible_cached_vector(chunk, record)
                 if vector is None:
                     misses.append(chunk)
                 else:
@@ -432,8 +426,8 @@ class SemanticIndexService:
                     task=EmbeddingTask.SEARCH, image_path=chunk.image_path) for text in texts)
             vectors = []
             try:
-                for offset in range(0, len(requests), self._batch_size):
-                    group = requests[offset:offset + self._batch_size]
+                for offset in range(0, len(requests), window_size):
+                    group = requests[offset:offset + window_size]
                     result = self._embedding_model.embed_requests(group)
                     if len(result) != len(group):
                         raise SemanticIndexServiceError("embedding batch returned incompatible cardinality")
@@ -469,15 +463,19 @@ class SemanticIndexService:
             else:
                 for record in records:
                     self._vector_record_store.put(record)
-            for chunk, vector in ready:
-                if self._dense_index.embedding_profile_hash != profile_hash:
-                    raise CrossProfileInsertRejected(target_profile=self._dense_index.embedding_profile_hash,
-                                                     source_profile=profile_hash)
-                self._dense_index.delete_chunk(chunk.chunk_id)
-                try:
-                    self._dense_index.index_chunk(chunk.chunk_id, vector, dict(chunk.metadata))
-                except ANNIndexError as exc:
-                    raise SemanticIndexServiceError(f"dense index rejected chunk {chunk.chunk_id!r}") from exc
+            if self._dense_index.embedding_profile_hash != profile_hash:
+                raise CrossProfileInsertRejected(target_profile=self._dense_index.embedding_profile_hash,
+                                                 source_profile=profile_hash)
+            try:
+                if isinstance(self._dense_index, USearchDenseIndex):
+                    self._dense_index.upsert_many([(chunk.chunk_id, vector, chunk.metadata)
+                                                   for chunk, vector in ready])
+                else:
+                    for chunk, vector in ready:
+                        self._dense_index.delete_chunk(chunk.chunk_id)
+                        self._dense_index.index_chunk(chunk.chunk_id, vector, dict(chunk.metadata))
+            except ANNIndexError as exc:
+                raise SemanticIndexServiceError("dense index rejected an embedding batch") from exc
             embedded.extend(chunk.chunk_id for chunk in misses)
             if self._progress_callback is not None:
                 self._progress_callback(start + len(batch), len(unique_chunks))
@@ -517,6 +515,22 @@ class SemanticIndexService:
             persisted_chunk_ids=tuple(active_chunk_ids),
             removed_chunk_ids=(),
         )
+
+    def compatible_cached_vector(self, chunk: ActiveChunk, record: VectorRecord | None) -> list[float] | None:
+        """Apply the same reuse checks during restore and incremental indexing."""
+        profile = self._embedding_profile
+        if (record is None
+                or record.chunk_id != chunk.chunk_id
+                or record.embedding_profile_hash != self._embedding_profile_hash
+                or record.created_from_retrieval_text_hash != chunk.retrieval_text_hash
+                or record.dimension != profile.output_dimension
+                or record.model_revision != profile.model_revision
+                or record.normalization != profile.normalization):
+            return None
+        try:
+            return self._validate_vector(decode_vector_payload(record.vector_payload), chunk.chunk_id)
+        except (SemanticIndexServiceError, VectorRecordStoreError, ValueError):
+            return None
 
     def _validate_vector(self, vector: Sequence[float], chunk_id: str) -> list[float]:
         if any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in vector):

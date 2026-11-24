@@ -138,3 +138,13 @@ Operator branding belongs in `PI_WEBUI_NAME` in deployment.env; the template map
 it to Open WebUI's `WEBUI_NAME`, rather than requiring a local Compose patch.
 The trade-analyzer follow-up verified the internal frontend connection, streaming
 adapter and real 1507-token Gemma inference without an external chat model.
+
+## Local administrator access
+
+The exported container kit opens a privileged browser tab through the
+operator's existing Docker access. The server admits administrator routes
+using a configured bearer, a direct local listener, or the managed
+container credential. Host and origin checks apply to local requests, and
+forwarding addresses confer no administrative authority. Authentication
+status reports the current request's administrator access. Use
+`platform-open` to reopen the administrator tab.

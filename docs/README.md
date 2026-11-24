@@ -4,6 +4,8 @@
 
 ## Setup and daily work
 
+- [Embedding throughput and local UI administration](EMBEDDING_PERFORMANCE_AND_LOCAL_UI_ADMIN_DESIGN.md) — design, implementation, measurements and hardware acceptance.
+
 - [Production source recovery](PRODUCTION_SOURCE_RECOVERY.md): strict multilingual decoding, retry suspension, safe stop and offline diagnostics.
 
 - [Git-portable canonical snapshots](GIT_PORTABLE_CANONICAL_SYNC.md): approved production export, cold-clone import, textual vectors and release limits.

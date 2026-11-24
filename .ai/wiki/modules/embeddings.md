@@ -87,3 +87,12 @@ The active adapter is selected through
 
 The decision is recorded in
 [`adr.0009-embedding-model-selection`](../adr/0009-embedding-model-selection.md).
+
+## Candidate indexing throughput
+
+Semantic indexing groups numeric-key allocation and USearch insertion.
+A fully compatible saved ANN generation is opened without inserting
+existing vectors again. The opt-in document dispatcher receives a bounded
+work window larger than an endpoint request. Query and media requests use
+the primary binding. `platform-embedding-benchmark` measures repeated
+synthetic document throughput through the configured production GGUF binding.

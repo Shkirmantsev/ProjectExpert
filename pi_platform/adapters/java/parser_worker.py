@@ -134,6 +134,7 @@ def main():
             json.dumps(
                 {
                     "parser_version": "tree-sitter-java-" + version("tree-sitter-java"),
+                    "binding_version": version("tree-sitter"),
                     "entities": parse(request["source"]),
                 }
             )

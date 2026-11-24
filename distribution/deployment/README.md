@@ -45,13 +45,12 @@ Direct script or Compose launches take `PI_INDEX_REQUIRE_COMPLETE` from
 
 ## The reported address
 
-After readiness the launcher prints the effective address, for example
-`Ready: http://localhost:8765`. The port is resolved the same way Compose
-resolves it: the shell environment overrides `deployment.env`, `deployment.env`
-is read as plain text (it is never executed as shell code), and `8765` is the
-fallback. Set `PI_CONTROL_PORT` in `deployment.env` or export it in the shell
-before starting. A failed readiness never prints `Ready:` and always returns a
-nonzero exit code.
+After the containers start, the launcher prints the service URL and opens the
+local UI using the port published by the running container. Set
+`PI_CONTROL_PORT` in `deployment.env` or in your shell before starting.
+`PI_OPEN_BROWSER=0` suppresses automatic opening. Run `make platform-open`
+from the deployment kit to open the local administrator UI later. HTTP
+liveness and index readiness are reported separately.
 
 ## Models and hardware
 
@@ -212,6 +211,11 @@ See `tmp/local/mm-run/evidence.md` in the development repository for the raw
 measurements behind these statements.
 
 ### Windows specifics
+
+The primary verified offline asset bundle is extracted under
+`%LOCALAPPDATA%/ProjectExpert/a` with a short staging path and the complete
+manifest SHA-256 checked before promotion. The kit keeps its own runtime
+logs and plan under `accelerator/`.
 
 Windows uses Docker Desktop with Linux containers. The CPU profile runs the
 managed sidecar container. When a GPU candidate validates, a pinned **native**
@@ -517,21 +521,28 @@ on their host. Native in-process bindings apply supported device choices directl
 
 ## What PI_UI_TOKEN means
 
-`PI_UI_TOKEN` is an optional operator-chosen bearer password protecting
-ProjectExpert's REST/MCP/OpenAI-compatible API, including settings changes. It is
-not an embedding requirement, provider API key or knowledge approval token. It
-is unset by default for a loopback-only local installation: there is no generated
-token to find, and the page hides the access form.
+`PI_UI_TOKEN` is an optional operator-chosen bearer password for the REST,
+MCP and OpenAI-compatible APIs. The standard loopback deployment leaves it
+unset. The local launcher uses Docker access to establish administrator
+access in the browser tab. The ordinary service URL still opens search.
+Use `make platform-open` for settings, indexing and safe export after
+closing the administrator tab or recreating the container. The browser keeps
+local administrator authorization for the tab and clears the URL fragment
+at startup.
 
-To enable it, generate a random secret privately, set `PI_UI_TOKEN` in the shell
-environment used by Compose and recreate production with `make platform-start`.
-For example, in Bash: `export PI_UI_TOKEN="$(openssl rand -hex 32)"`. Store the
-value in your password manager/ignored private environment, never Git. Obtain an
-existing configured value from that private environment or its operator; the UI
-cannot reveal it. Paste it into the page when requested (kept in tab memory).
-Configure the same bearer value privately in MCP clients and Open WebUI
-(`PI_OPEN_WEBUI_API_KEY`). Public `/api/v1/auth-status` reveals only whether it is
-required, never its value. No authentication is silently enabled by this upgrade.
+Configure a private `PI_UI_TOKEN` for non-loopback publication and recreate
+the service with `make platform-start`. The page requests the configured
+value and keeps it in tab memory. Configure the same bearer value privately
+in MCP clients and Open WebUI (`PI_OPEN_WEBUI_API_KEY`). The status endpoint
+reports the access mode for the current request. Knowledge publication
+uses separate scoped approval.
+
+Run `make platform-embedding-status` to check the configured GGUF runtime
+and `make platform-embedding-benchmark` on an idle installation to measure
+document-adapter throughput. The benchmark reports repeated samples and a
+workload digest for a fixed synthetic corpus. It measures inference through
+the production adapter. SQLite, ANN and publication timings require a full
+indexing run.
 
 
 ## Agent Skills over MCP (SEP-2640)

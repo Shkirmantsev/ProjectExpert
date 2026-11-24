@@ -350,3 +350,12 @@ pages use 0644; atomic updates preserve existing ordinary access bits, including
 private modes. Accepted in the existing one-click-distribution and
 llm-wiki-curated-knowledge capabilities; archived as
 `2026-11-08-prevent-deployment-owner-regressions`.
+
+## Embedding storage throughput and local UI admission — 2026-11-24
+
+The accepted UI, semantic-index, USearch and portable inference capabilities
+include managed local browser administration without an operator-configured
+API token, grouped dense writes, validated warm opens, bounded work for
+approved document endpoints and a short verified Windows asset cache. The
+phase is archived as `2026-11-24-improve-embedding-local-admin`. Full physical
+Windows/Rancher and multi-device throughput remain release acceptance work.

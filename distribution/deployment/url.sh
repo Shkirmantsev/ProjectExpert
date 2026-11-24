@@ -21,3 +21,30 @@ port="${port// /}"
 printf 'Service URL: http://localhost:%s\n' "${port:-8765}"
 
 printf 'Index readiness: /health/ready (the service can start while indexing is pending)\n'
+
+mode=${1:-}
+if [ "$mode" = --open-if-enabled ] && [ "${PI_OPEN_BROWSER:-1}" = 0 ]; then
+  exit 0
+fi
+case "$mode" in --open|--open-if-enabled) ;; *) exit 0 ;; esac
+if ! command -v xdg-open >/dev/null 2>&1; then
+  if [ "$mode" = --open ]; then echo 'No browser launcher available (xdg-open).' >&2; exit 1; fi
+  exit 0
+fi
+# Ask the running topology for the real host port before sending a credential
+# to a browser. Forwarding peers and user-supplied origins convey no authority.
+if ! published=$(bash ./compose.sh port production 8765 2>/dev/null) ||
+   ! [[ "$published" =~ ^(127\.0\.0\.1|\[::1\]):([0-9]{1,5})$ ]]; then
+  if [ "$mode" = --open ]; then echo 'ProjectExpert is not published on a local loopback port.' >&2; exit 1; fi
+  exit 0
+fi
+browser_url="http://localhost:${BASH_REMATCH[2]}/"
+set +x
+if ! key=$(bash ./compose.sh exec -T production python -m pi_platform.deployment.local_ui 2>/dev/null); then
+  if [ "$mode" = --open ]; then echo 'Could not open the running ProjectExpert deployment.' >&2; exit 1; fi
+  exit 0
+fi
+if [[ "$key" =~ ^[A-Za-z0-9_-]{43}$ ]]; then
+  browser_url+="#local-owner=$key"
+fi
+xdg-open "$browser_url" >/dev/null 2>&1 || [ "$mode" = --open-if-enabled ]

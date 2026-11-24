@@ -79,6 +79,51 @@ class SemanticBatchTests(unittest.TestCase):
                 self.service.embed_active_chunks([_make_chunk('a', 'alpha')])
         self.assertEqual(progress, [])
 
+    def test_dense_candidate_writes_metadata_per_group(self):
+        from pi_platform.adapters.runtime.usearch_dense_index import USearchDenseIndex
+        from pi_platform.core.retrieval.semantic_index_service import SemanticIndexService
+        with tempfile.TemporaryDirectory() as tmp:
+            dense = USearchDenseIndex(embedding_profile_hash=self.profile_hash, cache_root=tmp,
+                                      prefer_real=False)
+            service = SemanticIndexService(embedding_model=self.model, vector_record_store=self.store,
+                                           dense_index=dense, batch_size=32)
+            with patch('os.replace', wraps=os.replace) as replace_file:
+                service.embed_active_chunks([_make_chunk(str(i), f'text {i}') for i in range(64)])
+                self.assertLessEqual(replace_file.call_count, 4)
+            self.assertEqual(dense.stats()['vectors'], 64)
+            self.assertEqual(dense.read_index_meta()['vector_count'], 64)
+
+    def test_valid_native_generation_needs_no_dense_mutations(self):
+        from types import SimpleNamespace
+        from pi_platform.adapters.runtime.usearch_dense_index import USearchDenseIndex, is_real_usearch_available
+        from pi_platform.core.orchestration.repository_indexing import _index_dense_generation
+        from pi_platform.core.retrieval.semantic_index_service import SemanticIndexService
+
+        if not is_real_usearch_available():
+            self.skipTest('native USearch unavailable')
+        with tempfile.TemporaryDirectory() as tmp:
+            def runtime():
+                dense = USearchDenseIndex(embedding_profile_hash=self.profile_hash, cache_root=tmp,
+                                          output_dimension=self.model.dimension())
+                service = SemanticIndexService(embedding_model=self.model, vector_record_store=self.store,
+                                               dense_index=dense)
+                return SimpleNamespace(dense_index=dense, semantic_index_service=service,
+                    embedding_profile_hash=self.profile_hash, embedding_model=self.model,
+                    vector_record_store=self.store)
+
+            chunks = [_make_chunk('a', 'alpha'), _make_chunk('b', 'beta')]
+            cold = runtime()
+            with patch.object(self.store, 'get_many', wraps=self.store.get_many) as lookup:
+                self.assertFalse(_index_dense_generation(cold, chunks)[1])
+            self.assertEqual(lookup.call_count, 1, 'cold build scanned the vector store twice')
+            warm = runtime()
+            with patch('os.replace', wraps=os.replace) as replace_file:
+                report, loaded = _index_dense_generation(warm, chunks, restore_only=True)
+            self.assertTrue(loaded)
+            self.assertEqual((report.reused_count, report.embedded_count), (2, 0))
+            self.assertEqual(replace_file.call_count, 0)
+            self.assertEqual(warm.dense_index.query(self.model._deterministic_vector('alpha'))[0].chunkId, 'a')
+
     def test_corrupt_persisted_vector_is_recomputed(self):
         chunk = _make_chunk('a', 'alpha')
         self.service.embed_active_chunks([chunk])

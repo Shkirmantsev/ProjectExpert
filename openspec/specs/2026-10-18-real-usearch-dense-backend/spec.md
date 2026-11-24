@@ -113,3 +113,13 @@ Given generation G-A for branch A and the active branch becomes A again
 When the platform activates the dense index
 Then G-A is reused if its metadata is still valid
 And no vectors are recomputed
+
+### Requirement: Efficient candidate creation and restore
+
+The runtime SHALL group dense index updates and reuse a fully validated saved generation without reinserting its vectors.
+
+#### Scenario: Warm restore
+
+- **GIVEN** a saved ANN generation and complete compatible SQLite vectors
+- **WHEN** the runtime opens the same generation
+- **THEN** it reports those vectors as reused and performs no inference or index mutations
