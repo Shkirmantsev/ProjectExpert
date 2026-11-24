@@ -129,8 +129,9 @@ For deeper library research and examples, see
 
 When `PI_UI_TOKEN` is absent or empty in the running container, anyone who can
 reach the UI has administrator access. This applies to local and remote
-addresses. A configured token displays the **Workspace access token** form
-and requires the matching bearer for API access. Run `platform-open` to open
+addresses. A configured token keeps search and browsing available to viewers. The
+**Administrator token** form unlocks settings and other privileged actions.
+Viewer search can return indexed project content. Run `platform-open` to open
 the service URL from the deployment host.
 The **Operator workflows** section describes signed approval for canonical writes
 and delegation through a connected MCP client.

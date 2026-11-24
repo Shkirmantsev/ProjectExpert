@@ -521,16 +521,17 @@ on their host. Native in-process bindings apply supported device choices directl
 
 ## What PI_UI_TOKEN means
 
-`PI_UI_TOKEN` is an optional bearer password for the REST, MCP and
-OpenAI-compatible APIs. The running container's environment determines the
+`PI_UI_TOKEN` is an optional bearer password for administrative actions
+and the MCP, OpenAI-compatible and A2A integrations. The running container's environment determines the
 mode.
 
 - **Absent or empty** grants administrator access to anyone who can reach the
   service URL, including remote users. The page hides the token form.
-- **Configured** requires the matching bearer. The browser displays the token
-  form and holds the entered value in tab memory. Configure the same bearer
-  privately in API clients, MCP clients and Open WebUI
-  (`PI_OPEN_WEBUI_API_KEY`).
+- **Configured** leaves search, browsing and index status available to viewers.
+  Viewer search uses local retrieval and can return indexed project content.
+  The matching token unlocks administrator controls in the current browser tab.
+  Configure the same bearer privately in integration clients, including MCP
+  and Open WebUI (`PI_OPEN_WEBUI_API_KEY`).
 
 Compose forwards `PI_UI_TOKEN` from its effective configuration. Recreate the
 container after adding or removing the variable so the running process sees

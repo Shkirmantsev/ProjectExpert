@@ -143,6 +143,7 @@ adapter and real 1507-token Gemma inference without an external chat model.
 
 When the running process has an absent or empty `PI_UI_TOKEN`, ordinary users
 have administrator access on every reachable interface. With a configured
-token, the browser and API clients must authenticate with the matching bearer.
-Authentication status reflects the current request. Browser writes use
+token, viewer search and browsing remain available. Administrative operations
+and integration requests require the matching bearer. Authentication status
+reflects the current request. Browser writes use
 same-origin checks, and knowledge publication uses scoped approval.

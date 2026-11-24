@@ -283,7 +283,7 @@ ad362157070b22781a6a1c65b4bdc14fa9b2893fc776d2e75f1f8330aff946a6  ./.ai/wiki/mod
 70164a988bf6216f5e624d1eb42e187ec5da192a49cca0fcd963565bf190939b  ./.ai/wiki/modules/security.md
 57c60a34e2e4f77cdc227d654699eaee3a06a865f370eed88d72afcb718045fe  ./.ai/wiki/modules/task-context.md
 5ba00dc22fd3bf758633981ab80b835a4cc4e5222def3b559779a9d8b5321fec  ./.ai/wiki/modules/ui-extensions.md
-0f6719b59570e36282db491d5a8dc1fa1479a504da8a984513747f8d5e409943  ./.ai/wiki/modules/ui.md
+7bbe436b358871b846b5775f80158143a7cc911688343ed218bc5572bb215b18  ./.ai/wiki/modules/ui.md
 21aa7f323a7dd9d02b1c0955d3de0544e46ae99ef51465a859b035adb2333a64  ./.ai/wiki/project/deployment-profiles.md
 5e75da438d6516cd636e8a59d0d05cd3d1ad7b8823f2fba03b33668efb5409d6  ./.ai/wiki/project/distribution-vendors.md
 09a2028eea23a3be197213a5a2376f9d3f64a56887a9089fb6fb934ab6751039  ./.ai/wiki/project/harness-command-lifecycle.md
@@ -322,7 +322,7 @@ ab991b60f7730bb2777f9667f7dc99dc3900f6a7373df5207bcd9bc7da111b04  ./Containerfil
 aab566b21d4e1472fe34429ebcafa76d07895c47778f8bd4e7088ffa2302ab9a  ./Makefile
 04cb5b15c9b21bb57f37838bbc01ccce6e639f056e5b922912de95fb0b2adfc0  ./NOTICE
 682bb521ef486840d1421274df1e9b59345a202a339817306edd0ae194b9f815  ./ProjectExpert-v0.8-ingestion-retrieval-improvement-plan.md
-5c9dee004e5e2d19b233046cc14ade85c03cb3f9001d24aa89f0a9522a5a5221  ./README.md
+027aa5facca864ee2a91070fbf58d1df78cd36d7c6758513cd5d2b5874131ea2  ./README.md
 e1d49c569ae09b2ede16e2d83820a3809b35eb6c44c13ba9b5330598d6b8f43c  ./VERSION
 872953d1558fcfae39f117b759fa080e9a331bbd22b2c839ae9d6dec312a0f2d  ./distribution/assets-cuda/README.md
 25544e93ecb61dd17dad2213f1dcefca86170340e66ce527f33c92bc3c08264f  ./distribution/assets-cuda/asset-release.json
@@ -342,7 +342,7 @@ e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./distribution/codex/.gitkeep
 040e2caed9ea8bb4b3ebcf67b9fffc5894b4bb81388a4bb8e08efa7e50704244  ./distribution/deployment/.gitignore
 00aa5fc43901a5643a371f757bbe2d7c8922cf118a1e06bd1753382ef55234ce  ./distribution/deployment/Makefile
-46a445f4dec261d37033f670de87ead8b6d1745972c2a7f79fd502b879e3a68d  ./distribution/deployment/README.md
+eee35a320853960b8e446c60d4a8052bf4e0fa461b865069e5fb8649dfbf2fd8  ./distribution/deployment/README.md
 9eb8ee2d3f31eb02ef9f88eac53ece1c72659bacf55fb02ad37a709dbaf130bb  ./distribution/deployment/WINDOWS_NATIVE_GPU_RECOVERY.md
 6a7a568641fc706e97264a162705ceffae8b6d0e212e23a4724032d633deb5a6  ./distribution/deployment/accelerator-lock.json
 7f4e203448e4090b756da2e6d0c5bd36284bd48378f749de545a7a3fbdc6830c  ./distribution/deployment/compose.accelerator.yaml
@@ -416,7 +416,7 @@ fb5457dd64a1ab47391cfe933689a6465972f0afc6350136ee560c8e94315816  ./docs/ARCHITE
 d65ee06372237610b0ce03b33586f464903982fbc0b1dce4a0b28e92b3a87c4a  ./docs/CONFIGURATION.md
 e71e75e5a88f659b83e5a2c9eaa0bf0bf0734186c4dd085a01428c16ff0c2d7c  ./docs/CONTAINER_SEARCH_REPAIR.md
 60d597ac5d73ab2f20d1798dd86ae0ff8cc57ff3c02a9729da583923a1fdffc7  ./docs/DEPENDENCY_RESEARCH.md
-ec6b53352d3d176cd1383ee609a67742c402dd886c9ab44bd1bb8450700a5b45  ./docs/EMBEDDING_PERFORMANCE_AND_LOCAL_UI_ADMIN_DESIGN.md
+55e208c40eaa8c7f6fbae00fdb5dd19ad1a197541dda1e0e2d9d4e9e34729198  ./docs/EMBEDDING_PERFORMANCE_AND_LOCAL_UI_ADMIN_DESIGN.md
 a9e6300d91d9c3d3a5874d144b9910964214b19a1679ead453917d80f65f2b3e  ./docs/FAST_WORKSPACE.md
 6d3c03982fd977135145cc9be8f7b7d99eb30f1797670746019cbaca95d37af7  ./docs/GIT_PORTABLE_CANONICAL_EVIDENCE.md
 3052761040007e895d634fd8321799ada157de8bc231d98f46d95fb5d39a935c  ./docs/GIT_PORTABLE_CANONICAL_SYNC.md
@@ -443,8 +443,8 @@ a48ebd500bdc7c600906321548689770addc5b1b96db5f7bef8fc6b6b0cada6d  ./docs/SAFE_KN
 0b6014cf29eca1ebe2f4c80caeecf811f5e992c3ef926abb0e08a6677c5b5386  ./docs/SKILLS.md
 d581f187424b23b09a0e1d6822b262df9da122de145d8f64d8be77210c1db6fd  ./docs/THIRD_PARTY_SKILLS.md
 c9bb47bc3e6a7b1ef951048160e9ba299fbd2acc232ecd102127b9ebd9f3d282  ./docs/TROUBLESHOOTING.md
-fc131aa5e7d45d3f3bc1cea08a5b591503609d764ec1e7e88326d4e6619c90d6  ./docs/UI_EMBEDDING_RUNTIME_CONTROL.md
-385c8f70b3239265917d1f6ed2575b9e676ee7e235c47369dee25051676a62be  ./docs/USER_GUIDE.md
+3820f9ae09e71334555a5f76515400baa167c253035a4f9e2abfec7a2182ab7d  ./docs/UI_EMBEDDING_RUNTIME_CONTROL.md
+fd77ef3e21dcc518b586ea5b6a762aa8bf875cbd09d4e429d54e6e222e12fa53  ./docs/USER_GUIDE.md
 daf96fcf6bca5e14b713b2f4f4627d90ad4b354c711fe2a6f8ad7e902785b12a  ./docs/WEB_STACK.md
 56e30dc4073fd4045ae8ba1c95b3d978ebc6bd9276068765fede0cf7fe780e43  ./docs/conventions/README.md
 c50074f4bf6a729e73137213c667f9616c38ce86c0c0d86c6d2fefd3d51be736  ./docs/conventions/architecture-and-design.md
@@ -487,7 +487,7 @@ d8ab9aa0be1fe2824cdf4694f0a918b7ec23af9a490634cbda15ac060e8d0120  ./infra/litell
 d995eafe4d90252de4ad561e76de5b87590fb586d2db2b284320693b6770f4b6  ./infra/searxng-mcp/requirements.txt
 051282d6cfdbc19e463a699c2ee0155788014ab875387161002d2c0162f61599  ./infra/searxng-mcp/server.py
 eeccab0de13fdda203c936da0d7a3718b78086bd4f09c563cfa9cb112372ec87  ./infra/searxng/settings.yml
-1c8f7882acc0ba2ba0056799ba0b299d0360852eccf8fc7decf9b99d279f3c9b  ./openspec/CURRENT.md
+44f08f99a50afed1f3dcf8e5627acfcff772e8ab275e219608b80595503616f8  ./openspec/CURRENT.md
 a4a212c2d380e833b380830d1621541d501bddc8430ecff90e6f7fc286595605  ./openspec/README.md
 005aa409446e7101877516b5c323515dd8a7157cf53d8403f057a1bea3b2538f  ./openspec/changes/add-managed-fast-workspace/context-impact.md
 3260db1551df15ce7259e994d6eac8cb1ca66e1b4038c6bcc1df7974b6dd8fdd  ./openspec/changes/add-managed-fast-workspace/design.md
@@ -848,6 +848,12 @@ c42d764e31eac5b41e0cecebf5bdadbf16042e190442ff4181905a730c8c41ef  ./openspec/cha
 641e3e95c74ec73584c8d3d3fcaeaaa3cb8f9ff5ce06914a7bbc75c6883b2655  ./openspec/changes/archive/2026-11-24-make-ui-token-optional/specs/2026-10-11-human-interface-web-ui/spec.md
 6eb79b9655838475962d317b6c4ff7b93ca8af7a234e29771ef2956716facbb5  ./openspec/changes/archive/2026-11-24-make-ui-token-optional/tasks.md
 2665f1ac1d6099b7382867435b4afe9dbd1d5f92909ed3fcd9bc04b870308146  ./openspec/changes/archive/2026-11-24-make-ui-token-optional/verification.md
+e78fd85ac3762925efec621024d1c60f5ff7d3bcfd234934791cdd9c08f44473  ./openspec/changes/archive/2026-11-24-separate-ui-viewer-and-admin/context-impact.md
+7ad9fb5b8d4129d3eef2c291658bd744ab79183b28b2e0226a5048f0d24aa2f8  ./openspec/changes/archive/2026-11-24-separate-ui-viewer-and-admin/design.md
+e6c020566cf27cf0a3eb98bf3d4497587b5572fc1a4a5b4a0987cabd00fa826a  ./openspec/changes/archive/2026-11-24-separate-ui-viewer-and-admin/proposal.md
+69a662397a6fdf72dc734eb9d7bf60801a4f3368bf5c2412f0b8bc8b30841e31  ./openspec/changes/archive/2026-11-24-separate-ui-viewer-and-admin/specs/2026-10-11-human-interface-web-ui/spec.md
+0d6d7e6f7ded69b28f33905955dbef4f5f9e0d23a68652c15659b638197cb137  ./openspec/changes/archive/2026-11-24-separate-ui-viewer-and-admin/tasks.md
+b54ba5380fbf4fdac6b6b278765cf1d0b2a09849a5c06b188b3200475d7f43f5  ./openspec/changes/archive/2026-11-24-separate-ui-viewer-and-admin/verification.md
 675b870a2050744a25e6d244e4ef20cda3c9fbe3f7b5eb15567ebadefee5c4e1  ./openspec/changes/fix-corporate-deployment/context-impact.md
 62eb4c390c9d1d6d8d04c1f8e4058ce6cde6f097122dd3f724e5ad8d47b3a6af  ./openspec/changes/fix-corporate-deployment/design.md
 acbc1290f2882cedde543c72bdbfd72f6b410110f311462d9b9e80e61951fb5c  ./openspec/changes/fix-corporate-deployment/proposal.md
@@ -993,7 +999,7 @@ b5d2553f1d45960cb689a1a1cf8537855048e75619a3c8eef889bfe955cccf10  ./openspec/spe
 d96ac017044f96ee06ecba6d729833032ddaf0ede29cd6b136d394ebfd6da134  ./openspec/specs/2026-10-08-secret-provider/spec.md
 00be89aa85d843b88db0d84e690b673602540d6671ba02c31a8cf0d362b1a3cd  ./openspec/specs/2026-10-08-ui-extension/spec.md
 33471382ae6ca452cfe0acdc62a9f9fc1c12ea72b829507c39017f12ca1109c0  ./openspec/specs/2026-10-11-enterprise-security-boundary/spec.md
-3546f7b19851182b449e9147b6798fc1fe4e6b0525f8e4c7eb3ef71ded99b62c  ./openspec/specs/2026-10-11-human-interface-web-ui/spec.md
+36ad1408f361c5ae7faf798972ff521d9e60610983e5912c9e62925d3ee57878  ./openspec/specs/2026-10-11-human-interface-web-ui/spec.md
 fff01106c73f745d9c213ac0113e167380059aed94ba76e1fd61fb60c214999d  ./openspec/specs/2026-10-11-okf-wiki-profile-distribution/spec.md
 7b63bbf24eed59e35dcfe135d334103761efdd360b1961be95cf80a00a7ed329  ./openspec/specs/2026-10-11-one-click-distribution/spec.md
 356512d51e16ac24a40876f3003caaa6803bc50bd0d24d24ef1d9234446a2222  ./openspec/specs/2026-10-12-a2a-adapter/spec.md
@@ -1164,12 +1170,12 @@ e1719ba8d0cb285e0c90956a144905aba0ac4fa36eeb0253b70b38b99846e9cf  ./pi_platform/
 2ab266d3ef6f835a2fad585ee66df156371f035343cbb05d577a7172d0788358  ./pi_platform/adapters/ui/__init__.py
 8e20a08022b7470bc06bf1d96195df0707934cd92d8ccacf7aba8fd9575a78a1  ./pi_platform/adapters/ui/composition.py
 9f0cd95fb25c7bbbd24b82937356169215ce9cee9e9e25202cee7e3830afe231  ./pi_platform/adapters/ui/execution_status.py
-5b5818e8cf686e6b1885c245ba22af7df5f600de16edfb72625ff08a6ceddce4  ./pi_platform/adapters/ui/http_server.py
+26fb634248e3941de566718ab32c48ab8181144b92b7ce2a78e149322173ab6e  ./pi_platform/adapters/ui/http_server.py
 8f52905731de38af3d8b0c42a9a6c2627413a21c6947d70f1b228513ea333d94  ./pi_platform/adapters/ui/openai_compat.py
 3656441a6f3fe22963bbe067f7d1099119c33254075cfe42d1497de63c700de9  ./pi_platform/adapters/ui/projections.py
 e7e2b81807d5c8eec5d6f8184027d67e3eaf1453a525accbdc385ea24e37cc84  ./pi_platform/adapters/ui/retrieval_admin_routes.py
-a3fce01ec023e9cf9525604d3a573b1086232ceb125ef712f0c9df868b911efd  ./pi_platform/adapters/ui/static/app.js
-2b7ed72a2f6335b92904b15fd646c447c8a5101dc71143338b13fc9ce5836180  ./pi_platform/adapters/ui/static/index.html
+15b0c64f667bb2067bcdba4e341aa9b9ad76b9f363d691c696c6c0a8cff4b5f9  ./pi_platform/adapters/ui/static/app.js
+8cde5affb625c4c8eba17e252ade19bc2d3dec55310a7b3cf67f5e63f946b50f  ./pi_platform/adapters/ui/static/index.html
 d66520310bcc7300e44807cb2c2a0ab5c4ba65c66543fd9a677b27bdca7db91f  ./pi_platform/adapters/ui/static/styles.css
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./pi_platform/cli/__init__.py
 74c1a24e87ff3ae2379c09ae4e34877627becdc6991b5f16d16606aa3efc22c7  ./pi_platform/cli/__main__.py
@@ -1569,7 +1575,7 @@ a64fa6d665bfb0f3c9b7282a992ef54369509d3719f325c5934799e2042b1a9f  ./tests/test_p
 2f3b6ea9cc0c0703e180f5e3202b6bd341308cd1ced6cb71fd9ea80b599887d1  ./tests/test_phase_6_quality_gates.py
 07e390c62d91f8d049ecff19abf14c744a4eb970f3b71e5d5f18edeeab70df47  ./tests/test_phase_7_control_plane.py
 7b72b1331e9ab9c512e9174a92bbfac4920f2828f2099219d6bbf8f32668fd7b  ./tests/test_phase_8_security.py
-51fbc7ec304dec5a46e56191e69c85bbe47bcce56a3846ffd471fa5533be2186  ./tests/test_phase_9_distribution.py
+5015a79f68e25cbd008e3fe8bd567cebadbc8f57be6d7ddc394d441013a87f9e  ./tests/test_phase_9_distribution.py
 f390ee56efdbddbd87997b94f6887aa15b6a1e207cfa557df02ed28dff542604  ./tests/test_phase_9_launch_smoke.py
 16a8b745a05d74bab36614e1c13c8064c2710a39910042a060d696f2c48cbf79  ./tests/test_phase_9_rest_core.py
 02ef0b16991cac2aea04ffa57c15c50d03b6a506b4096d1514bf7c6f8f273427  ./tests/test_platform_phase1.py
@@ -1635,7 +1641,7 @@ fcc344db330ba7ea20d6d5c85e84364cefc76c360eca70691ed22da5d3ce3884  ./tests/test_w
 f7b89fb6ae629b3fd852794353a5a99439dfce13cda4770f2d120f3f5973bdec  ./tests/test_workspace_deployment.py
 50a525cf6bcee310ab0507384b6c36b3700fdc229aa0049afa38e3c6bdf42733  ./tests/test_workspace_importer.py
 7f80b8645828179e1ab4942c997aafc0fffe2b617af2e842783dcb2419b0796c  ./tests/test_workspace_sync_contract.py
-1e806254ebc01336dfea32a44d3c8b0590851cb21635c8150dbf579a435e1832  ./tests/ui_container_search.test.js
+dbda81b9bfc419512dff0528fcf3a7d32dd97d012717f06aa587d1f838cbc5fa  ./tests/ui_container_search.test.js
 a567e68dc88e21b7348ba9cfa9b20768e090938f3d47f8af56f0e6a871a5c92e  ./tests/windows_container_cuda.ps1
 ec10c9ae10df24c1dc10be13ba93db0f8ca605ddca2add30f9a38888058976dd  ./tests/windows_deployment_runtime.ps1
 5949b931e23269092062e280edbebb5b51d1d9f626deb77d1a84a642c83bb0ff  ./tests/windows_external_llama.ps1

@@ -368,3 +368,10 @@ on every reachable interface. A configured value requires the matching
 bearer. This supersedes launch-specific local credentials. Browser-origin
 and operation approval checks are separate. Archived as
 `2026-11-24-make-ui-token-optional`.
+
+## Browser viewer and administrator access — 2026-11-24
+
+A configured token protects administration and integrations. Viewer browser
+search and browsing remain available, along with a limited view of index
+status. The UI reveals administration only after server confirmation.
+Archived as `2026-11-24-separate-ui-viewer-and-admin`.

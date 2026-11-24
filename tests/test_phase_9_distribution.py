@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -133,21 +134,32 @@ class HttpAdapterTests(TempRepoMixin, unittest.TestCase):
         with urllib.request.urlopen(server.address + "/health/ready", timeout=10) as r:
             self.assertEqual(r.status, 200)
 
-    def test_missing_token_is_rejected_before_operations(self) -> None:
-        self.server.token = "s3cret"
-        status, body = self._request("/api/v1/project-version")
-        self.assertEqual(status, 401)
-        self.assertEqual(json.loads(body)["error"], "unauthorized")
+    def test_configured_token_leaves_read_only_browser_actions_available(self) -> None:
+        self.server.token = "fixture-token"
+        for path in ("/api/v1/sources", "/api/v1/indexing-status", "/api/v1/knowledge-status",
+                     "/api/v1/project-version"):
+            with self.subTest(path=path):
+                self.assertEqual(self._request(path)[0], 200)
+        _, status_json = self._request("/api/v1/indexing-status")
+        self.assertNotIn("reason", json.loads(status_json)["hydration"])
+        from pi_platform.cli.main import _bootstrap_and_index_target
+        with patch.dict(os.environ, {
+            "PI_STARTUP_PROFILE": "minimal", "PI_EMBEDDING_MODEL": "hashing",
+            "PI_DENSE_INDEX": "flat", "PI_DOCLING_ENABLED": "0",
+        }):
+            _bootstrap_and_index_target(self.repo, service=self.service, readiness=self.readiness)
+        with patch.object(self.service, "query", side_effect=AssertionError("viewer contacted chat")):
+            status, body = self._request("/api/v1/query", data={"text":"refund"})
+        self.assertEqual(status, 200, body)
+        self.assertIsNone(json.loads(body)["answer"])
 
-    def test_wrong_token_is_rejected(self) -> None:
-        self.server.token = "s3cret"
-        status, _ = self._request("/api/v1/project-version", token="wrong")
-        self.assertEqual(status, 401)
-
-    def test_valid_token_is_accepted(self) -> None:
-        self.server.token = "s3cret"
-        status, _ = self._request("/api/v1/project-version", token="s3cret")
-        self.assertEqual(status, 200)
+    def test_configured_token_protects_admin_settings_and_delegation(self) -> None:
+        self.server.token = "fixture-token"
+        for token in (None, "wrong"):
+            for path, data in (("/api/v1/admin/runtime", None),
+                               ("/api/v1/agent-delegation", {"task":"fixture"})):
+                self.assertEqual(self._request(path, data=data, token=token)[0], 401)
+        self.assertEqual(self._request("/api/v1/admin/runtime", token="fixture-token")[0], 200)
 
     def test_read_operations_answer_json(self) -> None:
         for path in ("/api/v1/sources", "/api/v1/indexing-status",
