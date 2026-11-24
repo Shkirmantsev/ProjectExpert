@@ -139,12 +139,10 @@ it to Open WebUI's `WEBUI_NAME`, rather than requiring a local Compose patch.
 The trade-analyzer follow-up verified the internal frontend connection, streaming
 adapter and real 1507-token Gemma inference without an external chat model.
 
-## Local administrator access
+## Optional UI bearer
 
-The exported container kit opens a privileged browser tab through the
-operator's existing Docker access. The server admits administrator routes
-using a configured bearer, a direct local listener, or the managed
-container credential. Host and origin checks apply to local requests, and
-forwarding addresses confer no administrative authority. Authentication
-status reports the current request's administrator access. Use
-`platform-open` to reopen the administrator tab.
+When the running process has an absent or empty `PI_UI_TOKEN`, ordinary users
+have administrator access on every reachable interface. With a configured
+token, the browser and API clients must authenticate with the matching bearer.
+Authentication status reflects the current request. Browser writes use
+same-origin checks, and knowledge publication uses scoped approval.

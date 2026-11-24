@@ -49,7 +49,7 @@ After the containers start, the launcher prints the service URL and opens the
 local UI using the port published by the running container. Set
 `PI_CONTROL_PORT` in `deployment.env` or in your shell before starting.
 `PI_OPEN_BROWSER=0` suppresses automatic opening. Run `make platform-open`
-from the deployment kit to open the local administrator UI later. HTTP
+from the deployment kit to open the service URL later. HTTP
 liveness and index readiness are reported separately.
 
 ## Models and hardware
@@ -521,21 +521,23 @@ on their host. Native in-process bindings apply supported device choices directl
 
 ## What PI_UI_TOKEN means
 
-`PI_UI_TOKEN` is an optional operator-chosen bearer password for the REST,
-MCP and OpenAI-compatible APIs. The standard loopback deployment leaves it
-unset. The local launcher uses Docker access to establish administrator
-access in the browser tab. The ordinary service URL still opens search.
-Use `make platform-open` for settings, indexing and safe export after
-closing the administrator tab or recreating the container. The browser keeps
-local administrator authorization for the tab and clears the URL fragment
-at startup.
+`PI_UI_TOKEN` is an optional bearer password for the REST, MCP and
+OpenAI-compatible APIs. The running container's environment determines the
+mode.
 
-Configure a private `PI_UI_TOKEN` for non-loopback publication and recreate
-the service with `make platform-start`. The page requests the configured
-value and keeps it in tab memory. Configure the same bearer value privately
-in MCP clients and Open WebUI (`PI_OPEN_WEBUI_API_KEY`). The status endpoint
-reports the access mode for the current request. Knowledge publication
-uses separate scoped approval.
+- **Absent or empty** grants administrator access to anyone who can reach the
+  service URL, including remote users. The page hides the token form.
+- **Configured** requires the matching bearer. The browser displays the token
+  form and holds the entered value in tab memory. Configure the same bearer
+  privately in API clients, MCP clients and Open WebUI
+  (`PI_OPEN_WEBUI_API_KEY`).
+
+Compose forwards `PI_UI_TOKEN` from its effective configuration. Recreate the
+container after adding or removing the variable so the running process sees
+the change. `PI_BIND_HOST` controls network reachability separately and
+defaults to `127.0.0.1`. Keep a tokenless service within the network scope
+where you intend to grant administrator access. Knowledge publication uses
+separate scoped approval.
 
 Run `make platform-embedding-status` to check the configured GGUF runtime
 and `make platform-embedding-benchmark` on an idle installation to measure

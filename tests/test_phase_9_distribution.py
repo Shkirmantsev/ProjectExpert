@@ -168,16 +168,16 @@ class HttpAdapterTests(TempRepoMixin, unittest.TestCase):
         self.assertEqual(payload["operation"], "materialize")
 
     def test_agent_delegation_is_refused_for_an_unauthorised_role(self) -> None:
+        from pi_platform.ports.ui.rest_api import UiActor
+
+        self.server.actor = UiActor("human", "reader", "viewer")
         status, body = self._request(
             "/api/v1/agent-delegation", data={"task": "implement REQ-1"}
         )
         self.assertEqual(status, 403)
         self.assertEqual(json.loads(body)["operation"], "agent-delegation")
 
-    def test_agent_delegation_is_egress_gated_when_authorised(self) -> None:
-        from pi_platform.ports.ui.rest_api import UiActor
-
-        self.server.actor = UiActor("human", "admin", "administrator")
+    def test_tokenless_default_administrator_is_egress_gated_on_delegation(self) -> None:
         status, body = self._request(
             "/api/v1/agent-delegation", data={"task": "implement REQ-1"}
         )

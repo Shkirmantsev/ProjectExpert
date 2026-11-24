@@ -8,12 +8,10 @@
 
 var API = "/api/v1";
 var accessToken = "";
-var localOwnerKey = "";
 
 function headers(extra) {
   var result = { "Content-Type": "application/json" };
   if (accessToken) { result.Authorization = "Bearer " + accessToken; }
-  else if (localOwnerKey) { result["X-ProjectExpert-Local-Owner"] = localOwnerKey; }
   if (extra) { Object.keys(extra).forEach(function (k) { result[k] = extra[k]; }); }
   return result;
 }
@@ -126,18 +124,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     return;
   }
-  var localLaunch = /^#local-owner=([A-Za-z0-9_-]{43})$/.exec(window.location.hash || "");
-  if (localLaunch) {
-    window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    localOwnerKey = localLaunch[1];
-  }
-  try {
-    if (localOwnerKey) {
-      window.sessionStorage.setItem('projectexpert.localOwner', localOwnerKey);
-    } else {
-      localOwnerKey = window.sessionStorage.getItem('projectexpert.localOwner') || "";
-    }
-  } catch (_) { /* Keep this tab working if browser storage is disabled. */ }
   call('GET', API + '/ui-version').then(function (identity) {
     show('deployment-status', identity.knowledge_operations === false ?
       'Current UI loaded; knowledge operations are not configured. Start the application through the platform launcher.' : identity.ui_contract === 'knowledge-sync/2' ?
@@ -151,7 +137,7 @@ document.addEventListener("DOMContentLoaded", function () {
   if (tokenField) {
     document.getElementById("api-access-form").addEventListener("submit", function (event) {
       event.preventDefault();
-      accessToken = tokenField.value.trim();
+      accessToken = tokenField.value;
       call("GET", API + "/indexing-status").then(function () {
         tokenField.value = "";
         show("access-token-help", "Unlocked for this tab.");
@@ -165,10 +151,7 @@ document.addEventListener("DOMContentLoaded", function () {
       tokenField.disabled = !auth.token_required;
       document.getElementById('api-access-panel').hidden = !auth.token_required;
       var notice = document.getElementById('local-access-notice');
-      notice.hidden = !auth.local_owner_access && !auth.local_launch_required;
-      notice.textContent = auth.local_launch_required ?
-        'To open administrator controls, run make -C .project-intelligence-deploy platform-open on the host.' :
-        'Local administrator access is active. No API token is required.';
+      notice.hidden = auth.token_required || !(auth.admin_access ?? auth.local_owner_access);
       show("access-token-help", auth.token_required ?
         "Enter the PI_UI_TOKEN provided by your workspace administrator. It is kept in this tab until you reload." :
         "No API token required.");

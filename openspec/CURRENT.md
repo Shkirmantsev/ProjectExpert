@@ -359,3 +359,12 @@ API token, grouped dense writes, validated warm opens, bounded work for
 approved document endpoints and a short verified Windows asset cache. The
 phase is archived as `2026-11-24-improve-embedding-local-admin`. Full physical
 Windows/Rancher and multi-device throughput remain release acceptance work.
+
+## Optional UI token on all interfaces — 2026-11-24
+
+The running application's `PI_UI_TOKEN` environment value determines browser
+and API authentication. An absent or empty value grants administrator access
+on every reachable interface. A configured value requires the matching
+bearer. This supersedes launch-specific local credentials. Browser-origin
+and operation approval checks are separate. Archived as
+`2026-11-24-make-ui-token-optional`.

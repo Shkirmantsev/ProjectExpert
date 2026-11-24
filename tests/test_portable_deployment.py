@@ -147,15 +147,14 @@ class DeploymentTests(unittest.TestCase):
             self.assertNotIn('Service URL:', run.stdout)
 
     @unittest.skipUnless(os.name != 'nt' and shutil.which('bash'), 'Linux browser launcher')
-    def test_open_uses_container_published_loopback_and_keeps_credential_out_of_output(self):
+    def test_open_uses_container_published_address_without_credential_lookup(self):
         with tempfile.TemporaryDirectory() as raw:
             kit = _kit_copy(raw)
             root = Path(raw)
-            fixture_key = 'a' * 43
             (kit / 'compose.sh').write_text(
                 'case "$1" in\n'
-                'port) printf "%s\\n" "127.0.0.1:9876";;\n'
-                f'exec) printf "%s\\n" "{fixture_key}";;\n'
+                'port) printf "%s\\n" "192.0.2.16:9876";;\n'
+                'exec) exit 85;;\n'
                 'esac\n'
             )
             opener = root / 'xdg-open'
@@ -168,8 +167,7 @@ class DeploymentTests(unittest.TestCase):
                                     capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue(capture.exists(), result.stdout)
-            self.assertEqual(capture.read_text(), f'http://localhost:9876/#local-owner={fixture_key}')
-            self.assertNotIn(fixture_key, result.stdout + result.stderr)
+            self.assertEqual(capture.read_text(), 'http://192.0.2.16:9876/')
 
     @unittest.skipUnless(shutil.which('make'), 'make unavailable')
     def test_make_commands_are_container_only_and_keep_volumes(self):

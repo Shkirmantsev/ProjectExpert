@@ -8,17 +8,28 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
-port="${PI_CONTROL_PORT:-}"
-if [ -z "$port" ] && [ -f deployment.env ]; then
-  port=$(sed -n 's/^PI_CONTROL_PORT=//p' deployment.env | tail -1)
-fi
-# Tolerate quoted or padded operator values.
-port="${port//\"/}"
-port="${port//\'/}"
-port="${port//$'\r'/}"
-port="${port//$'\t'/}"
-port="${port// /}"
-printf 'Service URL: http://localhost:%s\n' "${port:-8765}"
+read_setting() {
+  local value=${!1:-}
+  if [ -z "$value" ] && [ -f deployment.env ]; then
+    value=$(sed -n "s/^$1=//p" deployment.env | tail -1)
+  fi
+  value=${value//\"/}
+  value=${value//\'/}
+  value=${value//$'\r'/}
+  value=${value//$'\t'/}
+  printf '%s' "${value// /}"
+}
+
+browser_host() {
+  case "$1" in
+    ''|0.0.0.0|127.0.0.1|::|::1|'[::]'|'[::1]') printf '%s' localhost ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+port=$(read_setting PI_CONTROL_PORT)
+host=$(browser_host "$(read_setting PI_BIND_HOST)")
+printf 'Service URL: http://%s:%s\n' "$host" "${port:-8765}"
 
 printf 'Index readiness: /health/ready (the service can start while indexing is pending)\n'
 
@@ -31,20 +42,12 @@ if ! command -v xdg-open >/dev/null 2>&1; then
   if [ "$mode" = --open ]; then echo 'No browser launcher available (xdg-open).' >&2; exit 1; fi
   exit 0
 fi
-# Ask the running topology for the real host port before sending a credential
-# to a browser. Forwarding peers and user-supplied origins convey no authority.
+# Use the actual published address, including explicit LAN bindings.
 if ! published=$(bash ./compose.sh port production 8765 2>/dev/null) ||
-   ! [[ "$published" =~ ^(127\.0\.0\.1|\[::1\]):([0-9]{1,5})$ ]]; then
-  if [ "$mode" = --open ]; then echo 'ProjectExpert is not published on a local loopback port.' >&2; exit 1; fi
+   ! [[ "$published" =~ ^([0-9.]+|\[[0-9a-fA-F:]+\]):([0-9]{1,5})$ ]]; then
+  if [ "$mode" = --open ]; then echo 'ProjectExpert has no published HTTP port.' >&2; exit 1; fi
   exit 0
 fi
-browser_url="http://localhost:${BASH_REMATCH[2]}/"
-set +x
-if ! key=$(bash ./compose.sh exec -T production python -m pi_platform.deployment.local_ui 2>/dev/null); then
-  if [ "$mode" = --open ]; then echo 'Could not open the running ProjectExpert deployment.' >&2; exit 1; fi
-  exit 0
-fi
-if [[ "$key" =~ ^[A-Za-z0-9_-]{43}$ ]]; then
-  browser_url+="#local-owner=$key"
-fi
-xdg-open "$browser_url" >/dev/null 2>&1 || [ "$mode" = --open-if-enabled ]
+port=${BASH_REMATCH[2]}
+host=$(browser_host "${BASH_REMATCH[1]}")
+xdg-open "http://$host:$port/" >/dev/null 2>&1 || [ "$mode" = --open-if-enabled ]

@@ -18,15 +18,11 @@ function browser(options = {}) {
   }
   const requests = [];
   let readyChecks = 0, jobChecks = 0, knowledgeChecks = 0;
-  const fragmentUpdates = [];
-  const storage = new Map();
   const context = {console, Promise, Date, Option: function () {},
     document: {body: node('body'), getElementById: node, createElement() { return node(Symbol()); },
       querySelectorAll() { return ['query-text', 'source-encoding-add', 'source-encoding-preview', 'source-encoding-save'].map(node); },
       addEventListener(_, fn) { this.start = fn; }},
-    window: {location:{protocol:options.preview ? 'file:':'http:', hash:options.hash || '', pathname:'/', search:''},
-      history:{replaceState(_, __, path) { fragmentUpdates.push(path); }},
-      sessionStorage:{getItem(k) { return storage.get(k); }, setItem(k, v) { storage.set(k, v); }},
+    window: {location:{protocol:options.preview ? 'file:':'http:'},
       setInterval() {}, setTimeout(fn) { fn(); }},
     fetch(path, init) {
       requests.push({path, ...init});
@@ -45,7 +41,7 @@ function browser(options = {}) {
       }
       else if (path.endsWith('/admin/runtime')) body = {managed_control:options.managed !== false,models:[{value:'gemma',label:'Managed Gemma'},{value:'gemma-torch',label:'Native Gemma'}],devices:{gemma:['auto','cpu','vulkan'], 'gemma-torch':['auto','cpu']},message:'Applies runtime changes'};
       else if (path.endsWith('/ui-version')) body = {ui_contract:'knowledge-sync/2',ui_build:'fixture-build'};
-      else if (path.endsWith('/auth-status')) body = {token_required:options.auth || false,local_owner_access:!options.auth};
+      else if (path.endsWith('/auth-status')) body = {token_required:options.auth || false,local_owner_access:!options.auth,admin_access:!options.auth};
       else if (path.endsWith('/wizard')) {body = {job_id:'apply-123'}; status=202;}
       else if (path.endsWith('/indexing-status')) body = {ready: Boolean(options.coverage) || ++readyChecks > 2, hydration:{in_progress:true}, indexes:{active_sources:3,retrieval:{execution:{mode:options.mode || 'CPU',backend:'cpu',reason:'Verified deployment CPU profile',source:'selected deployment profile'},source_coverage:options.coverage}}};
       else if (path.endsWith('/admin/chat')) body = init.method === 'PUT' ? {...JSON.parse(init.body), api_key:undefined,api_key_set:true} : {enabled:false,provider:'openai',base_url:'',model:'',share_context:false,api_key_set:false};
@@ -65,7 +61,7 @@ function browser(options = {}) {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync('pi_platform/adapters/ui/static/app.js', 'utf8'), context);
   context.document.start();
-  return {node, requests, context, fragmentUpdates};
+  return {node, requests, context};
 }
 async function flush() { for (let i=0;i<12;i++) await Promise.resolve(); }
 async function main() {
@@ -76,12 +72,10 @@ async function main() {
   assert.equal(preview.node('preview-live-link').hidden, false);
   assert.equal(preview.node('query-text').disabled, true);
   assert.equal(preview.node('source-encoding-preview').disabled, true);
-  const localKey='a'.repeat(43);
-  const managed=browser({hash:'#local-owner='+localKey});await flush();
-  const ownerRequest=managed.requests.find(request => request.path.endsWith('/knowledge/settings'));
-  assert.equal(ownerRequest.headers['X-ProjectExpert-Local-Owner'],localKey);
-  assert.deepEqual(managed.fragmentUpdates,['/']);
-  assert.equal(managed.node('api-access-panel').hidden,true);
+  const open = browser();await flush();
+  assert.equal(open.node('api-access-panel').hidden,true);
+  assert.equal(open.node('local-access-notice').hidden,false);
+  assert.equal(open.requests.find(r => r.path.endsWith('/knowledge/settings')).headers.Authorization,undefined);
   const external=browser({managed:false});await flush();
   assert.equal(external.node('embedding-device-select').disabled,true,'Uncontrolled remote hardware must not look switchable');
   assert.match(external.node('runtime-help').textContent,/external|controller/i);

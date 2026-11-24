@@ -59,8 +59,9 @@ The API is served from the product port under `/api/v1/`. Supported routes:
 
 **Authentication.** When the operator configures a bearer token, these routes
 accept requests only with a matching `Authorization: Bearer` header; with no
-token configured they accept requests on the bound interface (loopback by
-default). Materialisation additionally needs an operator approval step — see
+token configured, ordinary users have administrator access on every reachable
+interface. For Docker the running container environment determines the mode.
+Materialisation additionally needs an operator approval step. See
 the [kit guide](../distribution/deployment/README.md).
 
 ## MCP for coding assistants

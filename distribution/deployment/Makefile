@@ -66,7 +66,7 @@ platform-start: ## Start the services and open the local UI
 	$(COMPOSE) up -d --wait --wait-timeout $(WAIT_TIMEOUT)
 	@$(URL) $(OPEN_IF_ENABLED)
 
-platform-open: ## Open the running local UI with administrator access
+platform-open: ## Open the running ProjectExpert UI
 	@$(URL) $(OPEN)
 
 platform-embedding-status: ## Inspect the configured GGUF embedding endpoint

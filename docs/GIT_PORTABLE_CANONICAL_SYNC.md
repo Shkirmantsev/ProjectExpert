@@ -200,8 +200,9 @@ and environment-only operation. Physical host/model gates still apply.
 All discovered sources use the same export checks. No manual Source path or
 per-file UI approval is required. Enable safe export in Sharing preferences,
 Reindex once to establish portable identities, then review the export proposal.
-Local owner access needs no PI_UI_TOKEN; protected remote access still requires
-the configured token. Managed local ownership requires loopback host publication.
+With an absent or empty `PI_UI_TOKEN` in the container, users on any reachable
+interface can administer sharing. When a token is configured, every operator
+must supply the matching bearer. Publication approvals still apply.
 
 Local search and ProjectExpert MCP always retain the complete private cache.
 Export can include independent safe text fragments from a mixed-content source as

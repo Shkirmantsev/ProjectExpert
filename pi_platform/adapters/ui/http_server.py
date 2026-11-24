@@ -2,8 +2,7 @@
 
 This module is an adapter: it translates HTTP into ``RestApiPort`` calls and
 never owns domain behaviour. It uses the Python standard library only, binds to
-the loopback interface by default and refuses every request that does not
-present the configured bearer token.
+the loopback interface by default and supports optional bearer authentication.
 """
 
 from __future__ import annotations
@@ -11,7 +10,6 @@ from __future__ import annotations
 import dataclasses
 import hmac
 import json
-import ipaddress
 import os
 import threading
 from http import HTTPStatus
@@ -20,7 +18,6 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
 from urllib.parse import parse_qs, urlparse
 
-from pi_platform.deployment.local_ui import provision_local_owner_key
 from pi_platform.ports import RuntimeNotReadyError, ReadinessSnapshot
 from pi_platform.core.ui.rest_service import UiOperationDenied
 from pi_platform.ports.ui.rest_api import (
@@ -37,7 +34,6 @@ from pi_platform.ports.ui.rest_api import (
 __all__ = ["UiHttpServer", "DEFAULT_HOST", "STATIC_ROOT"]
 
 DEFAULT_HOST = "127.0.0.1"
-_LOCAL_HOSTS = {'127.0.0.1', '::1', 'localhost'}
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
 
 _CONTENT_TYPES = {
@@ -94,14 +90,6 @@ class UiHttpServer:
         if configured_token and not configured_token.strip():
             raise ValueError("PI_UI_TOKEN cannot contain only whitespace")
         self.token = configured_token or None
-        self._direct_local_admin = host in _LOCAL_HOSTS
-        managed = os.environ.get('PI_UI_LOCAL_ADMIN') == '1'
-        if managed and not self.token and os.environ.get('PI_UI_BIND_HOST') not in _LOCAL_HOSTS:
-            raise ValueError('Non-loopback ProjectExpert publication requires PI_UI_TOKEN')
-        self._managed_admin_key = (
-            provision_local_owner_key() if managed and not self._direct_local_admin and not self.token else None
-        )
-        self.local_admin_enabled = self._direct_local_admin or self._managed_admin_key is not None
         self.static_root = Path(static_root) if static_root else STATIC_ROOT
         self._readiness = readiness or (lambda: False)
         self.openai_compat = openai_compat
@@ -109,11 +97,10 @@ class UiHttpServer:
         self.skill_plane = skill_plane
         self.a2a_adapter = a2a_adapter
         self.agent_card = agent_card
-        self._configured_role = actor.role if actor is not None else os.environ.get("PI_UI_ROLE")
         self.actor = actor or UiActor(
             actor_type="human",
             actor_id=os.environ.get("PI_UI_ACTOR_ID", "operator"),
-            role=os.environ.get("PI_UI_ROLE", "viewer"),
+            role=os.environ.get("PI_UI_ROLE", "administrator"),
         )
         self.target_repo = Path(
             getattr(service, "_repo_root", None) or Path.cwd()
@@ -235,35 +222,21 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
             expected = f"Bearer {server.token}"
             return hmac.compare_digest(header.encode(), expected.encode())
 
-        def _local_owner_request(self) -> bool:
-            if not server.local_admin_enabled:
+        def _same_origin_write(self) -> bool:
+            """Protect browser writes independently of the listening address."""
+            if self.headers.get('Sec-Fetch-Site', 'none') not in {'same-origin', 'none'}:
+                return False
+            origins = self.headers.get_all('Origin') or []
+            if not origins:
+                return True
+            hosts = self.headers.get_all('Host') or []
+            if len(origins) != 1 or len(hosts) != 1:
                 return False
             try:
-                if server._managed_admin_key is not None:
-                    credentials = self.headers.get_all('X-ProjectExpert-Local-Owner') or []
-                    if len(credentials) != 1 or not hmac.compare_digest(
-                        credentials[0].encode(), server._managed_admin_key.encode()
-                    ):
-                        return False
-                elif not ipaddress.ip_address(self.client_address[0]).is_loopback:
-                    return False
-                if len(self.headers.get_all('Host') or []) != 1:
-                    return False
-                host = urlparse('http://' + self.headers.get('Host', ''))
-                if (host.hostname not in _LOCAL_HOSTS or host.username is not None
-                        or host.path or host.query or host.fragment or host.port == 0):
-                    return False
-                origins = self.headers.get_all('Origin') or []
-                if len(origins) > 1:
-                    return False
-                if origins:
-                    origin = origins[0]
-                    parsed = urlparse(origin)
-                    if (parsed.scheme not in {'http', 'https'} or parsed.netloc.lower() != host.netloc.lower()
-                            or parsed.username is not None or parsed.path not in {'', '/'}
-                            or parsed.query or parsed.fragment):
-                        return False
-                return self.headers.get('Sec-Fetch-Site', 'none') in {'same-origin', 'none'}
+                origin = urlparse(origins[0])
+                return (origin.scheme in {'http', 'https'} and origin.username is None
+                        and origin.netloc.lower() == hosts[0].lower()
+                        and origin.path in {'', '/'} and not origin.query and not origin.fragment)
             except ValueError:
                 return False
 
@@ -308,13 +281,13 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 return
             if path == "/api/v1/auth-status":
                 admin = self._admin_request()
-                local_owner = not server.token and admin
+                tokenless_admin = not server.token and admin
                 self._send(HTTPStatus.OK, {
                     "token_required": bool(server.token),
-                    "local_owner_access": local_owner,
+                    # Compatibility for older frontends. This now means access
+                    # without a bearer on any configured interface.
+                    "local_owner_access": tokenless_admin,
                     "admin_access": admin,
-                    "local_launch_required": (server._managed_admin_key is not None and not local_owner
-                                              and self._resolve_caller_capability() == "administrator"),
                 })
                 return
             if path.startswith("/v1/") and server.openai_compat is not None:
@@ -453,8 +426,8 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
 
         def _resolve_caller_capability(self) -> str:
             administrator_roles = {"admin", "administrator", "operator"}
-            if server._configured_role is not None and server._configured_role not in administrator_roles:
-                return server._configured_role or "viewer"
+            if server.actor.role not in administrator_roles:
+                return server.actor.role or "viewer"
             for name in ("X-Actor-Capability", "X-Actor-Role"):
                 for value in self.headers.get_all(name) or []:
                     cap = value.strip().lower()
@@ -463,16 +436,19 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
             return "administrator"
 
         def _admin_request(self) -> bool:
-            admitted = self._authorised() if server.token else self._local_owner_request()
-            return admitted and self._resolve_caller_capability() == "administrator"
+            return self._authorised() and self._resolve_caller_capability() == "administrator"
 
         def _try_admin_or_wizard(self, method: str, path: str, body: Any) -> bool:
             protected = (path.startswith('/api/v1/admin/')
                          or (path == '/api/v1/wizard' and method != 'GET')
                          or (path == '/api/v1/materialize' and method == 'POST'))
+            mutation = method != 'GET' and (protected or path == '/api/v1/agent-delegation')
+            if mutation and not server.token and not self._same_origin_write():
+                self._send(HTTPStatus.FORBIDDEN, {'error': 'Cross-origin request denied', 'code': 'cross-origin'})
+                return True
             if protected and not self._admin_request():
                 self._send(HTTPStatus.FORBIDDEN, {
-                    'error': 'Administrator access required. Open the managed local UI with make platform-open or use the configured API token.',
+                    'error': 'Administrator access required.',
                     'code': 'admin-capability-required',
                     'details': {'required_capability': 'administrator', 'method': method, 'path': path},
                 })
@@ -603,6 +579,8 @@ def _post_route(
     server: UiHttpServer, handler: BaseHTTPRequestHandler, path: str, body: dict
 ) -> Any:
     actor = server.actor
+    if actor.role == 'administrator' and handler._resolve_caller_capability() != 'administrator':
+        actor = dataclasses.replace(actor, role='viewer')
     if path in ("/api/v1/query", "/api/v1/retrieve", "/api/v1/graph", "/api/v1/wiki") and not server._readiness():
         readiness = getattr(server.service, "_readiness", None)
         raise RuntimeNotReadyError(readiness.snapshot() if readiness is not None else ReadinessSnapshot(consistent=False, reason="Project is refreshing or bootstrap failed"))
