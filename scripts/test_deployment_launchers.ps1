@@ -8,9 +8,14 @@ $global:StartExit = 0
 $global:ComposeModel = $null
 $global:ComposeDevice = $null
 function global:docker {
-    $global:Calls.Add(($args -join ' '))
+    $commandLine = $args -join ' '
+    $global:Calls.Add($commandLine)
     $global:LASTEXITCODE = 0
-    if (($args -join ' ') -match 'up -d') {
+    if ($commandLine -match '^compose .* port production 8765$') {
+        # The published port differs from the configured URL printed by start.ps1.
+        return '0.0.0.0:9123'
+    }
+    if ($commandLine -match 'up -d') {
         $global:LASTEXITCODE = $global:StartExit
         $global:ComposeModel = $env:PI_EMBEDDING_MODEL
         $global:ComposeDevice = $env:PI_EMBEDDING_DEVICE
@@ -41,7 +46,9 @@ try {
     function global:Start-Process([string]$FilePath) { $global:OpenedBrowserUrl = $FilePath }
     $env:PI_OPEN_BROWSER = '1'
     & (Join-Path $temp 'start.ps1')
-    if ($global:OpenedBrowserUrl -ne 'http://localhost:8765') { throw 'Browser received status text instead of service URL' }
+    if ($global:OpenedBrowserUrl -cne 'http://localhost:9123/') {
+        throw "Expected browser to open the published Compose URL, got '$global:OpenedBrowserUrl'"
+    }
     $env:PI_OPEN_BROWSER = '0'
     Remove-Item Function:\Start-Process
     # Model selection must survive the Windows wrapper into native setup.
