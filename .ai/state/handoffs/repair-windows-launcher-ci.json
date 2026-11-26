@@ -1,0 +1,59 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [
+    "Native Windows PowerShell 5.1 verification of the new commit is deferred to PR CI after user push"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Updated Compose fixture and completed local verification"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-25T22:03:11+00:00",
+    "id": "repair-windows-launcher-ci",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-25T22:11:42+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Reproduce and fix Windows launcher failures while retaining exit codes and PowerShell 5.1/7 support"
+    ],
+    "goal": "Repair PR 32 Windows PowerShell deployment and launcher checks",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full python3 harness.py check passed",
+      "Both original PR workflows completed all four Windows Python matrix jobs successfully"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "ARTIFACT_MANIFEST.sha256",
+      "sha256": "b3c8716ef8c5af644e39cab4e1c5f432866f0eb86dd144f78230ce9364b38e35"
+    },
+    {
+      "path": "scripts/test_deployment_launchers.ps1",
+      "sha256": "b03b26787a34035bc40a02d088e0149017be7b0de54a4686ab4da9ce880de370"
+    }
+  ]
+}

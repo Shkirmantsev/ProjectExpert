@@ -58,6 +58,27 @@ class ResilienceTests(unittest.TestCase):
             self.assertEqual(parsed.parser_version, "java-text-fallback-1")
             self.assertFalse(parsed.entities)
 
+    def test_successful_bundled_parser_probe_is_reused_for_next_java_source(self):
+        import json
+        import subprocess
+        from pi_platform.ports.ingest.java_parser import JavaParseRequest
+
+        parser = TreeSitterJavaSubprocess()
+        binding = next(iter(parser._binding_versions))
+        calls = []
+        def run(arguments, timeout, input=None):
+            calls.append(arguments)
+            result = {"parser_version": parser.parser_version, "binding_version": binding}
+            if not arguments:
+                result["entities"] = []
+            return subprocess.CompletedProcess(arguments, 0, json.dumps(result), "")
+
+        with patch.object(parser, '_run', side_effect=run):
+            for name in ('A', 'B'):
+                parsed = parser.parse(JavaParseRequest(f'class {name} {{}}', Path(f'{name}.java')))
+                self.assertFalse(parsed.degraded)
+        self.assertEqual(calls, [['--version'], [], []])
+
     def test_bom_and_legacy_html_are_deterministic(self):
         source = self.source(b'<meta charset="windows-1252"><p>Gr\xfc\xdfe</p>', "manual.html", "html")
         parsed = HtmlAdapter().parse(source)

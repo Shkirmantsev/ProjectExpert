@@ -146,6 +146,29 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual(run.returncode, 7)
             self.assertNotIn('Service URL:', run.stdout)
 
+    @unittest.skipUnless(os.name != 'nt' and shutil.which('bash'), 'Linux browser launcher')
+    def test_open_uses_container_published_address_without_credential_lookup(self):
+        with tempfile.TemporaryDirectory() as raw:
+            kit = _kit_copy(raw)
+            root = Path(raw)
+            (kit / 'compose.sh').write_text(
+                'case "$1" in\n'
+                'port) printf "%s\\n" "192.0.2.16:9876";;\n'
+                'exec) exit 85;;\n'
+                'esac\n'
+            )
+            opener = root / 'xdg-open'
+            opener.write_text('#!/bin/sh\nprintf "%s" "$1" > "$BROWSER_CAPTURE"\n')
+            opener.chmod(0o755)
+            capture = root / 'browser'
+            env = {**os.environ, 'PATH': str(root) + os.pathsep + os.environ['PATH'],
+                   'BROWSER_CAPTURE': str(capture)}
+            result = subprocess.run(['bash', './url.sh', '--open'], cwd=kit, env=env,
+                                    capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(capture.exists(), result.stdout)
+            self.assertEqual(capture.read_text(), 'http://192.0.2.16:9876/')
+
     @unittest.skipUnless(shutil.which('make'), 'make unavailable')
     def test_make_commands_are_container_only_and_keep_volumes(self):
         run = subprocess.run(['make', '-n', '-C', str(BUNDLE), 'platform-start', 'platform-stop',

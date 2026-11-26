@@ -19,6 +19,8 @@ class TreeSitterJavaSubprocess(JavaParserPort):
             command or (sys.executable, "-m", "pi_platform.adapters.java.parser_worker")
         )
         self.required = required
+        self._bundled_worker = command is None
+        self._version_confirmed = False
         self.inventory_path = (
             Path(inventory_path)
             if inventory_path
@@ -73,35 +75,26 @@ class TreeSitterJavaSubprocess(JavaParserPort):
 
     def parse(self, request):
         started = time.perf_counter()
-        probe = None
         try:
-            probe = self._run(["--version"], request.timeout_seconds)
-        except JavaParserMissing:
-            if self.required:
-                raise
-        if probe is None or probe.returncode == 3:
-            if self.required:
-                raise JavaParserMissing("required Java parser packages are unavailable")
-            log.warning(
-                "Java parser unavailable; metadata-only assumption source=%s",
-                request.file_path,
-            )
-            return JavaParseResult(
-                (),
-                self.parser_version,
-                0,
-                True,
-                "parser unavailable; metadata-only assumption",
-            )
-        try:
-            if probe.returncode != 0:
-                raise ValueError(f"version probe exit_code={probe.returncode}")
-            info = json.loads(probe.stdout)
-            if (
-                info["parser_version"] != request.parser_version
-                or info.get("binding_version") not in self._binding_versions
-            ):
-                raise JavaParserVersionMismatch(f"unsupported parser version: {info}")
+            if not self._version_confirmed:
+                try:
+                    probe = self._run(["--version"], request.timeout_seconds)
+                except JavaParserMissing:
+                    if self.required:
+                        raise
+                    probe = None
+                if probe is None or probe.returncode == 3:
+                    if self.required:
+                        raise JavaParserMissing("required Java parser packages are unavailable")
+                    log.warning("Java parser unavailable; metadata-only assumption source=%s", request.file_path)
+                    return JavaParseResult((), self.parser_version, 0, True,
+                                           "parser unavailable; metadata-only assumption")
+                if probe.returncode != 0:
+                    raise ValueError(f"version probe exit_code={probe.returncode}")
+                info = json.loads(probe.stdout)
+                if (info["parser_version"] != request.parser_version
+                        or info.get("binding_version") not in self._binding_versions):
+                    raise JavaParserVersionMismatch("unsupported Java parser or binding version")
             output = self._run(
                 [],
                 request.timeout_seconds,
@@ -110,18 +103,21 @@ class TreeSitterJavaSubprocess(JavaParserPort):
                 ),
             )
             if output.returncode != 0:
-                raise ValueError(f"parser failed exit_code={output.returncode}: {output.stderr[:400]}")
+                raise ValueError(f"{self.parser_version} worker failed exit_code={output.returncode}")
             result = json.loads(output.stdout)
             if result["parser_version"] != request.parser_version:
                 raise JavaParserVersionMismatch(
                     "parser result version differs from request"
                 )
+            if self._bundled_worker and result.get("binding_version") not in self._binding_versions:
+                raise JavaParserVersionMismatch("parser result binding differs from approved version")
             entities = []
             for row in result["entities"]:
                 row = dict(row)
                 row["kind"] = JavaEntityKind(row["kind"])
                 row["source_path"] = request.file_path
                 entities.append(JavaEntity(**row))
+            self._version_confirmed = self._bundled_worker
             return JavaParseResult(
                 tuple(entities),
                 result["parser_version"],

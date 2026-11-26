@@ -57,11 +57,12 @@ The API is served from the product port under `/api/v1/`. Supported routes:
 | `/api/v1/agent-delegation` | POST a delegation request (task and target) |
 | `/api/v1/admin/*`, `/api/v1/wizard` | Operator settings and first-start setup |
 
-**Authentication.** When the operator configures a bearer token, these routes
-accept requests only with a matching `Authorization: Bearer` header; with no
-token configured they accept requests on the bound interface (loopback by
-default). Materialisation additionally needs an operator approval step — see
-the [kit guide](../distribution/deployment/README.md).
+**Authentication.** A configured token protects administrator actions and
+integration endpoints. A viewer can search indexed content, browse the
+Wiki, sources and graph, and check index status. Viewer search uses local
+retrieval. Enter the administrator token to manage settings, reindex or share
+knowledge. With an absent or empty token in the running container, ordinary
+users have administrator access. Materialisation still requires operator approval.
 
 ## MCP for coding assistants
 

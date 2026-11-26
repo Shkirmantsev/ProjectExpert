@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import tempfile
 import unittest
+import urllib.request
 from dataclasses import replace
 from unittest.mock import patch
 
@@ -153,14 +154,19 @@ class NativeGenerationRecoveryTests(unittest.TestCase):
         swapped = compute_source_generation(['a','b'], retrieval_text_hashes=['y','x'], embedding_profile_hash='profile')
         self.assertNotEqual(first, swapped)
 
+    def update_retrieval_settings(self, server, settings):
+        request = urllib.request.Request(server.address + '/api/v1/admin/retrieval',
+            data=json.dumps(settings).encode(), method='PUT', headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            self.assertEqual(response.status, 200)
+
     def test_operator_override_wins_startup_environment_for_subsequent_refreshes(self):
         from pi_platform.adapters.ui.http_server import UiHttpServer
         from pi_platform.core.control.retrieval_settings import load_retrieval_settings
         first, _ = self.build()
         self.assertEqual(first['active_model'], 'gemma')
-        server = UiHttpServer(self.service, readiness=self.readiness.is_ready)
-        response = server.admin_routes.handle_put_retrieval({'embedding_model_alias':'gemma-torch', 'device':'cpu'})
-        self.assertEqual(response.status, 200)
+        with UiHttpServer(self.service, readiness=self.readiness.is_ready, token='') as server:
+            self.update_retrieval_settings(server, {'embedding_model_alias': 'gemma-torch', 'device': 'cpu'})
         self.assertFalse(self.readiness.is_ready())
         selected, _ = self.build(model_alias='gemma')  # old startup CLI/default cannot undo a later command
         self.assertEqual(selected['active_model'], 'gemma-torch')
@@ -173,14 +179,13 @@ class NativeGenerationRecoveryTests(unittest.TestCase):
         from pi_platform.adapters.ui.http_server import UiHttpServer
         from pi_platform.core.control.retrieval_settings import load_retrieval_settings
         self.build()
-        server = UiHttpServer(self.service, readiness=self.readiness.is_ready)
-        def late_operator_change(*args, **kwargs):
-            response = server.admin_routes.handle_put_retrieval({'embedding_model_alias':'gemma-torch'})
-            self.assertEqual(response.status, 200)
-            return {'ready':True}
-        with patch('pi_platform.cli.main._bootstrap_and_index_target_locked', side_effect=late_operator_change):
-            with self.assertRaisesRegex(RuntimeError, 'configuration changed during indexing'):
-                self.build()
+        with UiHttpServer(self.service, readiness=self.readiness.is_ready, token='') as server:
+            def late_operator_change(*args, **kwargs):
+                self.update_retrieval_settings(server, {'embedding_model_alias': 'gemma-torch'})
+                return {'ready': True}
+            with patch('pi_platform.cli.main._bootstrap_and_index_target_locked', side_effect=late_operator_change):
+                with self.assertRaisesRegex(RuntimeError, 'configuration changed during indexing'):
+                    self.build()
         self.assertFalse(self.readiness.is_ready())
         self.assertEqual(load_retrieval_settings(self.root).embedding_model_alias, 'gemma-torch')
         recovered, _ = self.build()

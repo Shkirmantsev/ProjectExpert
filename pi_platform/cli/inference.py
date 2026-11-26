@@ -319,6 +319,58 @@ def cmd_native_route(args) -> int:
     return 0 if result["ok"] else 1
 
 
+def _benchmark_documents(args):
+    """Measure the production GGUF document adapter with a fixed synthetic workload."""
+    import hashlib
+    import statistics
+    import time
+
+    from pi_platform.adapters.retrieval.llama_cpp_embedding_model import LlamaCppEmbeddingModel
+    from pi_platform.adapters.runtime.sqlite_ingestion_cache import indexing_progress
+    from pi_platform.core.control.retrieval_settings import CACHE_DIR_NAME
+    from pi_platform.ports.retrieval.embedding_model import EmbeddingRequest, EmbeddingRole
+
+    size = int(args.batch_size)
+    iterations = int(args.iterations)
+    warmup = int(args.warmup)
+    if not (1 <= size <= 64 and 3 <= iterations <= 1000 and 0 <= warmup <= 20):
+        raise ValueError("Document benchmark requires 1–64 inputs, 3–1000 samples and up to 20 warm-ups")
+    target = getattr(args, "target", None)
+    progress_path = Path(target) / CACHE_DIR_NAME / "indexing-state.sqlite" if target else None
+    model = LlamaCppEmbeddingModel(endpoint=args.endpoint, timeout=args.timeout)
+    texts = (
+        "SELECT id, balance FROM accounts WHERE status = 'active';",
+        "public String checkedName(String name) { return name.strip(); }",
+        "Повернення платежу узгоджується після перевірки суми й рахунку.",
+        "La recherche conserve les sources d'origine. 文書検索の結果には出典が含まれます。",
+    )
+    documents = [
+        EmbeddingRequest((texts[i % len(texts)] + " ") * (1 + i % 8), EmbeddingRole.DOCUMENT)
+        for i in range(size)
+    ]
+    samples = []
+    for iteration in range(warmup + iterations):
+        if progress_path and indexing_progress(progress_path).get("state") in {"running", "ready"}:
+            raise ValueError("Document benchmark requires an idle indexer")
+        started = time.perf_counter()
+        vectors = model.embed_requests(documents)
+        if len(vectors) != size:
+            raise ValueError("Document benchmark received an incomplete batch")
+        elapsed = time.perf_counter() - started
+        if iteration >= warmup:
+            samples.append(size / max(elapsed, 1e-9))
+    return {
+        "ok": True,
+        "workload_scope": "synthetic-document-adapter-throughput",
+        "workload_sha256": hashlib.sha256(json.dumps([doc.text for doc in documents]).encode()).hexdigest(),
+        "profile": model.profile().identity(),
+        "completed_documents": size * iterations,
+        "batch_size": size,
+        "documents_per_second_samples": samples,
+        "median_documents_per_second": statistics.median(samples),
+    }
+
+
 def cmd_benchmark(args) -> int:
     """Measure the embedding latency of a running runtime.
 
@@ -329,6 +381,14 @@ def cmd_benchmark(args) -> int:
 
     import statistics
     import time
+
+    if getattr(args, "workload", "query") == "document":
+        try:
+            print(json.dumps(_benchmark_documents(args), indent=2))
+            return 0
+        except (ValueError, RuntimeError, OSError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
+            return 1
 
     iterations = max(1, int(getattr(args, "iterations", None) or 30))
     warmup = max(0, int(getattr(args, "warmup", None) or 5))

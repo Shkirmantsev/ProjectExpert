@@ -45,8 +45,9 @@ as **Hybrid**; this does not assert a measured GPU layer count.
 default for loopback deployment; there is no generated credential to find. Leave
 the UI field empty when its message says authentication is not configured. If
 enabled, obtain it from the operator's private environment/password manager. It
-protects ProjectExpert REST/MCP/OpenAI-compatible access, including configuration,
-and is distinct from an LLM provider key or signed knowledge approval token.
+protects configuration, administrative operations and MCP/OpenAI-compatible and A2A access.
+Viewer browser search and browsing remain available. The token
+is distinct from an LLM provider key or signed knowledge approval token.
 The UI never returns it and keeps a supplied token only in tab memory. See the
 [kit instructions](../distribution/deployment/README.md) for private configuration.
 

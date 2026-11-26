@@ -134,27 +134,39 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   var reloadProtected = [];
   var tokenField = document.getElementById("access-token");
+  function showAdministratorControls(allowed) {
+    ["admin-nav", "index-admin-actions", "settings"].forEach(function (id) {
+      document.getElementById(id).hidden = !allowed;
+    });
+    if (allowed) { reloadProtected.forEach(function (reload) { reload(); }); }
+  }
   if (tokenField) {
     document.getElementById("api-access-form").addEventListener("submit", function (event) {
       event.preventDefault();
-      accessToken = tokenField.value.trim();
-      call("GET", API + "/indexing-status").then(function () {
+      accessToken = tokenField.value;
+      call("GET", API + "/auth-status").then(function (auth) {
+        if (!auth.admin_access) { throw new Error("Invalid administrator token or insufficient access."); }
         tokenField.value = "";
-        show("access-token-help", "Unlocked for this tab.");
-        reloadProtected.forEach(function (reload) { reload(); });
+        document.getElementById("api-access-panel").hidden = true;
+        showAdministratorControls(true);
+        refreshBootstrapStatus();
       }).catch(function (error) {
         accessToken = "";
+        showAdministratorControls(false);
         show("access-token-help", error.message);
       });
     });
     call("GET", API + "/auth-status").then(function (auth) {
       tokenField.disabled = !auth.token_required;
       document.getElementById('api-access-panel').hidden = !auth.token_required;
-      document.getElementById('local-access-notice').hidden = !auth.local_owner_access;
+      var admin = Boolean(auth.admin_access ?? auth.local_owner_access);
+      document.getElementById('local-access-notice').hidden = auth.token_required || !admin;
       show("access-token-help", auth.token_required ?
-        "Enter the PI_UI_TOKEN provided by your workspace administrator. It is kept in this tab until you reload." :
+        "Search and browsing are available. Enter PI_UI_TOKEN to unlock administrator actions for this tab." :
         "No API token required.");
+      showAdministratorControls(admin);
     }).catch(function (error) {
+      showAdministratorControls(false);
       document.getElementById('api-access-panel').hidden = false;
       show("access-token-help", error.message);
     });
@@ -237,7 +249,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       return 'Preparing the workspace for indexing…';
     }
-    return hydration.reason || 'Local search is unavailable. See Diagnostics, then update the index.';
+    return hydration.reason || 'Local search is unavailable. See Diagnostics for status.';
   }
 
   function renderIndexStatus(status) {
@@ -265,7 +277,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
   refreshBootstrapStatus();
-  reloadProtected.push(refreshBootstrapStatus);
   window.setInterval(refreshBootstrapStatus, 3000);
 
   // ---- Optional server-side chat connection ----------------------------
@@ -292,7 +303,6 @@ document.addEventListener("DOMContentLoaded", function () {
     function loadChat() {
       return call("GET", API + "/admin/chat").then(fillChat).catch(function (error) { show("chat-status", error.message); });
     }
-    loadChat();
     reloadProtected.push(loadChat);
     document.getElementById("chat-provider").addEventListener("change", chatHelp);
     chatForm.addEventListener("submit", function (event) {
@@ -382,7 +392,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }).catch(function (error) { show('knowledge-sync-result', error.message); });
   }
   if (document.getElementById('knowledge-restore-button')) {
-    loadKnowledgeSettings();
     reloadProtected.push(loadKnowledgeSettings);
     ['restore', 'export'].forEach(function (operation) {
       document.getElementById('knowledge-' + operation + '-button').addEventListener('click', function () {
@@ -519,9 +528,7 @@ document.addEventListener("DOMContentLoaded", function () {
           .catch(function (error) { show('source-encoding-result', error.message); });
       });
     });
-    loadSourceEncodings();
     reloadProtected.push(loadSourceEncodings);
-    loadRuntimeSettings();
     reloadProtected.push(loadRuntimeSettings);
 
     wizardForm.addEventListener("submit", function (event) {

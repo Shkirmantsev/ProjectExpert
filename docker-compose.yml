@@ -52,6 +52,7 @@ services:
     environment:
       <<: *common-env
       PI_TARGET_ROOT: /repo
+      PI_UI_TOKEN: ${PI_UI_TOKEN:-}
       PI_STARTUP_PROFILE: minimal
       PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-hashing}
       PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-auto}
@@ -76,6 +77,7 @@ services:
     environment:
       <<: *common-env
       PI_TARGET_ROOT: /repo
+      PI_UI_TOKEN: ${PI_UI_TOKEN:-}
       PI_STARTUP_PROFILE: production
       PI_EMBEDDING_MODEL: ${PI_EMBEDDING_MODEL:-gemma-torch}
       PI_EMBEDDING_DEVICE: ${PI_EMBEDDING_DEVICE:-auto}

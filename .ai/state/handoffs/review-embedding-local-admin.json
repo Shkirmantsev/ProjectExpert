@@ -1,0 +1,56 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Runtime implementation and physical Windows/Linux hardware acceptance are future stages of this proposal. Prior corporate installation acceptance remains in fix-corporate-deployment."
+  ],
+  "decisions": [
+    "Design separate acceptance for single-device performance, mixed-device inference and local UI admission"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Delivered and verified the standalone Ukrainian design document"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-23T22:38:38+00:00",
+    "id": "review-embedding-local-admin",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-23T22:46:31+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Ground proposals in current source, quantify evidence and define rollout and hardware acceptance"
+    ],
+    "goal": "Produce a single revised embedding throughput and local UI administration design",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "74 focused tests passed; full harness PASS (2150 tests including 22 skips); 13 pinned code links and Markdown tables validated"
+    ],
+    "pending": []
+  },
+  "working_set": [
+    {
+      "path": "docs/EMBEDDING_PERFORMANCE_AND_LOCAL_UI_ADMIN_DESIGN.md",
+      "sha256": "2b06cc3b7a3d6007f070cbf2e1b04e8296fa246ab05307001a7d083e6fa72ebb"
+    }
+  ]
+}

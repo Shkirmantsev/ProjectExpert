@@ -54,8 +54,6 @@ services:
       PI_TARGET_ROOT: /repo
       PI_WORKSPACE_MODE: ${PI_WORKSPACE_MODE:-bind}
       PI_UI_TOKEN: ${PI_UI_TOKEN:-}
-      PI_UI_LOCAL_ADMIN: "1"
-      PI_UI_BIND_HOST: ${PI_BIND_HOST:-127.0.0.1}
       # UI preferences are persisted in the existing private runtime mount.
       # These flags preserve headless compatibility; ordinary UI actions do not
       # need them. An optional key file must be privately mounted by the operator.

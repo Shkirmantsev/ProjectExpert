@@ -1,0 +1,47 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Delivered viewer browser workflows with protected administrator unlock"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-24T07:51:55+00:00",
+    "id": "separate-ui-viewer-and-admin",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-24T08:01:42+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "A reader can search and inspect the UI before entering any token; privileged requests still require bearer and frontend unlock verifies it"
+    ],
+    "goal": "Keep read-only browser workflows available with an administrator token configured",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full harness.py check passed; real Docker nonloopback viewer search and bearer authorization passed"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

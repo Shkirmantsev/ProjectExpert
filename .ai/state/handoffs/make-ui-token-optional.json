@@ -1,0 +1,49 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [],
+  "decisions": [
+    "Use the running container PI_UI_TOKEN value and treat absent and empty values as open administration"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Corrected optional container UI token behavior on local and remote addresses"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-24T07:32:08+00:00",
+    "id": "make-ui-token-optional",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-24T07:44:02+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Direct remote HTTP administration works without any credential; configured bearer and scoped export approval remain enforced; launchers and docs match"
+    ],
+    "goal": "Give ordinary UI users administrator access from any address when PI_UI_TOKEN is absent or empty",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full harness.py check passed; source and exported Compose verified alongside remote Docker requests"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

@@ -1,0 +1,52 @@
+{
+  "budgets": {
+    "steps_max": 120,
+    "steps_used": 0
+  },
+  "context": [
+    "Physical Windows/Rancher, sustained CUDA/Vulkan and automatic mixed-device qualification remain release acceptance items in the design"
+  ],
+  "decisions": [
+    "Use Docker exec browser bootstrap as trusted host-operator channel across Windows and Linux"
+  ],
+  "progress": {
+    "blocked": [],
+    "done": [
+      "Implemented and verified the adopted local administration, ANN, diagnostic, Java and Windows extraction changes"
+    ],
+    "todo": []
+  },
+  "resume": {
+    "next_action": "",
+    "prerequisites": []
+  },
+  "runtime": {
+    "last_failure_fingerprint": "",
+    "next_decision": "stop",
+    "no_progress_windows": 0,
+    "repeated_failure_count": 0
+  },
+  "schema_version": "1.0",
+  "session": {
+    "created_at": "2026-11-23T23:45:35+00:00",
+    "id": "improve-embedding-local-admin",
+    "project": "ProjectExpert",
+    "updated_at": "2026-11-24T00:22:14+00:00"
+  },
+  "task": {
+    "acceptance": [
+      "Local deployment administration without a manual token on a trusted transport; lower embedding and ANN hot path overhead; preserve retrieval and approval contracts"
+    ],
+    "goal": "Implement verified embedding throughput and tokenless local administration improvements",
+    "openspec_change": "",
+    "status": "complete"
+  },
+  "verification": {
+    "passed": [
+      "Full python3 harness.py check PASS: 2159 tests in 168 suites, 22 skipped; artifact manifest and OpenSpec passed",
+      "Real Linux Docker settings and scoped approval PASS; browser and PowerShell 7 fixtures PASS"
+    ],
+    "pending": []
+  },
+  "working_set": []
+}

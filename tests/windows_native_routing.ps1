@@ -81,6 +81,7 @@ function Resolve-OptionalNativeCuda {
     $lock | ConvertTo-Json -Depth 10 | Set-Content $lockPath
     $env:PI_ASSET_IMAGE='ghcr.io/shkirmantsev/project-intelligence-assets@sha256:'+('1'*64)
     $env:PI_ASSET_MANIFEST_SHA256='2'*64
+    $env:LOCALAPPDATA=Join-Path $temporary 'profile'
     $env:PI_IMAGE='app:fixture';$env:PI_WORKSPACE_MODE='bind';$env:PI_HOST_CA_MODE='off';$env:PI_GPU_DEVICE=''
     foreach ($request in @('cuda','vulkan','auto','cpu')) {
         $global:routingStarted=$false

@@ -248,12 +248,10 @@ source policies, tracked-source eligibility and provenance restrictions still
 apply uniformly; a local-only or unknown-provenance source is not made public by
 removing the form.
 
-Local owner authorization is distinct from token authentication. Direct loopback
-serving permits local ownership; managed Compose passes its actual host bind
-address and enables the exact Docker host gateway only for loopback bindings.
-Host, Origin, Fetch-Site and peer checks reject foreign-browser and unrelated
-network requests before signing. Configured tokens remain required. The token
-panel is hidden when no token is configured; no repeated entry is needed locally.
+The running container enables bearer authentication when `PI_UI_TOKEN` is
+configured. If that value is absent or empty, the token form is hidden and
+administration is available from any reachable address. Browser writes still
+receive same-origin checks and canonical publication requires signed approval.
 
 Full confidential source outputs/vectors stay in the private cache and remain
 available to local retrieval and ProjectExpert MCP. The export projector never
@@ -284,7 +282,7 @@ calls the declared assembler port correctly, avoiding redundant assembly. The
 mixed-source regression verifies safe export, excluded credential bytes, retained
 complete local cache, real MCP retrieval of confidential text after export, exact
 vector reuse on clone and tamper rejection. UI tests verify hidden optional token
-entry; HTTP tests verify local owner access and foreign/public/token denials.
+entry; HTTP tests verify tokenless access, cross-origin write denial and configured bearer authentication.
 
 
 Final project-wide verification: `python3 harness.py check` PASS, 2,100 tests across

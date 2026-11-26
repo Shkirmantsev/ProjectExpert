@@ -451,6 +451,12 @@ def build_parser() -> argparse.ArgumentParser:
                                      help="warm-up requests (default: 5)")
     inference_benchmark.add_argument("--timeout", type=float, default=120.0,
                                      help="per-request timeout in seconds")
+    inference_benchmark.add_argument("--workload", choices=("query", "document"), default="query",
+                                     help="query latency or synthetic document throughput")
+    inference_benchmark.add_argument("--batch-size", type=int, default=32,
+                                     help="document inputs per measured batch (default: 32)")
+    inference_benchmark.add_argument("--target", type=Path, default=None,
+                                     help="skip the document benchmark while this target is indexing")
     inference_route = inference_sub.add_parser(
         "native-route", help="verify the native Windows embedding route from this container",
     )
@@ -1239,7 +1245,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     from ..adapters.orchestration.knowledge_sync import KnowledgeSyncCoordinator
     knowledge_sync = KnowledgeSyncCoordinator(target, cache_root,
         index=lambda **kw: _bootstrap_and_index_target(target, cache_root=cache_root,
-            service=service, readiness=readiness, **kw), authenticated_operator=bool(server.token), local_operator=server.local_admin_enabled)
+            service=service, readiness=readiness, **kw), authenticated_operator=bool(server.token), local_operator=not server.token)
     server.admin_routes.knowledge_sync = knowledge_sync
     server.admin_routes.job_executor = execute_admin_job
     monitor = PollingProjectVersionMonitor(target, on_change=refresh, on_error=failed, cache_root=cache_root)

@@ -16,18 +16,18 @@
     <nav aria-label="Workspace">
       <a href="#search">Search</a>
       <a href="#index">Local index</a>
-      <a href="#settings">Settings</a>
+      <a id="admin-nav" href="#settings" hidden>Settings</a>
     </nav>
   </header>
 
   <main>
     <section class="panel" id="api-access-panel" hidden>
-      <h2>Unlock this workspace</h2>
+      <h2>Administrator access</h2>
       <form id="api-access-form">
-        <label for="access-token">Workspace access token</label>
+        <label for="access-token">Administrator token</label>
         <div class="controls">
           <input id="access-token" type="password" autocomplete="off" aria-describedby="access-token-help" />
-          <button type="submit">Unlock</button>
+          <button type="submit">Unlock settings</button>
         </div>
       </form>
       <p id="access-token-help" class="hint" role="status">Checking access requirements…</p>
@@ -42,7 +42,7 @@
           <button type="submit">Search</button>
         </div>
       </form>
-      <p class="hint">Find relevant project excerpts. You can enable generated answers in Settings.</p>
+      <p class="hint">Find relevant project excerpts.</p>
       <pre id="query-result" class="output" aria-live="polite"></pre>
 
       <details>
@@ -79,36 +79,38 @@
         <p id="bootstrap-status">Checking the local index…</p>
         <p id="active-mode" class="mode-badge">Checking the embedding runtime…</p>
       </div>
-      <div class="controls">
-        <button id="admin-reindex-button" type="button">Update local index</button>
-        <p class="hint">Process new and changed sources. Existing compatible results are reused.</p>
-      </div>
-      <div id="knowledge-sync-result" class="operation-result" role="status" aria-live="polite"></div>
-      <button id="knowledge-publish-button" type="button" hidden>Write reviewed Git files</button>
-      <details>
-        <summary>Restore or share via Git</summary>
-        <div class="tool-grid">
-          <div>
-            <button id="knowledge-restore-button" type="button" class="secondary">Restore from Git</button>
-            <p class="hint">Reuse a compatible snapshot from your current checkout. Run a local update if any sources or embeddings are missing.</p>
-          </div>
-          <div>
-            <button id="knowledge-export-button" type="button" class="secondary">Preview Git export</button>
-            <p class="hint">Review the files before writing them. Commit and push separately when ready.</p>
-          </div>
+      <div id="index-admin-actions" hidden>
+        <div class="controls">
+          <button id="admin-reindex-button" type="button">Update local index</button>
+          <p class="hint">Process new and changed sources. Existing compatible results are reused.</p>
         </div>
+        <div id="knowledge-sync-result" class="operation-result" role="status" aria-live="polite"></div>
+        <button id="knowledge-publish-button" type="button" hidden>Write reviewed Git files</button>
         <details>
-          <summary>Sharing preferences</summary>
-          <fieldset id="knowledge-settings">
-            <legend>Safe Git export</legend>
-            <label><input id="knowledge-share" type="checkbox"> Enable export</label>
-            <label><input id="knowledge-auto" type="checkbox"> Export after index updates (approval lasts one hour)</label>
-            <label><input id="knowledge-vectors" type="checkbox"> Include embeddings for faster restores (uses more Git storage)</label>
-            <button id="knowledge-save" type="button" class="secondary">Save preferences</button>
-          </fieldset>
-          <p class="hint">The same export checks apply to all discovered files. Confidential material stays available through local search and MCP. Generated files are capped at 8 MiB by default.</p>
+          <summary>Restore or share via Git</summary>
+          <div class="tool-grid">
+            <div>
+              <button id="knowledge-restore-button" type="button" class="secondary">Restore from Git</button>
+              <p class="hint">Reuse a compatible snapshot from your current checkout. Run a local update if any sources or embeddings are missing.</p>
+            </div>
+            <div>
+              <button id="knowledge-export-button" type="button" class="secondary">Preview Git export</button>
+              <p class="hint">Review the files before writing them. Commit and push separately when ready.</p>
+            </div>
+          </div>
+          <details>
+            <summary>Sharing preferences</summary>
+            <fieldset id="knowledge-settings">
+              <legend>Safe Git export</legend>
+              <label><input id="knowledge-share" type="checkbox"> Enable export</label>
+              <label><input id="knowledge-auto" type="checkbox"> Export after index updates (approval lasts one hour)</label>
+              <label><input id="knowledge-vectors" type="checkbox"> Include embeddings for faster restores (uses more Git storage)</label>
+              <button id="knowledge-save" type="button" class="secondary">Save preferences</button>
+            </fieldset>
+            <p class="hint">The same export checks apply to all discovered files. Confidential material stays available through local search and MCP. Generated files are capped at 8 MiB by default.</p>
+          </details>
         </details>
-      </details>
+      </div>
       <details>
         <summary>Diagnostics and project version</summary>
         <p class="hint">For a private list of failed files, run <code>make -C .project-intelligence-deploy platform-index-failures</code> from your project.</p>
@@ -120,9 +122,9 @@
       </details>
     </section>
 
-    <section class="panel" id="settings">
+    <section class="panel" id="settings" hidden>
       <h2>Settings</h2>
-      <p id="local-access-notice" class="hint" hidden>Local owner access is enabled.</p>
+      <p id="local-access-notice" class="hint" hidden>Administrator access is active. No API token is configured.</p>
       <details id="wizard-panel">
         <summary>Embedding device and PDF processing</summary>
         <p id="active-mode-detail" class="hint"></p>

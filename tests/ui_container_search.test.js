@@ -6,7 +6,7 @@ const vm = require('node:vm');
 function browser(options = {}) {
   const nodes = new Map();
   function node(id) {
-    if (!nodes.has(id)) nodes.set(id, {value: '', checked: true, disabled: false,
+    if (!nodes.has(id)) nodes.set(id, {value: '', checked: true, disabled: ['source-encoding-preview', 'source-encoding-save', 'source-encoding-add'].includes(id),
       textContent: '', attrs: {}, listeners: {}, children: [],
       setAttribute(k, v) { this.attrs[k] = v; },
       addEventListener(k, fn) { this.listeners[k] = fn; },
@@ -22,7 +22,8 @@ function browser(options = {}) {
     document: {body: node('body'), getElementById: node, createElement() { return node(Symbol()); },
       querySelectorAll() { return ['query-text', 'source-encoding-add', 'source-encoding-preview', 'source-encoding-save'].map(node); },
       addEventListener(_, fn) { this.start = fn; }},
-    window: {location:{protocol:options.preview ? 'file:':'http:'},setInterval() {}, setTimeout(fn) { fn(); }},
+    window: {location:{protocol:options.preview ? 'file:':'http:'},
+      setInterval() {}, setTimeout(fn) { fn(); }},
     fetch(path, init) {
       requests.push({path, ...init});
       let body = {};
@@ -40,7 +41,7 @@ function browser(options = {}) {
       }
       else if (path.endsWith('/admin/runtime')) body = {managed_control:options.managed !== false,models:[{value:'gemma',label:'Managed Gemma'},{value:'gemma-torch',label:'Native Gemma'}],devices:{gemma:['auto','cpu','vulkan'], 'gemma-torch':['auto','cpu']},message:'Applies runtime changes'};
       else if (path.endsWith('/ui-version')) body = {ui_contract:'knowledge-sync/2',ui_build:'fixture-build'};
-      else if (path.endsWith('/auth-status')) body = {token_required:options.auth || false,local_owner_access:!options.auth};
+      else if (path.endsWith('/auth-status')) body = {token_required:options.auth || false,local_owner_access:!options.auth,admin_access:!options.auth || init.headers.Authorization === "Bearer api-token"};
       else if (path.endsWith('/wizard')) {body = {job_id:'apply-123'}; status=202;}
       else if (path.endsWith('/indexing-status')) body = {ready: Boolean(options.coverage) || ++readyChecks > 2, hydration:{in_progress:true}, indexes:{active_sources:3,retrieval:{execution:{mode:options.mode || 'CPU',backend:'cpu',reason:'Verified deployment CPU profile',source:'selected deployment profile'},source_coverage:options.coverage}}};
       else if (path.endsWith('/admin/chat')) body = init.method === 'PUT' ? {...JSON.parse(init.body), api_key:undefined,api_key_set:true} : {enabled:false,provider:'openai',base_url:'',model:'',share_context:false,api_key_set:false};
@@ -71,6 +72,10 @@ async function main() {
   assert.equal(preview.node('preview-live-link').hidden, false);
   assert.equal(preview.node('query-text').disabled, true);
   assert.equal(preview.node('source-encoding-preview').disabled, true);
+  const open = browser();await flush();
+  assert.equal(open.node('api-access-panel').hidden,true);
+  assert.equal(open.node('local-access-notice').hidden,false);
+  assert.equal(open.requests.find(r => r.path.endsWith('/knowledge/settings')).headers.Authorization,undefined);
   const external=browser({managed:false});await flush();
   assert.equal(external.node('embedding-device-select').disabled,true,'Uncontrolled remote hardware must not look switchable');
   assert.match(external.node('runtime-help').textContent,/external|controller/i);
@@ -98,8 +103,17 @@ async function main() {
   const secured=browser({auth:true});await flush();
   assert.equal(secured.node('access-token').disabled,false);
   assert.equal(secured.node('source-encoding-save').disabled, true);
-  assert.match(secured.node('source-encoding-result').textContent, /Authentication required/);
+  assert.equal(secured.node('index-admin-actions').hidden,true);
+  assert.equal(secured.node('settings').hidden,true);
+  assert.ok(!secured.requests.some(r => r.path.includes('/admin/')));
+  secured.node('sources-button').listeners.click(); await flush();
+  assert.ok(secured.requests.some(r => r.path.endsWith('/sources')));
   assert.match(secured.node('access-token-help').textContent,/PI_UI_TOKEN/);
+  secured.node('access-token').value = 'wrong';
+  secured.node('api-access-form').listeners.submit({preventDefault(){}});
+  await flush(); await flush();
+  assert.match(secured.node('access-token-help').textContent,/invalid/i);
+  assert.equal(secured.node('settings').hidden,true);
   assert.equal(b.node('active-mode').textContent,'Embedding device: CPU');
   const hybrid=browser({mode:'Hybrid'}); await flush();
   assert.equal(hybrid.node('active-mode').textContent,'Embedding device: Hybrid');
@@ -151,6 +165,7 @@ async function main() {
   secured.node('api-access-form').listeners.submit({preventDefault(){}});
   await flush(); await flush();
   assert.equal(secured.node('source-encoding-save').disabled, false);
+  assert.equal(secured.node('settings').hidden, false);
   secured.node('sources-button').listeners.click(); await flush();
   assert.equal(secured.requests.at(-1).headers.Authorization, 'Bearer api-token');
   assert.equal(secured.node('access-token').value, '');

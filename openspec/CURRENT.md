@@ -350,3 +350,28 @@ pages use 0644; atomic updates preserve existing ordinary access bits, including
 private modes. Accepted in the existing one-click-distribution and
 llm-wiki-curated-knowledge capabilities; archived as
 `2026-11-08-prevent-deployment-owner-regressions`.
+
+## Embedding storage throughput and local UI admission — 2026-11-24
+
+The accepted UI, semantic-index, USearch and portable inference capabilities
+include managed local browser administration without an operator-configured
+API token, grouped dense writes, validated warm opens, bounded work for
+approved document endpoints and a short verified Windows asset cache. The
+phase is archived as `2026-11-24-improve-embedding-local-admin`. Full physical
+Windows/Rancher and multi-device throughput remain release acceptance work.
+
+## Optional UI token on all interfaces — 2026-11-24
+
+The running application's `PI_UI_TOKEN` environment value determines browser
+and API authentication. An absent or empty value grants administrator access
+on every reachable interface. A configured value requires the matching
+bearer. This supersedes launch-specific local credentials. Browser-origin
+and operation approval checks are separate. Archived as
+`2026-11-24-make-ui-token-optional`.
+
+## Browser viewer and administrator access — 2026-11-24
+
+A configured token protects administration and integrations. Viewer browser
+search and browsing remain available, along with a limited view of index
+status. The UI reveals administration only after server confirmation.
+Archived as `2026-11-24-separate-ui-viewer-and-admin`.

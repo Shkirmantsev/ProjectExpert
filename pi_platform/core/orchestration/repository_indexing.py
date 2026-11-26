@@ -104,58 +104,46 @@ def _candidate_graph(target, cache_root, cache, *, progress=None):
 
 def _index_dense_generation(runtime, active, *, restore_only=False):
     """Reuse valid ANN files, otherwise rebuild only from valid SQLite vectors."""
-    import math
     from pi_platform.adapters.runtime.usearch_dense_index import USearchDenseIndex, compute_source_generation
-    from pi_platform.core.retrieval.semantic_index_service import decode_vector_payload
+    from pi_platform.core.retrieval.semantic_index_service import IndexingReport
 
     dense = runtime.dense_index
-    generation = compute_source_generation(
-        [chunk.chunk_id for chunk in active],
-        retrieval_text_hashes=[chunk.retrieval_text_hash for chunk in active],
-        embedding_profile_hash=runtime.embedding_profile_hash,
-    )
-    loaded = False
+    semantic = runtime.semantic_index_service
     if isinstance(dense, USearchDenseIndex) and dense._real_usearch:
-        profile = runtime.embedding_model.profile()
-        vectors = {}
-        for start in range(0, len(active), 256):
-            batch = active[start:start + 256]
-            records = runtime.vector_record_store.get_many(
-                [chunk.chunk_id for chunk in batch], runtime.embedding_profile_hash)
-            for chunk in batch:
-                record = records.get(chunk.chunk_id)
-                if record is None:
-                    continue
-                try:
-                    vector = decode_vector_payload(record.vector_payload)
-                    valid = (
-                        record.created_from_retrieval_text_hash == chunk.retrieval_text_hash
-                        and record.dimension == profile.output_dimension
-                        and record.model_revision == profile.model_revision
-                        and record.normalization == profile.normalization
-                        and len(vector) == profile.output_dimension
-                        and all(math.isfinite(value) for value in vector)
-                    )
-                    if profile.normalization == "l2":
-                        valid = valid and abs(sum(value * value for value in vector) - 1.0) < 0.02
-                except (ValueError, TypeError, RuntimeError):
-                    valid = False
-                if valid:
-                    vectors[chunk.chunk_id] = vector
-                else:
-                    runtime.vector_record_store.delete(chunk.chunk_id, runtime.embedding_profile_hash)
-        if len(vectors) == len(active):
-            loaded = dense.load_generation(
+        profile_hash = runtime.embedding_profile_hash
+        generation = compute_source_generation(
+            [chunk.chunk_id for chunk in active],
+            retrieval_text_hashes=[chunk.retrieval_text_hash for chunk in active],
+            embedding_profile_hash=profile_hash,
+        )
+        dense.select_generation(generation)
+        if (Path(dense.index_path).is_file() and Path(dense.key_sidecar_path).is_file()
+                and dense.is_compatible_with(embedding_profile_hash=profile_hash, source_generation=generation)):
+            vectors = {}
+            for start in range(0, len(active), 256):
+                batch = active[start:start + 256]
+                records = runtime.vector_record_store.get_many([chunk.chunk_id for chunk in batch], profile_hash)
+                for chunk in batch:
+                    vector = semantic.compatible_cached_vector(chunk, records.get(chunk.chunk_id))
+                    if vector is not None:
+                        vectors[chunk.chunk_id] = vector
+                if len(vectors) != start + len(batch):
+                    break
+            if len(vectors) == len(active) and dense.load_generation(
                 generation, vectors=vectors,
                 metadata={chunk.chunk_id: chunk.metadata for chunk in active},
-            )
-        if not loaded:
-            dense.select_generation(generation)
-            dense.reset_candidate(output_dimension=profile.output_dimension)
-    report = runtime.semantic_index_service.embed_active_chunks(active, allow_embedding=not restore_only)
-    if isinstance(dense, USearchDenseIndex) and not loaded:
+            ):
+                count = len(active)
+                return IndexingReport(
+                    reused_count=count, embedded_count=0, skipped_count=0,
+                    source_generation=generation, expected_vector_count=count,
+                    persisted_chunk_ids=tuple(chunk.chunk_id for chunk in active),
+                ), True
+        dense.reset_candidate(output_dimension=runtime.embedding_model.profile().output_dimension)
+    report = semantic.embed_active_chunks(active, allow_embedding=not restore_only)
+    if isinstance(dense, USearchDenseIndex):
         dense.save_generation(report.source_generation)
-    return report, loaded
+    return report, False
 
 
 def index_repository(*, target, cache_root, inventory, previous_inventory, settings, cli_overrides=None, restore_only=False):

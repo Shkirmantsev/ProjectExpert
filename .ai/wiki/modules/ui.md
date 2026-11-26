@@ -138,3 +138,12 @@ Operator branding belongs in `PI_WEBUI_NAME` in deployment.env; the template map
 it to Open WebUI's `WEBUI_NAME`, rather than requiring a local Compose patch.
 The trade-analyzer follow-up verified the internal frontend connection, streaming
 adapter and real 1507-token Gemma inference without an external chat model.
+
+## Optional UI bearer
+
+When the running process has an absent or empty `PI_UI_TOKEN`, ordinary users
+have administrator access on every reachable interface. With a configured
+token, viewer search and browsing remain available. Administrative operations
+and integration requests require the matching bearer. Authentication status
+reflects the current request. Browser writes use
+same-origin checks, and knowledge publication uses scoped approval.

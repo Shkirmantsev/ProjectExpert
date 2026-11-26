@@ -28,64 +28,91 @@ if ($assetImage -notmatch '^ghcr\.io/shkirmantsev/project-intelligence-assets@sh
     $manifestDigest -notmatch '^[0-9a-f]{64}$') {
     throw 'Missing reviewed offline asset release. Upgrade the kit with --upgrade and review preserved deployment.env; native setup will not download from HF or GitHub.'
 }
-$offlineRoot = Join-Path $cache ("asset-pack-" + $manifestDigest)
-$publishedRoot = $offlineRoot
-$stagedAssets = $false
-if ($RepairAssets -or -not (Test-Path -LiteralPath $publishedRoot)) {
-    $offlineRoot = $publishedRoot + '.staging-' + [Guid]::NewGuid().ToString('N')
-    $stagedAssets = $true
+# Extract into the current user's short private asset cache. The repository
+# can be deeply nested, and PowerShell 5.1 and Docker cp both touch these paths.
+if (-not $env:LOCALAPPDATA -or -not [IO.Path]::IsPathRooted($env:LOCALAPPDATA)) {
+    throw 'native_asset_path_invalid: Windows LocalAppData is unavailable'
 }
-if (-not (Test-Path -LiteralPath $offlineRoot)) {
-    New-Item -ItemType Directory -Path $offlineRoot | Out-Null
-    $assetContainer = $null
-    try {
-        $assetContainer = docker create --pull never $assetImage
-        if ($LASTEXITCODE -ne 0) { throw 'Cannot create the pinned offline asset container' }
-        docker cp "${assetContainer}:/opt/projectexpert-assets/." $offlineRoot
-        if ($LASTEXITCODE -ne 0) { throw 'Cannot extract the pinned offline assets' }
-    } catch {
-        Remove-Item -LiteralPath $offlineRoot -Recurse -Force
-        throw
-    } finally {
-        if ($assetContainer) { docker rm $assetContainer | Out-Null }
+$packRoot = Join-Path $env:LOCALAPPDATA 'ProjectExpert/a'
+New-Item -ItemType Directory -Force -Path $packRoot | Out-Null
+$item = Get-Item -LiteralPath $packRoot
+while ($item) {
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        throw 'native_asset_path_invalid: linked Windows asset cache'
     }
+    $item = $item.Parent
 }
-Assert-NativeAssetDirectory $offlineRoot
+$shortId = $manifestDigest.Substring(0, 24)
+$publishedRoot = Join-Path $packRoot $shortId
 $appImage = Get-WorkspaceValue 'PI_IMAGE'
 if (-not $appImage) { throw 'Missing published kit application image: set PI_IMAGE or upgrade the matching kit' }
-$diagnosticPath = Join-Path $cache 'asset-verification.json'
-$previousErrorAction = $ErrorActionPreference
 try {
-    $ErrorActionPreference = 'Continue'
-    $verificationOutput = @(docker run --rm --network none --entrypoint python -v "${offlineRoot}:/pack:ro" $appImage `
-        -m pi_platform.deployment.offline_assets --root /pack --manifest-sha256 $manifestDigest --diagnostic-json 2>&1)
-    $verificationExit = $LASTEXITCODE
-} finally { $ErrorActionPreference = $previousErrorAction }
-$verification = $null
-try { $verification = ($verificationOutput -join "`n") | ConvertFrom-Json } catch { }
-$verificationCode = 'verifier-container-failed'
-if ($verification -and $verification.code) { $verificationCode = [string]$verification.code }
-$diagnostic = @{schema_version=1; stage='offline-pack-verification'; code=$verificationCode;
-    requested_backend=$Backend; application_image=$appImage; asset_image=$assetImage;
-    expected_manifest_sha256=$manifestDigest; exit_code=$verificationExit; staged=$stagedAssets}
-if ($verification -and $verification.asset) { $diagnostic.asset = $verification.asset }
-foreach ($field in @('actual_manifest_sha256','expected_asset_sha256','actual_asset_sha256')) {
-    if ($verification -and $verification.$field) { $diagnostic[$field] = $verification.$field }
+    $assetLock = [IO.File]::Open((Join-Path $packRoot ($shortId + '.lock')),
+        [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+} catch {
+    throw 'native_asset_cache_busy: close other setup commands or check access to the Windows asset cache'
 }
-$diagnostic | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath ($diagnosticPath + '.tmp') -Encoding UTF8
-Move-Item -LiteralPath ($diagnosticPath + '.tmp') -Destination $diagnosticPath -Force
-if ($verificationExit -ne 0 -or -not $verification -or -not $verification.ok) {
-    # Discard only this invocation's new temporary extraction. Existing packs stay intact.
-    if ($stagedAssets) { Remove-Item -LiteralPath $offlineRoot -Recurse -Force -ErrorAction SilentlyContinue }
-    throw "Offline asset verification failed [$verificationCode]; inspect accelerator/asset-verification.json. Existing packs are preserved. Retry with -RepairAssets after reviewing the paired image/asset pins."
-}
-if ($stagedAssets) {
-    if (Test-Path -LiteralPath $publishedRoot) {
-        # Explicit repair preserves the old pack until the replacement verifies.
-        Move-Item -LiteralPath $publishedRoot -Destination ($publishedRoot + '.previous-' + [Guid]::NewGuid().ToString('N'))
-    }
-    Move-Item -LiteralPath $offlineRoot -Destination $publishedRoot
+$staging = $null
+try {
     $offlineRoot = $publishedRoot
+    if ($RepairAssets -or -not (Test-Path -LiteralPath $publishedRoot)) {
+        $offlineRoot = Join-Path $packRoot ([IO.Path]::GetRandomFileName())
+        New-Item -ItemType Directory -Path $offlineRoot | Out-Null
+        $staging = $offlineRoot
+        $assetContainer = $null
+        try {
+            $assetContainer = docker create --pull never $assetImage
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot create the pinned offline asset container' }
+            docker cp "${assetContainer}:/opt/projectexpert-assets/." $offlineRoot
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot extract the pinned offline assets' }
+        } finally {
+            if ($assetContainer) { docker rm $assetContainer | Out-Null }
+        }
+    }
+    Assert-NativeAssetDirectory $offlineRoot
+    $diagnosticPath = Join-Path $cache 'asset-verification.json'
+    $previousErrorAction = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $verificationOutput = @(docker run --rm --network none --entrypoint python -v "${offlineRoot}:/pack:ro" $appImage `
+            -m pi_platform.deployment.offline_assets --root /pack --manifest-sha256 $manifestDigest --diagnostic-json 2>&1)
+        $verificationExit = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previousErrorAction }
+
+    $verification = $null
+    try { $verification = ($verificationOutput -join "`n") | ConvertFrom-Json } catch { }
+    $verificationCode = 'verifier-container-failed'
+    if ($verification -and $verification.code) { $verificationCode = [string]$verification.code }
+    $diagnostic = @{schema_version=1; stage='offline-pack-verification'; code=$verificationCode;
+        requested_backend=$Backend; application_image=$appImage; asset_image=$assetImage;
+        expected_manifest_sha256=$manifestDigest; exit_code=$verificationExit; staged=[bool]$staging}
+    if ($verification -and $verification.asset) { $diagnostic.asset = $verification.asset }
+    foreach ($field in @('actual_manifest_sha256','expected_asset_sha256','actual_asset_sha256')) {
+        if ($verification -and $verification.$field) { $diagnostic[$field] = $verification.$field }
+    }
+    $diagnostic | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath ($diagnosticPath + '.tmp') -Encoding UTF8
+    Move-Item -LiteralPath ($diagnosticPath + '.tmp') -Destination $diagnosticPath -Force
+    if ($verificationExit -ne 0 -or -not $verification -or -not $verification.ok) {
+        throw "Offline asset verification failed [$verificationCode]; inspect accelerator/asset-verification.json. Existing packs are preserved. Retry with -RepairAssets after reviewing the paired image/asset pins."
+    }
+    if ($staging) {
+        $backup = $null
+        if (Test-Path -LiteralPath $publishedRoot) {
+            $backup = Join-Path $packRoot ('.previous-' + [IO.Path]::GetRandomFileName())
+            Move-Item -LiteralPath $publishedRoot -Destination $backup
+        }
+        try {
+            Move-Item -LiteralPath $staging -Destination $publishedRoot
+        } catch {
+            if ($backup) { Move-Item -LiteralPath $backup -Destination $publishedRoot }
+            throw
+        }
+        $offlineRoot = $publishedRoot
+        $staging = $null
+    }
+} finally {
+    if ($staging) { Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue }
+    $assetLock.Dispose()
 }
 if ($AssetsOnly) {
     Write-Output 'Pinned offline assets verified, including the native Vulkan runtime.'

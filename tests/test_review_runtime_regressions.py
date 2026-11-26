@@ -146,6 +146,34 @@ elif 'up' in args and 'embeddings' in args:
             self.assertTrue(any(line.startswith('device=CUDA2 ') and 'up -d --wait' in line for line in (root / 'calls').read_text().splitlines()))
 
 class BenchmarkValidationTests(unittest.TestCase):
+    def test_document_benchmark_uses_real_document_adapter_and_counts_completed_inputs(self):
+        import json
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from pi_platform.cli.inference import run_inference_command
+        from tests.test_gguf_runtime import _models_response
+
+        batches = []
+        def request(path, payload=None):
+            if path == '/v1/models':
+                return _models_response()
+            batch = payload['input']
+            batches.append(batch)
+            return {'data': [{'index': i, 'embedding': [1.0] * 768} for i in range(len(batch))]}
+
+        options = SimpleNamespace(inference_command='benchmark', workload='document', iterations=3,
+                                  warmup=0, endpoint='http://127.0.0.1:8769', timeout=10,
+                                  target=None, batch_size=8)
+        with patch('pi_platform.adapters.retrieval.llama_cpp_embedding_model.LlamaCppEmbeddingModel._request',
+                   side_effect=request), patch('builtins.print') as output:
+            self.assertEqual(run_inference_command(options), 0)
+        report = json.loads(output.call_args.args[0])
+        self.assertEqual(report['workload_scope'], 'synthetic-document-adapter-throughput')
+        self.assertEqual(report['completed_documents'], 24)
+        self.assertEqual(len(report['documents_per_second_samples']), 3)
+        self.assertTrue(all(report['documents_per_second_samples']))
+        self.assertGreater(max(map(len, batches)), 1)
+
     def test_http_success_requires_valid_embedding(self):
         import io
         import json

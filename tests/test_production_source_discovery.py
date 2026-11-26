@@ -34,7 +34,9 @@ class GeneratedWorktreeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw); kit = _kit_copy(raw)
             (kit / 'deployment.env').write_text('PI_CONTROL_PORT=9123\n')
-            _fake_docker(root)
+            docker = _fake_docker(root)
+            docker.write_text(docker.read_text().replace('exit 0',
+                'case "$*" in *"port production 8765"*) printf "%s\\n" "127.0.0.1:9123";; esac\nexit 0'))
             opener = root / 'xdg-open'
             opener.write_text('#!/bin/sh\nprintf "%s" "$1" > "$OPENED_URL"\n')
             opener.chmod(0o755)
@@ -44,4 +46,4 @@ class GeneratedWorktreeTests(unittest.TestCase):
                    'PI_HOST_CA_MODE': 'off', 'PI_WORKSPACE_MODE': 'bind'}
             result = subprocess.run(['bash', str(kit / 'start.sh')], env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(output.read_text(), 'http://localhost:9123')
+            self.assertEqual(output.read_text(), 'http://localhost:9123/')

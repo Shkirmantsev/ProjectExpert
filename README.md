@@ -127,8 +127,12 @@ For deeper library research and examples, see
 | **Text encoding overrides** | Correct a file when automatic decoding cannot identify its encoding. Windows-1251 and Windows-1252 are tried automatically. | Add a rule with a project-relative pattern and the original encoding. **Preview decoding** reports counts of matching, decoded, and failed files without saving. **Save rules** stores the rules locally. **Update local index** then applies them. Original files are preserved. |
 | **Generated answers** | Add prose answers backed by project excerpts. | Set the provider type, endpoint URL, and exact model ID. Enter a provider key only if required. Grant excerpt access for an endpoint you want to receive project context. Save settings, then **Test saved connection**. Search otherwise returns evidence. |
 
-The **Workspace access token** form appears only when the service is configured
-with `PI_UI_TOKEN`. The standard loopback installation leaves it unset.
+When `PI_UI_TOKEN` is absent or empty in the running container, anyone who can
+reach the UI has administrator access. This applies to local and remote
+addresses. A configured token keeps search and browsing available to viewers. The
+**Administrator token** form unlocks settings and other privileged actions.
+Viewer search can return indexed project content. Run `platform-open` to open
+the service URL from the deployment host.
 The **Operator workflows** section describes signed approval for canonical writes
 and delegation through a connected MCP client.
 
@@ -148,6 +152,9 @@ alternatives and Windows commands.
 |---|---|
 | See available commands and descriptions | `make -C .project-intelligence-deploy` |
 | Start again | `make -C .project-intelligence-deploy platform-start` |
+| Open the ProjectExpert UI | `make -C .project-intelligence-deploy platform-open` |
+| Inspect the active GGUF endpoint | `make -C .project-intelligence-deploy platform-embedding-status` |
+| Measure GGUF document throughput on an idle installation | `make -C .project-intelligence-deploy platform-embedding-benchmark` |
 | Check whether it is ready | `make -C .project-intelligence-deploy platform-status` |
 | See startup messages | `make -C .project-intelligence-deploy platform-logs` |
 | Refresh the search index after project changes | `make -C .project-intelligence-deploy platform-reindex` |
@@ -227,7 +234,7 @@ same name in your shell for a single run:
 | `PI_GPU_DEVICE` | auto-detected | Pins one device, for example `Vulkan1`. It is honoured only when the runtime actually reports that device. |
 | `PI_DOCLING_ENABLED` | `1` | PDF, table and OCR parsing. Set it to `0` to skip that work. |
 | `PI_INDEX_REQUIRE_COMPLETE` | `1` for direct launches | Direct scripts and Compose use this setting. Make uses `ALLOW_SKIPPED_SOURCES`, which defaults to `1`. |
-| `PI_UI_TOKEN` | unset | Optional access token for ProjectExpert's own API. |
+| `PI_UI_TOKEN` | unset | Optional bearer passed into the service container. Absent or empty grants administrator access on any bound interface. |
 | `PI_IMAGE` | published production image | Pins the application image. Change it only when you upgrade deliberately. |
 
 Stop and start the service after changing the port or the model.

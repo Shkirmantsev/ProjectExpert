@@ -2,7 +2,7 @@
 $ErrorActionPreference = 'Stop'
 $temp = Join-Path ([IO.Path]::GetTempPath()) ('pi-offline-native-' + [Guid]::NewGuid())
 $saved = @{}
-foreach ($name in @('PI_ASSET_IMAGE','PI_ASSET_MANIFEST_SHA256','PI_WORKSPACE_MODE','PI_HOST_CA_MODE','PI_IMAGE')) {
+foreach ($name in @('PI_ASSET_IMAGE','PI_ASSET_MANIFEST_SHA256','PI_WORKSPACE_MODE','PI_HOST_CA_MODE','PI_IMAGE','LOCALAPPDATA')) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
 $global:offlineCalls = New-Object System.Collections.Generic.List[string]
@@ -30,6 +30,7 @@ try {
     $env:PI_ASSET_IMAGE = 'ghcr.io/shkirmantsev/project-intelligence-assets@sha256:' + ('1' * 64)
     $env:PI_ASSET_MANIFEST_SHA256 = '2' * 64
     $env:PI_IMAGE = 'fixture:app'
+    $env:LOCALAPPDATA = Join-Path $temp 'profile'
     $env:PI_WORKSPACE_MODE = 'bind'
     $env:PI_HOST_CA_MODE = 'off'
     & (Join-Path $temp 'setup-windows-accelerator.ps1') -Backend cpu
@@ -38,6 +39,11 @@ try {
     if ($calls -notmatch 'cp fixture-container:/opt/projectexpert-assets/\.' -or
         $calls -notmatch 'run --rm --network none.*offline_assets --root /pack' -or
         $calls -notmatch 'rm fixture-container') { throw 'OCI extraction/verification/cleanup contract missing' }
+    $packRoot = Join-Path $env:LOCALAPPDATA 'ProjectExpert/a'
+    $extract = $global:offlineCalls | Where-Object { $_ -match '^cp ' } | Select-Object -First 1
+    if (-not $extract.Contains($packRoot) -or $extract.Contains('asset-pack-')) {
+        throw 'Offline assets were staged under the long deployment path'
+    }
     if ($calls.IndexOf('offline_assets --root /pack') -gt $calls.IndexOf('inference plan')) {
         throw 'Native planning occurred before asset verification'
     }
@@ -54,7 +60,7 @@ try {
     }
     $global:rejectPack = $false
     & (Join-Path $temp 'setup-windows-accelerator.ps1') -Backend cpu -RepairAssets
-    if (-not @(Get-ChildItem (Join-Path $temp 'accelerator') -Directory | Where-Object { $_.Name -like '*.previous-*' }).Count) { throw 'Explicit repair did not preserve previous pack' }
+    if (-not @(Get-ChildItem $packRoot -Directory -Force | Where-Object { $_.Name -like '.previous-*' }).Count) { throw 'Explicit repair did not preserve previous pack' }
     Write-Output 'PASS: native Windows OCI extraction, verification ordering and fail-closed setup'
 } finally {
     foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }

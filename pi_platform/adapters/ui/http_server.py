@@ -2,23 +2,21 @@
 
 This module is an adapter: it translates HTTP into ``RestApiPort`` calls and
 never owns domain behaviour. It uses the Python standard library only, binds to
-the loopback interface by default and refuses every request that does not
-present the configured bearer token.
+the loopback interface by default and supports optional bearer authentication.
 """
 
 from __future__ import annotations
 
 import dataclasses
+import hmac
 import json
-import ipaddress
-import socket
 import os
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 from pi_platform.ports import RuntimeNotReadyError, ReadinessSnapshot
 from pi_platform.core.ui.rest_service import UiOperationDenied
@@ -27,6 +25,7 @@ from pi_platform.ports.ui.rest_api import (
     GraphRequest,
     MaterializeRequest,
     QueryRequest,
+    QueryResult,
     RestApiPort,
     RetrieveRequest,
     UiActor,
@@ -37,6 +36,12 @@ __all__ = ["UiHttpServer", "DEFAULT_HOST", "STATIC_ROOT"]
 
 DEFAULT_HOST = "127.0.0.1"
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
+
+_VIEWER_GET = frozenset({
+    "/api/v1/sources", "/api/v1/project-version", "/api/v1/indexing-status",
+    "/api/v1/knowledge-status",
+})
+_VIEWER_POST = frozenset({"/api/v1/query", "/api/v1/retrieve", "/api/v1/graph", "/api/v1/wiki"})
 
 _CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -88,22 +93,10 @@ class UiHttpServer:
         self.service = service
         self.host = host
         self._requested_port = port
-        self.token = token if token is not None else os.environ.get("PI_UI_TOKEN") or None
-        local_hosts = {'127.0.0.1', '::1', 'localhost'}
-        deployed_local = (os.environ.get('PI_UI_LOCAL_ADMIN') == '1'
-                          and os.environ.get('PI_UI_BIND_HOST', '') in local_hosts)
-        self.local_admin_enabled = host in local_hosts or deployed_local
-        self._local_proxy_peers = set()
-        if deployed_local:
-            # Docker forwards host loopback connections through its exact gateway.
-            # Other container addresses do not become trusted local administrators.
-            try:
-                for line in Path('/proc/net/route').read_text().splitlines()[1:]:
-                    fields = line.split()
-                    if len(fields) >= 4 and fields[1] == '00000000' and int(fields[3], 16) & 2:
-                        self._local_proxy_peers.add(socket.inet_ntoa(bytes.fromhex(fields[2])[::-1]))
-            except (OSError, ValueError):
-                pass
+        configured_token = token if token is not None else os.environ.get("PI_UI_TOKEN")
+        if configured_token and not configured_token.strip():
+            raise ValueError("PI_UI_TOKEN cannot contain only whitespace")
+        self.token = configured_token or None
         self.static_root = Path(static_root) if static_root else STATIC_ROOT
         self._readiness = readiness or (lambda: False)
         self.openai_compat = openai_compat
@@ -114,7 +107,7 @@ class UiHttpServer:
         self.actor = actor or UiActor(
             actor_type="human",
             actor_id=os.environ.get("PI_UI_ACTOR_ID", "operator"),
-            role=os.environ.get("PI_UI_ROLE", "viewer"),
+            role=os.environ.get("PI_UI_ROLE", "administrator"),
         )
         self.target_repo = Path(
             getattr(service, "_repo_root", None) or Path.cwd()
@@ -133,7 +126,7 @@ class UiHttpServer:
 
         self._admin_capability = threading.local()
         self.admin_routes = RetrievalAdminRoutes(target_repo=self.target_repo,
-            caller_capability_provider=lambda: getattr(self._admin_capability, 'value', 'administrator'))
+            caller_capability_provider=lambda: getattr(self._admin_capability, 'value', 'viewer'))
         self.admin_routes.settings_changed = self.apply_runtime_settings
         self.refresh_requested = None
         self.wizard = FirstStartWizard()
@@ -234,25 +227,23 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 return True
             header = self.headers.get("Authorization", "")
             expected = f"Bearer {server.token}"
-            return header == expected
+            return hmac.compare_digest(header.encode(), expected.encode())
 
-        def _local_owner_request(self) -> bool:
-            if not server.local_admin_enabled:
+        def _same_origin_write(self) -> bool:
+            """Protect browser writes independently of the listening address."""
+            if self.headers.get('Sec-Fetch-Site', 'none') not in {'same-origin', 'none'}:
+                return False
+            origins = self.headers.get_all('Origin') or []
+            if not origins:
+                return True
+            hosts = self.headers.get_all('Host') or []
+            if len(origins) != 1 or len(hosts) != 1:
                 return False
             try:
-                peer = self.client_address[0]
-                if not (ipaddress.ip_address(peer).is_loopback or peer in server._local_proxy_peers):
-                    return False
-                host = urlparse('http://' + self.headers.get('Host', ''))
-                if host.hostname not in {'localhost', '127.0.0.1', '::1'} or host.username or host.password:
-                    return False
-                origin = self.headers.get('Origin')
-                if origin:
-                    parsed = urlparse(origin)
-                    if (parsed.scheme not in {'http', 'https'} or parsed.netloc.lower() != host.netloc.lower()
-                            or parsed.username or parsed.password or parsed.path not in {'', '/'}):
-                        return False
-                return self.headers.get('Sec-Fetch-Site', 'none') in {'same-origin', 'none'}
+                origin = urlparse(origins[0])
+                return (origin.scheme in {'http', 'https'} and origin.username is None
+                        and origin.netloc.lower() == hosts[0].lower()
+                        and origin.path in {'', '/'} and not origin.query and not origin.fragment)
             except ValueError:
                 return False
 
@@ -296,7 +287,15 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                     'knowledge_operations': server.admin_routes.knowledge_sync is not None})
                 return
             if path == "/api/v1/auth-status":
-                self._send(HTTPStatus.OK, {"token_required": bool(server.token), "local_owner_access": server.local_admin_enabled and not bool(server.token)})
+                admin = self._admin_request()
+                tokenless_admin = not server.token and admin
+                self._send(HTTPStatus.OK, {
+                    "token_required": bool(server.token),
+                    # Compatibility for older frontends. This now means access
+                    # without a bearer on any configured interface.
+                    "local_owner_access": tokenless_admin,
+                    "admin_access": admin,
+                })
                 return
             if path.startswith("/v1/") and server.openai_compat is not None:
                 # The OpenAI-compatible shim is auth-gated by the same
@@ -335,7 +334,7 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                 )
                 return
             if path.startswith("/api/v1/"):
-                if not self._authorised():
+                if path not in _VIEWER_GET and not self._authorised():
                     self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
                     return
                 if self._try_admin_or_wizard("GET", path, None):
@@ -424,7 +423,7 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
             if not path.startswith("/api/v1/"):
                 self._send(HTTPStatus.NOT_FOUND, {"error": "not found", "path": path})
                 return
-            if not self._authorised():
+            if path not in _VIEWER_POST and not self._authorised():
                 self._send(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
                 return
             body = self._body()
@@ -433,38 +432,45 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
             self._dispatch(lambda: _post_route(server, self, path, body))
 
         def _resolve_caller_capability(self) -> str:
-            cap_hdr = (
-                self.headers.get("X-Actor-Capability")
-                or self.headers.get("X-Actor-Role")
-                or ""
-            ).strip().lower()
-            if cap_hdr:
-                if cap_hdr in ("admin", "administrator", "operator"):
-                    return "administrator"
-                return cap_hdr
-            if (
-                server.actor.actor_type == "agent"
-                and server.actor.role not in ("administrator", "admin")
-            ):
-                return "coding-agent"
+            administrator_roles = {"admin", "administrator", "operator"}
+            if server.actor.role not in administrator_roles:
+                return server.actor.role or "viewer"
+            for name in ("X-Actor-Capability", "X-Actor-Role"):
+                for value in self.headers.get_all(name) or []:
+                    cap = value.strip().lower()
+                    if cap and cap not in administrator_roles:
+                        return cap
             return "administrator"
 
+        def _admin_request(self) -> bool:
+            return self._authorised() and self._resolve_caller_capability() == "administrator"
+
+        def _request_actor(self) -> UiActor:
+            if server.actor.role == 'administrator' and not self._admin_request():
+                return dataclasses.replace(server.actor, role='viewer')
+            return server.actor
+
         def _try_admin_or_wizard(self, method: str, path: str, body: Any) -> bool:
-            if path.startswith('/api/v1/admin/knowledge/') and not server.token and not self._local_owner_request():
-                self._send(HTTPStatus.FORBIDDEN, {'error': 'Knowledge administration requires local owner access or a configured API token.'})
+            protected = (path.startswith('/api/v1/admin/')
+                         or (path == '/api/v1/wizard' and method != 'GET')
+                         or (path == '/api/v1/materialize' and method == 'POST'))
+            mutation = method != 'GET' and (protected or path == '/api/v1/agent-delegation')
+            if mutation and not server.token and not self._same_origin_write():
+                self._send(HTTPStatus.FORBIDDEN, {'error': 'Cross-origin request denied', 'code': 'cross-origin'})
+                return True
+            if protected and not self._admin_request():
+                self._send(HTTPStatus.FORBIDDEN, {
+                    'error': 'Administrator access required.',
+                    'code': 'admin-capability-required',
+                    'details': {'required_capability': 'administrator', 'method': method, 'path': path},
+                })
                 return True
             if path == "/api/v1/admin/runtime":
-                if self._resolve_caller_capability() != "administrator":
-                    self._send(HTTPStatus.FORBIDDEN, {"error": "Administrator access required"})
-                    return True
                 from pi_platform.adapters.orchestration.managed_runtime import capabilities
                 self._send(HTTPStatus.OK if method == "GET" else HTTPStatus.METHOD_NOT_ALLOWED,
                            capabilities() if method == "GET" else {"error": "Use GET"})
                 return True
             if path in ("/api/v1/admin/chat", "/api/v1/admin/chat/test"):
-                if self._resolve_caller_capability() != "administrator":
-                    self._send(HTTPStatus.FORBIDDEN, {"error": "Administrator access is required to configure a chat provider."})
-                    return True
                 connection = getattr(server.service, "_chat_connection", None)
                 if connection is None:
                     self._send(HTTPStatus.NOT_FOUND, {"error": "Chat configuration is unavailable in this service."})
@@ -494,9 +500,6 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                     self._send(HTTPStatus.OK, server.wizard.render(server.target_repo))
                     return True
                 if method == "POST":
-                    if self._resolve_caller_capability() != "administrator":
-                        self._send(HTTPStatus.FORBIDDEN, {"error": "Administrator access required to change the embedding runtime"})
-                        return True
                     try:
                         submitted = server.wizard.submit(body or {})
                         # A remote host cannot be reconfigured by changing a local preference.
@@ -543,10 +546,11 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
                     create_dispatcher,
                 )
 
-                cap = self._resolve_caller_capability()
-                server._admin_capability.value = cap
-                dispatch = create_dispatcher(server.admin_routes)
-                resp = dispatch(method, path, body)
+                server._admin_capability.value = 'administrator'
+                try:
+                    resp = create_dispatcher(server.admin_routes)(method, path, body)
+                finally:
+                    del server._admin_capability.value
                 if resp is not None:
                     self._send(HTTPStatus(resp.status), resp.body)
                     return True
@@ -571,26 +575,59 @@ def _build_handler(server: UiHttpServer) -> type[BaseHTTPRequestHandler]:
 
 
 def _get_route(server: UiHttpServer, handler: BaseHTTPRequestHandler, path: str) -> Any:
-    query = parse_qs(urlparse(handler.path).query)
+    actor = handler._request_actor()
     if path == "/api/v1/sources":
-        return server.service.sources(server.actor)
+        return server.service.sources(actor)
     if path == "/api/v1/project-version":
-        return server.service.project_version(server.actor)
+        return server.service.project_version(actor)
     if path == "/api/v1/indexing-status":
-        return server.service.indexing_status(server.actor)
+        status = server.service.indexing_status(actor)
+        if not handler._authorised():
+            return _viewer_index_status(status)
+        return status
     if path == "/api/v1/knowledge-status":
-        return server.service.knowledge_status(server.actor)
+        return server.service.knowledge_status(actor)
     raise NotImplementedError(f"no such route: GET {path}")
+
+
+def _viewer_index_status(status):
+    """Keep index progress useful without exposing failure paths or runtime configuration."""
+    retrieval = status.indexes.get("retrieval", {})
+    progress = retrieval.get("indexing_progress", {})
+    coverage = retrieval.get("source_coverage", {})
+    public = {
+        "source_coverage": {key: coverage[key] for key in ("eligible", "indexed", "skipped") if key in coverage},
+        "indexing_progress": {
+            "state": progress.get("state"),
+            "active_stage": progress.get("active_stage"),
+            "stages": [
+                {key: stage[key] for key in ("stage", "total_items", "completed_items", "failed_items") if key in stage}
+                for stage in progress.get("stages", ())
+            ],
+        },
+    }
+    if execution := retrieval.get("execution", {}):
+        public["execution"] = {"mode": execution.get("mode", "Unknown")}
+    return dataclasses.replace(status, hydration={"in_progress": status.hydration.get("in_progress", False)},
+                               indexes={"retrieval": public})
 
 
 def _post_route(
     server: UiHttpServer, handler: BaseHTTPRequestHandler, path: str, body: dict
 ) -> Any:
-    actor = server.actor
-    if path in ("/api/v1/query", "/api/v1/retrieve", "/api/v1/graph", "/api/v1/wiki") and not server._readiness():
+    actor = handler._request_actor()
+    if path in _VIEWER_POST and not server._readiness():
+        if not handler._authorised():
+            raise RuntimeNotReadyError(ReadinessSnapshot(consistent=False, reason="Project search is unavailable"))
         readiness = getattr(server.service, "_readiness", None)
         raise RuntimeNotReadyError(readiness.snapshot() if readiness is not None else ReadinessSnapshot(consistent=False, reason="Project is refreshing or bootstrap failed"))
     if path == "/api/v1/query":
+        if not handler._authorised():
+            result = server.service.retrieve(actor, RetrieveRequest(
+                text=str(body.get("text", "")), top_k=int(body.get("top_k", 10)), filters=body.get("filters"),
+            ))
+            return QueryResult(mode="RETRIEVAL", results=result.results,
+                               provenance=result.results, budget_used=result.budget_used)
         return server.service.query(
             actor,
             QueryRequest(

@@ -167,29 +167,31 @@ class DenseKeyStore:
         self.close()
 
     def allocate(self, embedding_profile_hash: str, chunk_id: str) -> int:
-        cur = self._conn.execute(
-            "SELECT numeric_key FROM dense_keys "
-            "WHERE embedding_profile_hash = ? AND chunk_id = ?",
-            (embedding_profile_hash, chunk_id),
-        )
-        row = cur.fetchone()
-        if row is not None:
-            return int(row[0])
-        cur = self._conn.execute(
-            "SELECT COALESCE(MAX(numeric_key), 0) FROM dense_keys "
-            "WHERE embedding_profile_hash = ?",
-            (embedding_profile_hash,),
-        )
-        max_key = int(cur.fetchone()[0])
-        new_key = max_key + 1
-        self._conn.execute(
-            "INSERT OR REPLACE INTO dense_keys "
-            "(embedding_profile_hash, numeric_key, chunk_id) "
-            "VALUES (?, ?, ?)",
-            (embedding_profile_hash, new_key, chunk_id),
-        )
-        self._conn.commit()
-        return new_key
+        return self.allocate_many(embedding_profile_hash, (chunk_id,))[chunk_id]
+
+    def allocate_many(self, embedding_profile_hash: str, chunk_ids: Sequence[str]) -> dict[str, int]:
+        keys = {}
+        with self._conn:
+            # Reserve the cursor before reading MAX; concurrent candidates must
+            # never assign one numeric key to two chunks.
+            self._conn.execute("BEGIN IMMEDIATE")
+            next_key = self._conn.execute(
+                "SELECT COALESCE(MAX(numeric_key), 0) + 1 FROM dense_keys WHERE embedding_profile_hash = ?",
+                (embedding_profile_hash,),
+            ).fetchone()[0]
+            pending = []
+            for chunk_id in dict.fromkeys(chunk_ids):
+                key = self.resolve(embedding_profile_hash, chunk_id)
+                if key is None:
+                    key = next_key
+                    next_key += 1
+                    pending.append((embedding_profile_hash, key, chunk_id))
+                keys[chunk_id] = key
+            self._conn.executemany(
+                "INSERT INTO dense_keys (embedding_profile_hash, numeric_key, chunk_id) VALUES (?, ?, ?)",
+                pending,
+            )
+        return keys
 
     def resolve(self, embedding_profile_hash: str, chunk_id: str) -> int | None:
         cur = self._conn.execute(
@@ -301,43 +303,49 @@ class USearchDenseIndex(DenseIndexPort):
         self, chunkId: str, vector: Sequence[float],
         metadata: Mapping[str, object],
     ) -> None:
-        self._check_dimension(vector)
-        if self._dim is None and vector:
-            self._dim = len(vector)
-            # Lazy allocation when the dimension was unknown at
-            # construction time (e.g. unit tests).
-            if self._real_usearch and self._usearch_index is None:
-                try:
-                    from usearch.index import Index
-                    self._usearch_index = Index(
-                        ndim=self._dim, metric="cos", connectivity=self._m,
-                        expansion_add=self._ef_construction, expansion_search=self._ef_query,
-                    )
-                except Exception:  # pragma: no cover
-                    self._usearch_index = None
-        self._vectors[chunkId] = tuple(float(v) for v in vector)
-        self._metadata[chunkId] = dict(metadata)
-        # Numeric key allocation (plan §23).
-        if self._dense_key_store is not None:
-            numeric_key = self._dense_key_store.allocate(
-                self._embedding_profile_hash, chunkId,
-            )
+        self.upsert_many(((chunkId, vector, metadata),))
+
+    def upsert_many(self, entries: Sequence[tuple[str, Sequence[float], Mapping[str, object]]]) -> None:
+        """Update one bounded candidate batch, keeping stable keys for replacements."""
+        if not entries:
+            return
+        dimension = self._dim
+        for _, vector, _ in entries:
+            if dimension is None:
+                dimension = len(vector) or None
+            if dimension is not None and len(vector) != dimension:
+                raise ANNIndexError("Vector dimensions do not match the dense index")
+        if self._dim is None and dimension:
+            self.reset_candidate(output_dimension=dimension)
+
+        new_ids = [cid for cid, _, _ in entries if cid not in self._key_by_chunk]
+        if self._dense_key_store is not None and new_ids:
+            new_keys = self._dense_key_store.allocate_many(self._embedding_profile_hash, new_ids)
         else:
-            numeric_key = allocate_numeric_key(
-                chunkId, self._embedding_profile_hash,
-            )
-        self._key_by_chunk[chunkId] = numeric_key
-        self._chunk_by_key[numeric_key] = chunkId
-        # Add to the real USearch index when it is bound.
+            new_keys = {cid: allocate_numeric_key(cid, self._embedding_profile_hash) for cid in new_ids}
+        if (len(set(new_keys.values())) != len(new_keys)
+                or any(key in self._chunk_by_key for key in new_keys.values())):
+            raise ANNIndexError("Dense numeric key collision")
+
         if self._real_usearch and self._usearch_index is not None:
             try:
                 import numpy as np
-                arr = np.asarray(vector, dtype=np.float32)
-                self._usearch_index.add(numeric_key, arr)
-            except Exception as exc:  # pragma: no cover
-                raise ANNIndexError(
-                    f"USearch add failed for chunk {chunkId!r}: {exc}"
-                ) from exc
+                replaced = [self._key_by_chunk[cid] for cid, _, _ in entries if cid in self._key_by_chunk]
+                if replaced:
+                    self._usearch_index.remove(np.asarray(replaced, dtype=np.uint64))
+                keys = np.asarray([new_keys.get(cid, self._key_by_chunk.get(cid))
+                                   for cid, _, _ in entries], dtype=np.uint64)
+                matrix = np.ascontiguousarray([vector for _, vector, _ in entries], dtype=np.float32)
+                # Keep HNSW insertion order while avoiding per-vector calls.
+                self._usearch_index.add(keys, matrix, threads=1)
+            except Exception as exc:
+                raise ANNIndexError("Native USearch batch insertion failed") from exc
+
+        for cid, vector, metadata in entries:
+            self._vectors[cid] = tuple(float(value) for value in vector)
+            self._metadata[cid] = dict(metadata)
+        self._key_by_chunk.update(new_keys)
+        self._chunk_by_key.update((key, cid) for cid, key in new_keys.items())
         self._write_index_meta(vector_count=len(self._vectors))
 
     def delete_chunk(self, chunkId: str) -> None:
@@ -494,10 +502,9 @@ class USearchDenseIndex(DenseIndexPort):
         self._usearch_index = None
         if not records and previous_dimension:
             self.reset_candidate(output_dimension=previous_dimension)
-        inserted = 0
-        for chunk_id, vector in records:
-            self.index_chunk(chunk_id, vector, metadata={})
-            inserted += 1
+        for start in range(0, len(records), 128):
+            self.upsert_many([(chunk_id, vector, {}) for chunk_id, vector in records[start:start + 128]])
+        inserted = len(self._vectors)
         if source_generation is not None:
             self.select_generation(source_generation)
         # Plan §42: atomic rename.
@@ -721,15 +728,6 @@ class USearchDenseIndex(DenseIndexPort):
         return True
 
     # -- internal helpers ---------------------------------------------
-
-    def _check_dimension(self, vector: Sequence[float]) -> None:
-        if self._dim is None:
-            return
-        if len(vector) != self._dim:
-            raise ANNIndexError(
-                f"vector dimension {len(vector)} does not match stored "
-                f"dim {self._dim}"
-            )
 
     def _cosine(self, a: Sequence[float], b: Sequence[float]) -> float:
         if not a or not b:
