@@ -302,7 +302,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
             family=_family(entry.path).value, contentHash=entry.content_hash,
             metadata=Metadata(documentId='repo:' + entry.path, version='0.1.0', language='und',
                               sourcePath=entry.path, policy=entry.policy or None,
-                              extensions={"portable_identity": "v2"} if portable else {}),
+                              extensions={"portable_identity": "v2"}),
         ))
     from pi_platform.adapters.sync.portable_media import pipeline_key as source_pipeline_key, persist_image, IMAGE_PROJECTION
     media_sources = [Source(id='repo:' + e.path, uri=str(target / e.path), family='image', contentHash=e.content_hash,
@@ -446,10 +446,15 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         meta = body.get('metadata', {})
         text = meta.get('extensions', {}).get('retrieval_text') or body.get('contextualText') or body['rawText']
         text_hash = hashlib.sha256(text.encode()).hexdigest()
+        metadata = Metadata(**{k: v for k, v in meta.items() if k in Metadata.__dataclass_fields__})
+        # Local inbox citations retain their native paths without making
+        # persisted chunk identity depend on access policy or engine choice.
+        if metadata.policy == 'LOCAL_ONLY' and metadata.sourcePath:
+            metadata = replace(metadata, sourcePath=str(target / metadata.sourcePath))
         catalog[cid] = RetrievalHit(
             chunkId=cid, score=0.5, source='sparse', snippet=text,
             contentHash=body.get('contentHash', ''),
-            metadata=Metadata(**{k: v for k, v in meta.items() if k in Metadata.__dataclass_fields__}),
+            metadata=metadata,
             knowledgeState=KnowledgeState(body.get('provenance', {}).get('knowledgeState', 'verified')), tokenEstimate=max(1, len(text.split())),
         )
         active.append(ActiveChunk(cid, body.get('contentHash', text_hash), text, text_hash, meta))
@@ -620,6 +625,15 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         saved = {**cache.snapshot(), 'failures': failures}
         from pi_platform.adapters.runtime.candidate_artifacts import atomic_bytes
         atomic_bytes(cache_path, json.dumps(saved, sort_keys=True).encode())
+    from pi_platform.core.wiki.llm_wiki import INDEX_FILENAME, LOG_FILENAME
+    wiki_prefix = 'project-knowledge/wiki/'
+    failed_sources = {failure['path'] for failure in failures}
+    indexed_wiki_pages = sum(
+        entry.path.startswith(wiki_prefix) and entry.path.endswith('.md')
+        and entry.path.removeprefix(wiki_prefix) not in {INDEX_FILENAME, LOG_FILENAME}
+        and entry.path not in failed_sources
+        for entry in projected_inventory.entries
+    )
     return replace(runtime, extra={
         'portable_import': {**portable_import, 'importedVectors': imported_vectors},
         'figure_assets_regenerated': assets_regenerated,
@@ -629,6 +643,7 @@ def _index_repository(*, target, cache_root, inventory, previous_inventory, sett
         'source_generation': report.source_generation,
         'dense_generation_loaded': dense_generation_loaded,
         'indexing_report': report, 'source_failures': failures, 'source_coverage': coverage,
+        'indexed_wiki_pages': indexed_wiki_pages,
         'resolved_configuration': config.as_dict(),
         'index_engine': 'resumable' if durable_cache is not None else 'legacy',
         'index_job_id': durable_cache.generation if durable_cache is not None else '',

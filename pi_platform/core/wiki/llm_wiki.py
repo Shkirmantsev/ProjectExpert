@@ -200,7 +200,7 @@ class LlmWiki:
     def exists(self) -> bool:
         return self.root.is_dir()
 
-    def list_pages(self) -> list[dict]:
+    def list_pages(self, *, include_body: bool = False) -> list[dict]:
         """Return the curated pages, excluding the reserved files."""
 
         if not self.root.is_dir():
@@ -212,7 +212,7 @@ class LlmWiki:
                 continue
             page = self._read(path, relative)
             if page is not None:
-                pages.append(page.as_dict())
+                pages.append(page.as_dict(include_body=include_body))
         return pages
 
     def read_page(self, relative_path: str) -> WikiPage:
@@ -224,7 +224,7 @@ class LlmWiki:
             raise LlmWikiError(f"wiki page not found: {relative_path}")
         return page
 
-    def search_pages(self, query: str, top_k: int = 8) -> list[dict]:
+    def search_pages(self, query: str, top_k: int = 8, *, include_body: bool = False) -> list[dict]:
         """Search the curated pages by text overlap.
 
         The curated Wiki is a small, human-scale corpus; a simple,
@@ -254,7 +254,7 @@ class LlmWiki:
             ).lower()
             score = sum(1 for term in terms if term in haystack)
             if score:
-                scored.append((score, page.as_dict()))
+                scored.append((score, page.as_dict(include_body=include_body)))
         scored.sort(key=lambda item: (-item[0], item[1]["path"]))
         return [page for _score, page in scored[: max(1, top_k)]]
 

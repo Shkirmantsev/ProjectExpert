@@ -95,8 +95,9 @@ limits and stop instructions.
 1. Open the service URL and check **Local index** for readiness.
 2. Enter a question, keyword, or code identifier under **Search your project**.
    Select **Search** to see matching excerpts and their source locations.
-3. After adding or changing files, select **Update local index**. Compatible
-   parsed data and embeddings are reused.
+3. File changes automatically schedule an index update. To refresh on demand,
+   select **Update local index**. Compatible parsed data and embeddings are reused.
+   During indexing, **Find pages** can still search the saved Wiki.
 
 For example, ask **“Where is order validation implemented?”** Replace “order
 validation” with a feature in your project. For the source inventory, open
@@ -119,13 +120,13 @@ For deeper library research and examples, see
 
 | Where | When to use it | What to expect |
 |---|---|---|
-| **Browse the Wiki, sources and graph** | Inspect evidence or navigate from a known entity ID. | Search curated Wiki pages, list the inventory, show graph connections, or retrieve excerpts for the current search text without requesting a generated answer. |
-| **Restore or share via Git** | Reuse a snapshot in the current checkout or share reviewed knowledge. | **Restore from Git** reuses compatible data. If it reports missing work, use **Update local index**. To share, enable export, save preferences, update the index, then use **Preview Git export → Write reviewed Git files**. Commit and push are separate Git actions. |
-| **Sharing preferences** | Adjust how you share snapshots. | **Export after index updates** uses a time-limited approval. **Include embeddings** speeds up restoration and uses more Git storage. The default generated-file size cap is 8 MiB. Export runs the same safety checks for all sources. |
+| **Browse the Wiki, sources and graph** | Inspect evidence or navigate from a known entity ID. | **Find pages** searches saved curated Markdown by keyword. **List indexed sources** shows inventory entries, and **Show connections** expands a known entity. |
+| **Restore or share via Git** | Reuse a snapshot in the current checkout or share reviewed knowledge. | **Restore from Git** reuses compatible data. If it reports missing work, use **Update local index**. To share manually, enable export and save preferences, then use **Preview Git export → Write reviewed Git files**. Export writes a manifest at `project-knowledge/manifests/portable-v2.json` and its referenced metadata and object files. Commit and push are separate Git actions. |
+| **Sharing preferences** | Adjust how you share snapshots. | **Export after index updates** writes eligible data automatically while the one-hour approval is valid. Save the preferences again to renew approval. **Include embeddings** adds eligible vectors for faster restoration. The default generated-file size cap is 8 MiB. |
 | **Diagnostics and project version** | Investigate slow or failed indexing, or check which checkout is searchable. | See indexing progress, Git version, and knowledge freshness. Failed files can also be inspected with `platform-index-failures`. |
 | **Embedding device and PDF processing** | Change how the local index is built. | **Embedding device** is selectable when the app controls the runtime. For host-managed CUDA/Vulkan, the launcher selects the device. **Include PDFs in the index** enables Docling. **Apply and update index** saves the settings and starts a refresh. |
 | **Text encoding overrides** | Correct a file when automatic decoding cannot identify its encoding. Windows-1251 and Windows-1252 are tried automatically. | Add a rule with a project-relative pattern and the original encoding. **Preview decoding** reports counts of matching, decoded, and failed files without saving. **Save rules** stores the rules locally. **Update local index** then applies them. Original files are preserved. |
-| **Generated answers** | Add prose answers backed by project excerpts. | Set the provider type, endpoint URL, and exact model ID. Enter a provider key only if required. Grant excerpt access for an endpoint you want to receive project context. Save settings, then **Test saved connection**. Search otherwise returns evidence. |
+| **Generated answers** | Request prose answers backed by project excerpts. | Set the provider type, endpoint URL, and exact model ID. Enter a provider key if required. Grant excerpt access for an endpoint you want to receive project context. Save settings, then **Test saved connection**. Use **Generate an answer** next to **Search** to call the provider. |
 
 When `PI_UI_TOKEN` is absent or empty in the running container, anyone who can
 reach the UI has administrator access. This applies to local and remote

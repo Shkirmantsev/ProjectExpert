@@ -597,6 +597,7 @@ def _viewer_index_status(status):
     coverage = retrieval.get("source_coverage", {})
     public = {
         "source_coverage": {key: coverage[key] for key in ("eligible", "indexed", "skipped") if key in coverage},
+        "indexed_wiki_pages": retrieval.get("indexed_wiki_pages", 0),
         "indexing_progress": {
             "state": progress.get("state"),
             "active_stage": progress.get("active_stage"),
@@ -616,7 +617,7 @@ def _post_route(
     server: UiHttpServer, handler: BaseHTTPRequestHandler, path: str, body: dict
 ) -> Any:
     actor = handler._request_actor()
-    if path in _VIEWER_POST and not server._readiness():
+    if path in _VIEWER_POST and path != "/api/v1/wiki" and not server._readiness():
         if not handler._authorised():
             raise RuntimeNotReadyError(ReadinessSnapshot(consistent=False, reason="Project search is unavailable"))
         readiness = getattr(server.service, "_readiness", None)

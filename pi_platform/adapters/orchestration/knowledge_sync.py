@@ -137,9 +137,9 @@ class KnowledgeSyncCoordinator:
         boundary = self._operator_boundary()
         token = boundary.issue(ApprovalRequest(action='materialise', repo_root=str(self.target),
             change_ids=(proposal['snapshotId'],)))
-        MaterialiseService(boundary=boundary).publish_active_index(self.target, cache_root=self.cache,
+        published = MaterialiseService(boundary=boundary).publish_active_index(self.target, cache_root=self.cache,
             staging_id=staging_id, approval_token=token)
-        return {**proposal, 'state': 'published'}
+        return {**proposal, 'state': 'published', 'changedPaths': published['changedPaths']}
 
     def restore(self):
         from pi_platform.core.orchestration.repository_indexing import RestoreRequiresReindex

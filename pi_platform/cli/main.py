@@ -1211,12 +1211,19 @@ def _cmd_serve(args: argparse.Namespace) -> int:
                 runtime = getattr(getattr(service, '_retrieval', None), 'runtime', None)
                 if runtime is not None:
                     report = runtime.extra.get('indexing_report')
+                    export = runtime.extra.get('portable_export', {'state': 'off'})
                     return {'localIndexReady': readiness.is_ready(),
                         'source_coverage': runtime.extra.get('source_coverage', {}),
                         'source_parse_hits': runtime.extra.get('source_parse_hits', 0),
                         'source_parse_misses': runtime.extra.get('source_parse_misses', 0),
                         'new_vectors': getattr(report, 'embedded_count', 0),
                         'reused_vectors': getattr(report, 'reused_count', 0),
+                        'indexed_wiki_pages': runtime.extra.get('indexed_wiki_pages', 0),
+                        'portable_export': {
+                            'state': export['state'],
+                            'vectors': export.get('vectors', False),
+                            'changed_file_count': len(export.get('changedPaths', ())),
+                        },
                         'figure_assets_regenerated': runtime.extra.get('figure_assets_regenerated', 0)}
             except Exception as exc:
                 # A manual retry can fail with no source edit. Ask the serving
@@ -1230,11 +1237,9 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         elif kind == 'knowledge.export':
             return knowledge_sync.export()
         elif kind == 'knowledge.publish':
-            result = knowledge_sync.publish(details['stagingId'])
-            # Export changes the monitor fingerprint. Reconcile through its normal
-            # serialized path; cached sources/vectors make this a cheap refresh.
-            monitor.request_refresh()
-            return result
+            # The monitor detects actual canonical root changes, including
+            # changes from other processes. An identical export needs no refresh.
+            return knowledge_sync.publish(details['stagingId'])
         elif kind == "models.pull":
             result = _cmd_models_pull(argparse.Namespace(target=target, alias=details["alias"]))
             if result:
@@ -2581,15 +2586,10 @@ def _bootstrap_and_index_target_locked(
     if not restore_only and (knowledge_settings['post_reindex_export'] or
             not knowledge_sync.settings_path.exists() and
             os.environ.get("PI_PORTABLE_EXPORT", "off") in {"review", "approved-auto"}):
+        from ..ports import ApprovalRejected, ApprovalRequest
         try:
-            portable_export = {"state": "pending-review", **MaterialiseService().stage_active_index(
-                target, cache_root=cache_root,
-                include_vectors=knowledge_settings["include_vectors"] if knowledge_settings["share_enabled"] else
-                    os.environ.get("PI_PORTABLE_VECTORS", "0") == "1")}
-            if 'stagingId' not in portable_export:
-                portable_export['state'] = 'no-exportable-sources'
-            elif (os.environ.get("PI_PORTABLE_EXPORT") == "approved-auto" or
-                  knowledge_settings['post_reindex_export']):
+            automatic = knowledge_settings['post_reindex_export'] or os.environ.get("PI_PORTABLE_EXPORT") == "approved-auto"
+            if automatic:
                 from ..core.sync.trusted_approval import HmacTrustedApprovalBoundary
                 boundary = HmacTrustedApprovalBoundary()
                 token = os.environ.get("PI_PORTABLE_APPROVAL_TOKEN")
@@ -2599,45 +2599,58 @@ def _bootstrap_and_index_target_locked(
                     if not boundary.has_key():
                         boundary = HmacTrustedApprovalBoundary(key=read_bounded(confined(private, 'operator-approval.key'), 4096))
                     token = read_bounded(confined(private, 'auto-export-grant'), 8192).decode()
+                boundary.verify(ApprovalRequest(action='materialise', repo_root=str(target)), token)
+            portable_export = {"state": "pending-review", **MaterialiseService().stage_active_index(
+                target, cache_root=cache_root,
+                include_vectors=knowledge_settings["include_vectors"] if knowledge_settings["share_enabled"] else
+                    os.environ.get("PI_PORTABLE_VECTORS", "0") == "1")}
+            if 'stagingId' not in portable_export:
+                portable_export['state'] = 'no-exportable-sources'
+            elif automatic:
                 publisher = MaterialiseService(boundary=boundary,
                     license_gate=LicenseGate(LicensePolicy()))
                 published = publisher.publish_active_index(target, cache_root=cache_root,
                     staging_id=portable_export["stagingId"],
                     approval_token=token)
                 portable_export = {"state": "published", **published}
-                # Acknowledge only our verified canonical-root update under the
-                # same project lock; monitor must not reindex its own export.
-                from ..adapters.runtime.sqlite_ingestion_cache import exclusive_indexer
-                from ..adapters.sync.portable_snapshot_exporter import _active
-                from contextlib import closing
-                import sqlite3
-                with exclusive_indexer(cache_root), closing(sqlite3.connect(
-                        f'{(cache_root / "indexing-state.sqlite").as_uri()}?mode=ro', uri=True)) as db:
-                    if _active(db) != runtime.extra["index_job_id"]:
-                        raise RuntimeError("Generation moved after portable publication")
-                    current_version = read_project_version(target, cache_root=cache_root)
-                    if current_version.head != before.head or current_version.branch != before.branch:
-                        raise RuntimeError("Checkout moved after portable publication")
-                    actual_sources = {e.path: e.content_hash for e in discovery.discover(target).entries}
-                    if actual_sources != source_hashes:
-                        raise RuntimeError("Source bytes moved after portable publication")
-                    canonical_hashes = [f"{path}:{digest}" for path, digest in sorted(canonical_fingerprints(target).items())]
-                    manifest_snap = _dc_replace(manifest_snap,
-                        snapshot_hash=compute_snapshot_hash(list(chunk_ids) + canonical_hashes))
-                    active_ver = _dc_replace(active_ver,
-                        working_tree_fingerprint=current_version.working_tree_fingerprint,
-                        manifest_snapshot_hash=manifest_snap.snapshot_hash)
-                    RuntimeSnapshotService(cache_root=cache_root).commit(
-                        active=active_ver, manifest=manifest_snap, source=source_snap)
-                    if service is not None:
-                        service._published_version = active_ver
-        except Exception as exc:
+                if published["changedPaths"]:
+                    # Acknowledge only our verified canonical-root update under the
+                    # same project lock; monitor must not reindex its own export.
+                    from ..adapters.runtime.sqlite_ingestion_cache import exclusive_indexer
+                    from ..adapters.sync.portable_snapshot_exporter import _active
+                    from contextlib import closing
+                    import sqlite3
+                    with exclusive_indexer(cache_root), closing(sqlite3.connect(
+                            f'{(cache_root / "indexing-state.sqlite").as_uri()}?mode=ro', uri=True)) as db:
+                        if _active(db) != runtime.extra["index_job_id"]:
+                            raise RuntimeError("Generation moved after portable publication")
+                        current_version = read_project_version(target, cache_root=cache_root)
+                        if current_version.head != before.head or current_version.branch != before.branch:
+                            raise RuntimeError("Checkout moved after portable publication")
+                        actual_sources = {e.path: e.content_hash for e in discovery.discover(target).entries}
+                        if actual_sources != source_hashes:
+                            raise RuntimeError("Source bytes moved after portable publication")
+                        canonical_hashes = [f"{path}:{digest}" for path, digest in sorted(canonical_fingerprints(target).items())]
+                        manifest_snap = _dc_replace(manifest_snap,
+                            snapshot_hash=compute_snapshot_hash(list(chunk_ids) + canonical_hashes))
+                        active_ver = _dc_replace(active_ver,
+                            working_tree_fingerprint=current_version.working_tree_fingerprint,
+                            manifest_snapshot_hash=manifest_snap.snapshot_hash)
+                        RuntimeSnapshotService(cache_root=cache_root).commit(
+                            active=active_ver, manifest=manifest_snap, source=source_snap)
+                        if service is not None:
+                            service._published_version = active_ver
+        except ApprovalRejected as exc:
+            portable_export = {"state": "approval-expired" if exc.reason == "expired" else "failed"}
+        except Exception:
             # Query publication already succeeded; export status is independent.
-            portable_export = {"state": "failed", "error": "Safe export requires operator review or authorization"}
+            portable_export = {"state": "blocked-by-skips" if runtime.extra.get("source_coverage", {}).get("skipped") else "failed",
+                               "error": "Safe export requires a complete index and operator authorization"}
     runtime.extra["portable_export"] = portable_export
     return {
         "source_parse_hits": runtime.extra.get("source_parse_hits", 0),
         "source_parse_misses": runtime.extra.get("source_parse_misses", 0),
+        "indexed_wiki_pages": runtime.extra.get("indexed_wiki_pages", 0),
         "portable_export": portable_export,
         "portable_import": runtime.extra.get("portable_import", {}),
         "target": str(target),

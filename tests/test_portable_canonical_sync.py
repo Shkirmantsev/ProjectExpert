@@ -456,7 +456,61 @@ class PortableProductionTests(unittest.TestCase):
             result = _bootstrap_and_index_target(self.root)
         self.assertTrue(result['ready'])
         self.assertEqual(result['portable_export']['state'], 'failed')
+
+    def test_expired_auto_export_approval_leaves_local_index_ready_without_staging(self):
+        from pi_platform.adapters.orchestration.knowledge_sync import KnowledgeSyncCoordinator
+        from pi_platform.cli.main import _bootstrap_and_index_target
+
+        sync = KnowledgeSyncCoordinator(self.root, self.cache(), local_operator=True)
+        with patch('pi_platform.core.sync.trusted_approval.time.time', return_value=1):
+            sync.save_settings({'share_enabled': True, 'post_reindex_export': True, 'include_vectors': True})
+        result = _bootstrap_and_index_target(self.root)
+        self.assertTrue(result['ready'])
+        self.assertEqual(result['portable_export']['state'], 'approval-expired')
+        self.assertFalse((self.cache() / 'portable-staging').exists())
         self.assertFalse((self.root / 'project-knowledge' / ROOT).exists())
+
+    def test_refresh_indexes_new_curated_page_and_reuses_unchanged_sources(self):
+        from pi_platform.cli.main import _bootstrap_and_index_target
+        from pi_platform.core.wiki.llm_wiki import LlmWiki
+
+        with patch.dict(os.environ, {'PI_PORTABLE_EXPORT': 'off'}):
+            wiki = LlmWiki(self.root)
+            wiki.ensure_scaffold()
+            initial = _bootstrap_and_index_target(self.root)
+            wiki.write_page(relative_path="refunds", title="Refund methodology", body="Refunds use original settlement currency.")
+            refresh = _bootstrap_and_index_target(self.root)
+            unchanged = _bootstrap_and_index_target(self.root)
+
+        self.assertEqual(initial['indexed_wiki_pages'], 0)
+        self.assertEqual(refresh['indexed_wiki_pages'], 1)
+        self.assertEqual(refresh['discovered_sources'], initial['discovered_sources'] + 1)
+        self.assertGreaterEqual(refresh['source_parse_hits'], 2)
+        self.assertGreaterEqual(refresh['reused_vectors'], initial['new_vectors'] - 2)
+        self.assertEqual(unchanged['source_parse_misses'], 0)
+        self.assertEqual(unchanged['new_vectors'], 0)
+
+    def test_enabling_sharing_does_not_reparse_or_reembed_an_unchanged_resumable_index(self):
+        from pi_platform.adapters.orchestration.knowledge_sync import KnowledgeSyncCoordinator
+        from pi_platform.cli.main import _bootstrap_and_index_target
+
+        with patch.dict(os.environ, {'PI_PORTABLE_EXPORT': 'off'}):
+            inbox = self.root / 'tmp/local/source'
+            inbox.mkdir(parents=True)
+            (inbox / 'private.md').write_text('# Private note\nPrivate settlement workflow.')
+            initial = _bootstrap_and_index_target(self.root)
+            self.assertFalse((self.root / 'project-knowledge' / ROOT).exists())
+            sync = KnowledgeSyncCoordinator(self.root, self.cache(), local_operator=True)
+            sync.save_settings({'share_enabled': True, 'post_reindex_export': True, 'include_vectors': True})
+            exported = _bootstrap_and_index_target(self.root)
+
+        self.assertEqual(exported['source_parse_misses'], 0)
+        self.assertEqual(exported['new_vectors'], 0)
+        self.assertEqual(exported['reused_vectors'], initial['new_vectors'])
+        self.assertEqual(exported['portable_export']['state'], 'published')
+        self.assertEqual(exported['portable_export']['sources'], 2)
+        self.assertTrue(exported['portable_export']['vectors'])
+        self.assertTrue((self.root / 'project-knowledge' / ROOT).is_file())
 
     def test_rest_selector_uses_real_materialiser_and_scoped_approval(self):
         from tests.test_phase_9_rest_core import build_service, ACTOR
