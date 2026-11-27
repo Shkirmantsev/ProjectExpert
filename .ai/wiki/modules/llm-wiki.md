@@ -69,9 +69,11 @@ The server exposes five tools (registered in
 - Every write is recorded in the reserved `log.md`.
 - The navigation section of the reserved `index.md` is refreshed
   after each write.
-- A written page becomes part of the searchable corpus on the
-  NEXT project refresh; it is not instantly visible through the
-  dense index.
+- The browser's **Find pages** and MCP Wiki tools read saved
+  Markdown while the semantic index is building. The next index
+  refresh adds new or changed Wiki content and reuses compatible
+  parse results and embeddings for unchanged sources. The browser
+  reports curated page coverage separately from total source coverage.
 - The calling LLM drives the loop: search the project
   (`project.search` / `project.retrieve_context`), read the
   curated pages (`project.wiki_list_pages`,

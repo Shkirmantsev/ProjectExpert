@@ -155,7 +155,7 @@ class BootstrapHttpTests(unittest.TestCase):
             self.assertEqual(request("/health")[0], 200)
             self.assertEqual(request("/health/ready")[0], 503)
             self.assertEqual(request("/api/v1/wizard")[0], 200)
-            for route in ("query", "retrieve", "graph", "wiki"):
+            for route in ("query", "retrieve", "graph"):
                 self.assertEqual(request("/api/v1/" + route, {"text": "evidence"})[0], 503)
             code, body = request("/api/v1/wizard", {"model": "gemma", "device": "cpu"})
             self.assertEqual(code, 200, body)

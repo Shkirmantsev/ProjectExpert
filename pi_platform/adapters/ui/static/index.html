@@ -40,10 +40,12 @@
         <div class="controls">
           <input id="query-text" type="text" placeholder="How are refunds processed?" autocomplete="off" required />
           <button type="submit">Search</button>
+          <button id="generate-answer-button" type="button" class="secondary" hidden>Generate an answer</button>
         </div>
       </form>
       <p class="hint">Find relevant project excerpts.</p>
       <pre id="query-result" class="output" aria-live="polite"></pre>
+      <pre id="generated-answer-result" class="output" aria-live="polite"></pre>
 
       <details>
         <summary>Browse the Wiki, sources and graph</summary>
@@ -64,11 +66,6 @@
             <button type="submit" class="secondary">Show connections</button></div>
             <pre id="graph-result" class="output"></pre>
           </form>
-          <div>
-            <button id="retrieve-button" type="button" class="secondary">Retrieve excerpts only</button>
-            <p class="hint">Uses the question above and skips answer generation.</p>
-            <pre id="retrieve-result" class="output"></pre>
-          </div>
         </div>
       </details>
     </section>
@@ -82,7 +79,7 @@
       <div id="index-admin-actions" hidden>
         <div class="controls">
           <button id="admin-reindex-button" type="button">Update local index</button>
-          <p class="hint">Process new and changed sources. Existing compatible results are reused.</p>
+          <p class="hint">File changes are detected automatically. Use this to refresh now or retry skipped files.</p>
         </div>
         <div id="knowledge-sync-result" class="operation-result" role="status" aria-live="polite"></div>
         <button id="knowledge-publish-button" type="button" hidden>Write reviewed Git files</button>

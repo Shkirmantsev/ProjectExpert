@@ -118,8 +118,10 @@ it does not certify million-source production parsing, graph activation or queri
 - Default export stays off; review/approved-auto are explicit opt-ins. Approved-auto
   uses the existing signed action/repository/expiry boundary, verified on every
   publication, rather than inventing a second persistent capability authority.
-- Enabling portable identity intentionally reprocesses old absolute-path outputs
-  once. Unconfigured caches remain compatible and old source rows/files survive.
+- The initial implementation selected portable identity when sharing was enabled.
+  Both indexing engines now use relative identities from the first index, so
+  toggling sharing reuses compatible results. Older absolute-path records can
+  require a one-time rebuild after upgrade.
 - Recursive immutable manifests and deterministic segmented prefix buckets replace
   adaptive prefix depth. No record is split; oversized records fail explicitly.
 - Pure-text imports use bounded commit groups with atomic source savepoints so a

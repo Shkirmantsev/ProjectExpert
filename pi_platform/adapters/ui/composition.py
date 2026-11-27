@@ -638,6 +638,7 @@ class PublishedRetrieval:
                 **self.runtime.multi_stage_retrieval.stats(), **self.runtime.stage_report(),
                 "source_failures": list(self.runtime.extra.get("source_failures", ())),
                 "source_coverage": self.runtime.extra.get("source_coverage", {}),
+                "indexed_wiki_pages": self.runtime.extra.get("indexed_wiki_pages", 0),
                 "index_engine": self.runtime.extra.get("index_engine", "unknown"),
                 "portable_import": self.runtime.extra.get("portable_import", {}),
                 "portable_export": self.runtime.extra.get("portable_export", {"state": "off"}),

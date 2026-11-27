@@ -15,7 +15,7 @@ maintenance:
 
 # ADR 0034: Portable production canonical snapshots
 
-Date: 2026-11-14. Implementation is opt-in; deployment and scale certification
+Date: 2026-11-14. Export is opt-in; deployment and scale certification
 remain separate from local software acceptance.
 
 ## Decision
@@ -36,11 +36,11 @@ last, after validating installed files. Retain old referenced files. Exact Git
 attributes disable newline conversion only for generated v2 files. No binary
 runtime state, model assets or source images enter canonical export.
 
-Portable source identity is opt-in via a checked-out v2 root or an export policy.
-Existing unconfigured caches keep absolute-path keys; enabling v2 deliberately
-requires one new parse to establish relative identities and document/section
-structure. Enrichment follows the same identity. Import cannot infer a reusable
-source from runtime.db alone.
+Amended 2026-11-27. Both indexing engines use repository-relative v2 keys from
+the first local index. Private text inbox citations retain their native paths
+in search results. Sharing preferences can change without invalidating stored
+records. Existing outputs with older identities can require one rebuild after
+upgrade. Import cannot infer a reusable source from `runtime.db` alone.
 
 Default export is off. Review mode produces only a private proposal. Approved-auto
 requires an operator-issued HMAC materialise capability with repository/action

@@ -269,7 +269,20 @@ class RestService(RestApiPort):
         self._authorise("wiki", actor)
         if self._wiki is None:
             return WikiResult()
-        return WikiResult(documents=tuple(self._wiki.read(query=request.query, id=request.id)))
+        from ..sync.workspace_sync_contract import WorkspaceSyncFence, WorkspaceUnavailable
+        from ...ports import ReadinessSnapshot, RuntimeNotReadyError
+
+        workspace = WorkspaceSyncFence(self._repo_root)
+        try:
+            generation = workspace.committed()
+            documents = tuple(self._wiki.read(query=request.query, id=request.id))
+            if workspace.committed() != generation:
+                raise WorkspaceUnavailable("Workspace generation changed during Wiki read")
+        except WorkspaceUnavailable:
+            raise RuntimeNotReadyError(ReadinessSnapshot(
+                consistent=False, reason="Wiki temporarily unavailable during workspace synchronization",
+            )) from None
+        return WikiResult(documents=documents)
 
     def project_version(self, actor: UiActor) -> ProjectVersionResult:
         self._authorise("project-version", actor)

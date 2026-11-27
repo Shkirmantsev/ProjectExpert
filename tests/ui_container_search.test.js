@@ -47,11 +47,12 @@ function browser(options = {}) {
       else if (path.endsWith('/admin/chat')) body = init.method === 'PUT' ? {...JSON.parse(init.body), api_key:undefined,api_key_set:true} : {enabled:false,provider:'openai',base_url:'',model:'',share_context:false,api_key_set:false};
       else if (path.endsWith('/admin/chat/test')) body = {ok:true,message:'Connection successful'};
       else if (path.endsWith('/admin/reindex')) { body = {job_id:'job-123',status:'queued'}; status = 202; }
+      else if (path.endsWith('/retrieve') && options.indexUnavailable) { status=503; body={error:'runtime-not-ready'}; }
       else if (path.endsWith('/knowledge/settings')) body = init.method === 'PUT' ? JSON.parse(init.body) : {share_enabled:false,post_reindex_export:false,include_vectors:false};
       else if (/\/knowledge\/(restore|reindex|export|publish)$/.test(path)) { body = {job_id:'knowledge-' + path.split('/').at(-1)}; status=202; }
       else if (path.includes('/admin/jobs/knowledge-')) {
         if (options.fail) body={status:'failed',message:'Embedding server unreachable'};
-        else if (path.endsWith('reindex')) body=++knowledgeChecks === 1 ? {status:'running'} : {status:'completed',result:{new_vectors:0,source_parse_misses:0}};
+        else if (path.endsWith('reindex')) body=++knowledgeChecks === 1 ? {status:'running'} : {status:'completed',result:{new_vectors:0,source_parse_misses:0,portable_export:{state:'published',vectors:true,changedPaths:[]}}};
         else body = {status:'completed',result:path.endsWith('restore') ? {state:'requires-reindex'} : {stagingId:'proposal-123',snapshotId:'snapshot-123',sources:2,excludedSourceCount:1,changedPaths:['objects/hash.jsonl'],...(path.endsWith('publish') ? {state:'published'}:{})}};
       }
       else if (path.includes('/admin/jobs/')) body = options.fail ? {status:'failed',message:'Embedding server unreachable'} : {status:++jobChecks > 1 ? 'completed':'running',message:'Indexing'};
@@ -128,20 +129,25 @@ async function main() {
   assert.equal(b.node('chat-save').disabled,true);
   await flush();await flush();
   assert.equal(b.node('chat-save').disabled,false);
+  assert.equal(b.node('generate-answer-button').hidden,false);
+  b.node('query-text').value = 'refund';
+  b.node('generate-answer-button').listeners.click();
+  await flush();
+  assert.ok(b.requests.some(r => r.path.endsWith('/query') && JSON.parse(r.body).text === 'refund'));
   assert.equal(b.node('chat-key').value,'');
   assert.match(b.node('chat-status').textContent,/Generated answers enabled/);
   assert.doesNotMatch(b.node('chat-status').textContent,/fixture-secret/);
   b.node('chat-test').listeners.click();await flush();
   assert.match(b.node('chat-status').textContent,/Connection successful/);
-  assert.match(b.context.formatResult('query-result',{answer:'Generated answer [1]',results:[],explanations:['provider failed']}),/Generated answer/);
-  const fallback = b.context.formatResult('query-result', {
+  assert.match(b.context.formatResult('generated-answer-result',{answer:'Generated answer [1]',results:[],explanations:['provider failed']}),/Generated answer/);
+  const fallback = b.context.formatResult('generated-answer-result', {
     answer: null,
     results: [{metadata:{sourcePath:'brief.md'},snippet:'Evidence',score:0.5}],
     explanations: ['Chat unavailable: timed out waiting for the local model.'],
   });
   assert.match(fallback, /^No generated answer/);
   assert.ok(fallback.indexOf('timed out') < fallback.indexOf('brief.md'));
-  assert.doesNotMatch(b.context.formatResult('retrieve-result', {
+  assert.doesNotMatch(b.context.formatResult('query-result', {
     results: [{metadata:{sourcePath:'brief.md'},snippet:'Evidence',score:0.5}],
   }), /No generated answer/);
   b.node('admin-reindex-button').listeners.click();
@@ -149,6 +155,15 @@ async function main() {
   assert.equal(b.node('knowledge-sync-result').attrs['aria-busy'],'true');
   await flush(); await flush();
   assert.equal(b.node('admin-reindex-button').disabled,false);
+  assert.match(b.node('knowledge-sync-result').textContent,/Git export.*already up to date/i);
+  assert.match(b.node('knowledge-sync-result').textContent,/portable-v2\.json/);
+  assert.match(b.node('knowledge-sync-result').textContent,/embeddings included/i);
+  const cold = browser({indexUnavailable:true});
+  cold.node('query-text').value = 'refund';
+  cold.node('query-form').listeners.submit({preventDefault(){}});
+  await flush();
+  assert.ok(cold.requests.some(r => r.path.endsWith('/retrieve')));
+  assert.match(cold.node('query-result').textContent,/Local index/);
   assert.match(b.node('knowledge-sync-result').textContent,/completed/);
   assert.equal(b.requests.filter(r=>r.path.includes('/admin/jobs/')).length,2);
   b.node('wizard-form').listeners.submit({preventDefault(){}});

@@ -214,6 +214,22 @@ class HttpAdapterTests(TempRepoMixin, unittest.TestCase):
         self.assertIn("mode", payload)
         self.assertIn("results", payload)
 
+    def test_curated_wiki_reads_current_pages_while_index_builds(self) -> None:
+        from pi_platform.core.wiki.llm_wiki import LlmWiki
+
+        self.server.token = "fixture-token"
+        self.readiness.begin_refresh()
+        wiki = LlmWiki(self.repo)
+        wiki.ensure_scaffold()
+        wiki.write_page(relative_path="refunds", title="Refund methodology",
+                        body="Validate transaction currency before calculating the refund.")
+        status, body = self._request("/api/v1/wiki", data={"query": "methodology for refund processing"})
+        self.assertEqual(status, 200)
+        documents = json.loads(body)["documents"]
+        self.assertEqual([doc["path"] for doc in documents], ["refunds.md"])
+        self.assertIn("Validate transaction currency", documents[0]["text"])
+        self.assertEqual(self._request("/api/v1/retrieve", data={"text": "refund"})[0], 503)
+
     def test_adapter_uses_standard_library_only(self) -> None:
         source = (ROOT / "pi_platform/adapters/ui/http_server.py").read_text("utf-8")
         for banned in ("fastapi", "flask", "django", "aiohttp", "uvicorn"):

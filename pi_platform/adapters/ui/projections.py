@@ -19,6 +19,7 @@ from pi_platform.ports.ui.rest_api import (
     SourceRecord,
     WikiReadPort,
 )
+from pi_platform.core.wiki.llm_wiki import LlmWiki
 
 __all__ = ["build_read_projections", "FilesystemSourceCatalog",
            "FilesystemWikiRead", "EmptyConflicts"]
@@ -81,29 +82,18 @@ class FilesystemWikiRead(WikiReadPort):
     """Read-only projection over the OKF Wiki bundle."""
 
     def __init__(self, repo_root: Path) -> None:
-        self._wiki_root = (Path(repo_root).resolve() / "project-knowledge" / "wiki")
+        self._wiki = LlmWiki(repo_root)
 
     def read(
         self, *, query: Optional[str] = None, id: Optional[str] = None
     ) -> Sequence[Any]:
-        if not self._wiki_root.is_dir():
-            return ()
-        documents: list[Any] = []
-        needle = (query or "").strip().lower()
-        for path in sorted(self._wiki_root.rglob("*.md")):
-            text = path.read_text(encoding="utf-8", errors="replace")
-            if id and path.stem != id:
-                continue
-            if needle and needle not in text.lower():
-                continue
-            documents.append({
-                "id": path.stem,
-                "path": str(path.relative_to(self._wiki_root)),
-                "text": text,
-            })
-            if len(documents) >= 50:
-                break
-        return tuple(documents)
+        pages = (self._wiki.search_pages(query, top_k=50, include_body=True)
+                 if query else self._wiki.list_pages(include_body=True))
+        return tuple(
+            {"id": Path(page["path"]).stem, "path": page["path"],
+             "text": f'# {page["title"]}\n\n{page["body"]}'.strip()}
+            for page in pages if not id or id in {page["path"], Path(page["path"]).stem}
+        )[:50]
 
 
 class EmptyConflicts(ConflictsPort):

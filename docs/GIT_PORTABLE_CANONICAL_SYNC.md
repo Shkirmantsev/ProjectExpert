@@ -8,8 +8,10 @@ See [evidence](GIT_PORTABLE_CANONICAL_EVIDENCE.md) and
 
 ## Ordinary workflow
 
-Use the target checkout, not the ProjectExpert application directory. Enable
-portable identity and automatic private proposals for initial indexing:
+Run these commands against the target checkout. Both indexing engines use stable
+repository-relative identities regardless of sharing preferences. Local-only text
+inbox citations retain their local paths in search results.
+`PI_PORTABLE_EXPORT=review` requests a private export proposal after indexing:
 
 ```bash
 PI_PORTABLE_EXPORT=review python -m pi_platform.cli reindex --target /repo
@@ -23,6 +25,9 @@ exact float32 JSON vectors; omitting it means a cold cache computes document
 embeddings. Review sources, coverage and changed paths before approval. The
 `canonical status` command verifies the checked-out snapshot, not pending staging.
 The indexing response/UI status exposes the automatic proposal and import counts.
+
+Existing caches with older identities may have a one-time rebuild on
+the first refresh after upgrading. Compatible records are reused.
 
 Use an operator-issued signed `materialise` token scoped to the target repository
 and the proposal snapshotId. Publication rechecks source version and generation:

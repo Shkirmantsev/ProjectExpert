@@ -30,12 +30,36 @@ function call(method, path, body) {
       try { parsed = JSON.parse(text); } catch (err) { /* keep raw text */ }
       if (!response.ok) {
         var message = parsed && parsed.error;
+        if (response.status === 503 && message === 'runtime-not-ready') {
+          throw new Error(path === API + '/wiki'
+            ? 'Wiki is temporarily unavailable during workspace synchronization. Try again shortly.'
+            : 'Project search is unavailable. Check Local index for progress and try again when the index is ready.');
+        }
         if (message && typeof message === 'object') { message = message.message; }
         throw new Error((typeof message === 'string' ? message : 'The request could not be completed') + ' (HTTP ' + response.status + ')');
       }
       return parsed;
     });
   });
+}
+
+function formatAutomaticExport(report) {
+  if (!report || report.state === 'off') {
+    return 'Automatic Git export is off. Use Preview Git export to share.';
+  }
+  if (report.state === 'published') {
+    var count = report.changed_file_count || 0;
+    return 'Git export ' + (count ? 'wrote ' + count + ' files.' : 'is already up to date.') +
+      ' Snapshot: project-knowledge/manifests/portable-v2.json (' +
+      (report.vectors ? 'embeddings included' : 'text and indexes only') + '). Commit and push any changes separately.';
+  }
+  var messages = {
+    'approval-expired': 'Automatic Git export approval expired. Save Sharing preferences again to renew it, or use Preview Git export.',
+    'pending-review': 'The snapshot still needs review. Use Preview Git export and Write reviewed Git files.',
+    'no-exportable-sources': 'No source content passed the Git export policy.',
+    'blocked-by-skips': 'Git export requires a complete index. See Diagnostics for skipped sources.'
+  };
+  return messages[report.state] || 'Automatic Git export failed. Use Preview Git export to check the current snapshot.';
 }
 
 function formatResult(targetId, result) {
@@ -69,7 +93,8 @@ function formatResult(targetId, result) {
       var skipped = report.source_coverage && report.source_coverage.skipped;
       return 'Local index update completed.\n' + (report.source_parse_misses || 0) + ' sources processed · ' +
         (report.source_parse_hits || 0) + ' reused · ' + (report.new_vectors || 0) + ' new embeddings.' +
-        (skipped ? '\n' + skipped + ' sources skipped. See Diagnostics and project version.' : '');
+        (skipped ? '\n' + skipped + ' sources skipped. See Diagnostics and project version.' : '') +
+        '\n' + formatAutomaticExport(report.portable_export);
     }
     return report.message || 'Processing project knowledge…';
   }
@@ -78,7 +103,7 @@ function formatResult(targetId, result) {
       return doc.path + "\n\n" + doc.text;
     }).join("\n\n────────────────\n\n") : "No matching curated Wiki pages. Ask your MCP agent to create reviewed pages from project evidence.";
   }
-  if ((targetId === "query-result" || targetId === "retrieve-result") && result.results) {
+  if ((targetId === "query-result" || targetId === "generated-answer-result") && result.results) {
     var evidence = result.results.length ? result.results.slice(0, 10).map(function (hit, i) {
       var meta = hit.metadata || {};
       return "[" + (i + 1) + "] " + (meta.sourcePath || meta.documentId || hit.chunkId) +
@@ -87,7 +112,7 @@ function formatResult(targetId, result) {
     }).join("\n\n") : "No matching evidence. Check indexing status or try a more specific question.";
     var answer = result.answer ? "Answer (generated from retrieved evidence):\n" + result.answer + "\n\nSources:\n" : "";
     var explanation = result.explanations ? "\n\n" + result.explanations.join("\n") : "";
-    if (targetId === "query-result" && !result.answer) {
+    if (targetId === "generated-answer-result" && !result.answer) {
       return "No generated answer. Search evidence is available below." + explanation + "\n\nRetrieved sources:\n" + evidence;
     }
     return answer + evidence + explanation;
@@ -138,6 +163,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ["admin-nav", "index-admin-actions", "settings"].forEach(function (id) {
       document.getElementById(id).hidden = !allowed;
     });
+    if (!allowed) { document.getElementById("generate-answer-button").hidden = true; }
     if (allowed) { reloadProtected.forEach(function (reload) { reload(); }); }
   }
   if (tokenField) {
@@ -177,15 +203,15 @@ document.addEventListener("DOMContentLoaded", function () {
   bindButton("indexing-button", "indexing-result", function () { return call("GET", API + "/indexing-status"); });
   bindButton("knowledge-button", "knowledge-result", function () { return call("GET", API + "/knowledge-status"); });
 
-  bindButton("retrieve-button", "retrieve-result", function () {
-    return call("POST", API + "/retrieve", { text: document.getElementById("query-text").value, top_k: 10 });
+  bindButton("generate-answer-button", "generated-answer-result", function () {
+    return call("POST", API + "/query", { text: document.getElementById("query-text").value, top_k: 10 });
   });
 
   var queryForm = document.getElementById("query-form");
   queryForm.addEventListener("submit", function (event) {
     event.preventDefault();
     run("query-result", function () {
-      return call("POST", API + "/query", { text: document.getElementById("query-text").value, top_k: 10 });
+      return call("POST", API + "/retrieve", { text: document.getElementById("query-text").value, top_k: 10 });
     });
   });
 
@@ -232,22 +258,24 @@ document.addEventListener("DOMContentLoaded", function () {
     var sourceStage = (progress.stages || []).find(function (stage) { return stage.stage === 'sources'; });
     var coverage = retrieval.source_coverage || {};
     if (status.ready) {
+      var wikiCount = retrieval.indexed_wiki_pages || 0;
       return coverage.skipped
         ? 'Search is ready. ' + coverage.indexed + ' of ' + coverage.eligible + ' sources indexed. ' +
-          coverage.skipped + ' skipped. See Diagnostics for details.'
-        : 'Local search is ready.';
+          coverage.skipped + ' skipped. See Diagnostics for details. Curated Wiki pages indexed: ' + wikiCount + '.'
+        : typeof coverage.indexed === 'number' ? 'Search is ready. Sources indexed: ' + coverage.indexed +
+          '. Curated Wiki pages indexed: ' + wikiCount + '.' : 'Local search is ready.';
     }
     if (hydration.in_progress) {
       var labels = {sources: 'Reading files', projection: 'Preparing searchable text',
         exact: 'Building exact search', graph: 'Building the knowledge graph',
-        embedding: 'Preparing and creating embeddings', sparse: 'Building keyword search'};
+        embedding: 'Reusing or creating embeddings', sparse: 'Building keyword search'};
       var stage = (progress.stages || []).find(function (item) { return item.stage === progress.active_stage; });
       if (progress.state === 'running' && stage) {
         return (labels[stage.stage] || 'Building the index') +
           (stage.total_items ? ' · ' + stage.completed_items + ' / ' + stage.total_items : '') +
           (sourceStage && sourceStage.failed_items ? ' · ' + sourceStage.failed_items + ' source errors' : '');
       }
-      return 'Preparing the workspace for indexing…';
+      return progress.state === 'published' ? 'Finalizing the index and checking Git export…' : 'Preparing the workspace for indexing…';
     }
     return hydration.reason || 'Local search is unavailable. See Diagnostics for status.';
   }
@@ -288,6 +316,7 @@ document.addEventListener("DOMContentLoaded", function () {
         "LM Studio: start its server and load a chat model. From Docker use http://host.docker.internal:1234/v1 and the exact loaded model ID. The server must accept connections from Docker. For another server enter its OpenAI-compatible /v1 base URL. This is a chat model, separate from Gemma embeddings.");
     }
     function fillChat(settings) {
+      document.getElementById("generate-answer-button").hidden = !settings.enabled;
       document.getElementById("chat-enabled").checked = settings.enabled;
       document.getElementById("chat-provider").value = settings.provider;
       document.getElementById("chat-base-url").value = settings.base_url;
